@@ -27,12 +27,15 @@ class ConfigurationTests(TestCase):
 
     def test_get_postgres(self):
         config = KniminConfig(self.config_fp)
-        self.assertEqual(config.user, 'test')
-        self.assertEqual(config.password, '')
-        self.assertEqual(config.database, 'knimin')
-        self.assertEqual(config.host, 'localhost')
-        self.assertEqual(config.port, 5432)
+        self.assertEqual(config.db_user, 'test')
+        self.assertEqual(config.db_password, '')
+        self.assertEqual(config.db_database, 'knimin')
+        self.assertEqual(config.db_host, 'localhost')
+        self.assertEqual(config.db_port, 5432)
 
+    def test_get_tornado(self):
+        config = KniminConfig(self.config_fp)
+        self.assertEqual(config.http_port, 8888)
 
 test_config = """[main]
 debug = True
@@ -43,6 +46,9 @@ password =
 database = knimin
 host = localhost
 port = 5432
+
+[tornado]
+port = 8888
 """
 
 

@@ -11,11 +11,11 @@ class SQLHandler(object):
     Sourced from QIITA's SQLConnectionHandler
     """
     def __init__(self, config):
-        self._connection = connect(user=config.user,
-                                   password=config.password,
-                                   database=config.database,
-                                   host=config.host,
-                                   port=config.port)
+        self._connection = connect(user=config.db_user,
+                                   password=config.db_password,
+                                   database=config.db_database,
+                                   host=config.db_host,
+                                   port=config.db_port)
 
     def __del__(self):
         self._connection.close()

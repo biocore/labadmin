@@ -51,13 +51,14 @@ class KniminConfig(object):
         with open(config_fp, 'U') as conf_file:
             config.readfp(conf_file)
 
-        _expected_sections = {'main', 'postgres'}
+        _expected_sections = {'main', 'postgres', 'tornado'}
         if set(config.sections()) != _expected_sections:
             missing = _expected_sections - set(config.sections())
             raise ValueError("Missing sections: %s" % missing)
 
         self._get_main(config)
         self._get_postgres(config)
+        self._get_tornado(config)
 
     def _get_main(self, config):
         """Get the configuration of the main section"""
@@ -65,8 +66,12 @@ class KniminConfig(object):
 
     def _get_postgres(self, config):
         """Get the configuration of the postgres section"""
-        self.user = config.get('postgres', 'user')
-        self.password = config.get('postgres', 'password')
-        self.database = config.get('postgres', 'database')
-        self.host = config.get('postgres', 'host')
-        self.port = config.getint('postgres', 'port')
+        self.db_user = config.get('postgres', 'user')
+        self.db_password = config.get('postgres', 'password')
+        self.db_database = config.get('postgres', 'database')
+        self.db_host = config.get('postgres', 'host')
+        self.db_port = config.getint('postgres', 'port')
+
+    def _get_tornado(self, config):
+        """Get tornado config bits"""
+        self.http_port = config.getint('tornado', 'port')
