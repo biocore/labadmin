@@ -201,3 +201,6 @@ class SQLHandler(object):
 class KniminAccess(object):
     def __init__(self, config):
         self._con = SQLHandler(config)
+
+    def authenticate_user(self, user, password):
+        return True

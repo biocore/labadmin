@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <noscript>
+            <meta HTTP-EQUIV="REFRESH" content="0; url=nojs.html">
+        </noscript>
+        <meta charset="utf-8">
+        <title>Knight lab DB admin</title>
+{% block head %}
+{% end %}
+    </head>
+    <body>
+        <!-- Header logo -->
+        <div class="wrapper clearfix" style="position:absolute; top:10px; left:50px; right:50px; opacity:0.9;">
+            <br>
+            <div class="left menuwrapper">
+                <div id="cssmenu">
+                    <h3 style="margin-left:5px;">Log In</h3>
+                    <table width="100%">
+                        <tr width="100%">
+                            <td width="30%"></td>
+                            <td width="30%">
+                                <div style="color:red">{{ loginerror }}</div>
+                                <form method="post" action="/auth/login/">
+                                    <table width="100%">
+                                        <tr><td>Username</td><td><input type="text" id="user" name="user"></td></tr>
+                                        <tr><td>Password</td><td><input type="password" id="password" name="password"></td></tr>
+                                        <tr><td colspan="2"><input type="submit" value="Log In"></td></tr> 
+                                    </table>
+                                </form>
+                            </td>
+                            <td width="30%"></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            <div class="content">
+{% block content %}
+{% end %}
+            </div>
+        </div>
+    </body>
+</html>
