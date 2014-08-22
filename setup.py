@@ -1,0 +1,33 @@
+#!/usr/bin/env python
+
+# -----------------------------------------------------------------------------
+# Copyright (c) 2013, The Qiita Development Team.
+#
+# Distributed under the terms of the BSD 3-clause License.
+#
+# The full license is in the file LICENSE, distributed with this software.
+# -----------------------------------------------------------------------------
+
+__version__ = "0.1.0-dev"
+
+from setuptools import setup
+
+
+long_description = """Knight lab admin"""
+
+setup(name='Knight lab UI',
+      version=__version__,
+      long_description=long_description,
+      license="BSD",
+      description='',
+      author="",
+      author_email="mcdonadt@colorado.edu",
+      url='',
+      test_suite='nose.collector',
+      packages=['amgut'],
+      package_data={'knimin': [],
+                    'knimin.lib': [],
+                    'knimin.handlers': []},
+      extras_require={'test': ["nose >= 0.10.1", "pep8"]},
+      install_requires=['psycopg2', 'tornado==3.1.1', 'WTForms==2.0.1']
+      )
