@@ -4,12 +4,13 @@ from uuid import uuid4
 
 from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
-from tornado.web import Application
+from tornado.web import Application, StaticFileHandler
 from tornado.options import define, options, parse_command_line
 
 from knimin import config
 from knimin.handlers.base import MainHandler, NoPageHandler
 from knimin.handlers.auth import AuthLoginHandler, AuthLogoutHandler
+from knimin.handlers.test import TestHandler
 
 
 define("port", default=config.http_port, type=int)
@@ -24,9 +25,13 @@ COOKIE_SECRET = b64encode(uuid4().bytes + uuid4().bytes)
 class WebApplication(Application):
     def __init__(self):
         handlers = [
+            (r"/results/(.*)", StaticFileHandler,
+                {"path": '/tmp/'}),
+            (r"/static/(.*)", StaticFileHandler, {"path": STATIC_PATH}),
             (r"/", MainHandler),
             (r"/auth/login/", AuthLoginHandler),
             (r"/auth/logout/", AuthLogoutHandler),
+            (r"/test/", TestHandler),
             (r".*", NoPageHandler)
         ]
         settings = {
