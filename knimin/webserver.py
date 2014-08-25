@@ -11,7 +11,9 @@ from knimin import config
 from knimin.handlers.base import MainHandler, NoPageHandler
 from knimin.handlers.auth import AuthLoginHandler, AuthLogoutHandler
 from knimin.handlers.logged_in_index import LoggedInIndexHandler
-
+from knimin.handlers.ag_stats import AGStatsHandler
+from knimin.handlers.ag_new_participant import AGNewParticipantHandler
+from knimin.handlers.ag_edit_participant import AGEditParticipantHandler
 
 define("port", default=config.http_port, type=int)
 
@@ -32,6 +34,9 @@ class WebApplication(Application):
             (r"/auth/login/", AuthLoginHandler),
             (r"/auth/logout/", AuthLogoutHandler),
             (r"/logged_in_index/", LoggedInIndexHandler),
+            (r"/ag_new_participant/", AGNewParticipantHandler),
+            (r"/ag_stats/", AGStatsHandler),
+            (r"/ag_edit_participant/", AGEditParticipantHandler),
             (r".*", NoPageHandler)
         ]
         settings = {

@@ -148,7 +148,6 @@ function validateEditParticipant() {
   	
 	if(valid)
   {
-		document.edit_participant.submit_flag.value=1;
     document.edit_participant.submit();
   }
 }
