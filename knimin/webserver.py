@@ -10,7 +10,7 @@ from tornado.options import define, options, parse_command_line
 from knimin import config
 from knimin.handlers.base import MainHandler, NoPageHandler
 from knimin.handlers.auth import AuthLoginHandler, AuthLogoutHandler
-from knimin.handlers.test import TestHandler
+from knimin.handlers.logged_in_index import LoggedInIndexHandler
 
 
 define("port", default=config.http_port, type=int)
@@ -31,7 +31,7 @@ class WebApplication(Application):
             (r"/", MainHandler),
             (r"/auth/login/", AuthLoginHandler),
             (r"/auth/logout/", AuthLogoutHandler),
-            (r"/test/", TestHandler),
+            (r"/logged_in_index/", LoggedInIndexHandler),
             (r".*", NoPageHandler)
         ]
         settings = {
