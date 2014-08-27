@@ -107,7 +107,6 @@ function validateAGForm() {
     }
 	
 	if(valid)
-    document.agForm.submit_flag.value=1;
 		$('#agForm').submit();
 }
 

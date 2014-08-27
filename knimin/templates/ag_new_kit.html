@@ -1,0 +1,39 @@
+{% extends logged_in_index.html %}
+{% block content %}
+<h3>Add AG Kit</h3>
+{% if response is None %}
+<form method="post" action="/ag_new_kit/" name="agForm" id="agForm">
+    <table>
+        <tr>
+            <td>Kit Owner</td>
+            <td><input type="text" name="email" id="email"></td>
+            </tr>
+        <tr><td>Kit ID</td><td><input type="text" name="kit_id" id="kit_id" value="{{kitid}}"></td></tr>
+        <tr><td>Kit Password</td><td><input type="text" name="kit_password" id="kit_password" value="{{password}}"></td></tr>
+        <tr><td>Number of Swabs</td><td><input type="text" name="swabs_per_kit" id="swabs_per_kit" onkeypress='validateNumber(event)'></td></tr>
+        <tr><td>Kit Verification Code</td><td><input type="text" name="kit_verification_code" id="state" value="{{vercode}}"></td></tr>
+        <tr><td></td><td><input type="button" onclick="validateAGSingleSubmitForm();" value="Submit"></td></tr>
+    </table>
+</form>
+{% elif response == 'Bad Email' %}
+ Email Address not in System<br> Please try again
+<form method="post" action="/ag_new_kit/" name="agForm" id="agForm">
+    <table>
+
+        <tr>
+            <td>Kit Owner</td>
+            <td><input type="text" name="email" id="email" value="{{email}}"></td>
+            </tr>
+        <tr><td>Kit ID</td><td><input type="text" name="kit_id" id="kit_id" value="{{kitid}}"></td></tr>
+        <tr><td>Kit Password</td><td><input type="text" name="kit_password" id="kit_password" value="{{password}}"></td></tr>
+        <tr><td>Number of Swabs</td><td><input type="text" name="swabs_per_kit" id="swabs_per_kit" onkeypress='validateNumber(event)'></td></tr>
+        <tr><td>Kit Verification Code</td><td><input type="text" name="kit_verification_code" id="state" value="{{vercode}}"></td></tr>
+        <tr><td></td><td><input type="button" onclick="validateAGSingleSubmitForm();" value="Submit"></td></tr>
+    </table>
+</form>
+{% elif response == 'Good' %}
+    Kit Added
+{%elif response == 'Bad' %}
+    Error Adding Kit
+{% end %}
+{% end %}

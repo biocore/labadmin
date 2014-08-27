@@ -1,0 +1,73 @@
+{% extends logged_in_index.html %}
+{% block content %}
+<h3>Add AG Barcode</h3>
+<script>
+var next_barcode = {{barcode}};
+var text_barcode = "{{t_barcode}}";
+</script>
+
+
+{% if response is None %}
+<form method="post" action="/ag_new_barcode/" name="agForm" id="agForm">
+<table>
+        <tr><td>Kit ID</td><td><input type="text" name="kitid" id="kitid">
+            </td>
+        </tr>
+
+        <tr>
+            <td>Barcode</td>
+            <td>
+                
+                <div id="barcode">
+                    <div id="barcode_1">
+                        <input type="text" name="barcode_1" id="barcode_1" onkeypress="validateNumber(event);" maxlength="9">
+                    </div>
+                </div>
+                <a class="add_field" href="javascript:next_barcode = parseInt(next_barcode) + 1; addBarcodeField('barcode', next_barcode);" title="Barcode">+</a>
+            </td>
+        </tr>
+        <tr>
+            <td></td>
+            <td colspan="2"><input type="button" onclick="validateAGSingleSubmitForm()" value="Submit"></td>
+        </tr>
+    </table>
+</form>
+<script>
+document.agForm.barcode_1.value = text_barcode;
+</script>
+
+{% elif response == 'Bad Kit' %}
+Kit {{kitid}} does not exsist please try agian 
+<form method="post" action="/ag_new_barcode/" name="agForm" id="agForm">
+<table>
+        <tr><td>Kit ID</td><td><input type="text" name="kitid" id="kitid">
+            </td>
+        </tr>
+
+        <tr>
+            <td>Barcode</td>
+            <td>
+                
+                <div id="barcode">
+                    <div id="barcode_1">
+                        <input type="text" name="barcode_1" id="barcode_1" onkeypress="validateNumber(event);" maxlength="9">
+                    </div>
+                </div>
+                <a class="add_field" href="javascript:next_barcode = parseInt(next_barcode) + 1; addBarcodeField('barcode', next_barcode);" title="Barcode">+</a>
+            </td>
+        </tr>
+        <tr>
+            <td></td>
+            <td colspan="2"><input type="button" onclick="validateAGSingleSubmitForm()" value="Submit"></td>
+        </tr>
+    </table>
+</form>
+<script>
+document.agForm.barcode_1.value = text_barcode;
+</script>
+{% elif response == 'Good' %}
+    Barcode(s) Added
+{%elif response == 'Bad' %}
+    Error Adding Barcode(s)
+{% end %}
+{% end %}
