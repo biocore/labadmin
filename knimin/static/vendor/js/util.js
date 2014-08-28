@@ -168,7 +168,6 @@ function validateEditBarcode() {
     
   if(valid)
   {
-    document.edit_barcode.submit_flag.value=1;
     document.edit_barcode.submit();
   }
 }
