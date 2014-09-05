@@ -26,7 +26,6 @@ class AGNewBarcodeHandler(BaseHandler):
         try:
             for x in range(1, num_barcodes):
                 field = 'barcode_%s' % x
-                print field
                 barcode = self.get_argument(field)
                 AG_DATA_ACCESS.addAGBarcode(kitinfo['ag_kit_id'], barcode)
 

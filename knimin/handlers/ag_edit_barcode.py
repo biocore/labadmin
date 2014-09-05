@@ -18,7 +18,6 @@ class AGEditBarcodeHandler(BaseHandler):
                         logins=logins, loginerror='')
 
     def post(self):
-        print self.request.arguments
         barcode = self.get_argument('barcode')
         ag_kit_id = self.get_argument('ag_kit_id')
         site_sampled = self.get_argument('site_sampled')
