@@ -1,0 +1,161 @@
+{% extends logged_in_index.html %}
+{% block content %}
+<h3>Edit AG Barcode</h3>
+
+{% if barcode is not None %}
+<form method="post" name="edit_barcode" id="edit_barcode" action="/ag_edit_barcode/">
+<input type="hidden" name="barcode" id="barcode" value="{{barcode}}">
+ <table>
+        <tr><td> Barcode</td><td><input type="text" name="barcode" id="barcode" value="{{barcode}}" disabled style="background-color:#ccc;"></td></tr>
+        <tr>
+            <td>Kit ID</td>
+            <td class="warning">
+                <select name="ag_kit_id" id="ag_kit_id">
+                <option value="">Please Select...</a>
+
+
+    {% for email, supplied_kit_id, ag_kit_id in logins %}
+        {% if details['ag_kit_id'] == ag_kit_id %}
+            '<option value="{{ag_kit_id}}" selected>{{email}} ({{supplied_kit_id}})</option>'
+        {% else %}
+            '<option value="{{ag_kit_id}}">{{email}} ({{supplied_kit_id}})</option>'
+        {% end %}
+    {% end %}
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <td></td><td class="warning">WARNING: Changing this value will reassign this barcode to the selected kit.<br/>Leave this value alone unless you are certain you wish to reassign.</td>
+        </tr>
+        <tr>
+
+        <tr>
+            <td>Site Sampled</td>
+            <td>
+                <select name="site_sampled" id="site_sampled">
+                    <option value="">None</option>
+
+    {% for site_sampled in sites_sampled %}
+        {% if site_sampled == details['site_sampled'] %}
+            '<option value="{{site_sampled}}" selected>{{site_sampled}}</option>'
+        {% else %}
+            '<option value="{{site_sampled}}">{{site_sampled}}</option>'.format(site_sampled)
+        {% end %}
+    {% end %}
+
+                </select>
+            </td>
+        </tr>
+
+        <tr>
+            <td></td><td style="font-weight:bold;">If you select this value, please ensure that "Environment Sampled" is set to "None"</td>
+        </tr>
+
+        <tr>
+            <td>Environment Sampled</td>
+            <td>
+                <select name="environment_sampled" id="environment_sampled">
+                    <option value="">None</option>
+
+    {% for environment_sampled in environments_sampled %}
+        {% if environment_sampled == details['environment_sampled'] %}
+            '<option value="{{environment_sampled}}" selected>{{environment_sampled}}</option>'
+        {% else %}
+            '<option value="{{environment_sampled}}">{{environment_sampled}}</option>'
+        {% end %}
+    {% end %}
+                </select>
+            </td>
+        </tr>
+
+        <tr>
+            <td></td><td style="font-weight:bold;">If you select this value, please ensure "Site Sampled" is set to "None"</td>
+        </tr>
+
+        <tr>
+            <td>Sample Date</td>
+            <td><input tabindex="3" type="text" name="sample_date" id="sample_date" class="small_text" value="{{details['sample_date']}}" /><br/>mm/dd/yyyy (Example: 05/07/2013)</td>
+            <script>
+              $(function() {
+                $( "#sample_date" ).datepicker({
+                        changeMonth: true,
+                        minDate:'-12m',
+                        maxDate: '+0m',
+                        onSelect: function(dateText, inst) {
+                            $(this).focus();
+                        }
+                });
+              });
+            </script>
+        </tr>
+        <tr>
+            <td>Sample Time</td>
+            <td><input tabindex="4" type="text" id="sample_time" name="sample_time" class="small_text" value="{{details['sample_time']}}" /><br/>hh:mm AM/PM (Example: 04:35 PM)</td>
+            <script>
+              $(function() {
+                $( "#sample_time" ).timepicker({
+                    showPeriod: true,
+                    showLeadingZero: true,
+                    onSelect: function(dateText, inst) {
+                        $(this).focus();
+                    }
+                });
+              });
+            </script>
+        </tr>
+        <tr>
+            <td>Participant Name</td>
+            <td class="warning"><input type="text" name="participant_name" id="participant_name" value="{{details['participant_name']}}"/></td>
+        </tr>
+        <tr>
+        <td></td><td class="warning">WARNING: Changing this value will reassign the barcode to the specified participant.<br/>Leave this alone unless you need to reassign!
+        </tr>
+        <tr>
+            <td>Notes</td>
+            {% if details['notes'] is None %}
+             <td><textarea name="notes" id="notes" style="width:350px;height:100px;"></textarea></td>
+            {% else %}
+            <td><textarea name="notes" id="notes" style="width:350px;height:100px;">{{details['notes']}}</textarea></td>
+            {% end %}
+        </tr>
+        <tr>
+        <td>Refunded</td><td><select name="refunded" id="refunded">
+
+        {% if details['refunded'] == 'N'  or details['refunded'] is None %}
+          <option value="N" selected>No</option>
+          <option value="Y">Yes</option>
+        {% else %}
+          <option value="N">No</option>
+          <option value="Y" selected>Yes</option>
+        {% end %}
+
+        </select>
+        </td></tr>
+        <tr>
+        <td>Withdrawn</td><td><select name="withdrawn" id="withdrawn">
+
+        {% if details['withdrawn'] == 'N'  or details['withdrawn'] is None %}
+          <option value="N" selected>No</option>
+          <option value="Y">Yes</option>
+        {% else %}
+          <option value="N">No</option>
+          <option value="Y" selected>Yes</option>
+        {% end %}
+    </select>
+        </td></tr>
+
+
+        <tr>
+            <td></td><td><input type="button" onClick="validateEditBarcode();" value="Submit"></td>
+        </tr>
+        
+
+
+    </table>
+</form>
+{% elif response == 'Good' %}
+Barcode was updated successfully
+{% elif response == 'Bad' %}
+Error Updating Barcode Info
+{% end %}
+{% end %}

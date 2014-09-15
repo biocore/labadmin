@@ -107,7 +107,6 @@ function validateAGForm() {
     }
 	
 	if(valid)
-    document.agForm.submit_flag.value=1;
 		$('#agForm').submit();
 }
 
@@ -148,7 +147,6 @@ function validateEditParticipant() {
   	
 	if(valid)
   {
-		document.edit_participant.submit_flag.value=1;
     document.edit_participant.submit();
   }
 }
@@ -170,7 +168,6 @@ function validateEditBarcode() {
     
   if(valid)
   {
-    document.edit_barcode.submit_flag.value=1;
     document.edit_barcode.submit();
   }
 }
