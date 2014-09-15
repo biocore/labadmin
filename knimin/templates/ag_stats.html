@@ -1,0 +1,9 @@
+{% extends logged_in_index.html %}
+{% block content %}
+<h3>American Gut Statistics</h3>
+<table>
+{% for item, stat in stats %} 
+    <tr><td>{{item}}</td><td>{{stat}}</td></tr>
+{% end %}
+</table>
+{% end %}

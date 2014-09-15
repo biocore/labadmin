@@ -36,4 +36,4 @@ class MainHandler(BaseHandler):
 
 class NoPageHandler(BaseHandler):
     def get(self):
-        self.render("404.html", user=self.current_user)
+        self.render("404.html", loginerror="")
