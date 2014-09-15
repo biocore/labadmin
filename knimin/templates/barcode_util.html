@@ -1,0 +1,210 @@
+{% extends logged_in_index.html %}
+{% block content %}
+<h3>Barcode Scanner </h3>
+<div>
+<form name="check_barcode" action="/barcode_util/" method="post">
+    <input id="barcode" name="barcode" type="text" onclick="this.select()" />
+    <input type="submit" value="Check Barcode" />
+    <script>
+        document.check_barcode.barcode.focus()
+    </script>
+</form>
+<div>
+{% if barcode_info is not None%}
+<div id="{{div_and_msg[0]}}" class="verification_color">
+           <div class="verification_text_wrapper">
+              <br />
+               
+                <h2 class="verification_text">
+                 Project type: {{proj}} <br><br>
+                 Barcode: {{div_and_msg[2]}}<br><br>
+                {{div_and_msg[1]}}</h2>
+            </div>
+        </div>
+
+{% if len(barcode_info) > 0%}
+<div id="barcode_form">
+
+        <form action="/barcode_util/" method="post"
+         onsubmit="return confirm('Are you sure you want to submit and update database?')"
+         onreset="return confirm('Are you sure you want to reset?')">
+          <input type="hidden" name="barcode" value="{{barcode}}" />
+          <input type="hidden" name="proj_group" id="proj_group" value="{{proj}}"/>
+          <ul>
+          <table cellspacing="40"><tr><td>
+          <h2> General Barcode Details </h2>
+            <li>
+               Sample postmark date (current: {{barcode_info['sample_postmark_date']}}) : <br />
+                  <input type="text" name="postmark_date" id="postmark_date" value="{{barcode_info['sample_postmark_date']}}"
+                   onclick="this.select()" /> <br />
+                        <script>
+                          $(function() {
+                            $( "#postmark_date" ).datepicker({
+                                    changeMonth: true,
+                                    maxDate: '+0m',
+                                    onSelect: function(dateText, inst) {
+                                        $(this).focus();
+                                    }
+                            });
+                          });
+                        </script>
+                  (please follow the format mm/dd/yyyy. Example: 12/25/2012)
+             </li>
+             <li>
+               Scan date (current: {{barcode_info['scan_date']}}): <br />
+               <input type="text" name="scan_date" id="scan_date" value="{{barcode_info['scan_date']}}" onclick="this.select()" /> <br />
+                        <script>
+                          $(function() {
+                            $( "#scan_date" ).datepicker({
+                                    changeMonth: true,
+                                    maxDate: '+0m',
+                                    onSelect: function(dateText, inst) {
+                                        $(this).focus();
+                                    }
+                            });
+                          });
+                        </script>
+                  (please follow the format mm/dd/yyyy. Example: 12/25/2012)
+             </li>
+             <li>
+             Barcode Status:<br /><select name="bstatus" id="bstatus">
+
+       
+        {% for bstatus in ['Recieved', ''] %}
+            {% if bstatus == barcode_info['status'] %}
+                <option value="{{bstatus}}" selected>{{bstatus}}</option>
+            {% else %}
+                <option value="{{bstatus}}">{{bstatus}}</option>
+            {% end %}
+        {% end %}
+
+
+             </select></li>
+             <li>Biomass Remaining: <br /><select name="biomass_remaining" id="biomass_remaining">
+
+        {% for bmass, option_name in [('N', 'No'), ('Y', 'Yes'), ('Unknown', 'Unknown')] %}
+            {% set selected = 'selected' if bmass == barcode_info['biomass_remaining'] else '' %}
+            <option value="{{bmass}}" {{selected}}>{{option_name}}</option>
+        {% end %}
+
+             </select></li>
+             <li>Sequencing Status<br /><select name="sequencing_status" id="sequencing_status">
+
+        {% for sstatus in ['SUCCESS', 'FAILED_SEQUENCING', 'WAITING', ''] %}
+            {% set selected = 'selected' if sstatus == barcode_info['sequencing_status'] else '' %}
+            <option value="{{sstatus}}" {{selected}}>{{sstatus}}</option>
+        {% end %}
+
+        </select></li>
+             <li>Obsolete<br /><select name="obsolete_status" id="obsolete_status">
+
+        {% if barcode_info['obsolete'] == 'N' %}
+          <option value="N" selected>No</option>
+          <option value="Y">Yes</option>
+        {% else %}
+          <option value="N">No</option>
+          <option value="Y" selected>Yes</option>
+        {% end %}
+
+             </select></li>
+             <li>
+             Project <br /><select name="project" id="project" >
+
+        {% for project in project_names %}
+            {% if project == proj %}
+                <option value="{{project}}" selected>{{project}}</option>
+            {% else %}
+                <option value="{{project}}">{{project}}</option>
+            {% end %}
+        {% end %}
+
+        </select>
+        </li></td><td>
+
+        {% if proj == 'American Gut' and len(proj_barcode_info) > 0 %}
+          <input type="hidden" name="sent_date" value="<%=date_of_last_email%>" />
+          <input type="hidden" name="login_user"  value="<%=login_user%>" />
+          <input type="hidden" name="login_email" value="<%=email%>" />
+          <input type="hidden" name="email_type" value="<%=email_type%>" />
+          <input type="hidden" name="sample_date" id="sample_date" value="<%=sample_date%>"/>
+          <input type="hidden" name="sample_time" id="sample_time" value="<%=sample_time%>"/>
+          <input type="hidden" name="sample_site" id="sample_site" value="<%=sample_site%>"/>
+            <h2>{{proj}} Details</h2>
+             <li>
+             Sample details: <br/>
+             <table>
+             <tr><td>Sample Date</td><td>{{proj_barcode_info['sample_date']}}</td></tr>
+             <tr><td>Sample Time</td><td>{{proj_barcode_info['sample_time']}}</td></tr>
+             <tr><td>Sample Site</td><td>{{proj_barcode_info['site_sampled']}}</td></tr>
+             </table>
+             </li>
+             <li>
+               Sample issues: <br />
+                  <input class="checkbox" type="checkbox" name="sample_issue" id="moldy" value="moldy" {{proj_barcode_info['moldy_checked']}}/> 
+                    <label for="moldy"> moldy (current: {{proj_barcode_info['moldy']}}) </label> <br />
+                  <input class="checkbox" type="checkbox" name="sample_issue" id="overloaded" value="overloaded" {{proj_barcode_info['overloaded_checked']}}}/>
+                    <label for="overloaded"> overloaded (current: {{proj_barcode_info['overloaded']}}}) </label> <br />
+                  <input class="checkbox" type="checkbox" name="sample_issue" id="other" value="other" {{proj_barcode_info['other_checked']}}/>
+                    <label for="other"> other (current: {{proj_barcode_info['other']}}) </label> <br />
+             </li>
+             <li>
+               Other notes: <br />
+                  <textarea name="other_text" onclick="this.select()">{{proj_barcode_info['other_text']}}</textarea>
+             </li>
+            
+             <li>
+               Send an email notification (previously sent: {{proj_barcode_info['date_of_last_email']}}): <br />
+
+               <table><tr>
+                  <td> <input class="checkbox" type="checkbox" name="send_email" id="send_email" value="send_email" style="float:left;" /> </td>
+                  <td><label for="send_email" style="display:block;">send kit owner {{proj_barcode_info['login_user']}} ({{proj_barcode_info['email']}}) an email </label> </td></tr>
+
+            {% if email_type == '0' %}
+            <tr><td></td><td>
+            sample date: <input type="text" name="sample_date" id="sample_date" style="width:100px"/> <br/>
+                        <script>
+                          $(function() {
+                            $( "#sample_date" ).datepicker({
+                                    changeMonth: true,
+                                    maxDate: '+0m',
+                                    onSelect: function(dateText, inst) {
+                                        $(this).focus();
+                                    }
+                            });
+                          });
+                        </script>
+            </td></tr>
+            <tr><td></td><td>
+            sample time: <input type="text" name="sample_time" id="sample_time" style="width:100px"/> <br />
+                  <script>
+                      $(function() {
+                        $( "#sample_time" ).timepicker({
+                           showPeriod: true,
+                           showLeadingZero: true,
+                           onSelect: function(dateText, inst) {
+                              $(this).focus();
+                           }
+                        });
+                      });
+                  </script>
+            </td></tr>
+
+            {% elif email_type == '1' %}
+            <input type="hidden" name="sample_time" value="<%=sample_time%>" />
+            <input type="hidden" name="sample_date" value="<%=sample_date%>" />
+{% end %}
+            </table>
+           </li>
+           <li>
+            <a href="/ag_edit_barcode/?barcode={{barcode}}">Edit American Gut Barcode</a>
+           </li>
+          </ul>
+{% end %}
+          </td></tr></table><br /><br />
+              <input type="submit" value="Submit">
+              <input type="reset" value="Reset!">
+        </form>
+        </div>
+{% end %}
+{% end %}
+{% end %}

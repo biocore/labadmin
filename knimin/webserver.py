@@ -12,6 +12,7 @@ from knimin.handlers.base import MainHandler, NoPageHandler
 from knimin.handlers.auth import AuthLoginHandler, AuthLogoutHandler
 from knimin.handlers.ag_search import AGSearchHandler
 from knimin.handlers.logged_in_index import LoggedInIndexHandler
+from knimin.handlers.barcode_util import BarcodeUtilHandler
 
 
 define("port", default=config.http_port, type=int)
@@ -34,6 +35,7 @@ class WebApplication(Application):
             (r"/auth/logout/", AuthLogoutHandler),
             (r"/logged_in_index/", LoggedInIndexHandler),
             (r"/ag_search/", AGSearchHandler),
+            (r"/barcode_util/", BarcodeUtilHandler),
             (r".*", NoPageHandler)
         ]
         settings = {
