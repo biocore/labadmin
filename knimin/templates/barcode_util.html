@@ -1,6 +1,19 @@
 {% extends logged_in_index.html %}
 {% block content %}
+
 <h3>Barcode Scanner </h3>
+{% if msgs is not None %}
+<p> {{msgs[0]}} </p>
+{% if msgs[3] is not None %}
+<p> {{msgs[3]}} </p>
+{% end %}
+{% if msgs[1] is not None %}
+<p> {{msgs[1]}} </p>
+{% end %}
+{% if msgs[2] is not None %}
+<p> {{msgs[2]}}
+{% end %}
+{% end %}
 <div>
 <form name="check_barcode" action="/barcode_util/" method="post">
     <input id="barcode" name="barcode" type="text" onclick="this.select()" />
@@ -10,7 +23,8 @@
     </script>
 </form>
 <div>
-{% if barcode_info is not None%}
+
+{% if barcode is not None%}
 <div id="{{div_and_msg[0]}}" class="verification_color">
            <div class="verification_text_wrapper">
               <br />
@@ -22,14 +36,14 @@
             </div>
         </div>
 
-{% if len(barcode_info) > 0%}
+{% if barcode_info is not None and len(barcode_info) > 0%}
 <div id="barcode_form">
 
         <form action="/barcode_util/" method="post"
          onsubmit="return confirm('Are you sure you want to submit and update database?')"
          onreset="return confirm('Are you sure you want to reset?')">
           <input type="hidden" name="barcode" value="{{barcode}}" />
-          <input type="hidden" name="proj_group" id="proj_group" value="{{proj}}"/>
+          <input type="hidden" name="proj_group" id="proj_group" value="{{proj_group}}"/>
           <ul>
           <table cellspacing="40"><tr><td>
           <h2> General Barcode Details </h2>
@@ -121,15 +135,15 @@
         </select>
         </li></td><td>
 
-        {% if proj == 'American Gut' and len(proj_barcode_info) > 0 %}
-          <input type="hidden" name="sent_date" value="<%=date_of_last_email%>" />
-          <input type="hidden" name="login_user"  value="<%=login_user%>" />
-          <input type="hidden" name="login_email" value="<%=email%>" />
-          <input type="hidden" name="email_type" value="<%=email_type%>" />
-          <input type="hidden" name="sample_date" id="sample_date" value="<%=sample_date%>"/>
-          <input type="hidden" name="sample_time" id="sample_time" value="<%=sample_time%>"/>
-          <input type="hidden" name="sample_site" id="sample_site" value="<%=sample_site%>"/>
-            <h2>{{proj}} Details</h2>
+        {% if proj_group == 'American Gut' and len(proj_barcode_info) > 0 %}
+          <input type="hidden" name="sent_date" value="{{proj_barcode_info['date_of_last_email']}}" />
+          <input type="hidden" name="login_user"  value="{{proj_barcode_info['login_user']}}" />
+          <input type="hidden" name="login_email" value="{{proj_barcode_info['email']}}" />
+          <input type="hidden" name="email_type" value="{{proj_barcode_info['email_type']}}" />
+          <input type="hidden" name="sample_date" id="sample_date" value="{{proj_barcode_info['sample_date']}}"/>
+          <input type="hidden" name="sample_time" id="sample_time" value="{{proj_barcode_info['sample_time']}}"/>
+          <input type="hidden" name="sample_site" id="sample_site" value="{{proj_barcode_info['site_sampled']}}"/>
+            <h2>{{proj_group}} Details</h2>
              <li>
              Sample details: <br/>
              <table>
@@ -190,8 +204,8 @@
             </td></tr>
 
             {% elif email_type == '1' %}
-            <input type="hidden" name="sample_time" value="<%=sample_time%>" />
-            <input type="hidden" name="sample_date" value="<%=sample_date%>" />
+            <input type="hidden" name="sample_time" value="{{sample_time}}" />
+            <input type="hidden" name="sample_date" value="{{sample_date}}" />
 {% end %}
             </table>
            </li>

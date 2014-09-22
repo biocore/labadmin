@@ -1,0 +1,21 @@
+{% extends logged_in_index.html %}
+{% block content %}
+<form method="post" action="/ag_add_wayne/" name="agForm" id="agForm">
+    <table>
+        <tr>
+            <td style="color:red;">{{response}}</td>
+        </tr>
+        <tr>
+            <td>Participant</td>
+            <td>
+                <input type="text" name="ag_login_id" id="ag_login_id">
+            </td>
+        </tr>
+        <tr>
+            <td>Name of Wayne</td>
+            <td><input type="text" name="wayne" id="wayne"></td>
+        </tr>       
+        <tr><td></td><td><input type="button" onclick="validateAGSingleSubmitForm()" value="Submit"></td></tr>
+    </table>
+</form>
+{% end %}
