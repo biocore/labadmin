@@ -3,14 +3,14 @@
 {% if login is not None %}
 
 <form method="post" name="edit_participant" id="edit_participant" action="/ag_edit_participant/">
-    <input type="hidden" name="ag_login_id" id="ag_login_id" value="{{login['login_id']}}"/>
+    <input type="hidden" name="ag_login_id" id="ag_login_id" value="{{login['ag_login_id']}}"/>
 <table>
     <tr><td>Email</td><td><input type="text" name="email" id="email" value="{{login['email']}}"></td></tr>
         <tr><td>Name</td><td><input type="text" name="name" id="name" value="{{login['name']}}"></td></tr>
         <tr><td>Address</td><td><input type="text" name="address" id="address" value="{{login['address']}}"></td></tr>
         <tr><td>City</td><td><input type="text" name="city" id="city" value="{{login['city']}}"></td></tr>
         <tr><td>State</td><td><input type="text" name="state" id="state" value="{{login['state']}}"></td></tr>
-        <tr><td>Zip</td><td><input type="text" name="zipcode" id="zipcode" value="{{login['zipcode']}}"></td></tr>
+        <tr><td>Zip</td><td><input type="text" name="zipcode" id="zipcode" value="{{login['zip']}}"></td></tr>
         <tr><td>Country</td><td><input type="text" name="country" id="country" value="{{login['country']}}"></td></tr>
 
         <tr><td></td><td><input type="button" onClick="validateEditParticipant();" value="Submit"></td></tr>

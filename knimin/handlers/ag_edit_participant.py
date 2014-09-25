@@ -12,6 +12,7 @@ class AGEditParticipantHandler(BaseHandler):
         if email is not None:
             email = unquote(email)
             login = AG_DATA_ACCESS.get_login_by_email(email)
+            print login
             self.render("ag_edit_participant.html", response=None,
                         login=login, loginerror='')
 
