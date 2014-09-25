@@ -1,0 +1,253 @@
+{% extends logged_in_index.html %}
+{% block content %}
+<h3>AG Search</h3>
+<style>
+th {
+    background-color: #bbb; 
+}
+
+.widetable {
+    width: 100%;
+}
+
+.gridrow {
+    margin: 5px;
+    background-color: #eee;
+}
+
+.result_container {
+    background-color: #888; 
+    margin-bottom: 20px;
+    border-radius: 10px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #444;
+}
+
+.result_item {
+    
+}
+</style>
+Find stuff.
+<div>
+    <form action="/ag_search/" name="agForm" id="agForm" method="post">
+        <table>
+            <tr>
+                <td><input type="text" name="search_term" id="search_term"></td>
+                <td><input type="button" onclick="validateAGSingleSubmitForm()" value="Go" style="width:50px;">
+            </tr>
+        </table>
+        <script>
+           document.agForm.search_term.focus()
+        </script>
+    </form>
+</div>
+{% if results is not None %}
+<h2>Registered Login Info </h2>
+    {% for item in results %}
+        {% for login in item['login_info'] %}
+    <div class="result_container">
+        <table class="widetable">
+                    <th></th>
+                    <th>email</th>
+                    <th>name</th>
+                    <th>address</th>
+                    <th>city</th>
+                    <th>state</th>
+                    <th>zip</th>
+                    <th>country</th>
+                    <tr class="gridrow">
+                    <td><a href="/ag_edit_participant/?email={{login['email']}}">edit</a></td>
+                    <td>{{login['email']}}</td>
+                    <td>{{login['name']}}</td>
+                    <td>{{login['address']}}</td>
+                    <td>{{login['city']}}</td>
+                    <td>{{login['state']}}</td>
+                    <td>{{login['zip']}}</td>
+                    <td>{{login['country']}}</td>
+                    </tr>
+        {% if len(item['humans']) > 0 %}
+            <tr><td>Human Surveys:</td><td colspan="100%">
+                {% for person in item['humans'] %}
+                        <a href="/ag_edit_survey/?participant_name={{person}}&ag_login_id={{login['ag_login_id']}}">{{person}}</a> 
+                {% end %}
+                        </td></tr>
+        {% end %}
+        {% if len(item['animals']) > 0 %}
+            <tr><td>Animal Surveys:</td><td colspan="100%">
+                {% for animal in item['animals'] %}
+                        <a href="/ag_edit_survey_animal/?participant_name={{animal}}&ag_login_id={{login['ag_login_id']}}">{{animal}}</a> 
+                {% end %}
+                        </td></tr>
+        {% end %}
+        </table>
+        {% for kit in item['kit'] %}
+            <table class="widetable">
+                            <th></th>
+                            <th>supplied_kit_id</th>
+                            <th>kit_password</th>
+                            <th>swabs_per_kit</th>
+                            <th>kit_verification_code</th>
+                            <th>kit_verified</th>
+                            <tr class="gridrow">
+                            <td><a href="/ag_edit_kit/?kitid={{kit['supplied_kit_id']}}">edit</a></td>
+                            <td>{{kit['supplied_kit_id']}}</td>
+                            <td>{{kit['kit_password']}}</td>
+                            <td>{{kit['swabs_per_kit']}}</td>
+                            <td>{{kit['kit_verification_code']}}</td>
+                            <td>{{kit['kit_verified']}}</td>
+                            </tr>
+                            </table>
+            {% for barcode in kit['barcode_info'] %}
+         
+                <table class="widetable">
+                                    <th></th>
+                                    <th>barcode</th>
+                                    <th>sample_date</th>
+                                    <th>sample_time</th>
+                                    <th>site_sampled</th>
+                                    <th>participant_name</th>
+                                    <th>environment_sampled</th>
+                                    <th>results_ready</th>
+                                    <th>withdrawn</th>
+                                    <th>refunded</th>
+                                    <tr class="gridrow">
+                                    <td><a href="/ag_edit_barcode/?barcode={{barcode}}">edit</a></td>
+                                    <td>{{barcode}}</td>
+                                    {% set sample_date = kit['barcode_info'][barcode]['ag_info']['sample_date'] %}
+                                    {% if sample_date is None %}
+                                    {%  set sample_date = '' %}
+                                    {% end %}
+                                    {% set sample_time = kit['barcode_info'][barcode]['ag_info']['sample_time'] %}
+                                    {% if sample_time is None %}
+                                    {% set sample_time = '' %}
+                                    {% end %}
+                                    {% set site_sampled = kit['barcode_info'][barcode]['ag_info']['site_sampled'] %}
+                                    {% if site_sampled is None %}
+                                    {%  set site_sampled = '' %}
+                                    {% end %}
+                                    {% set participant_name = kit['barcode_info'][barcode]['ag_info']['participant_name'] %}
+                                    {% if participant_name is None %}
+                                    {% set participant_name = '' %}
+                                    {% end %}
+                                    {% set environment_sampled = kit['barcode_info'][barcode]['ag_info']['environment_sampled'] %}
+                                    {% if environment_sampled is None %}
+                                    {% set environment_sampled = '' %}
+                                    {% end %}
+                                    {% set results_ready = kit['barcode_info'][barcode]['ag_info']['results_ready'] %}
+                                    {% if results_ready is None %}
+                                    {% set results_ready = '' %}
+                                    {% end %}
+                                    {% set withdrawn = kit['barcode_info'][barcode]['ag_info']['withdrawn'] %}
+                                    {% if withdrawn is None %}
+                                    {% set withdrawn = '' %}
+                                    {% end %}
+                                    {% set refunded = kit['barcode_info'][barcode]['ag_info']['refunded'] %}
+                                    {% if refunded is None %}
+                                    {% set refunded = '' %}
+                                    {% end %}
+                                    <td>{{sample_date}}</td>
+                                    <td>{{sample_time}}</td>
+                                    <td>{{site_sampled}}</td>
+                                    <td>{{participant_name}}</td>
+                                    <td>{{environment_sampled}}</td>
+                                    <td>{{results_ready}}</td>
+                                    <td>{{withdrawn}}</td>
+                                    <td>{{refunded}}</td>
+                                    </tr>
+                                    </table>
+                                    {% if len(kit['barcode_info'][barcode]['barcode_info']) > 0 %}
+                <table class="widetable">
+                                    <th>barcode</th>
+                                    <th>status</th>
+                                    <th>scan_date</th>
+                                    <th>sample_postmark_date</th>
+                                    <th>biomass_remaining</th>
+                                    <th>sequencing_status</th>
+                                    <th>obsolete</th>
+                                    <tr class="gridrow">
+                                    <td>{{barcode}}</td>
+                                    {% set status = kit['barcode_info'][barcode]['barcode_info']['status'] %}
+                                    {% if status is None %}
+                                    {% set status = '' %}
+                                    {% end %}
+                                    {% set scan_date = kit['barcode_info'][barcode]['barcode_info']['scan_date'] %}
+                                    {% if scan_date is None %}
+                                    {% set scan_date = '' %}
+                                    {% end %}
+                                    {% set sample_postmark_date = kit['barcode_info'][barcode]['barcode_info']['sample_postmark_date'] %}
+                                    {% if sample_postmark_date is None %}
+                                    {% set sample_postmark_date = '' %}
+                                    {% end %}
+                                    {% set biomass_remaining = kit['barcode_info'][barcode]['barcode_info']['biomass_remaining'] %}
+                                    {% if biomass_remaining is None %}
+                                    {% set biomass_remaining = '' %}
+                                    {% end %}
+                                    {% set sequencing_status = kit['barcode_info'][barcode]['barcode_info']['sequencing_status'] %}
+                                    {% if sequencing_status is None %}
+                                    {% set sequencing_status = '' %}
+                                    {% end %}
+                                    {% set obsolete = kit['barcode_info'][barcode]['barcode_info']['obsolete'] %}
+                                    {% if obsolete is None %}
+                                    {% set obsolete = '' %}
+                                    {% end %}
+                                    <td>{{status}}</td>
+                                    <td>{{scan_date}}</td>
+                                    <td>{{sample_postmark_date}}</td>
+                                    <td>{{biomass_remaining}}</td>
+                                    <td>{{sequencing_status}}</td>
+                                    <td>{{obsolete}}</td>
+                                    </tr>
+                                    </table>
+                                    {% end %}
+                                     <table class="widetable">
+                                    {% if len(kit['barcode_info'][barcode]['plate']) > 0 %}
+                                    <th>barcode</th>
+                                    <th>plate</th>
+                                    <th>sequencing_date</th>
+                                    {% for plate_info in kit['barcode_info'][barcode]['plate'] %}
+                                    <tr class="gridrow">
+                                    <td>{{kit['barcode_info'][barcode]['ag_info']['barcode']}}</td>
+                                    <td>{{plate_info['plate']}}</td>
+                                    <td>{{plate_info['sequence_date']}}</td>
+                                    </tr>
+                                    {%end %}
+                                    {% end %}
+                                    <tr>
+                                    {% set notes = kit['barcode_info'][barcode]['ag_info']['notes'] %}
+                                    {% if notes is None %}
+                                    {% set notes = '' %}
+                                    {% end %}
+                                    <td colspan="6">Notes: {{notes}}</td>
+                                    </tr>
+                                </table>
+                                 
+            {% end %}
+        {% end %}
+
+        </div>
+        {% end %}
+    {% end %}
+    <h2> Handout Kit Information Below </h2>
+    {% if len(handouts) > 0 %}
+    <div class="result_container">
+    <table class="widetable">
+                <th>kit_id</th>
+                <th>password</th>
+                <th>barcode</th>
+                <th>verification_code</th>
+    {% for handout in handouts %}
+                    <tr class="gridrow">
+                    <td>{{handout['kit_id']}}</td>
+                    <td>{{handout['password']}}</td>
+                    <td>{{handout['barcode']}}</td>
+                    <td>{{handout['verification_code']}}</td>
+                    </tr>
+                    {% end %}
+                </table>
+            </div>
+    {% end %}
+{% end %}
+{% end %}
+
+
