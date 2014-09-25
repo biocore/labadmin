@@ -19,6 +19,7 @@ from knimin.handlers.ag_edit_kit import AGEditKitHandler
 from knimin.handlers.ag_new_barcode import AGNewBarcodeHandler
 from knimin.handlers.ag_edit_barcode import AGEditBarcodeHandler
 from knimin.handlers.ag_add_bruce_wayne import AGAddBruceWayne
+from knimin.handlers.ag_update_geocode import AGUpdateGeocodeHandler
 
 define("port", default=config.http_port, type=int)
 
@@ -46,6 +47,7 @@ class WebApplication(Application):
             (r"/ag_new_kit/", AGNewKitHandler),
             (r"/ag_edit_kit/", AGEditKitHandler),
             (r"/ag_new_barcode/", AGNewBarcodeHandler),
+            (r"/ag_update_geocode/", AGUpdateGeocodeHandler),
             (r"/ag_edit_barcode/", AGEditBarcodeHandler),
             (r".*", NoPageHandler)
         ]

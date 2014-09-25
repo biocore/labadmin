@@ -1,0 +1,61 @@
+{% extends logged_in_index.html %}
+{% block head %}
+<style>
+th {
+    background-color: #bbb;
+}
+
+.widetable {
+    width: 100%;
+}
+
+.gridrow {
+    margin: 5px;
+    background-color: #eee;
+}
+
+.result_container {
+    background-color: #888; 
+    margin-bottom: 20px;
+    border-radius: 10px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #444;
+}
+
+.result_item {
+    
+}
+</style>
+{% end %}
+{% block content %}
+Update geocoding information in the database. It is recommended that this is performed before each metadata pulldown (if not more frequently).
+    <form action="/ag_update_geocode/" name="agForm" id="agForm" method="post">
+        <table>
+            <tr>
+                <td>Pass -1 for no limit.<br/>Note that the Google API limits requests per 24 hours to about 2500 currently.</td>
+                <td><input type="integer" name="limit" id="limit" value="500"></td>
+            </tr>
+            <tr>
+                <td><label for="retry">Retry previously failed geocoding attempts</label></td>
+                <td><input type="checkbox" name="retry" id="retry" value="1"></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><input type="button" onclick="validateAGSingleSubmitForm()" value="Go" style="width:50px;">
+            </tr>
+        </table>
+        <script>
+           document.agForm.limit.focus()
+        </script>
+    </form>
+
+<h3>Current Geocoding Status</h3>
+<table>
+{% for stat, val in stats %}
+  <tr>
+      <td>{{stat}}</td><td>{{val}}</td>
+  </tr>
+{% end %}
+</table>
+{% end %}
