@@ -14,11 +14,11 @@
                 <option value="">Please Select...</a>
 
 
-    {% for email, supplied_kit_id, ag_kit_id in logins %}
-        {% if details['ag_kit_id'] == ag_kit_id %}
-            '<option value="{{ag_kit_id}}" selected>{{email}} ({{supplied_kit_id}})</option>'
+    {% for logindict in logins %}
+        {% if details['ag_kit_id'] == logindict['ag_kit_id'] %}
+            '<option value="{{logindict['ag_kit_id']}}" selected>{{logindict['email']}} ({{logindict['supplied_kit_id']}})</option>'
         {% else %}
-            '<option value="{{ag_kit_id}}">{{email}} ({{supplied_kit_id}})</option>'
+            '<option value="{{logindict['ag_kit_id']}}">{{logindict['email']}} ({{logindict['supplied_kit_id']}})</option>'
         {% end %}
     {% end %}
                 </select>
