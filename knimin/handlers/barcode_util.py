@@ -1,4 +1,5 @@
 #!/usr/bin/env pythonget_barcode_info_by_kit_id
+from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
 from urllib import unquote
 
@@ -7,13 +8,15 @@ from amgut.util import AG_DATA_ACCESS
 
 
 class BarcodeUtilHandler(BaseHandler):
+    @authenticated
     def get(self):
         self.render("barcode_util.html", div_and_msg=None, proj=None,
                     proj_group=None,
                     project_names=None, barcode=None, email_type=None,
                     barcode_info=None, proj_barcode_info=None, msgs=None,
-                    loginerror='')
+                    currentuser=self.current_user)
 
+    @authenticated
     def post(self):
         barcode = self.get_argument('barcode', None)
         bstatus = self.get_argument('bstatus', None)
@@ -39,7 +42,7 @@ class BarcodeUtilHandler(BaseHandler):
                             barcode=barcode, email_type=None,
                             barcode_info=None, proj_barcode_info=None,
                             msgs=None,
-                            loginerror='')
+                            currentuser=self.current_user)
                 return
             else:
                 proj_type, proj_group = AG_DATA_ACCESS.getBarcodeProjType(
@@ -77,7 +80,7 @@ class BarcodeUtilHandler(BaseHandler):
                         barcode=barcode, email_type=None,
                         barcode_info=barcode_details,
                         proj_barcode_info=ag_details, msgs=None,
-                        loginerror='')
+                        currentuser=self.current_user)
         else:
             #now we collect data and update based on forms
             #first update general barcode info
@@ -108,7 +111,7 @@ class BarcodeUtilHandler(BaseHandler):
                         project_names=None, barcode=None, email_type=None,
                         barcode_info=None, proj_barcode_info=None,
                         msgs=(msg1, msg2, msg3, msg4),
-                        loginerror='')
+                        currentuser=self.current_user)
 
         return
 
