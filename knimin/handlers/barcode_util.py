@@ -172,8 +172,15 @@ class BarcodeUtilHandler(BaseHandler):
                         AG_DATA_ACCESS.AGGetBarcodeMetadataAnimal(
                             barcode)
                     if len(barcode_metadata_animal) == 0:
-                        div_id = "no_metadata"
-                        message = "Cannot retrieve metadata"
+                        #check for new survey
+                        if AG_DATA_ACCESS.ag_new_survey_exists(barcode):
+                            div_id = "verified"
+                            message = "All good"
+                            ag_details['email_type'] = "1"
+                        else:
+                            div_id = "no_metadata"
+                            message = "Cannot retrieve metadata"
+                            ag_details['email_type'] = "-1"
                     elif len(barcode_metadata_animal) == 1:
                         div_id = "verified_animal"
                         message = "All good"
@@ -188,6 +195,7 @@ class BarcodeUtilHandler(BaseHandler):
                                "in the database, which should "
                                "never happeen. Please notify "
                                "someone on the database crew.")
+                    ag_details['email_type'] = "-1"
             else:
                 div_id = "not_assigned"
                 message = "Missing info"
@@ -196,6 +204,7 @@ class BarcodeUtilHandler(BaseHandler):
             div_id = "not_assigned"
             message = ("In American Gut project group but No "
                        "Amerincan Gut info for barcode")
+            ag_details['email_type'] = "-1"
         return div_id, message, ag_details
 
     def update_ag_barcode(self, barcode):
