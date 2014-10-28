@@ -1,4 +1,5 @@
 #!/usr/bin/env pythonget_barcode_info_by_kit_id
+from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
 from urllib import unquote
 
@@ -7,10 +8,12 @@ from amgut.util import AG_DATA_ACCESS
 
 
 class AGSearchHandler(BaseHandler):
+    @authenticated
     def get(self):
         self.render("ag_search.html", results=None, handouts=None,
-                    loginerror='')
+                    currentuser=self.current_user)
 
+    @authenticated
     def post(self):
         term = self.get_argument('search_term')
         results = {}
@@ -56,4 +59,4 @@ class AGSearchHandler(BaseHandler):
 
         #now render the page
         self.render("ag_search.html", results=display_results,
-                    handouts=handouts, loginerror='')
+                    handouts=handouts, currentuser=self.current_user)

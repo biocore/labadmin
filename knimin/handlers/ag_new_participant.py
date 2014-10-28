@@ -1,13 +1,17 @@
 #!/usr/bin/env python
+from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
 
 from amgut.util import AG_DATA_ACCESS
 
 
 class AGNewParticipantHandler(BaseHandler):
+    @authenticated
     def get(self):
-        self.render("ag_new_participant.html", response=None, loginerror='')
+        self.render("ag_new_participant.html", response=None,
+                    currentuser=self.current_user)
 
+    @authenticated
     def post(self):
         email = self.get_argument('email')
         name = self.get_argument('name')
@@ -20,7 +24,7 @@ class AGNewParticipantHandler(BaseHandler):
             AG_DATA_ACCESS.addAGLogin(email, name, address, city, state,
                                       zipcode, country)
             self.render("ag_new_participant.html", response='Good',
-                        loginerror='')
+                        currentuser=self.current_user)
         except:
             self.render("ag_new_participant.html", response='Bad',
-                        loginerror='')
+                        currentuser=self.current_user)

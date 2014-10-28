@@ -13,11 +13,11 @@ class AuthLoginHandler(BaseHandler):
     def post(self):
         user = self.get_argument("user", "").strip()
         password = self.get_argument("password", "")
-        login = db.authenticate_user(user, password)
+        login = authenticate_user(user, password)
 
         if login:
             self.set_current_user(user)
-            self.redirect("/")
+            self.redirect("/logged_in_index/")
         else:
             msg = "Invalid username or password"
             self.render("index.html", user=None, loginerror=msg)
@@ -34,3 +34,10 @@ class AuthLogoutHandler(BaseHandler):
     def get(self):
         self.clear_cookie("user")
         self.redirect("/")
+
+
+def authenticate_user(user, password):
+    if user == 'test' and password == 'password':
+        return True
+    else:
+        return False

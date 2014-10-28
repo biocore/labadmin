@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
 from urllib import unquote
 
@@ -7,14 +8,16 @@ from amgut.util import AG_DATA_ACCESS
 
 
 class AGEditParticipantHandler(BaseHandler):
+    @authenticated
     def get(self):
         email = self.get_argument('email', None)
         if email is not None:
             email = unquote(email)
             login = AG_DATA_ACCESS.get_login_by_email(email)
             self.render("ag_edit_participant.html", response=None,
-                        login=login, loginerror='')
+                        login=login, currentuser=self.current_user)
 
+    @authenticated
     def post(self):
         email = self.get_argument('email')
         name = self.get_argument('name')
@@ -29,7 +32,7 @@ class AGEditParticipantHandler(BaseHandler):
                                          city, state, zipcode, country)
             self.render("ag_edit_participant.html", response='Good',
                         login=None,
-                        loginerror='')
+                        currentuser=self.current_user)
         except:
             self.render("ag_edit_participant.html", response='Bad',
-                        login=None, loginerror='')
+                        login=None, currentuser=self.current_user)
