@@ -2,9 +2,10 @@
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
 from urllib import unquote
-
+improt time
 
 from amgut.util import AG_DATA_ACCESS
+from amgut.lib.mail import send_email
 
 
 class BarcodeUtilHandler(BaseHandler):
@@ -222,7 +223,7 @@ class BarcodeUtilHandler(BaseHandler):
             sample_date = self.get_argument('sample_date', None)
             if email_type == '0':
                 subject = ('Follow up on Your American Gut Sample with '
-                           'Barcode %s' % prev_barcode)
+                           'Barcode %s' % barcode)
                 body_message = """
 Dear {name},
 
@@ -291,8 +292,8 @@ Thank you for your participation!
             if login_email != "" or login_email is not None:
                 try:
                     send_email(body_message, subject, login_email)
-                    sent_date = current_date
-                    msg2 = ("Sent email successfully to kit owner %s<br/>"
+                    sent_date = time.strftime("%d/%m/%Y")
+                    msg2 = ("Sent email successfully to kit owner %s"
                             % login_email)
                 except:
                     msg2 = ("Email sending to (%s) failed failed "
