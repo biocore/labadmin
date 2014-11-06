@@ -104,7 +104,7 @@
              </select></li>
              <li>Sequencing Status<br /><select name="sequencing_status" id="sequencing_status">
 
-        {% for sstatus in ['SUCCESS', 'FAILED_SEQUENCING', 'WAITING', ''] %}
+        {% for sstatus in ['WAITING', 'SUCCESS', 'FAILED_SEQUENCING', ''] %}
             {% set selected = 'selected' if sstatus == barcode_info['sequencing_status'] else '' %}
             <option value="{{sstatus}}" {{selected}}>{{sstatus}}</option>
         {% end %}
