@@ -134,7 +134,6 @@
 
         </select>
         </li></td><td>
-        {{project_barcode_info}}
         {% if proj_group == 'American Gut' and len(proj_barcode_info) > 1 %}
           <input type="hidden" name="sent_date" value="{{proj_barcode_info['date_of_last_email']}}" />
           <input type="hidden" name="login_user"  value="{{proj_barcode_info['login_user']}}" />
