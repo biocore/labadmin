@@ -2,7 +2,7 @@
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
 from urllib import unquote
-improt time
+import time
 
 from amgut.util import AG_DATA_ACCESS
 from amgut.lib.mail import send_email
