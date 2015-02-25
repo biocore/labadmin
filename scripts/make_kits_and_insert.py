@@ -12,11 +12,9 @@ __status__ = "Development"
 import click
 from random import choice
 
-from amgut.util import AG_DATA_ACCESS
-import psycopg2
+from passlib.hash import bcrypt
 
-from amgut.lib.data_access.sql_connection import SQLConnectionHandler
-from amgut.lib.config_manager import AMGUT_CONFIG
+from amgut.util import AG_DATA_ACCESS
 
 
 
@@ -281,19 +279,22 @@ def insert_kits(kits, proj_id, cursor):
         #line continuations are on lines below to prevent newlines being in the
         #output files.
         #first insert handout kits
+        barcode, spk, kid, password, vercode, sbf = line[:6]
+        password = bcrypt.encrypt(password)
+
         kitinsertstmt = ("insert into ag_handout_kits (barcode, "
                          "swabs_per_kit,KIT_ID,PASSWORD,VERIFICATION_CODE, "
                          "SAMPLE_BARCODE_FILE) values "
                          "('%s','%s', '%s', '%s', '%s', '%s')" %
-                        (tuple(line[0:6])))
+                        (barcode, spk, kid, password, vercode, sbf))
 
         barcodeinsertstmt = ("insert into barcode (barcode, obsolete) "
-                             "values ('%s', 'N')" % line[0])
+                             "values ('%s', 'N')" % barcode)
 
         #this statment will need updated when group info is on live
         barcodeprojinsertstmt = ("insert into project_barcode (barcode, "
                                  "project_id) values ('%s', '%s')" %
-                                 (line[0], proj_id))
+                                 (barcode, proj_id))
         #print kitinsertstmt
         #print barcodeinsertstmt
         #print barcodeprojinsertstmt
