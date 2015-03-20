@@ -14,7 +14,7 @@ from random import choice
 
 from passlib.hash import bcrypt
 
-from amgut.util import AG_DATA_ACCESS
+from amgut.connections import ag_data
 
 
 
@@ -345,7 +345,7 @@ def make_kits_and_insert(output, project_name, swabs_to_kits, input, tag,
     #cred = Credentials()
     #con = connect(cred.liveMetadataDatabaseConnectionString)
     #cursor = con.cursor()
-    cursor = AG_DATA_ACCESS.connection.cursor()
+    cursor = ag_data.connection.cursor()
     existing_kit_ids = get_used_kit_ids(cursor)
 
     #tag = args.tag
@@ -371,7 +371,7 @@ def make_kits_and_insert(output, project_name, swabs_to_kits, input, tag,
     else:
         print "Must specify either input file or swabs to kits dictionary"
         exit()
-    starting_sample, text_barcode = AG_DATA_ACCESS.getNextAGBarcode()
+    starting_sample, text_barcode = ag_data.getNextAGBarcode()
     #output = args.output
     kit_passwd_map, kit_barcode_map, outlines = \
         unassigned_kits(starting_sample, cursor, existing_kit_ids, output,
