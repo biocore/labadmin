@@ -2,7 +2,7 @@
 
 __author__ = "Emily TerAvest"
 __copyright__ = "Copyright 2009-2013, QIIME Web Analysis"
-__credits__ = ["Emily TerAvest", "Daniel McDonald"]
+__credits__ = ["Emily TerAvest", "Daniel McDonald", "Adam Robbins-Pianka"]
 __license__ = "GPL"
 __version__ = "1.0.0"
 __maintainer__ = ["Emily TerAvest"]
@@ -15,7 +15,6 @@ from random import choice
 from passlib.hash import bcrypt
 
 from amgut.connections import ag_data
-
 
 
 # character sets for kit id, passwords and verification codes
@@ -92,7 +91,7 @@ def determine_swabs(donationfile):
             not_US.append('\t'.join(l))
             continue
 
-        #return a dictionary with the number of kits with each number of swabs
+        # return a dictionary with the number of kits with each number of swabs
         if num_swabs in num_swab_to_kits:
             num_swab_to_kits[num_swabs] += qty
         else:
@@ -133,14 +132,14 @@ def get_used_kit_ids(cursor):
 
 def make_kit_id(kit_id_length=5, tag=None):
     if kit_id_length > 9:
-        #database table has 9 chars for the kit_id_length
+        # database table has 9 chars for the kit_id_length
         kit_id_length = 9
 
     if tag is None:
         kit_id = ''.join([choice(KIT_ALPHA) for i in range(kit_id_length)])
     else:
         if (kit_id_length + len(tag) + 1) > 9:
-            #we have a 9 char limit for kit ids reduce the kit_id_length
+            # we have a 9 char limit for kit ids reduce the kit_id_length
             kit_id_length = 8 - len(tag)
         kit_id = ''.join([choice(KIT_ALPHA) for i in range(kit_id_length)])
         kit_id = tag + '_' + kit_id
@@ -274,11 +273,8 @@ def insert_kits(kits, proj_id, cursor):
     """inserts the handout kits into the test database and the
        prodction database.
     """
-    #skip the header line
+    # skip the header line
     for line in kits[1:]:
-        #line continuations are on lines below to prevent newlines being in the
-        #output files.
-        #first insert handout kits
         barcode, spk, kid, password, vercode, sbf = line[:6]
         password = bcrypt.encrypt(password)
 
@@ -338,17 +334,11 @@ def make_kits_and_insert(output, project_name, swabs_to_kits, input, tag,
         dictionary of swabs to number of kits is
         requried as input
     """
-#    option_parser, opts, args = parse_command_line_parameters(**script_info)
-    #args = parser.parse_args()
 
     # setup DB connection
-    #cred = Credentials()
-    #con = connect(cred.liveMetadataDatabaseConnectionString)
-    #cursor = con.cursor()
     cursor = ag_data.connection.cursor()
     existing_kit_ids = get_used_kit_ids(cursor)
 
-    #tag = args.tag
     proj_name = project_name
     sql = "select project_id from project where project = %s"
     cursor.execute(sql, [proj_name])
@@ -364,7 +354,8 @@ def make_kits_and_insert(output, project_name, swabs_to_kits, input, tag,
     elif swabs_to_kits is not None:
         swabs_to_kits_string = swabs_to_kits
         swabs_to_kits = {}
-        #incomeing format is {#:#,#:#,#:#}
+
+        # incoming format is {#:#,#:#,#:#}
         for pair in swabs_to_kits_string.strip("{").strip("}").split(","):
             pair = pair.split(':')
             swabs_to_kits[int(pair[0])] = int(pair[1])
@@ -372,22 +363,10 @@ def make_kits_and_insert(output, project_name, swabs_to_kits, input, tag,
         print "Must specify either input file or swabs to kits dictionary"
         exit()
     starting_sample, text_barcode = ag_data.getNextAGBarcode()
-    #output = args.output
     kit_passwd_map, kit_barcode_map, outlines = \
         unassigned_kits(starting_sample, cursor, existing_kit_ids, output,
                         swabs_to_kits, tag)
     make_printouts(kit_passwd_map, kit_barcode_map, output)
-    #testcon = connect(cred.testMetadataDatabaseConnectionString)
-    #testcursor = testcon.cursor()
-    if not dry_run:
-        #try:
-        #    insert_kits(outlines, proj_id, testcursor)
-        #    testcursor.close()
-        #except:
-        ##    #if anything happens raise and exit
-        #    testcursor.close()
-        #    print "error when uploading to test database"
-        #    raise
 
         try:
             insert_kits(outlines, proj_id, cursor)
