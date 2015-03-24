@@ -2,7 +2,7 @@
 
 __author__ = "Emily TerAvest"
 __copyright__ = "Copyright 2009-2013, QIIME Web Analysis"
-__credits__ = ["Emily TerAvest", "Daniel McDonald"]
+__credits__ = ["Emily TerAvest", "Daniel McDonald", "Adam Robbins-Pianka"]
 __license__ = "GPL"
 __version__ = "1.0.0"
 __maintainer__ = ["Emily TerAvest"]
@@ -12,12 +12,9 @@ __status__ = "Development"
 import click
 from random import choice
 
-from amgut.util import AG_DATA_ACCESS
-import psycopg2
+from passlib.hash import bcrypt
 
-from amgut.lib.data_access.sql_connection import SQLConnectionHandler
-from amgut.lib.config_manager import AMGUT_CONFIG
-
+from amgut.connections import ag_data
 
 
 # character sets for kit id, passwords and verification codes
@@ -94,7 +91,7 @@ def determine_swabs(donationfile):
             not_US.append('\t'.join(l))
             continue
 
-        #return a dictionary with the number of kits with each number of swabs
+        # return a dictionary with the number of kits with each number of swabs
         if num_swabs in num_swab_to_kits:
             num_swab_to_kits[num_swabs] += qty
         else:
@@ -135,14 +132,14 @@ def get_used_kit_ids(cursor):
 
 def make_kit_id(kit_id_length=5, tag=None):
     if kit_id_length > 9:
-        #database table has 9 chars for the kit_id_length
+        # database table has 9 chars for the kit_id_length
         kit_id_length = 9
 
     if tag is None:
         kit_id = ''.join([choice(KIT_ALPHA) for i in range(kit_id_length)])
     else:
         if (kit_id_length + len(tag) + 1) > 9:
-            #we have a 9 char limit for kit ids reduce the kit_id_length
+            # we have a 9 char limit for kit ids reduce the kit_id_length
             kit_id_length = 8 - len(tag)
         kit_id = ''.join([choice(KIT_ALPHA) for i in range(kit_id_length)])
         kit_id = tag + '_' + kit_id
@@ -272,35 +269,68 @@ def make_printouts(kit_passwd_map, kit_barcode_map, output):
     f.close()
 
 
-def insert_kits(kits, proj_id, cursor):
-    """inserts the handout kits into the test database and the
-       prodction database.
+def insert_kits(kits, proj_id, conn=None):
+    """Insert kits into the database
+
+    Parameters
+    ----------
+    kits : list of list of str
+        lines from the input file, stripped and split on tabs
+    proj_id : str
+        the ID of the project with which this kit is associated
+    conn : psycopg2 connection object, optional
+        The connection with which to execute the SQL statements. If conn is
+        None, then the database will not be touched, and insert statements that
+        would have been executed are printed instead
     """
-    #skip the header line
+
+    # These lists will be populated if this is not a dry_run and executed in a
+    # single transaction block
+    kit_insert_statements = []
+    barcode_insert_statements = []
+    barcode_project_insert_statements = []
+
+    # skip the header line
     for line in kits[1:]:
-        #line continuations are on lines below to prevent newlines being in the
-        #output files.
-        #first insert handout kits
-        kitinsertstmt = ("insert into ag_handout_kits (barcode, "
-                         "swabs_per_kit,KIT_ID,PASSWORD,VERIFICATION_CODE, "
-                         "SAMPLE_BARCODE_FILE) values "
-                         "('%s','%s', '%s', '%s', '%s', '%s')" %
-                        (tuple(line[0:6])))
+        barcode, spk, kid, password, vercode, sbf = line[:6]
+        password = bcrypt.encrypt(password)
 
-        barcodeinsertstmt = ("insert into barcode (barcode, obsolete) "
-                             "values ('%s', 'N')" % line[0])
+        kit_insert_statement = (
+            "insert into ag_handout_kits (barcode, "
+            "swabs_per_kit,KIT_ID,PASSWORD,VERIFICATION_CODE, "
+            "SAMPLE_BARCODE_FILE) values "
+            "('%s','%s', '%s', '%s', '%s', '%s')" % (barcode, spk, kid,
+                                                     password, vercode, sbf))
 
-        #this statment will need updated when group info is on live
-        barcodeprojinsertstmt = ("insert into project_barcode (barcode, "
-                                 "project_id) values ('%s', '%s')" %
-                                 (line[0], proj_id))
-        #print kitinsertstmt
-        #print barcodeinsertstmt
-        #print barcodeprojinsertstmt
-        cursor.execute(kitinsertstmt)
-        cursor.execute(barcodeinsertstmt)
-        cursor.execute(barcodeprojinsertstmt)
-        cursor.execute('commit')
+        barcode_insert_statement = (
+            "insert into barcode (barcode, obsolete) "
+            "values ('%s', 'N')" % barcode)
+
+        # this statment will need updated when group info is on live
+        barcode_project_insert_statement = (
+            "insert into project_barcode (barcode, project_id) "
+            "values ('%s', '%s')" % (barcode, proj_id))
+
+        if conn is None:
+            click.echo('set search_path to ag, public;')
+            click.echo('begin;')
+            click.echo(kit_insert_statement + ';')
+            click.echo(barcode_insert_statement + ';')
+            click.echo(barcode_project_insert_statement + ';')
+            click.echo('commit;')
+        else:
+            kit_insert_statements.append(kit_insert_statement)
+            barcode_insert_statements.append(barcode_insert_statement)
+            barcode_project_insert_statements.append(
+                barcode_project_insert_statement)
+
+    if conn is not None:
+        with conn.cursor() as cursor:
+            for i in range(len(kit_insert_statements)):
+                cursor.execute(kit_insert_statements[i])
+                cursor.execute(barcode_insert_statements[i])
+                cursor.execute(barcode_project_insert_statements[i])
+            conn.commit()
 
 
 @click.command()
@@ -337,17 +367,12 @@ def make_kits_and_insert(output, project_name, swabs_to_kits, input, tag,
         dictionary of swabs to number of kits is
         requried as input
     """
-#    option_parser, opts, args = parse_command_line_parameters(**script_info)
-    #args = parser.parse_args()
 
     # setup DB connection
-    #cred = Credentials()
-    #con = connect(cred.liveMetadataDatabaseConnectionString)
-    #cursor = con.cursor()
-    cursor = AG_DATA_ACCESS.connection.cursor()
+    conn = ag_data.connection
+    cursor = conn.cursor()
     existing_kit_ids = get_used_kit_ids(cursor)
 
-    #tag = args.tag
     proj_name = project_name
     sql = "select project_id from project where project = %s"
     cursor.execute(sql, [proj_name])
@@ -363,38 +388,31 @@ def make_kits_and_insert(output, project_name, swabs_to_kits, input, tag,
     elif swabs_to_kits is not None:
         swabs_to_kits_string = swabs_to_kits
         swabs_to_kits = {}
-        #incomeing format is {#:#,#:#,#:#}
+
+        # incoming format is {#:#,#:#,#:#}
         for pair in swabs_to_kits_string.strip("{").strip("}").split(","):
             pair = pair.split(':')
             swabs_to_kits[int(pair[0])] = int(pair[1])
     else:
         print "Must specify either input file or swabs to kits dictionary"
         exit()
-    starting_sample, text_barcode = AG_DATA_ACCESS.getNextAGBarcode()
-    #output = args.output
+    starting_sample, text_barcode = ag_data.getNextAGBarcode()
     kit_passwd_map, kit_barcode_map, outlines = \
         unassigned_kits(starting_sample, cursor, existing_kit_ids, output,
                         swabs_to_kits, tag)
-    make_printouts(kit_passwd_map, kit_barcode_map, output)
-    #testcon = connect(cred.testMetadataDatabaseConnectionString)
-    #testcursor = testcon.cursor()
-    if not dry_run:
-        #try:
-        #    insert_kits(outlines, proj_id, testcursor)
-        #    testcursor.close()
-        #except:
-        ##    #if anything happens raise and exit
-        #    testcursor.close()
-        #    print "error when uploading to test database"
-        #    raise
-
-        try:
-            insert_kits(outlines, proj_id, cursor)
-        except:
-            print "error while uploading to production database"
-            cursor.close()
-            raise
     cursor.close()
+    make_printouts(kit_passwd_map, kit_barcode_map, output)
+
+    if dry_run:
+        c = None
+    else:
+        c = conn
+
+    try:
+        insert_kits(outlines, proj_id, c)
+    except:
+        click.echo("Error while uploading to database. No data was written.")
+        raise
 
 
 if __name__ == '__main__':
