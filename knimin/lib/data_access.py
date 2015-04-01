@@ -1,6 +1,8 @@
-#!/usr/bin/env python
-
 from contextlib import contextmanager
+from json import loads
+from collections import defaultdict
+from re import sub
+
 from psycopg2 import connect, Error as PostgresError
 from psycopg2.extras import DictCursor
 
@@ -201,6 +203,154 @@ class SQLHandler(object):
 class KniminAccess(object):
     def __init__(self, config):
         self._con = SQLHandler(config)
+        self._con.execute('set search_path to ag, public')
 
     def authenticate_user(self, user, password):
         return True
+
+    def get_barcode_metadata(self, barcodes):
+        """Retrieve metadata for specified barcodes
+
+        Parameters
+        ----------
+        barcodes : iterable of str
+            The list of barcodes for which metadata will be retrieved
+
+        Returns
+        -------
+        dict
+            {survey: {barcode: {shortname: response, ...}, ...}, ...}
+
+        Notes
+        -----
+        For multiples, the shortname that is used in the returned dict is
+        combined with a modified version of the response. Specifically, spaces
+        and non-alphanumeric characters are replaced with underscroes, and the
+        response is capitalized. E.g., If the person is allergic to "Tree
+        nuts", the key in the dict would be "ALLERGIC_TO_TREE_NUTS" (the
+        ALLERGIC_TO portion taken from the shortname column of the question
+        table).
+        """
+
+        # For use with SQL query "IN (...)" clause
+        barcodes_formatted = "'%s'" % "', '".join(barcodes)
+
+        # SINGLE answers SQL
+        single_sql = """SELECT S.survey_id, AKB.barcode, SQ.question_shortname,
+                               SA.response
+                 FROM ag_kit_barcodes AKB
+                      JOIN survey_answers SA ON
+                        AKB.survey_id=SA.survey_id
+                      JOIN survey_question SQ
+                        ON SA.survey_question_id=SQ.survey_question_id
+                      JOIN survey_question_response_type SQRTYPE
+                        ON SQ.survey_question_id=SQRTYPE.survey_question_id
+                      JOIN group_questions GQ
+                        ON SQ.survey_question_id = GQ.survey_question_id
+                      JOIN survey_group SG
+                        ON GQ.survey_group = SG.group_order
+                      JOIN surveys S
+                        ON SG.group_order = S.survey_group
+                 WHERE sqrtype.survey_response_type='SINGLE'
+                      AND AKB.barcode in ({})""".format(barcodes_formatted)
+
+        # MULTIPLE answers SQL
+        multiple_sql = """SELECT S.survey_id, AKB.barcode,
+                                 SQ.question_shortname,
+                                 array_agg(SA.response) as responses
+                 FROM ag_kit_barcodes AKB
+                      JOIN survey_answers SA ON
+                        AKB.survey_id=SA.survey_id
+                      JOIN survey_question SQ
+                        ON SA.survey_question_id=SQ.survey_question_id
+                      JOIN survey_question_response_type SQRTYPE
+                        ON SQ.survey_question_id=SQRTYPE.survey_question_id
+                      JOIN group_questions GQ
+                        ON SQ.survey_question_id = GQ.survey_question_id
+                      JOIN survey_group SG
+                        ON GQ.survey_group = SG.group_order
+                      JOIN surveys S
+                        ON SG.group_order = S.survey_group
+                 WHERE sqrtype.survey_response_type='MULTIPLE'
+                      AND AKB.barcode in ({})
+                 GROUP BY S.survey_id, AKB.barcode, SQ.question_shortname
+                 """.format(barcodes_formatted)
+
+        # Also need to get the possible responses for multiples
+        multiple_responses_sql = """
+            SELECT SQ.question_shortname, SQR.response
+            FROM survey_question SQ
+            JOIN survey_question_response_type SQRTYPE
+                 ON SQ.survey_question_id = SQRTYPE.survey_question_id
+            JOIN survey_question_response SQR
+                 ON SQ.survey_question_id = SQR.survey_question_id
+            WHERE SQRTYPE.survey_response_type = 'MULTIPLE'"""
+
+        # STRING and TEXT answers SQL
+        others_sql = """SELECT S.survey_id, AKB.barcode,
+                        SQ.question_shortname, SA.response
+                 FROM ag_kit_barcodes AKB
+                      JOIN survey_answers_other SA ON
+                        AKB.survey_id=SA.survey_id
+                      JOIN survey_question SQ
+                        ON SA.survey_question_id=SQ.survey_question_id
+                      JOIN survey_question_response_type SQRTYPE
+                        ON SQ.survey_question_id=SQRTYPE.survey_question_id
+                      JOIN group_questions GQ
+                        ON SQ.survey_question_id = GQ.survey_question_id
+                      JOIN survey_group SG
+                        ON GQ.survey_group = SG.group_order
+                      JOIN surveys S
+                        ON SG.group_order = S.survey_group
+                 WHERE sqrtype.survey_response_type in ('STRING', 'TEXT')
+                      AND AKB.barcode in ({})""".format(barcodes_formatted)
+
+        # Formats a question and response for a MULTIPLE question into a header
+        def _translate_multiple_response_to_header(question, response):
+            response = sub('\W', '_', response)
+            header = '_'.join([question, response])
+            return header.upper()
+
+        # For each MULTIPLE question, build a dict of the possible responses
+        # and what the header should be for the column representing the
+        # response
+        multiples_headers = defaultdict(dict)
+        for question, response in self._con.execute_fetchall(
+                multiple_responses_sql):
+            multiples_headers[question][response] = \
+                _translate_multiple_response_to_header(question, response)
+
+        # this function reduces code duplication by generalizing as much
+        # as possible how questions and responses are fetched from the db
+        def _format_responses_as_dict(sql, json=False, multiple=False):
+            ret_dict = defaultdict(lambda: defaultdict(dict))
+            for survey, barcode, q, a in self._con.execute_fetchall(sql):
+                if json:
+                    # Taking 0th index here since all json are single-element
+                    # lists
+                    a = str(loads(a)[0])
+                if multiple:
+                    for response, header in multiples_headers[q].items():
+                        ret_dict[survey][barcode][header] = \
+                            'Yes' if response in a else 'No'
+                else:
+                    ret_dict[survey][barcode][q] = a
+
+            return ret_dict
+
+        single_results = _format_responses_as_dict(single_sql)
+        others_results = _format_responses_as_dict(others_sql, json=True)
+        multiple_results = _format_responses_as_dict(multiple_sql,
+                                                     multiple=True)
+
+        # combine the results for each barcode
+        for survey, barcodes in single_results.items():
+            for barcode in barcodes:
+                single_results[survey][barcode].update(
+                    others_results[survey][barcode])
+                single_results[survey][barcode].update(
+                    multiple_results[survey][barcode])
+
+        # At this point, the variable name is a misnomer, as it contains
+        # the results from all question types
+        return single_results
