@@ -16,7 +16,7 @@ def combine_barcodes(cli_barcodes=None, input_file=None):
 
     Parameters
     ----------
-    cli_barcodes : tuple of str, optional
+    cli_barcodes : tuple of string-like, optional
         Barcodes specified on the command line
     input_file : file or file-like object, optional
         One barcode per line. Must support iteration "for line in input_file"
@@ -27,16 +27,18 @@ def combine_barcodes(cli_barcodes=None, input_file=None):
         A set of all the barcodes, representing the union of the barcodes
         specified in the input file and the barcodes specified on the CLI
     """
-    if cli_barcodes is None:
-        cli_barcodes = ()
-
-    if input_file is not None:
-        all_barcodes = {line.strip() for line in input_file}
+    # Get barcodes from CLI if they were provided
+    if cli_barcodes is not None:
+        # barcodes come from click as unicode; convert to str
+        cli_barcodes = {str(barcode) for barcode in cli_barcodes}
     else:
-        all_barcodes = set()
+        cli_barcodes = set()
 
-    if cli_barcodes:
-        cli_barcodes = set([str(barcode) for barcode in cli_barcodes])
-        all_barcodes |= cli_barcodes
+    # Get barcodes from file if it was provided
+    if input_file is not None:
+        file_barcodes = {line.strip() for line in input_file}
+    else:
+        file_barcodes = set()
 
-    return all_barcodes
+    # return the union of those two sets
+    return cli_barcodes | file_barcodes
