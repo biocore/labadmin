@@ -1,8 +1,19 @@
 #!/usr/bin/env python
 
 from contextlib import contextmanager
+
+from bcrypt import hashpw, gensalt
+
 from psycopg2 import connect, Error as PostgresError
 from psycopg2.extras import DictCursor
+
+
+class IncorrectEmailError(Exception):
+    pass
+
+
+class IncorrectPasswordError(Exception):
+    pass
 
 
 class SQLHandler(object):
@@ -202,5 +213,59 @@ class KniminAccess(object):
     def __init__(self, config):
         self._con = SQLHandler(config)
 
-    def authenticate_user(self, user, password):
-        return True
+    def _hash_password(self, password, hashedpw=None):
+        """Hashes password
+
+        Parameters
+        ----------
+        password: str
+            Plaintext password
+        hashedpw: str, optional
+            Previously hashed password for bcrypt to pull salt from. If not
+            given, salt generated before hash
+
+        Returns
+        -------
+        str
+            Hashed password
+
+        Notes
+        -----
+        Relies on bcrypt library to hash passwords, which stores the salt as
+        part of the hashed password. Don't need to actually store the salt
+        because of this.
+        """
+        # all the encode/decode as a python 3 workaround for bcrypt
+        if hashedpw is None:
+            hashedpw = gensalt()
+        else:
+            hashedpw = hashedpw.encode('utf-8')
+        password = password.encode('utf-8')
+        output = hashpw(password, hashedpw)
+        if isinstance(output, bytes):
+            output = output.decode("utf-8")
+        return output
+
+    def authenticate_user(self, email, password):
+        # see if user exists
+        sql = """SELECT EXISTS (SELECT email FROM ag.labadmin_users
+                 WHERE email = %s)"""
+        exists = self._con.execute_fetchone(sql, [email])[0]
+
+        if not exists:
+            raise IncorrectEmailError("Email not valid: %s" % email)
+
+        # pull password out of database
+        sql = "SELECT password FROM ag.labadmin_users WHERE email = %s"
+
+        # verify password
+        dbpass = self._con.execute_fetchone(sql, [email])
+        dbpass = dbpass[0] if dbpass else ''
+        hashed = self._hash_password(password, dbpass)
+
+        if hashed == dbpass:
+            return True
+        else:
+            raise IncorrectPasswordError("Password not valid!")
+
+        return False

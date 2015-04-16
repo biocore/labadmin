@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 from tornado.escape import json_encode
-from tornado.web import HTTPError
 
-from qiita_db.user import User
-from qiita_db.exceptions import QiitaDBUnknownIDError, QiitaDBDuplicateError
+from knimin import db
+from knimin.lib.data_access import IncorrectEmailError, IncorrectPasswordError
+from knimin.handlers.base import BaseHandler
 
 # login code modified from https://gist.github.com/guillaumevincent/4771570
 
@@ -18,38 +18,25 @@ class AuthLoginHandler(BaseHandler):
         self.redirect("/")
 
     def post(self):
-        username = self.get_argument("username", "").strip().lower()
-        passwd = self.get_argument("password", "")
+        email = self.get_argument("email", "").strip().lower()
+        password = self.get_argument("password", "")
 
-        msg = ""
+        msg = "Unknown error"
 
-        login = None
-        # check the user level
+        success = False
         try:
-            if User(username).level == "unverified":
-                # email not verified so dont log in
-                msg = "Email not verified"
-        except QiitaDBUnknownIDError:
+            success = db.authenticate_user(email, password)
+        except IncorrectEmailError:
             msg = "Unknown user"
-        except RuntimeError:
-            # means DB not available, so set maintenance mode and failover
-            msg = ("Cannot reach database. Please contact Daniel, Adam, "
-                   "and/or Jeff")
-        else:
-            # Check the login information
-            try:
-                login = User.login(username, passwd)
-            except IncorrectEmailError:
-                msg = "Unknown user"
-            except IncorrectPasswordError:
-                msg = "Incorrect password"
+        except IncorrectPasswordError:
+            msg = "Incorrect password"
 
-        if login is not None:
+        if success:
             # everything good so log in
-            self.set_current_user(username)
-            self.redirect('/')
+            self.set_current_user(email)
+            self.redirect("/logged_in_index/")
         else:
-            self.render("index.html", message=msg, level='danger')
+            self.render("index.html", loginerror=msg)
 
     def set_current_user(self, user):
         if user:
