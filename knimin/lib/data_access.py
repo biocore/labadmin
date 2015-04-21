@@ -2,6 +2,8 @@ from contextlib import contextmanager
 from json import loads
 from collections import defaultdict
 from re import sub
+from hashlib import md5
+from datetime import datetime
 
 from psycopg2 import connect, Error as PostgresError
 from psycopg2.extras import DictCursor
@@ -208,8 +210,38 @@ class KniminAccess(object):
     def authenticate_user(self, user, password):
         return True
 
-    def get_barcode_metadata(self, barcodes):
-        """Retrieve metadata for specified barcodes
+    def get_barcode_details(self, barcodes):
+        """Retrieve sample, kit, and login details by barcode
+
+        Parameters
+        ----------
+        barcodes : iterable of str
+            The list of barcodes for which to get login details
+
+        Returns
+        -------
+        dict of dict
+            {barcode: {column: value}, ...}
+        """
+
+        # For use with SQL query "IN (...)" clause
+        barcodes_formatted = "'%s'" % "', '".join(barcodes)
+
+        sql = """SELECT akb.barcode, *
+                 FROM ag_kit_barcodes akb JOIN ag_kit ak USING (ag_kit_id)
+                 JOIN ag_login al USING (ag_login_id)
+                 WHERE akb.barcode in ({})""".format(barcodes_formatted)
+
+        with self._con.cursor() as cur:
+            cur.execute(sql)
+            headers = [x[0] for x in cur.description][1:]
+            results = {row[0]: dict(zip(headers, row[1:]))
+                       for row in cur.fetchall()}
+
+        return results
+
+    def get_surveys(self, barcodes):
+        """Retrieve surveys for specific barcodes
 
         Parameters
         ----------
@@ -354,3 +386,232 @@ class KniminAccess(object):
         # At this point, the variable name is a misnomer, as it contains
         # the results from all question types
         return single_results
+
+    def _months_between_dates(self, d1, d2):
+        """Calculate the number of months between two dates
+
+        Parameters
+        ----------
+        d1 : datetime
+            First date
+        d2 : datetime
+            Second date
+
+        Raises
+        ------
+        ValueError
+            if the first date is greater than the second date
+
+        Notes
+        -----
+        - Assumes the first date d1 is not greater than the second date d2
+        - Ignores the day (uses only year and month)
+        """
+        if d1 > d2:
+            raise ValueError("First date must not be greater than the second")
+
+        # Calculate the number of 12-month periods between the years
+        return (d2.year - d1.year) * 12 + (d2.month - d1.month)
+
+    def format_survey_data(self, md):
+        """Modifies barcode metadata to include all columns and correct units
+
+        Specifically, this function:
+        - corrects height and weight to be in the same units (cm and kg,
+          respectively)
+        - Adds AGE_MONTHS and AGE_YEARS columns
+        - Adds standard columns for EBI and MiMARKS
+
+        Parameters
+        ----------
+        md : dict of dict of dict
+            E.g., the output from get_barcode_metadata.
+            {survey: {barcode: {shortname: response, ...}, ...}, ...}
+
+        Returns
+        -------
+        dict of dict of dict
+        """
+        # get barcode information
+        all_barcodes = set.union(*(set(md[s]) for s in md))
+        barcode_info = self.get_barcode_details(all_barcodes)
+
+        # Human survey (id 1)
+
+        # standard fields that are set based on sampling site
+        md_lookup = {
+            'Hair':
+                {'BODY_PRODUCT': 'UBERON:sebum',
+                 'COMMON_NAME': 'human skin metagenome',
+                 'SAMPLE_TYPE': 'Hair',
+                 'TAXON_ID': '539655',
+                 'BODY_HABITAT': 'UBERON:hair',
+                 'ENV_MATTER': 'ENVO:sebum',
+                 'BODY_SITE': 'UBERON:hair'},
+            'Nares': {
+                'BODY_PRODUCT': 'UBERON:mucus',
+                'COMMON_NAME': 'human nasal/pharyngeal metagenome',
+                'SAMPLE_TYPE': 'Nares',
+                'TAXON_ID': '1131769',
+                'BODY_HABITAT': 'UBERON:nose',
+                'ENV_MATTER': 'ENVO:mucus',
+                'BODY_SITE': 'UBERON:nostril'},
+            'Vaginal mucus': {
+                'BODY_PRODUCT': 'UBERON:mucus',
+                'COMMON_NAME': 'vaginal metagenome',
+                'SAMPLE_TYPE': 'Vaginal mucus',
+                'TAXON_ID': '1549736',
+                'BODY_HABITAT': 'UBERON:vagina',
+                'ENV_MATTER': 'ENVO:mucus',
+                'BODY_SITE': 'UBERON:vaginal introitus'},
+            'Sole of foot': {
+                'BODY_PRODUCT': 'UBERON:sebum',
+                'COMMON_NAME': 'human skin metagenome',
+                'SAMPLE_TYPE': 'Sole of foot',
+                'TAXON_ID': '539655',
+                'BODY_HABITAT': 'UBERON:skin',
+                'ENV_MATTER': 'ENVO:sebum',
+                'BODY_SITE': 'UBERON:skin of foot'},
+            'Nasal mucus': {
+                'BODY_PRODUCT': 'UBERON:mucus',
+                'COMMON_NAME': 'human nasal/pharyngeal metagenome',
+                'SAMPLE_TYPE': 'Nasal mucus',
+                'TAXON_ID': '1131769',
+                'BODY_HABITAT': 'UBERON:nose',
+                'ENV_MATTER': 'ENVO:mucus',
+                'BODY_SITE': 'UBERON:nostril'},
+            'Stool': {
+                'BODY_PRODUCT': 'UBERON:feces',
+                'COMMON_NAME': 'human gut metagenome',
+                'SAMPLE_TYPE': 'Stool',
+                'TAXON_ID': '408170',
+                'BODY_HABITAT': 'UBERON:feces',
+                'ENV_MATTER': 'ENVO:feces',
+                'BODY_SITE': 'UBERON:feces'},
+            'Forehead': {
+                'BODY_PRODUCT': 'UBERON:sebum',
+                'COMMON_NAME': 'human skin metagenome',
+                'SAMPLE_TYPE': 'Forehead',
+                'TAXON_ID': '539655',
+                'BODY_HABITAT': 'UBERON:skin',
+                'ENV_MATTER': 'ENVO:sebum',
+                'BODY_SITE': 'UBERON:skin of head'},
+            'Tears': {
+                'BODY_PRODUCT': 'UBERON:tears',
+                'COMMON_NAME': 'human metagenome',
+                'SAMPLE_TYPE': 'Tears',
+                'TAXON_ID': '646099',
+                'BODY_HABITAT': 'UBERON:eye',
+                'ENV_MATTER': 'ENVO:tears',
+                'BODY_SITE': 'UBERON:eye'},
+            'Right Hand': {
+                'BODY_PRODUCT': 'UBERON:sebum',
+                'COMMON_NAME': 'human skin metagenome',
+                'SAMPLE_TYPE': 'Right Hand',
+                'TAXON_ID': '539655',
+                'BODY_HABITAT': 'UBERON:skin',
+                'ENV_MATTER': 'ENVO:sebum',
+                'BODY_SITE': 'UBERON:skin of hand'},
+            'Mouth': {
+                'BODY_PRODUCT': 'UBERON:saliva',
+                'COMMON_NAME': 'human oral metagenome',
+                'SAMPLE_TYPE': 'Mouth',
+                'TAXON_ID': '447426',
+                'BODY_HABITAT': 'UBERON:oral cavity',
+                'ENV_MATTER': 'ENVO:saliva',
+                'BODY_SITE': 'UBERON:tongue'},
+            'Left Hand': {
+                'BODY_PRODUCT': 'UBERON:sebum',
+                'COMMON_NAME': 'human skin metagenome',
+                'SAMPLE_TYPE': 'Left Hand',
+                'TAXON_ID': '539655',
+                'BODY_HABITAT': 'UBERON:skin',
+                'ENV_MATTER': 'ENVO:sebum',
+                'BODY_SITE': 'UBERON:skin of hand'},
+            'Ear wax': {
+                'BODY_PRODUCT': 'UBERON:ear wax',
+                'COMMON_NAME': 'human metagenome',
+                'SAMPLE_TYPE': 'Ear wax',
+                'TAXON_ID': '646099',
+                'BODY_HABITAT': 'UBERON:ear',
+                'ENV_MATTER': 'ENVO:ear wax',
+                'BODY_SITE': 'UBERON:external auditory meatus'}
+        }
+
+        month_lookup = {'January': 1, 'February': 2, 'March': 3,
+                        'April': 4, 'May': 5, 'June': 6,
+                        'July': 7, 'August': 8, 'September': 9,
+                        'October': 10, 'November': 11, 'December': 12}
+
+        for barcode, responses in md[1].items():
+            # Get rid of ABOUT_YOURSELF_TEXT
+            del md[1][barcode]['ABOUT_YOURSELF_TEXT']
+
+            # Correct height units
+            if responses['HEIGHT_UNITS'] == 'inches':
+                md[1][barcode]['HEIGHT_CM'] = \
+                    2.54*float(md[1][barcode]['HEIGHT_CM'])
+            md[1][barcode]['HEIGHT_UNITS'] = 'centimeters'
+
+            # Correct weight units
+            if responses['WEIGHT_UNITS'] == 'pounds':
+                md[1][barcode]['WEIGHT_KG'] = \
+                    float(md[1][barcode]['WEIGHT_KG'])/2.20462
+            md[1][barcode]['WEIGHT_UNITS'] = 'kilograms'
+
+            # Get age in months (int) and age in years (float)
+            if responses['BIRTH_MONTH'] != 'Unspecified' and \
+                    responses['BIRTH_YEAR'] != 'Unspecified':
+                birthdate = datetime(
+                    int(responses['BIRTH_YEAR']),
+                    int(month_lookup[responses['BIRTH_MONTH']]),
+                    1)
+                now = datetime.now()
+                md[1][barcode]['AGE_MONTHS'] = self._months_between_dates(
+                    birthdate, now)
+                md[1][barcode]['AGE_YEARS'] = responses['AGE_MONTHS'] / 12.0
+            else:
+                md[1][barcode]['AGE_MONTHS'] = 'Unspecified'
+                md[1][barcode]['AGE_YEARS'] = 'Unspecified'
+
+            # GENDER to SEX
+            md[1][barcode]['SEX'] = md[1][barcode]['GENDER']
+
+            # Add MiMARKS TOT_MASS and HEIGHT_OR_LENGTH columns
+            md[1][barcode]['TOT_MASS'] = md[1][barcode]['WEIGHT_KG']
+            md[1][barcode]['HEIGHT_OR_LENGTH'] = md[1][barcode]['HEIGHT_CM']
+
+            # convenience variable
+            site = barcode_info[barcode]['site_sampled']
+
+            # Invariant information
+            md[1][barcode]['SAMPLE_NAME'] = barcode
+            md[1][barcode]['ANONYMIZED_NAME'] = barcode
+            md[1][barcode]['HOST_TAXID'] = 9606
+            md[1][barcode]['TITLE'] = 'American Gut Project'
+            md[1][barcode]['ALTITUDE'] = 0
+            md[1][barcode]['ASSIGNED_FROM_GEO'] = 'Yes'
+            md[1][barcode]['ENV_BIOME'] = 'ENVO:dense settlement biome'
+            md[1][barcode]['ENV_FEATURE'] = 'ENVO:human-associated habitat'
+            md[1][barcode]['DEPTH'] = 0
+
+            # Sample-dependent information
+            md[1][barcode]['TAXON_ID'] = md_lookup[site]['TAXON_ID']
+            md[1][barcode]['COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
+            md[1][barcode]['COLLECTION_DATE'] = \
+                barcode_info[barcode]['sample_date']
+            md[1][barcode]['ELEVATION'] = barcode_info[barcode]['elevation']
+            md[1][barcode]['LATITUDE'] = barcode_info[barcode]['latitude']
+            md[1][barcode]['LONGITUDE'] = barcode_info[barcode]['longitude']
+            md[1][barcode]['ENV_MATTER'] = md_lookup[site]['ENV_MATTER']
+            md[1][barcode]['BODY_HABITAT'] = md_lookup[site]['BODY_HABITAT']
+            md[1][barcode]['BODY_SITE'] = md_lookup[site]['BODY_SITE']
+            md[1][barcode]['BODY_PRODUCT'] = md_lookup[site]['BODY_PRODUCT']
+            md[1][barcode]['HOST_SUBJECT_ID'] = md5(
+                barcode_info[barcode]['ag_login_id'] +
+                barcode_info[barcode]['participant_name']).hexdigest()
+            md[1][barcode]['BMI'] = md[1][barcode]['WEIGHT_KG'] / \
+                (md[1][barcode]['HEIGHT_CM']/100)**2
+            md[1][barcode]['PUBLIC'] = 'Yes'
+
+        return md

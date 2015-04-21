@@ -43,7 +43,8 @@ def pulldown(input_file, output_dir, barcodes):
 
     makedirs(output_dir)
 
-    all_results = db.get_barcode_metadata(all_barcodes)
+    all_survey_info = db.get_surveys(all_barcodes)
+    all_results = db.format_survey_data(all_survey_info)
 
     # keep track of which barcodes were seen so we know which were never seen
     barcodes_seen = set()
@@ -58,7 +59,7 @@ def pulldown(input_file, output_dir, barcodes):
                     sorted(barcodes_responses.items()):
                 barcodes_seen.add(barcode)
                 ordered_answers = [shortnames_answers[h] for h in headers]
-                ordered_answers = '\t'.join(ordered_answers)
+                ordered_answers = '\t'.join([str(x) for x in ordered_answers])
                 outfile.write('\t'.join([barcode, ordered_answers]) + '\n')
 
     failures = all_barcodes - barcodes_seen
