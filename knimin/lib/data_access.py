@@ -433,7 +433,7 @@ class KniminAccess(object):
         dict of dict of dict
         """
         # get barcode information
-        all_barcodes = set.union(*(set(md[s]) for s in md))
+        all_barcodes = set.union(*[set(md[s]) for s in md])
         barcode_info = self.get_barcode_details(all_barcodes)
 
         # Human survey (id 1)
@@ -543,6 +543,12 @@ class KniminAccess(object):
                         'July': 7, 'August': 8, 'September': 9,
                         'October': 10, 'November': 11, 'December': 12}
 
+        # tuples are latitude, longitude, elevation
+        zipcode_sql = """SELECT zipcode, latitude, longitude, elevation
+                         FROM zipcodes"""
+        zip_lookup = {row[0]: tuple(row[1:])
+                          for row in self._con.execute_fetchall(zipcode_sql)}
+
         for barcode, responses in md[1].items():
             # Get rid of ABOUT_YOURSELF_TEXT
             del md[1][barcode]['ABOUT_YOURSELF_TEXT']
@@ -600,9 +606,12 @@ class KniminAccess(object):
             md[1][barcode]['COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
             md[1][barcode]['COLLECTION_DATE'] = \
                 barcode_info[barcode]['sample_date']
-            md[1][barcode]['ELEVATION'] = barcode_info[barcode]['elevation']
-            md[1][barcode]['LATITUDE'] = barcode_info[barcode]['latitude']
-            md[1][barcode]['LONGITUDE'] = barcode_info[barcode]['longitude']
+            md[1][barcode]['LATITUDE'] = \
+                zip_lookup[barcode_info][barcode]['zip']][0]
+            md[1][barcode]['LONGITUDE'] = \
+                zip_lookup[barcode_info][barcode]['zip']][1]
+            md[1][barcode]['ELEVATION'] = \
+                zip_lookup[barcode_info][barcode]['zip']][2]
             md[1][barcode]['ENV_MATTER'] = md_lookup[site]['ENV_MATTER']
             md[1][barcode]['BODY_HABITAT'] = md_lookup[site]['BODY_HABITAT']
             md[1][barcode]['BODY_SITE'] = md_lookup[site]['BODY_SITE']
