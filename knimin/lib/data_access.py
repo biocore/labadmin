@@ -1,5 +1,4 @@
 from contextlib import contextmanager
-from json import loads
 from collections import defaultdict
 from re import sub
 from hashlib import md5
@@ -358,9 +357,12 @@ class KniminAccess(object):
             ret_dict = defaultdict(lambda: defaultdict(dict))
             for survey, barcode, q, a in self._con.execute_fetchall(sql):
                 if json:
-                    # Taking 0th index here since all json are single-element
+                    # Taking this slice here since all json are single-element
                     # lists
-                    a = str(loads(a)[0])
+                    a = a[2:-2]
+
+                    # replace all non-alphanumerics with underscore
+                    a = sub('[^0-9a-zA-Z.,;/_() -]', '_', a)
                 if multiple:
                     for response, header in multiples_headers[q].items():
                         ret_dict[survey][barcode][header] = \
@@ -547,22 +549,68 @@ class KniminAccess(object):
         zipcode_sql = """SELECT zipcode, latitude, longitude, elevation
                          FROM zipcodes"""
         zip_lookup = {row[0]: tuple(row[1:])
-                          for row in self._con.execute_fetchall(zipcode_sql)}
+                      for row in self._con.execute_fetchall(zipcode_sql)}
+
+        country_lookup = defaultdict(lambda: 'unknown')
+        country_lookup.update({
+            'united states': 'GAZ:United States of America',
+            'united states of america': 'GAZ:United States of America',
+            'us': 'GAZ:United States of America',
+            'usa': 'GAZ:United States of America',
+            'u.s.a': 'GAZ:United States of America',
+            'u.s.': 'GAZ:United States of America',
+            'canada': 'GAZ:Canada',
+            'canadian': 'GAZ:Canada',
+            'ca': 'GAZ:Canada',
+            'australia': 'GAZ:Australia',
+            'au': 'GAZ:Australia',
+            'united kingdom': 'GAZ:United Kingdom',
+            'belgium': 'GAZ:Belgium',
+            'gb': 'GAZ:Great Britain',
+            'korea, republic of': 'GAZ:South Korea',
+            'nl': 'GAZ:Netherlands',
+            'netherlands': 'GAZ:Netherlands',
+            'spain': 'GAZ:Spain',
+            'es': 'GAZ:Spain',
+            'norway': 'GAZ:Norway',
+            'germany': 'GAZ:Germany',
+            'de': 'GAZ:Germany',
+            'china': 'GAZ:China',
+            'singapore': 'GAZ:Singapore',
+            'new zealand': 'GAZ:New Zealand',
+            'france': 'GAZ:France',
+            'fr': 'GAZ:France',
+            'ch': 'GAZ:Switzerland',
+            'switzerland': 'GAZ:Switzerland',
+            'denmark': 'GAZ:Denmark',
+            'scotland': 'GAZ:Scotland',
+            'united arab emirates': 'GAZ:United Arab Emirates',
+            'ireland': 'GAZ:Ireland',
+            'thailand': 'GAZ:Thailand'})
 
         for barcode, responses in md[1].items():
             # Get rid of ABOUT_YOURSELF_TEXT
             del md[1][barcode]['ABOUT_YOURSELF_TEXT']
 
+            # convert numeric fields
+            for field in ('HEIGHT_CM', 'WEIGHT_KG'):
+                md[1][barcode][field] = sub('[^0-9.]',
+                                            '', md[1][barcode][field])
+                if md[1][barcode][field]:
+                    md[1][barcode][field] = float(md[1][barcode][field])
+
             # Correct height units
-            if responses['HEIGHT_UNITS'] == 'inches':
+            if responses['HEIGHT_UNITS'] == 'inches' and \
+                    responses['HEIGHT_CM']:
                 md[1][barcode]['HEIGHT_CM'] = \
-                    2.54*float(md[1][barcode]['HEIGHT_CM'])
+                    2.54*md[1][barcode]['HEIGHT_CM']
             md[1][barcode]['HEIGHT_UNITS'] = 'centimeters'
 
             # Correct weight units
-            if responses['WEIGHT_UNITS'] == 'pounds':
+            if responses['WEIGHT_UNITS'] == 'pounds' and \
+                    responses['WEIGHT_KG']:
                 md[1][barcode]['WEIGHT_KG'] = \
-                    float(md[1][barcode]['WEIGHT_KG'])/2.20462
+                    md[1][barcode]['WEIGHT_KG']/2.20462
             md[1][barcode]['WEIGHT_UNITS'] = 'kilograms'
 
             # Get age in months (int) and age in years (float)
@@ -582,6 +630,10 @@ class KniminAccess(object):
 
             # GENDER to SEX
             md[1][barcode]['SEX'] = md[1][barcode]['GENDER']
+
+            # get COUNTRY from barcode_info
+            md[1][barcode]['COUNTRY'] = country_lookup[
+                barcode_info[barcode]['country'].lower()]
 
             # Add MiMARKS TOT_MASS and HEIGHT_OR_LENGTH columns
             md[1][barcode]['TOT_MASS'] = md[1][barcode]['WEIGHT_KG']
@@ -607,11 +659,11 @@ class KniminAccess(object):
             md[1][barcode]['COLLECTION_DATE'] = \
                 barcode_info[barcode]['sample_date']
             md[1][barcode]['LATITUDE'] = \
-                zip_lookup[barcode_info][barcode]['zip']][0]
+                zip_lookup[barcode_info[barcode]['zip']][0]
             md[1][barcode]['LONGITUDE'] = \
-                zip_lookup[barcode_info][barcode]['zip']][1]
+                zip_lookup[barcode_info[barcode]['zip']][1]
             md[1][barcode]['ELEVATION'] = \
-                zip_lookup[barcode_info][barcode]['zip']][2]
+                zip_lookup[barcode_info[barcode]['zip']][2]
             md[1][barcode]['ENV_MATTER'] = md_lookup[site]['ENV_MATTER']
             md[1][barcode]['BODY_HABITAT'] = md_lookup[site]['BODY_HABITAT']
             md[1][barcode]['BODY_SITE'] = md_lookup[site]['BODY_SITE']
@@ -619,8 +671,11 @@ class KniminAccess(object):
             md[1][barcode]['HOST_SUBJECT_ID'] = md5(
                 barcode_info[barcode]['ag_login_id'] +
                 barcode_info[barcode]['participant_name']).hexdigest()
-            md[1][barcode]['BMI'] = md[1][barcode]['WEIGHT_KG'] / \
-                (md[1][barcode]['HEIGHT_CM']/100)**2
+            if md[1][barcode]['WEIGHT_KG'] and md[1][barcode]['HEIGHT_CM']:
+                md[1][barcode]['BMI'] = md[1][barcode]['WEIGHT_KG'] / \
+                    (md[1][barcode]['HEIGHT_CM']/100)**2
+            else:
+                md[1][barcode]['BMI'] = ''
             md[1][barcode]['PUBLIC'] = 'Yes'
 
         return md
