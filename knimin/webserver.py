@@ -9,7 +9,7 @@ from tornado.options import define, options, parse_command_line
 
 from knimin import config
 from knimin.handlers.base import MainHandler, NoPageHandler
-from knimin.handlers.auth import AuthLoginHandler, AuthLogoutHandler
+from knimin.handlers.auth_handlers import AuthLoginHandler, AuthLogoutHandler
 from knimin.handlers.ag_search import AGSearchHandler
 from knimin.handlers.logged_in_index import LoggedInIndexHandler
 from knimin.handlers.barcode_util import BarcodeUtilHandler

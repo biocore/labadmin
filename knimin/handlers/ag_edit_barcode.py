@@ -2,7 +2,7 @@
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
 
-from amgut.util import AG_DATA_ACCESS
+from amgut.connections import ag_data
 
 
 class AGEditBarcodeHandler(BaseHandler):
@@ -10,10 +10,10 @@ class AGEditBarcodeHandler(BaseHandler):
     def get(self):
         barcode = self.get_argument('barcode', None)
         if barcode is not None:
-            details = AG_DATA_ACCESS.getAGBarcodeDetails(barcode)
-            site_sampled = AG_DATA_ACCESS.human_sites
-            environment_sampled = AG_DATA_ACCESS.general_sites
-            logins = AG_DATA_ACCESS.getAGKitsByLogin()
+            details = ag_data.getAGBarcodeDetails(barcode)
+            site_sampled = ag_data.human_sites
+            environment_sampled = ag_data.general_sites
+            logins = ag_data.getAGKitsByLogin()
             self.render("ag_edit_barcode.html", response=None, barcode=barcode,
                         sites_sampled=site_sampled, details=details,
                         environments_sampled=environment_sampled,
@@ -32,7 +32,7 @@ class AGEditBarcodeHandler(BaseHandler):
         refunded = self.get_argument('refunded')
         withdrawn = self.get_argument('withdrawn')
         try:
-            AG_DATA_ACCESS.updateAGBarcode(barcode, ag_kit_id, site_sampled,
+            ag_data.updateAGBarcode(barcode, ag_kit_id, site_sampled,
                                            environment_sampled, sample_date,
                                            sample_time, participant_name,
                                            notes, refunded, withdrawn)
