@@ -3,24 +3,40 @@
 from tornado.escape import json_encode
 
 from knimin import db
+from knimin.lib.data_access import IncorrectEmailError, IncorrectPasswordError
 from knimin.handlers.base import BaseHandler
 
 # login code modified from https://gist.github.com/guillaumevincent/4771570
 
+# ARP, 17 Feb 2015: Modified from qiita handlers from repo version
+# d3984140ab3db185920f473710da53c2587aee49
+
 
 class AuthLoginHandler(BaseHandler):
     """user login, no page necessary"""
-    def post(self):
-        user = self.get_argument("user", "").strip()
-        password = self.get_argument("password", "")
-        login = authenticate_user(user, password)
+    def get(self):
+        self.redirect("/")
 
-        if login:
-            self.set_current_user(user)
+    def post(self):
+        email = self.get_argument("email", "").strip().lower()
+        password = self.get_argument("password", "")
+
+        msg = "Unknown error"
+
+        success = False
+        try:
+            success = db.authenticate_user(email, password)
+        except IncorrectEmailError:
+            msg = "Unknown user"
+        except IncorrectPasswordError:
+            msg = "Incorrect password"
+
+        if success:
+            # everything good so log in
+            self.set_current_user(email)
             self.redirect("/logged_in_index/")
         else:
-            msg = "Invalid username or password"
-            self.render("index.html", user=None, loginerror=msg)
+            self.render("index.html", loginerror=msg)
 
     def set_current_user(self, user):
         if user:
@@ -34,10 +50,3 @@ class AuthLogoutHandler(BaseHandler):
     def get(self):
         self.clear_cookie("user")
         self.redirect("/")
-
-
-def authenticate_user(user, password):
-    if user == 'test' and password == 'password':
-        return True
-    else:
-        return False

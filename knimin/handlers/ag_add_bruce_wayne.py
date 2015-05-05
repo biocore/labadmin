@@ -2,7 +2,7 @@
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
 
-from amgut.util import AG_DATA_ACCESS
+from amgut.connections import ag_data
 
 
 class AGAddBruceWayne(BaseHandler):
@@ -15,11 +15,11 @@ class AGAddBruceWayne(BaseHandler):
     def post(self):
         wayne = self.get_argument("wayne")
         participant = self.get_argument("ag_login_id")
-        login = AG_DATA_ACCESS.get_login_by_email(participant)
+        login = ag_data.get_login_by_email(participant)
         if 'ag_login_id' not in login:
             self.render("ag_add_bruce_wayne.html", response='Bad Email',
                         currentuser=self.current_user)
             return
-        AG_DATA_ACCESS.addParticipantException(login['ag_login_id'], wayne)
+        ag_data.addParticipantException(login['ag_login_id'], wayne)
         self.render("ag_add_bruce_wayne.html", response='Added Successfully',
                     currentuser=self.current_user)

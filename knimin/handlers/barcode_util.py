@@ -4,7 +4,7 @@ from knimin.handlers.base import BaseHandler
 from urllib import unquote
 import time
 
-from amgut.util import AG_DATA_ACCESS
+from amgut.connections import ag_data
 from amgut.lib.mail import send_email
 
 
@@ -32,7 +32,7 @@ class BarcodeUtilHandler(BaseHandler):
         ag_details = {}
         if bstatus is None:
             # gather info to display
-            barcode_details = AG_DATA_ACCESS.get_barcode_details(barcode)
+            barcode_details = ag_data.get_barcode_details(barcode)
             if len(barcode_details) == 0:
                 div_id = "invalid_barcode"
                 message = ("Barcode %s does not exisit in the database" %
@@ -46,9 +46,9 @@ class BarcodeUtilHandler(BaseHandler):
                             currentuser=self.current_user)
                 return
             else:
-                proj_type, proj_group = AG_DATA_ACCESS.getBarcodeProjType(
+                proj_type, proj_group = ag_data.getBarcodeProjType(
                     barcode)
-                project_names = AG_DATA_ACCESS.getProjectNames()
+                project_names = ag_data.getProjectNames()
                 # barcode exists get general info
                 if barcode_details['status'] is None:
                     barcode_details['status'] = 'Received'
@@ -86,7 +86,7 @@ class BarcodeUtilHandler(BaseHandler):
             #now we collect data and update based on forms
             #first update general barcode info
             try:
-                AG_DATA_ACCESS.updateBarcodeStatus('Received', postmark_date,
+                ag_data.updateBarcodeStatus('Received', postmark_date,
                                                    scan_date, barcode,
                                                    biomass_remaining_value,
                                                    sequencing_status,
@@ -95,15 +95,15 @@ class BarcodeUtilHandler(BaseHandler):
             except:
                 msg1 = "Barcode %s general details failed" % barcode
             msg2 = msg3 = msg4 = None
-            exisiting_proj, proj_group = AG_DATA_ACCESS.getBarcodeProjType(
+            exisiting_proj, proj_group = ag_data.getBarcodeProjType(
                 barcode)
             if exisiting_proj != project:
                 try:
-                    AG_DATA_ACCESS.setBarcodeProjType(project, barcode)
+                    ag_data.setBarcodeProjType(project, barcode)
                     msg4 = "Project successfully changed"
                 except:
                     msg4 = "Error changing project"
-                new_proj, proj_group = AG_DATA_ACCESS.getBarcodeProjType(
+                new_proj, proj_group = ag_data.getBarcodeProjType(
                     barcode)
             if proj_group == 'American Gut':
                 msg2, msg3 = self.update_ag_barcode(barcode)
@@ -117,7 +117,7 @@ class BarcodeUtilHandler(BaseHandler):
         return
 
     def get_ag_details(self, barcode):
-        ag_details = AG_DATA_ACCESS.getAGBarcodeDetails(barcode)
+        ag_details = ag_data.getAGBarcodeDetails(barcode)
         if len(ag_details) > 0:
             if ag_details['site_sampled'] is None:
                 ag_details['site_sampled'] = ''
@@ -155,7 +155,7 @@ class BarcodeUtilHandler(BaseHandler):
             else:
                 ag_details['other_checked'] = ''
 
-            barcode_metadata = AG_DATA_ACCESS.AGGetBarcodeMetadata(
+            barcode_metadata = ag_data.AGGetBarcodeMetadata(
                 barcode)
             if not (ag_details['sample_date'] ==
                     ag_details['site_sampled'] ==
@@ -170,11 +170,11 @@ class BarcodeUtilHandler(BaseHandler):
                     ag_details['email_type'] = "1"
                 elif len(barcode_metadata) == 0:
                     barcode_metadata_animal = \
-                        AG_DATA_ACCESS.AGGetBarcodeMetadataAnimal(
+                        ag_data.AGGetBarcodeMetadataAnimal(
                             barcode)
                     if len(barcode_metadata_animal) == 0:
                         #check for new survey
-                        if AG_DATA_ACCESS.ag_new_survey_exists(barcode):
+                        if ag_data.ag_new_survey_exists(barcode):
                             div_id = "verified"
                             message = "All good"
                             ag_details['email_type'] = "1"
@@ -307,7 +307,7 @@ Thank you for your participation!
         if 'other' in sample_issue:
             other = 'Y'
         try:
-            AG_DATA_ACCESS.updateAKB(barcode, moldy, overloaded, other,
+            ag_data.updateAKB(barcode, moldy, overloaded, other,
                                      self.get_argument('other_text', None),
                                      sent_date)
             msg3 = ("Barcode %s AG info was sucessfully updated" % barcode)
