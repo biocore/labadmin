@@ -506,7 +506,7 @@ class KniminAccess(object):
                 'BODY_HABITAT': 'UBERON:eye',
                 'ENV_MATTER': 'ENVO:tears',
                 'BODY_SITE': 'UBERON:eye'},
-            'Right Hand': {
+            'Right hand': {
                 'BODY_PRODUCT': 'UBERON:sebum',
                 'COMMON_NAME': 'human skin metagenome',
                 'SAMPLE_TYPE': 'Right Hand',
@@ -522,7 +522,7 @@ class KniminAccess(object):
                 'BODY_HABITAT': 'UBERON:oral cavity',
                 'ENV_MATTER': 'ENVO:saliva',
                 'BODY_SITE': 'UBERON:tongue'},
-            'Left Hand': {
+            'Left hand': {
                 'BODY_PRODUCT': 'UBERON:sebum',
                 'COMMON_NAME': 'human skin metagenome',
                 'SAMPLE_TYPE': 'Left Hand',
