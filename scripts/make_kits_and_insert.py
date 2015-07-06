@@ -304,7 +304,7 @@ def insert_kits(kits, proj_id, conn=None):
         kit_barcode_statement = (
             "INSERT INTO handout_barcode "
             "(kit_id, barcode, sample_barcode_file) "
-            "VALUES (%s, %s, %s)" % (kid, barcode, sbk))
+            "VALUES (%s, %s, %s)" % (kid, barcode, sbf))
 
         barcode_insert_statement = (
             "insert into barcode (barcode, obsolete) "
