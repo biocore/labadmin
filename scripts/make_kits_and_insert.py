@@ -333,7 +333,6 @@ def insert_kits(kits, proj_id, conn=None):
         with conn.cursor() as cursor:
             for i in range(len(kit_insert_statements)):
                 cursor.execute(barcode_insert_statements[i])
-                cursor.execute(kit_insert_statements[i])
                 cursor.execute(barcode_project_insert_statements[i])
                 cursor.execute(kit_insert_statements[i])
                 cursor.execute(kit_barcode_statements[i])
