@@ -296,6 +296,10 @@ def insert_kits(kits, proj_id, conn=None):
         barcode, spk, kid, password, vercode, sbf = line[:6]
         password = bcrypt.encrypt(password)
 
+        barcode_insert_statement = (
+            "insert into barcode (barcode, obsolete) "
+            "values ('%s', 'N')" % barcode)
+
         kit_insert_statement = (
             "insert into ag_handout_kits "
             "(swabs_per_kit,KIT_ID,PASSWORD,VERIFICATION_CODE) values "
@@ -306,10 +310,6 @@ def insert_kits(kits, proj_id, conn=None):
             "(kit_id, barcode, sample_barcode_file) "
             "VALUES (%s, %s, %s)" % (kid, barcode, sbf))
 
-        barcode_insert_statement = (
-            "insert into barcode (barcode, obsolete) "
-            "values ('%s', 'N')" % barcode)
-
         # this statment will need updated when group info is on live
         barcode_project_insert_statement = (
             "insert into project_barcode (barcode, project_id) "
@@ -318,8 +318,8 @@ def insert_kits(kits, proj_id, conn=None):
         if conn is None:
             click.echo('set search_path to ag, public;')
             click.echo('begin;')
-            click.echo(kit_insert_statement + ';')
             click.echo(barcode_insert_statement + ';')
+            click.echo(kit_insert_statement + ';')
             click.echo(barcode_project_insert_statement + ';')
             click.echo('commit;')
         else:
@@ -333,6 +333,7 @@ def insert_kits(kits, proj_id, conn=None):
         with conn.cursor() as cursor:
             for i in range(len(kit_insert_statements)):
                 cursor.execute(barcode_insert_statements[i])
+                cursor.execute(kit_insert_statements[i])
                 cursor.execute(barcode_project_insert_statements[i])
                 cursor.execute(kit_insert_statements[i])
                 cursor.execute(kit_barcode_statements[i])
