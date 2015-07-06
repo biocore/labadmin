@@ -287,6 +287,7 @@ def insert_kits(kits, proj_id, conn=None):
     # These lists will be populated if this is not a dry_run and executed in a
     # single transaction block
     kit_insert_statements = []
+    kit_barcode_statements = []
     barcode_insert_statements = []
     barcode_project_insert_statements = []
 
@@ -296,11 +297,14 @@ def insert_kits(kits, proj_id, conn=None):
         password = bcrypt.encrypt(password)
 
         kit_insert_statement = (
-            "insert into ag_handout_kits (barcode, "
-            "swabs_per_kit,KIT_ID,PASSWORD,VERIFICATION_CODE, "
-            "SAMPLE_BARCODE_FILE) values "
-            "('%s','%s', '%s', '%s', '%s', '%s')" % (barcode, spk, kid,
-                                                     password, vercode, sbf))
+            "insert into ag_handout_kits "
+            "(swabs_per_kit,KIT_ID,PASSWORD,VERIFICATION_CODE) values "
+            "('%s', '%s', '%s', '%s')" % (spk, kid, password, vercode))
+
+        kit_barcode_statement = (
+            "INSERT INTO handout_barcode "
+            "(kit_id, barcode, sample_barcode_file) "
+            "VALUES (%s, %s, %s)" % (kid, barcode, sbk))
 
         barcode_insert_statement = (
             "insert into barcode (barcode, obsolete) "
@@ -320,6 +324,7 @@ def insert_kits(kits, proj_id, conn=None):
             click.echo('commit;')
         else:
             kit_insert_statements.append(kit_insert_statement)
+            kit_barcode_statements.append(kit_barcode_statement)
             barcode_insert_statements.append(barcode_insert_statement)
             barcode_project_insert_statements.append(
                 barcode_project_insert_statement)
@@ -327,9 +332,10 @@ def insert_kits(kits, proj_id, conn=None):
     if conn is not None:
         with conn.cursor() as cursor:
             for i in range(len(kit_insert_statements)):
-                cursor.execute(kit_insert_statements[i])
                 cursor.execute(barcode_insert_statements[i])
                 cursor.execute(barcode_project_insert_statements[i])
+                cursor.execute(kit_insert_statements[i])
+                cursor.execute(kit_barcode_statements[i])
             conn.commit()
 
 
