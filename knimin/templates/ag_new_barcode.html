@@ -1,73 +1,70 @@
 {% extends logged_in_index.html %}
-{% block content %}
-<h3>Add AG Barcode</h3>
-<script>
-var next_barcode = {{barcode}};
-var text_barcode = "{{t_barcode}}";
+{% block head %}
+<script type="text/javascript">
+    $(document).ready(function() {
+        $(".chosen-select").chosen({'width': '100%'});
+    });
+
+    function showhide(item) {
+        jq_item = $("#" + item);
+        if(jq_item.is(":visible")) {
+            jq_item.hide();
+            $("#" + item + "_link").text("Show");
+        } else {
+            jq_item.show();
+            $("#" + item + "_link").text("Hide");
+        }
+    }
 </script>
-
-
-{% if response is None %}
-<form method="post" action="/ag_new_barcode/" name="agForm" id="agForm">
-<table>
-        <tr><td>Kit ID</td><td><input type="text" name="kitid" id="kitid">
-            </td>
-        </tr>
-
-        <tr>
-            <td>Barcode</td>
-            <td>
-                
-                <div id="barcode">
-                    <div id="barcode_1">
-                        <input type="text" name="barcode_1" id="barcode_1" onkeypress="validateNumber(event);" maxlength="9">
-                    </div>
-                </div>
-                <a class="add_field" href="javascript:next_barcode = parseInt(next_barcode) + 1; addBarcodeField('barcode', next_barcode);" title="Barcode">+</a>
-            </td>
-        </tr>
-        <tr>
-            <td></td>
-            <td colspan="2"><input type="button" onclick="validateAGSingleSubmitForm()" value="Submit"></td>
-        </tr>
-    </table>
-</form>
-<script>
-document.agForm.barcode_1.value = text_barcode;
-</script>
-
-{% elif response == 'Bad Kit' %}
-Kit {{kitid}} does not exsist please try agian 
-<form method="post" action="/ag_new_barcode/" name="agForm" id="agForm">
-<table>
-        <tr><td>Kit ID</td><td><input type="text" name="kitid" id="kitid">
-            </td>
-        </tr>
-
-        <tr>
-            <td>Barcode</td>
-            <td>
-                
-                <div id="barcode">
-                    <div id="barcode_1">
-                        <input type="text" name="barcode_1" id="barcode_1" onkeypress="validateNumber(event);" maxlength="9">
-                    </div>
-                </div>
-                <a class="add_field" href="javascript:next_barcode = parseInt(next_barcode) + 1; addBarcodeField('barcode', next_barcode);" title="Barcode">+</a>
-            </td>
-        </tr>
-        <tr>
-            <td></td>
-            <td colspan="2"><input type="button" onclick="validateAGSingleSubmitForm()" value="Submit"></td>
-        </tr>
-    </table>
-</form>
-<script>
-document.agForm.barcode_1.value = text_barcode;
-</script>
-{% elif response == 'Good' %}
-    Barcode(s) Added
-{%elif response == 'Bad' %}
-    Error Adding Barcode(s)
+<style>
+.right-td {
+    text-align: right;
+    font-weight: bold;
+}
+</style>
 {% end %}
+
+{% block content %}
+<h3 style="display:inline;">Add Barcodes</h3> <a href="#" onclick="showhide('create_barcodes')" id="create_barcodes_link">Hide</a><br/>
+<div id="create_barcodes">
+    <form method="post" action="/ag_new_barcode/" name="agCreateForm" id="agCreateForm">
+    <input type="hidden" name="action" value="create">
+        <table>
+            <tr><td class="right-td">Existing project(s) to attach barcodes to</td>
+            <td>
+            <select id="create-select-project" name="projects" multiple class="chosen-select">
+                {% for p in projects %}
+                <option value='{{p}}'>{{p}}</option>
+                {% end %}
+            </select>
+            </td></tr>
+            <tr><td class="right-td">New project to attach barcode to</td>
+            <td><input type='text' name='newproject' value=''></td></tr>
+            <tr><td class="right-td">Number of barcodes to create</td>
+            <td><input type='number' name='numbarcodes' value="0" min="1" max="10000" maxlength="7" size="7"></td></tr>
+            <tr><td><input type="submit"></td>
+            <td></td></tr>
+        </table>
+    </form>
+</div>
+<h3 style="display:inline;">View Barcodes By Project</h3> <a href="#" onclick="showhide('view_barcodes')" id="view_barcodes_link">Hide</a>
+<div id="view_barcodes">
+    <form method="post" action="/ag_new_barcode/" name="agViewForm" id="agViewForm">
+    <input type="hidden" name="action" value="view">
+        <table>
+            <tr><td class="right-td">Project</td>
+            <td>
+            <select id="create-select-project" name="projects" class="chosen-select">
+                {% for p in projects %}
+                <option value='{{p}}'>{{p}}</option>
+                {% end %}
+            </select>
+            </td></tr>
+            <tr><td class="right-td">Limit (0 to show all barcodes)</td>
+            <td><input type='number' name='limit' value="100" min="0" max="10000" maxlength="7" size="7"></td></tr>
+            <tr><td><input type="submit"></td>
+            <td></td></tr>
+        </table>
+    </form>
+</div>
 {% end %}

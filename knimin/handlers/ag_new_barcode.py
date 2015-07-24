@@ -8,10 +8,9 @@ from amgut.connections import ag_data
 class AGNewBarcodeHandler(BaseHandler):
     @authenticated
     def get(self):
-        next_barcode, text_barcode = ag_data.getNextAGBarcode()
-        self.render("ag_new_barcode.html", kitid=None, barcode=next_barcode,
-                    t_barcode=text_barcode, response=None,
-                    currentuser=self.current_user)
+        project_names = ag_data.getProjectNames()
+        self.render("ag_new_barcode.html", currentuser=self.current_user,
+                    projects=project_names)
 
     @authenticated
     def post(self):
