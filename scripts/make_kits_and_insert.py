@@ -290,7 +290,7 @@ def insert_kits(kits, proj_id, conn=None):
     kit_barcode_statements = []
     barcode_insert_statements = []
     barcode_project_insert_statements = []
-
+    seen_kits = set()
     # skip the header line
     for line in kits[1:]:
         barcode, spk, kid, password, vercode, sbf = line[:6]
@@ -300,15 +300,16 @@ def insert_kits(kits, proj_id, conn=None):
             "insert into barcode (barcode, obsolete) "
             "values ('%s', 'N')" % barcode)
 
-        kit_insert_statement = (
-            "insert into ag_handout_kits "
-            "(swabs_per_kit,KIT_ID,PASSWORD,VERIFICATION_CODE) values "
-            "('%s', '%s', '%s', '%s')" % (spk, kid, password, vercode))
+        if kid not in seen_kits:
+            kit_insert_statement = (
+                "insert into ag_handout_kits "
+                "(swabs_per_kit,KIT_ID,PASSWORD,VERIFICATION_CODE) values "
+                "('%s', '%s', '%s', '%s')" % (spk, kid, password, vercode))
 
         kit_barcode_statement = (
-            "INSERT INTO handout_barcode "
+            "INSERT INTO ag_handout_barcodes "
             "(kit_id, barcode, sample_barcode_file) "
-            "VALUES (%s, %s, %s)" % (kid, barcode, sbf))
+            "VALUES ('%s', '%s', '%s')" % (kid, barcode, sbf))
 
         # this statment will need updated when group info is on live
         barcode_project_insert_statement = (
@@ -323,13 +324,17 @@ def insert_kits(kits, proj_id, conn=None):
             click.echo(barcode_project_insert_statement + ';')
             click.echo('commit;')
         else:
-            kit_insert_statements.append(kit_insert_statement)
+            if kid not in seen_kits:
+                kit_insert_statements.append(kit_insert_statement)
+                seen_kits.add(kid)
             kit_barcode_statements.append(kit_barcode_statement)
             barcode_insert_statements.append(barcode_insert_statement)
             barcode_project_insert_statements.append(
                 barcode_project_insert_statement)
 
     if conn is not None:
+        click.echo('inserting %d kits and %d barcodes' % (
+                   len(kit_insert_statements), len(barcode_insert_statements)))
         with conn.cursor() as cursor:
             for i in range(len(kit_insert_statements)):
                 cursor.execute(barcode_insert_statements[i])
