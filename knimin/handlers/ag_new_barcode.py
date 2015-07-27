@@ -21,8 +21,9 @@ class AGNewBarcodeHandler(BaseHandler):
             new_project = self.get_argument('newproject').strip()
             num_barcodes = self.get_argument('numbarcodes')
             if new_project:
-                ag_data.createProject(new_project)
+                ag_data.create_project(new_project)
                 projects.append(new_project)
+
             
 
         elif action == 'view':

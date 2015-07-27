@@ -763,44 +763,31 @@ class KniminAccess(object):
                  SELECT max(project_id)+1, %s FROM project"""
         self._con.execute(sql, [name])
 
-    def create_barcodes(self, num_barcodes, projects=None, new_project=None):
+    def create_barcodes(self, num_barcodes, projects):
         """Creates new barcodes
 
         Parameters
         ----------
         num_barcodes : int
             Number of barcodes to create
-        projects : list of str, optional
+        projects : list of str
             Existing projects to attach barcodes to.
-        new_project : str, optional
-            New project to create and attach barcodes to
 
         Returns
         -------
         list
             New barcodes created
-
-        Notes
-        -----
-        Nust supply at least one project, whether it be an existing or
-        new project
         """
-        if not projects and not new_project:
+        if not projects:
             raise ValueError("Must supply at least one project!")
 
-        # Verify projects given exist/new project doesnt exist
+        # Verify projects given exist
         sql = "SELECT project FROM project"
         existing = {x[0] for x in self._con.execute_fetchall(sql)}
-        if projects is not None:
-            if any(p not in existing for p in projects):
-                not_exist = [p for p in projects if p not in existing]
-                raise ValueError("Project(s) given don't exist in database: %s"
-                                 % ', '.join(not_exist))
-        else:
-            projects = []
-        if new_project is not None:
-            self.create_project(new_project)
-            projects.append(new_project)
+        if any(p not in existing for p in projects):
+            not_exist = [p for p in projects if p not in existing]
+            raise ValueError("Project(s) given don't exist in database: %s"
+                             % ', '.join(not_exist))
 
         sql = "SELECT project_id from project WHERE project in %s"
         proj_ids = [x[0] for x in

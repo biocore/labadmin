@@ -39,51 +39,23 @@ class DataAccessTests(TestCase):
         with self.assertRaises(ValueError):
             db.create_barcodes(29)
         with self.assertRaises(ValueError):
-            db.create_barcodes(29, projects=["NOTINDB"])
-        with self.assertRaises(ValueError):
-            db.create_barcodes(29, new_project="American Gut Project")
+            db.create_barcodes(29, ["NOTINDB"])
 
+        db.create_project("New Test Project")
         con = db._con
         sql_bc = "SELECT barcode FROM barcode"
         bc = [['000000001'], ['000000002'], ['000000003'], ['000000004'],
               ['000006616'], ['000010860']]
         sql_bc_proj = "SELECT * FROM project_barcode"
-        bc_proj = [[1, '000000001'], [1, '000006616'], [1, '000010860'], ]
-        sql_proj = "SELECT * FROM project"
-        proj = [[1, "American Gut Project"]]
-        db.create_barcodes(3, projects=["American Gut Project"])
+        bc_proj = [[1, '000000001'], [1, '000006616'], [1, '000010860']]
+        db.create_barcodes(3, ["American Gut Project", "New Test Project"])
         bc.extend([['000010861'], ['000010862'], ['000010863']])
         obs = con.execute_fetchall(sql_bc)
         self.assertItemsEqual(obs, bc)
-        bc_proj.extend([[1, '000010861'], [1, '000010862'], [1, '000010863']])
+        bc_proj.extend([[1, '000010861'], [1, '000010862'], [1, '000010863'],
+                        [2, '000010861'], [2, '000010862'], [2, '000010863']])
         obs = con.execute_fetchall(sql_bc_proj)
         self.assertItemsEqual(obs, bc_proj)
-        obs = con.execute_fetchall(sql_proj)
-        self.assertItemsEqual(obs, proj)
-
-        db.create_barcodes(3, projects=["American Gut Project"],
-                           new_project="New AG Subproject")
-        bc.extend([['000010864'], ['000010865'], ['000010866']])
-        obs = con.execute_fetchall(sql_bc)
-        self.assertItemsEqual(obs, bc)
-        bc_proj.extend([[1, '000010864'], [1, '000010865'], [1, '000010866'],
-                        [2, '000010864'], [2, '000010865'], [2, '000010866']])
-        obs = con.execute_fetchall(sql_bc_proj)
-        self.assertItemsEqual(obs, bc_proj)
-        proj.append([2, "New AG Subproject"])
-        obs = con.execute_fetchall(sql_proj)
-        self.assertItemsEqual(obs, proj)
-
-        db.create_barcodes(3, new_project="NewStudyNeedingBarcodes")
-        bc.extend([['000010867'], ['000010868'], ['000010869']])
-        obs = con.execute_fetchall(sql_bc)
-        self.assertItemsEqual(obs, bc)
-        bc_proj.extend([[3, '000010867'], [3, '000010868'], [3, '000010869']])
-        obs = con.execute_fetchall(sql_bc_proj)
-        self.assertItemsEqual(obs, bc_proj)
-        proj.append([3, "NewStudyNeedingBarcodes"])
-        obs = con.execute_fetchall(sql_proj)
-        self.assertItemsEqual(obs, proj)
 
 
 if __name__ == '__main__':
