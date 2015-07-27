@@ -67,4 +67,14 @@
         </table>
     </form>
 </div>
+    {% if barcodes %}
+<table>
+    <thead><tr><td>Barcode</td><td>Project</td><td>Created</td></tr></thead>
+    <tbody>
+        {% for barcode, project, created in barcodes %}
+        <tr><td>{{barcode}}</td><td>{{project}}</td><td>{{created}}</td></tr>
+        {% end %}
+    </tbody>
+</table>
+    {% end %}
 {% end %}

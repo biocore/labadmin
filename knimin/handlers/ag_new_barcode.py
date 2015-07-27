@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from tornado.web import authenticated
+from tornado.web import authenticated, HTTPError
 from knimin.handlers.base import BaseHandler
 
 from amgut.connections import ag_data
@@ -10,31 +10,25 @@ class AGNewBarcodeHandler(BaseHandler):
     def get(self):
         project_names = ag_data.getProjectNames()
         self.render("ag_new_barcode.html", currentuser=self.current_user,
-                    projects=project_names)
+                    projects=project_names, barcodes=[])
 
     @authenticated
     def post(self):
-        num_barcodes = len(self.request.arguments)
-        kit_id = self.get_argument('kitid')
-        kitinfo = ag_data.getAGKitDetails(kit_id)
-        if 'supplied_kit_id' not in kitinfo:
-            next_barcode, text_barcode = ag_data.getNextAGBarcode()
-            self.render("ag_new_barcode.html", kitid=kit_id,
-                        barcode=next_barcode,
-                        t_barcode=text_barcode, response='Bad Kit',
-                        currentuser=self.current_user)
-            return
+        barcodes = []
+        action = self.get_argument('action')
+        if action == 'create':
+            projects = self.get_arguments('projects', [])
+            new_project = self.get_argument('newproject').strip()
+            num_barcodes = self.get_argument('numbarcodes')
+            if new_project:
+                ag_data.createProject(new_project)
+                projects.append(new_project)
+            
 
-        try:
-            for x in range(1, num_barcodes):
-                field = 'barcode_%s' % x
-                barcode = self.get_argument(field)
-                ag_data.addAGBarcode(kitinfo['ag_kit_id'], barcode)
+        elif action == 'view':
 
-            self.render("ag_new_barcode.html", response='Good',
-                        kitid=None, barcode=None, t_barcode=None,
-                        currentuser=self.current_user)
-        except:
-            self.render("ag_new_barcode.html", response='Bad',
-                        kitid=None, barcode=None, t_barcode=None,
-                        currentuser=self.current_user)
+        else:
+            raise HTTPError(400, 'Unexpected action: %s' % action)
+        project_names = ag_data.getProjectNames()
+        self.render("ag_new_barcode.html", currentuser=self.current_user,
+                    projects=project_names, barcodes=barcodes)
