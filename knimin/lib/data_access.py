@@ -214,7 +214,7 @@ class SQLHandler(object):
 class KniminAccess(object):
     def __init__(self, config):
         self._con = SQLHandler(config)
-        self._con.execute('set search_path to ag, public')
+        self._con.execute('set search_path to ag, public, barcodes')
 
     def get_barcode_details(self, barcodes):
         """Retrieve sample, kit, and login details by barcode
@@ -743,3 +743,85 @@ class KniminAccess(object):
             raise IncorrectPasswordError("Password not valid!")
 
         return False
+
+    def get_used_kit_ids(self):
+        """Grab in use kit IDs, return set of them
+        """
+        sql = """SELECT supplied_kit_id FROM ag_kit
+                 UNION
+                 SELECT kit_id from ag_handout_kits"""
+
+        return set([i[0] for i in self._con.execute_fetchall(sql)])
+
+    def create_project(self, name):
+        sql = "SELECT EXISTS(SELECT * FROM project WHERE project = %s)"
+        exists = self._con.execute_fetchone(sql, [name])[0]
+        if exists:
+                raise ValueError("Project %s already exists!" % name)
+
+        sql = """INSERT INTO project (project_id, project)
+                 SELECT max(project_id)+1, %s FROM project"""
+        self._con.execute(sql, [name])
+
+    def create_barcodes(self, num_barcodes, projects=None, new_project=None):
+        """Creates new barcodes
+
+        Parameters
+        ----------
+        num_barcodes : int
+            Number of barcodes to create
+        projects : list of str, optional
+            Existing projects to attach barcodes to.
+        new_project : str, optional
+            New project to create and attach barcodes to
+
+        Returns
+        -------
+        list
+            New barcodes created
+
+        Notes
+        -----
+        Nust supply at least one project, whether it be an existing or
+        new project
+        """
+        if not projects and not new_project:
+            raise ValueError("Must supply at least one project!")
+
+        # Verify projects given exist/new project doesnt exist
+        sql = "SELECT project FROM project"
+        existing = {x[0] for x in self._con.execute_fetchall(sql)}
+        if projects is not None:
+            if any(p not in existing for p in projects):
+                not_exist = [p for p in projects if p not in existing]
+                raise ValueError("Project(s) given don't exist in database: %s"
+                                 % ', '.join(not_exist))
+        else:
+            projects = []
+        if new_project is not None:
+            self.create_project(new_project)
+            projects.append(new_project)
+
+        sql = "SELECT project_id from project WHERE project in %s"
+        proj_ids = [x[0] for x in
+                    self._con.execute_fetchall(sql, [tuple(projects)])]
+
+        # Get newest barcode as an integer
+        sql = "SELECT max(barcode::integer) from barcode"
+        newest = self._con.execute_fetchone(sql)[0]
+
+        # create new barcodes by padding integers with zeros
+        barcodes = ['%09d' % b for b in range(newest+1, newest+1+num_barcodes)]
+
+        barcode_insert = """INSERT INTO barcode (barcode, obsolete)
+                            VALUES (%s, 'N')"""
+        barcode_project_insert = """INSERT INTO project_barcode
+                                    (barcode, project_id)
+                                    VALUES (%s, %s)"""
+        project_inserts = []
+        for barcode in barcodes:
+            for project in proj_ids:
+                project_inserts.append((barcode, project))
+
+        self._con.executemany(barcode_insert, [[b] for b in barcodes])
+        self._con.executemany(barcode_project_insert, project_inserts)
