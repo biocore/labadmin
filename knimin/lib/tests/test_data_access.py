@@ -37,8 +37,6 @@ class DataAccessTests(TestCase):
 
     def test_create_barcodes(self):
         with self.assertRaises(ValueError):
-            db.create_barcodes(29)
-        with self.assertRaises(ValueError):
             db.create_barcodes(29, ["NOTINDB"])
 
         db.create_project("New Test Project")
@@ -48,7 +46,11 @@ class DataAccessTests(TestCase):
               ['000006616'], ['000010860']]
         sql_bc_proj = "SELECT * FROM project_barcode"
         bc_proj = [[1, '000000001'], [1, '000006616'], [1, '000010860']]
-        db.create_barcodes(3, ["American Gut Project", "New Test Project"])
+
+        barcodes = db.create_barcodes(3, ["American Gut Project",
+                                          "New Test Project"])
+        self.assertEqual(barcodes, ['000010861', '000010862', '000010863'])
+
         bc.extend([['000010861'], ['000010862'], ['000010863']])
         obs = con.execute_fetchall(sql_bc)
         self.assertItemsEqual(obs, bc)

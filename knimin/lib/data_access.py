@@ -812,3 +812,5 @@ class KniminAccess(object):
 
         self._con.executemany(barcode_insert, [[b] for b in barcodes])
         self._con.executemany(barcode_project_insert, project_inserts)
+
+        return barcodes
