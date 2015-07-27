@@ -10,10 +10,19 @@ __email__ = "emily.teravest@colorado.edu"
 __status__ = "Development"
 
 import click
+from random import choice
+
 from passlib.hash import bcrypt
 
 from amgut.connections import ag_data
-from knimin.lib.util import make_kit_ids, make_passwd, make_verification_code
+
+
+# character sets for kit id, passwords and verification codes
+KIT_ALPHA = "abcdefghjkmnpqrstuvwxyz"  # removed l and o for clarity
+KIT_PASSWD = '1234567890'
+KIT_VERCODE = KIT_PASSWD
+KIT_PASSWD_NOZEROS = KIT_PASSWD[0:-1]
+KIT_VERCODE_NOZEROS = KIT_PASSWD_NOZEROS
 
 
 def determine_swabs(donationfile):
@@ -113,6 +122,61 @@ def verify_unique_sample_id(cursor, sample_id):
     return len(results) == 0
 
 
+def get_used_kit_ids(cursor):
+    """Grab in use kit IDs, return set of them
+    """
+    cursor.execute("select supplied_kit_id from ag_kit")
+
+    return set([i[0] for i in cursor.fetchall()])
+
+
+def make_kit_id(kit_id_length=5, tag=None):
+    if kit_id_length > 9:
+        # database table has 9 chars for the kit_id_length
+        kit_id_length = 9
+
+    if tag is None:
+        kit_id = ''.join([choice(KIT_ALPHA) for i in range(kit_id_length)])
+    else:
+        if (kit_id_length + len(tag) + 1) > 9:
+            # we have a 9 char limit for kit ids reduce the kit_id_length
+            kit_id_length = 8 - len(tag)
+        kit_id = ''.join([choice(KIT_ALPHA) for i in range(kit_id_length)])
+        kit_id = tag + '_' + kit_id
+
+    return kit_id
+
+
+def make_valid_kit_id(obs_kit_ids, kit_id_length=5, tag=None):
+    """Generate a new unique kit id
+
+    obs_kit_ids : kit identifiers that have already been used in the database
+
+    """
+
+    kit_id = make_kit_id(kit_id_length, tag)
+    while kit_id in obs_kit_ids:
+        kit_id = make_kit_id(kit_id_length, tag)
+
+    obs_kit_ids.add(kit_id)
+
+    return (obs_kit_ids, kit_id)
+
+
+def make_passwd(passwd_length=8):
+    """Generate a new password
+    """
+    x = ''.join([choice(KIT_PASSWD) for i in range(passwd_length-1)])
+    return choice(KIT_PASSWD_NOZEROS) + x
+
+
+def make_verification_code(vercode_length=5):
+    """Generate a verification code
+    """
+    x = ''.join([choice(KIT_VERCODE) for i in range(vercode_length-1)])
+    return choice(KIT_VERCODE_NOZEROS) + x
+
+
 def get_printout_data(kit_passwd_map, kit_barcode_map):
     """Produce the text for paper slips with kit credentials
     """
@@ -163,13 +227,12 @@ def unassigned_kits(starting_sample, cursor, existing_kit_ids, output,
     kit_barcode_map = {}
     kit_passwd_map = []
     current_sample_id = starting_sample
-    kit_ids = make_kit_ids(sum(swabs_per_kit.values()), tag=tag)
 
     for swab_count in swabs_per_kit:
         kit_count = swabs_per_kit[swab_count]
         for kit in range(kit_count):
-            kit_id = kit_ids[kit]
-
+            existing_kit_ids, kit_id = make_valid_kit_id(existing_kit_ids,
+                                                         tag=tag)
             passwd = make_passwd()
             vercode = make_verification_code()
 
@@ -224,10 +287,9 @@ def insert_kits(kits, proj_id, conn=None):
     # These lists will be populated if this is not a dry_run and executed in a
     # single transaction block
     kit_insert_statements = []
-    kit_barcode_statements = []
     barcode_insert_statements = []
     barcode_project_insert_statements = []
-    seen_kits = set()
+
     # skip the header line
     for line in kits[1:]:
         barcode, spk, kid, password, vercode, sbf = line[:6]
@@ -237,16 +299,12 @@ def insert_kits(kits, proj_id, conn=None):
             "insert into barcode (barcode, obsolete) "
             "values ('%s', 'N')" % barcode)
 
-        if kid not in seen_kits:
-            kit_insert_statement = (
-                "insert into ag_handout_kits "
-                "(swabs_per_kit,KIT_ID,PASSWORD,VERIFICATION_CODE) values "
-                "('%s', '%s', '%s', '%s')" % (spk, kid, password, vercode))
-
-        kit_barcode_statement = (
-            "INSERT INTO ag_handout_barcodes "
-            "(kit_id, barcode, sample_barcode_file) "
-            "VALUES ('%s', '%s', '%s')" % (kid, barcode, sbf))
+        kit_insert_statement = (
+            "insert into ag_handout_kits (barcode, "
+            "swabs_per_kit,KIT_ID,PASSWORD,VERIFICATION_CODE, "
+            "SAMPLE_BARCODE_FILE) values "
+            "('%s','%s', '%s', '%s', '%s', '%s')" % (barcode, spk, kid,
+                                                     password, vercode, sbf))
 
         # this statment will need updated when group info is on live
         barcode_project_insert_statement = (
@@ -254,30 +312,24 @@ def insert_kits(kits, proj_id, conn=None):
             "values ('%s', '%s')" % (barcode, proj_id))
 
         if conn is None:
-            click.echo('set search_path to ag, public, barcodes;')
+            click.echo('set search_path to ag, public;')
             click.echo('begin;')
             click.echo(barcode_insert_statement + ';')
             click.echo(kit_insert_statement + ';')
             click.echo(barcode_project_insert_statement + ';')
             click.echo('commit;')
         else:
-            if kid not in seen_kits:
-                kit_insert_statements.append(kit_insert_statement)
-                seen_kits.add(kid)
-            kit_barcode_statements.append(kit_barcode_statement)
+            kit_insert_statements.append(kit_insert_statement)
             barcode_insert_statements.append(barcode_insert_statement)
             barcode_project_insert_statements.append(
                 barcode_project_insert_statement)
 
     if conn is not None:
-        click.echo('inserting %d kits and %d barcodes' % (
-                   len(kit_insert_statements), len(barcode_insert_statements)))
         with conn.cursor() as cursor:
             for i in range(len(kit_insert_statements)):
                 cursor.execute(barcode_insert_statements[i])
-                cursor.execute(barcode_project_insert_statements[i])
                 cursor.execute(kit_insert_statements[i])
-                cursor.execute(kit_barcode_statements[i])
+                cursor.execute(barcode_project_insert_statements[i])
             conn.commit()
 
 
