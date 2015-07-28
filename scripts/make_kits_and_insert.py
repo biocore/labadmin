@@ -312,7 +312,7 @@ def insert_kits(kits, proj_id, conn=None):
             "values ('%s', '%s')" % (barcode, proj_id))
 
         if conn is None:
-            click.echo('set search_path to ag, public;')
+            click.echo('set search_path to ag, public, barcodes;')
             click.echo('begin;')
             click.echo(barcode_insert_statement + ';')
             click.echo(kit_insert_statement + ';')
