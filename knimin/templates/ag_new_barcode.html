@@ -25,6 +25,7 @@
 {% end %}
 
 {% block content %}
+<h3>{{msg}}</h3>
 <h3 style="display:inline;">Add Barcodes</h3> <a href="#" onclick="showhide('create_barcodes')" id="create_barcodes_link">Hide</a><br/>
 <div id="create_barcodes">
     <form method="post" action="/ag_new_barcode/" name="agCreateForm" id="agCreateForm">
