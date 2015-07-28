@@ -814,3 +814,46 @@ class KniminAccess(object):
         self._con.executemany(barcode_project_insert, project_inserts)
 
         return barcodes
+
+    def view_barcodes_info(self, barcodes):
+        select_sql = """SELECT barcode, create_date_time, status,scan_date,
+                        sample_postmark_date,biomass_remaining,
+                        sequencing_status,obsolete,
+                        array_agg(project) AS projects
+                        FROM barcode
+                        JOIN project_barcode USING (barcode)
+                        JOIN project USING (project_id)
+                        WHERE barcode IN %s GROUP BY barcode
+                        ORDER BY barcode DESC"""
+        return self._con.execute_fetchall(select_sql, [tuple(barcodes)])
+
+    def view_barcodes_for_projects(self, projects, limit=None):
+        """Gets barcode information for barcodes belonging to projects
+
+        Parameters
+        ----------
+        projects : list of str
+            Projects to get barcodes for (if multiple given, intersection of
+            barcodes in each project is returned)
+        limit : int, optional
+            Number of barcodes to return, starting with most recent
+            (defult all)
+
+        Returns
+        -------
+        list of dict
+            each barcode with information
+        """
+        select_sql = """SELECT barcode, create_date_time, sample_postmark_date,
+                        scan_date,status,sequencing_status,biomass_remaining,
+                        obsolete,array_agg(project) AS projects
+                        FROM barcode
+                        JOIN project_barcode USING (barcode)
+                        JOIN project USING (project_id)
+                        WHERE project IN %s GROUP BY barcode
+                        ORDER BY barcode DESC"""
+        sql_args = [tuple(projects)]
+        if limit is not None:
+            select_sql += " LIMIT %s"
+            sql_args.append(limit)
+        return self._con.execute_fetchall(select_sql, sql_args)

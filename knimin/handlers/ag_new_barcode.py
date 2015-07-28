@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from tornado.web import authenticated, HTTPError
+from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
 
 from amgut.connections import ag_data
@@ -15,8 +15,9 @@ class AGNewBarcodeHandler(BaseHandler):
 
     @authenticated
     def post(self):
-        barcodes = []
         action = self.get_argument('action')
+        barcodes_info = []
+        msg=""
         if action == 'create':
             projects = self.get_arguments('projects')
             new_project = self.get_argument('newproject').strip()
@@ -25,14 +26,14 @@ class AGNewBarcodeHandler(BaseHandler):
                 db.create_project(new_project)
                 projects.append(new_project)
             new_barcodes = db.create_barcodes(num_barcodes, projects)
-            barcodes_info = db.get_barcode_details(new_barcodes)
+            barcodes_info = db.view_barcodes_info(new_barcodes)
             msg = "%d Barcodes created!" % num_barcodes
         elif action == 'view':
             projects = self.get_arguments('projects')
             limit = int(self.get_argument('limit'))
             if limit == 0:
                 limit = None
-            barcodes_info = {}
+            barcodes_info = db.view_barcodes_for_projects(projects, limit)
         else:
             raise RuntimeError("Unknown action for AGNewBarcdeHandler: %s" %
                                action)

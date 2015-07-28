@@ -70,10 +70,10 @@
 </div>
     {% if barcodes %}
 <table>
-    <thead><tr><td>Barcode</td><td>Project</td><td>Created</td></tr></thead>
+    <thead><tr><td>barcode</td><td>created on</td><td>postmarked</td><td>scanned</td><td>status</td><td>sequencing status</td><td>obsolete</td><td>projects</td></tr></thead>
     <tbody>
-        {% for barcode, project, created in barcodes %}
-        <tr><td>{{barcode}}</td><td>{{project}}</td><td>{{created}}</td></tr>
+        {% for info in barcodes %}
+        <tr><tr><td>{{info[0]}}</td><td>{{info[1]}}</td><td>{{info[2]}}</td><td>{{info[3]}}</td><td>{{info[5]}}</td><td>{{info[6]}}</td><td>{{info[7]}}</td><td>{{ ', '.join(sorted(info[8])) }}</td></tr>
         {% end %}
     </tbody>
 </table>
