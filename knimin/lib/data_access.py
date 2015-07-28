@@ -763,24 +763,42 @@ class KniminAccess(object):
                  SELECT max(project_id)+1, %s FROM project"""
         self._con.execute(sql, [name])
 
-    def create_barcodes(self, num_barcodes, projects):
-        """Creates new barcodes
+    def remaining_barcodes(self, limit=None):
+        """Returns unassigned barcodes remaining in the database
 
         Parameters
         ----------
-        num_barcodes : int
-            Number of barcodes to create
-        projects : list of str
-            Existing projects to attach barcodes to.
+        limit : int, optional
+            Number of barcodes to limit to
 
         Returns
         -------
         list
-            New barcodes created
-        """
-        if not projects:
-            raise ValueError("Must supply at least one project!")
+            unassigned barcodes
 
+        Raises
+        ------
+        ValueError
+            Not enough unnasigned barcodes for limit
+
+        Notes
+        -----
+        Barcodes are returned in ascending order
+        """
+        sql_args = None
+        sql = """SELECT DISTINCT barcode FROM barcodes.barcode
+                 LEFT JOIN barcodes.project_barcode pb USING (barcode)
+                 WHERE pb.barcode IS NULL
+                 ORDER BY barcode ASC"""
+        if limit is not None:
+            sql += " LIMIT %s"
+            sql_args = [limit]
+        barcodes = [x[0] for x in self._con.execute_fetchall(sql, sql_args)]
+        if len(barcodes) < limit:
+            raise ValueError("Not enough barcodes! %d asked for, %d remaining"
+                             % (limit, len(barcodes)))
+
+    def assign_barcodes(self, num_barcodes, projects):
         # Verify projects given exist
         sql = "SELECT project FROM project"
         existing = {x[0] for x in self._con.execute_fetchall(sql)}
@@ -789,9 +807,36 @@ class KniminAccess(object):
             raise ValueError("Project(s) given don't exist in database: %s"
                              % ', '.join(not_exist))
 
+        # Get unassigned barcode list and make sure we have enough barcodes
+        barcodes = self.remaining_barcodes(limit=num_barcodes)
+
+        # Assign barcodes to the project(s)
         sql = "SELECT project_id from project WHERE project in %s"
         proj_ids = [x[0] for x in
                     self._con.execute_fetchall(sql, [tuple(projects)])]
+
+        barcode_project_insert = """INSERT INTO project_barcode
+                                    (barcode, project_id)
+                                    VALUES (%s, %s)"""
+        project_inserts = []
+        for barcode in barcodes:
+            for project in proj_ids:
+                project_inserts.append((barcode, project))
+        self._con.executemany(barcode_project_insert, project_inserts)
+
+    def create_barcodes(self, num_barcodes):
+        """Creates new barcodes
+
+        Parameters
+        ----------
+        num_barcodes : int
+            Number of barcodes to create
+
+        Returns
+        -------
+        list
+            New barcodes created
+        """
 
         # Get newest barcode as an integer
         sql = "SELECT max(barcode::integer) from barcode"
@@ -802,17 +847,7 @@ class KniminAccess(object):
 
         barcode_insert = """INSERT INTO barcode (barcode, obsolete)
                             VALUES (%s, 'N')"""
-        barcode_project_insert = """INSERT INTO project_barcode
-                                    (barcode, project_id)
-                                    VALUES (%s, %s)"""
-        project_inserts = []
-        for barcode in barcodes:
-            for project in proj_ids:
-                project_inserts.append((barcode, project))
-
         self._con.executemany(barcode_insert, [[b] for b in barcodes])
-        self._con.executemany(barcode_project_insert, project_inserts)
-
         return barcodes
 
     def view_barcodes_info(self, barcodes):

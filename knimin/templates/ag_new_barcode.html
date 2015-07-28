@@ -2,6 +2,7 @@
 {% block head %}
 <script type="text/javascript">
     $(document).ready(function() {
+        $("#create_barcodes").hide();
         $(".chosen-select").chosen({'width': '100%'});
     });
 
@@ -26,10 +27,23 @@
 
 {% block content %}
 <h3>{{msg}}</h3>
-<h3 style="display:inline;">Add Barcodes</h3> <a href="#" onclick="showhide('create_barcodes')" id="create_barcodes_link">Hide</a><br/>
+<h3 style="display:inline;">Add Barcodes</h3> <a href="#" onclick="showhide('create_barcodes')" id="create_barcodes_link">Show</a><br/>
 <div id="create_barcodes">
     <form method="post" action="/ag_new_barcode/" name="agCreateForm" id="agCreateForm">
     <input type="hidden" name="action" value="create">
+        <table>
+            <tr><td class="right-td">Number of barcodes to create</td>
+            <td><input type='number' name='numbarcodes' value="0" min="1" max="10000" maxlength="7" size="7"></td></tr>
+            <tr><td><input type="submit"></td>
+            <td></td></tr>
+        </table>
+    </form>
+</div>
+
+<h3 style="display:inline;">Assign Barcodes</h3> <a href="#" onclick="showhide('assign_barcodes')" id="create_barcodes_link">Hide</a><br/>
+<div id="create_barcodes">
+    <form method="post" action="/ag_new_barcode/" name="agAssignForm" id="agAssignForm">
+    <input type="hidden" name="action" value="assign">
         <table>
             <tr><td class="right-td">Existing project(s) to attach barcodes to</td>
             <td>
@@ -41,13 +55,14 @@
             </td></tr>
             <tr><td class="right-td">New project to attach barcode to</td>
             <td><input type='text' name='newproject' value=''></td></tr>
-            <tr><td class="right-td">Number of barcodes to create</td>
+            <tr><td class="right-td">Number of barcodes ({{remaining}} unassigned)</td>
             <td><input type='number' name='numbarcodes' value="0" min="1" max="10000" maxlength="7" size="7"></td></tr>
             <tr><td><input type="submit"></td>
             <td></td></tr>
         </table>
     </form>
 </div>
+
 <h3 style="display:inline;">View Barcodes By Project</h3> <a href="#" onclick="showhide('view_barcodes')" id="view_barcodes_link">Hide</a>
 <div id="view_barcodes">
     <form method="post" action="/ag_new_barcode/" name="agViewForm" id="agViewForm">
