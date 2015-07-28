@@ -28,6 +28,10 @@ class AGNewBarcodeHandler(BaseHandler):
             barcodes_info = db.get_barcode_details(new_barcodes)
             msg = "%d Barcodes created!" % num_barcodes
         elif action == 'view':
+            projects = self.get_arguments('projects')
+            limit = int(self.get_argument('limit'))
+            if limit == 0:
+                limit = None
             barcodes_info = {}
         else:
             raise RuntimeError("Unknown action for AGNewBarcdeHandler: %s" %
