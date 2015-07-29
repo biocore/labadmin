@@ -29,7 +29,7 @@
             return false;
         }
         var swabs = $(".swabs").map(function() { return parseInt(this.value); });
-        swabs = swabs.sort()[0];
+        swabs = swabs.sort(function(a, b) { return b-a; })[0];
 
         if(swabs > 7 && confirm(swabs + " swabs per kit? REALLY?") == false) { return false; }
         return true;
