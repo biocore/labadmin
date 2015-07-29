@@ -687,6 +687,42 @@ class KniminAccess(object):
 
         return md
 
+    def pulldown(self, barcodes):
+        """Pulls down AG metadata for given barcodes
+
+        Parameters
+        ----------
+        barcodes : list of str
+            Barcodes to pull metadata down for
+
+        Returns:
+        metadata : dict of str
+            Tab delimited qiita sample template, keyed to survey ID it came
+            from
+        failures : list of str
+            Barcodes unable to pull metadata down for
+        """
+        all_survey_info = self.get_surveys(barcodes)
+        all_results = self.format_survey_data(all_survey_info)
+
+        # keep track of which barcodes were seen so we know which weren't
+        barcodes_seen = set()
+
+        metadata = {}
+        for survey, bc_responses in all_results.items():
+            headers = sorted(bc_responses.values()[0])
+            survey_md = ['#SampleID\t' + '\t'.join(headers) + '\n']
+            for barcode, shortnames_answers in sorted(bc_responses.items()):
+                barcodes_seen.add(barcode)
+                ordered_answers = [shortnames_answers[h] for h in headers]
+                ordered_answers = '\t'.join([str(x) for x in ordered_answers])
+                survey_md.append('\t'.join([barcode, ordered_answers]))
+            metadata[survey] = '\n'.join(survey_md)
+
+        failures = sorted(barcodes_seen.symmetric_difference(barcodes))
+
+        return metadata, failures
+
     def _hash_password(self, password, hashedpw=None):
         """Hashes password
 
