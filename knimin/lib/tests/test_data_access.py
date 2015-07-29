@@ -36,52 +36,47 @@ class DataAccessTests(TestCase):
         self.assertEqual(obs, exp)
 
     def test_create_barcodes(self):
-        with self.assertRaises(ValueError):
-            db.create_barcodes(29, ["NOTINDB"])
-
         db.create_project("New Test Project")
         con = db._con
         sql_bc = "SELECT barcode FROM barcode"
         bc = [['000000001'], ['000000002'], ['000000003'], ['000000004'],
               ['000006616'], ['000010860']]
-        sql_bc_proj = "SELECT * FROM project_barcode"
-        bc_proj = [[1, '000000001'], [1, '000006616'], [1, '000010860']]
 
-        barcodes = db.create_barcodes(3, ["American Gut Project",
-                                          "New Test Project"])
+        barcodes = db.create_barcodes(3)
         self.assertEqual(barcodes, ['000010861', '000010862', '000010863'])
 
         bc.extend([['000010861'], ['000010862'], ['000010863']])
         obs = con.execute_fetchall(sql_bc)
         self.assertItemsEqual(obs, bc)
-        bc_proj.extend([[1, '000010861'], [1, '000010862'], [1, '000010863'],
-                        [2, '000010861'], [2, '000010862'], [2, '000010863']])
-        obs = con.execute_fetchall(sql_bc_proj)
-        self.assertItemsEqual(obs, bc_proj)
 
     def test_create_ag_kits(self):
         with self.assertRaises(ValueError):
             db.create_ag_kits([(1, 9999999999)])
         db.create_barcodes(15)
         kits = db.create_ag_kits([(1, 2), (5, 2)])
-        print kits
 
-        obs = self.con.execute_fetchall("SELECT * from ag.ag_handout_kits")
+        obs = db._con.execute_fetchall("SELECT * from ag.ag_handout_kits")
         self.assertEqual(len(obs), 5)
 
-        obs = self.con.execute_fetchall("SELECT * from ag.ag_handout_barcodes")
-        self.assertEqual(len(obs), 13)
+        obs = db._con.execute_fetchall("SELECT * from ag.ag_handout_barcodes")
+        self.assertEqual(len(obs), 15)
 
     def test_remaining_barcodes(self):
         with self.assertRaises(ValueError):
             db.remaining_barcodes(999999999999)
 
         barcodes = db.remaining_barcodes()
-        exp = ['000000002', '000000003', '000000004']
+        exp = []
+        self.assertEqual(barcodes, exp)
+
+        db.create_barcodes(5)
+
+        barcodes = db.remaining_barcodes()
+        exp = ['000010861', '000010862', '000010863', '000010864', '000010865']
         self.assertEqual(barcodes, exp)
 
         barcodes = db.remaining_barcodes(2)
-        self.assertEqual(barcodes, ['000000002', '000000003'])
+        self.assertEqual(barcodes, ['000010861', '000010862'])
 
 
 if __name__ == '__main__':

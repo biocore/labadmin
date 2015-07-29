@@ -103,7 +103,7 @@ class SQLHandler(object):
                 self._connection.rollback()
                 try:
                     err_sql = cur.mogrify(sql, sql_args)
-                except ValueError:
+                except:
                     err_sql = cur.mogrify(sql, sql_args[0])
                 raise ValueError(("\nError running SQL query: %s"
                                   "\nError: %s" % (err_sql, e)))
@@ -775,32 +775,33 @@ class KniminAccess(object):
                 projects.append("American Gut Project")
         self.assign_barcodes(total_swabs, projects)
 
-        # Create the kits
-        kit_barcode_sql = """INSERT INTO handout_barcode
-                             (kit_id, barcode, sample_barcode_file)
-                             VALUES(%s, %s, 'UNNEEDED')"""
-
-        kit_sql = """INSERT INTO ag_handout_kits
-                     (kit_id, password, verification_code, swabs_per_kit)
-                     VALUES (%s, %s, %s, %s)"""
         kits = []
         kit_barcode_inserts = []
         kit_inserts = []
         start = 0
         # build the kits information and the sql insert information
-        for swabs, kits in swabs_kits:
-            kit_ids = make_valid_kit_ids(kits)
-            for i in range(kits):
+        for num_swabs, num_kits in swabs_kits:
+            kit_ids = make_valid_kit_ids(num_kits, self.get_used_kit_ids())
+            for i in range(num_kits):
                 ver_code = make_verification_code()
                 password = make_passwd()
-                kit_bcs = barcodes[start:start+swabs]
-                start += swabs
+                kit_bcs = barcodes[start:start + num_swabs]
+                start += num_swabs
                 kits.append([kit_ids[i], password, ver_code, kit_bcs])
-                kit_inserts.append((kit_ids[i], password, ver_code, swabs))
+                kit_inserts.append((kit_ids[i],
+                                    self._hash_password(password),
+                                    ver_code, num_swabs))
                 for barcode in kit_bcs:
-                    kit_barcode_inserts.append((kit_ids[i], barcode))
+                    kit_barcode_inserts.append((kit_ids[i], barcode, barcode))
 
         # Insert kits, followed by barcodes attached to the kits
+        kit_sql = """INSERT INTO ag_handout_kits
+                     (kit_id, password, verification_code, swabs_per_kit)
+                     VALUES (%s, %s, %s, %s)"""
+        kit_barcode_sql = """INSERT INTO ag_handout_barcodes
+                             (kit_id, barcode, sample_barcode_file)
+                             VALUES(%s, %s, %s || '.jpg')"""
+
         self._con.executemany(kit_sql, kit_inserts)
         self._con.executemany(kit_barcode_sql, kit_barcode_inserts)
 
