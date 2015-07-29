@@ -1,39 +1,45 @@
 {% extends logged_in_index.html %}
+{% block head %}
+<script type="text/javascript">
+    $(document).ready(function() {
+        $("[value='American Gut Project']").prop('selected', true);
+        $(".chosen-select").chosen({'width': '500px'});
+
+        // http://stackoverflow.com/a/7961934
+        $(".tr_clone_add").on('click', function() {
+            var $tr    = $('.tr_clone:last');
+            var $clone = $tr.clone();
+            $clone.find(':text').val('');
+            $tr.after($clone);
+        });
+    });
+</script>
+{% end %}
+
 {% block content %}
 <h3>Add AG Kit</h3>
-{% if response is None %}
 <form method="post" action="/ag_new_kit/" name="agForm" id="agForm">
-    <table>
-        <tr>
-            <td>Kit Owner</td>
-            <td><input type="text" name="email" id="email"></td>
-            </tr>
-        <tr><td>Kit ID</td><td><input type="text" name="kit_id" id="kit_id" value="{{kitid}}"></td></tr>
-        <tr><td>Kit Password</td><td><input type="text" name="kit_password" id="kit_password" value="{{password}}"></td></tr>
-        <tr><td>Number of Swabs</td><td><input type="text" name="swabs_per_kit" id="swabs_per_kit" onkeypress='validateNumber(event)'></td></tr>
-        <tr><td>Kit Verification Code</td><td><input type="text" name="kit_verification_code" id="state" value="{{vercode}}"></td></tr>
-        <tr><td></td><td><input type="button" onclick="validateAGSingleSubmitForm();" value="Submit"></td></tr>
-    </table>
+<table>
+    <tr><td style="width:150px">
+        <label for="tag">Tag: </label><input type="text" name="tag" id="tag" style="width:5em">
+    </td><td style="display: inline">
+        <label for="project">Projects: </label>
+        <select id="create-select-project" name="projects" multiple class="chosen-select">
+            {% for p in projects %}
+            <option value='{{p}}'>{{p}}</option>
+            {% end %}
+        </select>
+    </td></tr>
+</table>
+<table id="kit-table">
+    <tr><td># of swabs</td><td># of kits</td></tr>
+    <tr class="tr_clone"><td>
+        <input type="integer" name="swabs" min="1" style="width:5em">
+    </td><td>
+        <input type="integer" name="kits" min="1" style="width:5em">
+    </td></tr>
+</table>
+<p><a href="#" class="tr_clone_add">Add another kit type</a></p>
+<input type="submit">
 </form>
-{% elif response == 'Bad Email' %}
- Email Address not in System<br> Please try again
-<form method="post" action="/ag_new_kit/" name="agForm" id="agForm">
-    <table>
-
-        <tr>
-            <td>Kit Owner</td>
-            <td><input type="text" name="email" id="email" value="{{email}}"></td>
-            </tr>
-        <tr><td>Kit ID</td><td><input type="text" name="kit_id" id="kit_id" value="{{kitid}}"></td></tr>
-        <tr><td>Kit Password</td><td><input type="text" name="kit_password" id="kit_password" value="{{password}}"></td></tr>
-        <tr><td>Number of Swabs</td><td><input type="text" name="swabs_per_kit" id="swabs_per_kit" onkeypress='validateNumber(event)'></td></tr>
-        <tr><td>Kit Verification Code</td><td><input type="text" name="kit_verification_code" id="state" value="{{vercode}}"></td></tr>
-        <tr><td></td><td><input type="button" onclick="validateAGSingleSubmitForm();" value="Submit"></td></tr>
-    </table>
-</form>
-{% elif response == 'Good' %}
-    Kit Added
-{%elif response == 'Bad' %}
-    Error Adding Kit
-{% end %}
 {% end %}
