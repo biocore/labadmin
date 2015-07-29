@@ -10,7 +10,7 @@ class AGNewKitHandler(BaseHandler):
     def get(self):
         project_names = ag_data.getProjectNames()
         self.render("ag_new_kit.html", projects=project_names,
-                    currentuser=self.current_user)
+                    currentuser=self.current_user, msg="")
 
     @authenticated
     def post(self):
@@ -18,9 +18,13 @@ class AGNewKitHandler(BaseHandler):
         projects = self.get_arguments("projects")
         num_swabs = map(int, self.get_arguments("swabs"))
         num_kits = map(int, self.get_arguments("kits"))
-
-        db.create_ag_kits(zip(num_swabs, num_kits))
+        try:
+            db.create_ag_kits(zip(num_swabs, num_kits))
+        except Exception as e:
+            msg = "ERROR: %s" % str(e)
+        else:
+            msg = "Kits created! Please wait for downloads."
 
         project_names = ag_data.getProjectNames()
         self.render("ag_new_kit.html", projects=project_names,
-                    currentuser=self.current_user)
+                    currentuser=self.current_user, msg=msg)

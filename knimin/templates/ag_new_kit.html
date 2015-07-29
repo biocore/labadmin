@@ -12,13 +12,35 @@
             $clone.find(':input').val('');
             $tr.after($clone);
         });
+
+        $(".tr_clone_rem").on('click', function() {
+            if($('.tr_clone').length > 1) {
+                $('.tr_clone:last').remove();
+            }
+        });
     });
+
+    function validate() {
+        var empties = $('.important-nums').filter(function () {
+            return $.trim($(this).val()) == '';
+        });
+        if (empties.length) {
+            alert('Must fill all swab and kit fields!');
+            return false;
+        }
+        var swabs = $(".swabs").map(function() { return parseInt(this.value); });
+        swabs = swabs.sort()[0];
+
+        if(swabs > 7 && confirm(swabs + " swabs per kit? REALLY?") == false) { return false; }
+        return true;
+    }
 </script>
 {% end %}
 
 {% block content %}
+{% if msg %} <h3>{{msg}}</h3> {% end %}
 <h3>Add AG Kit</h3>
-<form method="post" action="/ag_new_kit/" name="agForm" id="agForm">
+<form method="post" action="/ag_new_kit/" name="agForm" id="agForm" onsubmit="return validate()">
 <table>
     <tr><td style="width:150px">
         <label for="tag">Tag: </label><input type="text" name="tag" id="tag" style="width:5em">
@@ -34,12 +56,12 @@
 <table id="kit-table">
     <tr><td># of swabs</td><td># of kits</td></tr>
     <tr class="tr_clone"><td>
-        <input type="integer" name="swabs" min="1" style="width:5em">
+        <input type="integer" name="swabs" min="1" class="important-nums swabs" style="width:5em">
     </td><td>
-        <input type="integer" name="kits" min="1" style="width:5em">
+        <input type="integer" name="kits" min="1" class="important-nums kits" style="width:5em">
     </td></tr>
 </table>
-<p><a href="#" class="tr_clone_add">Add another kit type</a></p>
+<p><a href="#" class="tr_clone_add">Add another kit type</a> | <a href="#" class="tr_clone_rem">Remove last kit type</a></p>
 <input type="submit">
 </form>
 {% end %}

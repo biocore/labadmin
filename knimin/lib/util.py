@@ -63,7 +63,7 @@ def make_valid_kit_ids(num_ids, obs_kit_ids, kit_id_length=5, tag=None):
     obs_kit_ids : set
         Already used kit IDs in the database
     kit_id_length : int, optional
-        number of characters in kit_id created, default 5. Must be <= 9
+        number of characters in base kit_id created, default 5. Must be <= 9
     tag : str, optional
         tag to prepend to kit_id, defaut none
 
@@ -71,18 +71,17 @@ def make_valid_kit_ids(num_ids, obs_kit_ids, kit_id_length=5, tag=None):
     -------
     list
         New kit IDs created
+
     """
+
+    if tag is not None:
+        tag += '_'
+        kit_id_length += len(tag) + 1
+    else:
+        tag = ''
     if kit_id_length > 9:
             # database table has 9 chars for the kit_id_length
             kit_id_length = 9
-
-    if tag is not None:
-        if (kit_id_length + len(tag) + 1) > 9:
-            # we have a 9 char limit so reduce the kit_id_length
-            kit_id_length = 8 - len(tag)
-        tag += '_'
-    else:
-        tag = ''
 
     def make_kit_id(kit_id_length, tag):
         kit_id = ''.join([choice(KIT_ALPHA) for i in range(kit_id_length)])
