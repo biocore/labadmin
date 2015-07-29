@@ -797,6 +797,7 @@ class KniminAccess(object):
         if len(barcodes) < limit:
             raise ValueError("Not enough barcodes! %d asked for, %d remaining"
                              % (limit, len(barcodes)))
+        return barcodes
 
     def assign_barcodes(self, num_barcodes, projects):
         # Verify projects given exist
