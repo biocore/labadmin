@@ -759,9 +759,9 @@ class KniminAccess(object):
 
         Returns
         -------
-        list of lists
+        list of tuples
             The new kit information, in the form
-            [[kit_id, password, verification_code, [barcodes]], ...]
+            [(kit_id, password, verification_code, (barcode, barcode,...)),...]
         """
         # make sure we have enough barcodes
         total_swabs = sum(s * k for s, k in swabs_kits)
@@ -785,9 +785,9 @@ class KniminAccess(object):
             for i in range(num_kits):
                 ver_code = make_verification_code()
                 password = make_passwd()
-                kit_bcs = barcodes[start:start + num_swabs]
+                kit_bcs = tuple(barcodes[start:start + num_swabs])
                 start += num_swabs
-                kits.append([kit_ids[i], password, ver_code, kit_bcs])
+                kits.append((kit_ids[i], password, ver_code, kit_bcs))
                 kit_inserts.append((kit_ids[i],
                                     self._hash_password(password),
                                     ver_code, num_swabs))
