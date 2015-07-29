@@ -9,7 +9,7 @@
         $(".tr_clone_add").on('click', function() {
             var $tr    = $('.tr_clone:last');
             var $clone = $tr.clone();
-            $clone.find(':text').val('');
+            $clone.find(':input').val('');
             $tr.after($clone);
         });
     });
