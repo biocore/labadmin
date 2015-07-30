@@ -689,8 +689,6 @@ class KniminAccess(object):
 
         metadata = {}
         for survey, bc_responses in all_results.items():
-            if len(bc_responses.values()) == 0:
-                continue
             headers = sorted(bc_responses.values()[0])
             survey_md = [''.join(['#SampleID\t', '\t'.join(headers), '\n'])]
             for barcode, shortnames_answers in sorted(bc_responses.items()):
