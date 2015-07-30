@@ -37,6 +37,19 @@ class DataAccessTests(TestCase):
         exp = [[1, "American Gut Project"], [2, "New Test Project"]]
         self.assertEqual(obs, exp)
 
+    def test_get_unassigned_barcodes(self):
+        with self.assertRaises(ValueError):
+            db.get_unassigned_barcodes(999999999)
+
+        obs = db.get_unassigned_barcodes()
+        self.assertEqual(obs, [])
+        barcodes = db.create_barcodes(3)
+        obs = db.get_unassigned_barcodes()
+        self.assertEqual(obs, barcodes)
+        obs = db.get_unassigned_barcodes(1)
+        self.assertEqual(obs, [barcodes[0]])
+
+
     def test_create_barcodes(self):
         con = db._con
         sql_bc = "SELECT barcode FROM barcode"
