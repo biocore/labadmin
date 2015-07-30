@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from re import sub
 from hashlib import md5
 from datetime import datetime
@@ -761,7 +761,7 @@ class KniminAccess(object):
 
         Returns
         -------
-        list of tuples
+        list of namedtuples
             The new kit information, in the form
             [(kit_id, password, verification_code, (barcode, barcode,...)),...]
         """
@@ -781,6 +781,8 @@ class KniminAccess(object):
         kit_barcode_inserts = []
         kit_inserts = []
         start = 0
+        KitTuple = namedtuple('AGKit', ['kit_id', 'password',
+                              'verification_code', 'barcodes'])
         # build the kits information and the sql insert information
         for num_swabs, num_kits in swabs_kits:
             kit_ids = make_valid_kit_ids(num_kits, self.get_used_kit_ids(),
@@ -790,7 +792,7 @@ class KniminAccess(object):
                 password = make_passwd()
                 kit_bcs = tuple(barcodes[start:start + num_swabs])
                 start += num_swabs
-                kits.append((kit_ids[i], password, ver_code, kit_bcs))
+                kits.append(KitTuple(kit_ids[i], password, ver_code, kit_bcs))
                 kit_inserts.append((kit_ids[i],
                                     self._hash_password(password),
                                     ver_code, num_swabs))

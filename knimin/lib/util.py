@@ -53,6 +53,44 @@ def combine_barcodes(cli_barcodes=None, input_file=None):
     return cli_barcodes | file_barcodes
 
 
+def get_printout_data(kitinfo):
+    """Produce the text for paper slips with kit credentials
+    """
+    BASE_PRINTOUT_TEXT = """Thank you for participating in the American Gut \
+Project! Below you will find your sample barcodes (the numbers that \
+anonymously link your samples to you) and your login credentials. It is very \
+important that you login before you begin any sample collection.
+
+Please login at: http://www.microbio.me/AmericanGut
+
+Thanks,
+The American Gut Project
+"""
+    text = []
+    for kit in kitinfo:
+        text.append(BASE_PRINTOUT_TEXT)
+        barcodes = kit['barcodes']
+
+        padding_lines = 5
+
+        if len(barcodes) > 5:
+            text.append("Sample Barcodes:\t%s" % ', '.join(barcodes[:5]))
+            for i in range(len(barcodes))[5::5]:
+                padding_lines -= 1
+                text.append("\t\t\t%s" % ', '.join(barcodes[i:i+5]))
+        else:
+            text.append("Sample Barcodes:\t%s" % ', '.join(barcodes))
+
+        text.append("Kit ID:\t\t%s" % kit_id)
+        text.append("Password:\t\t%s" % passwd)
+
+        # padding between sheets so they print pretty
+        for i in range(padding_lines):
+            text.append('')
+
+    return text
+
+
 def make_valid_kit_ids(num_ids, obs_kit_ids, kit_id_length=5, tag=None):
     """Generates new unique kit IDs
 
