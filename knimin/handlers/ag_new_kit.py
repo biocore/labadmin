@@ -19,7 +19,7 @@ class AGNewKitHandler(BaseHandler):
         num_swabs = map(int, self.get_arguments("swabs"))
         num_kits = map(int, self.get_arguments("kits"))
         try:
-            db.create_ag_kits(zip(num_swabs, num_kits))
+            db.create_ag_kits(zip(num_swabs, num_kits), tag, projects)
         except Exception as e:
             msg = "ERROR: %s" % str(e)
         else:

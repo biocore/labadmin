@@ -746,7 +746,7 @@ class KniminAccess(object):
 
         return False
 
-    def create_ag_kits(self, swabs_kits, projects=None):
+    def create_ag_kits(self, swabs_kits, tag=None, projects=None):
         """ Creates american gut handout kits on the database
 
         Parameters
@@ -754,6 +754,8 @@ class KniminAccess(object):
         swabs_kits : list of tuples
             kits and swab counts, with tuples in the form
             (# of swabs, # of kits with this swab count)
+        tag : str, optional
+            Tag to add to kit IDs. Default None
         projects : list of str, optional
             Subprojects to attach to, if given. Default None.
 
@@ -781,7 +783,8 @@ class KniminAccess(object):
         start = 0
         # build the kits information and the sql insert information
         for num_swabs, num_kits in swabs_kits:
-            kit_ids = make_valid_kit_ids(num_kits, self.get_used_kit_ids())
+            kit_ids = make_valid_kit_ids(num_kits, self.get_used_kit_ids(),
+                                         tag=tag)
             for i in range(num_kits):
                 ver_code = make_verification_code()
                 password = make_passwd()
