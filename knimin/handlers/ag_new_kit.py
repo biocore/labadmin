@@ -13,8 +13,21 @@ class AGNewKitDLHandler(BaseHandler):
     @authenticated
     def get(self):
         kitinfo = loads(self.get_argument('kitinfo'))
+        table = ['\t'.join(kitinfo[0]._fields)]
+        table.extend(['\t'.join(kit) for kit in kitinfo])
         kit_zip = InMemoryZip()
-        kit_zip.append('kit_printouts.txt', get_printout_data(kitinfo))
+        kit_zip.append('kit_printouts.txt', get_printout_data(kitinfo)).append(
+            'kit_table.txt', '\n'.join(table))
+        # write out zip file
+        self.add_header('Content-type',  'application/octet-stream')
+        self.add_header('Content-Transfer-Encoding', 'binary')
+        self.add_header('Accept-Ranges', 'bytes')
+        self.add_header('Content-Encoding', 'none')
+        self.add_header('Content-Disposition', 'attachment; filename=kitinfo.zip')
+        self.write(kit_zip.write_to_buffer())
+        self.flush()
+        self.finish()
+
 
 class AGNewKitHandler(BaseHandler):
     @authenticated

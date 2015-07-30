@@ -54,7 +54,7 @@ def combine_barcodes(cli_barcodes=None, input_file=None):
 
 
 def get_printout_data(kitinfo):
-    """Produce the text for paper slips with kit credentials
+    """Produce the text for paper slips with kit credentials & mapping table
     """
     BASE_PRINTOUT_TEXT = """Thank you for participating in the American Gut \
 Project! Below you will find your sample barcodes (the numbers that \
@@ -81,8 +81,8 @@ The American Gut Project
         else:
             text.append("Sample Barcodes:\t%s" % ', '.join(barcodes))
 
-        text.append("Kit ID:\t\t%s" % kit_id)
-        text.append("Password:\t\t%s" % passwd)
+        text.append("Kit ID:\t\t%s" % kit['kit_id'])
+        text.append("Password:\t\t%s" % kit['password'])
 
         # padding between sheets so they print pretty
         for i in range(padding_lines):
