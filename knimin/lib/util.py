@@ -119,12 +119,11 @@ def make_valid_kit_ids(num_ids, obs_kit_ids, kit_id_length=5, tag=None):
 
     if tag is not None:
         tag += '_'
-        kit_id_length += len(tag) + 1
     else:
         tag = ''
-    if kit_id_length > 9:
+    if kit_id_length + len(tag) > 9:
             # database table has 9 chars for the kit_id_length
-            kit_id_length = 9
+            kit_id_length = 9 - len(tag)
 
     def make_kit_id(kit_id_length, tag):
         kit_id = ''.join([choice(KIT_ALPHA) for i in range(kit_id_length)])
