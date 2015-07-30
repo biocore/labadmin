@@ -25,6 +25,7 @@ class AGPulldownHandler(BaseHandler):
 class AGPulldownDLHandler(BaseHandler):
     def get(self):
         barcodes = self.get_argument('barcodes').split(",")
+        print "BARCODES>>>>>>", barcodes
         # Get metadata and create zip file
         metadata, failures = db.pulldown(barcodes)
         meta_zip = InMemoryZip()

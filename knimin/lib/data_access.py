@@ -236,10 +236,10 @@ class KniminAccess(object):
         sql = """SELECT akb.barcode, *
                  FROM ag_kit_barcodes akb JOIN ag_kit ak USING (ag_kit_id)
                  JOIN ag_login al USING (ag_login_id)
-                 WHERE akb.barcode in ({})""".format(barcodes_formatted)
+                 WHERE akb.barcode in %s"""
 
         with self._con.cursor() as cur:
-            cur.execute(sql)
+            cur.execute(sql, tuple(barcodes))
             headers = [x[0] for x in cur.description][1:]
             results = {row[0]: dict(zip(headers, row[1:]))
                        for row in cur.fetchall()}
@@ -274,74 +274,45 @@ class KniminAccess(object):
         barcodes_formatted = "'%s'" % "', '".join(barcodes)
 
         # SINGLE answers SQL
-        single_sql = """SELECT S.survey_id, AKB.barcode, SQ.question_shortname,
-                               SA.response
-                 FROM ag_kit_barcodes AKB
-                      JOIN survey_answers SA ON
-                        AKB.survey_id=SA.survey_id
-                      JOIN survey_question SQ
-                        ON SA.survey_question_id=SQ.survey_question_id
-                      JOIN survey_question_response_type SQRTYPE
-                        ON SQ.survey_question_id=SQRTYPE.survey_question_id
-                      JOIN group_questions GQ
-                        ON SQ.survey_question_id = GQ.survey_question_id
-                      JOIN survey_group SG
-                        ON GQ.survey_group = SG.group_order
-                      JOIN surveys S
-                        ON SG.group_order = S.survey_group
-                 WHERE sqrtype.survey_response_type='SINGLE'
-                      AND AKB.barcode in ({})""".format(barcodes_formatted)
+        single_sql = \
+            """SELECT survey_id, barcode, question_shortname, response
+               FROM ag.ag_kit_barcodes
+               JOIN ag.survey_answers SA USING (survey_id)
+               JOIN ag.survey_question USING (survey_question_id)
+               JOIN ag.survey_question_response_type USING (survey_question_id)
+               JOIN ag.group_questions GQ USING (survey_question_id)
+               WHERE survey_response_type='SINGLE' AND barcode in %s"""
 
         # MULTIPLE answers SQL
-        multiple_sql = """SELECT S.survey_id, AKB.barcode,
-                                 SQ.question_shortname,
-                                 array_agg(SA.response) as responses
-                 FROM ag_kit_barcodes AKB
-                      JOIN survey_answers SA ON
-                        AKB.survey_id=SA.survey_id
-                      JOIN survey_question SQ
-                        ON SA.survey_question_id=SQ.survey_question_id
-                      JOIN survey_question_response_type SQRTYPE
-                        ON SQ.survey_question_id=SQRTYPE.survey_question_id
-                      JOIN group_questions GQ
-                        ON SQ.survey_question_id = GQ.survey_question_id
-                      JOIN survey_group SG
-                        ON GQ.survey_group = SG.group_order
-                      JOIN surveys S
-                        ON SG.group_order = S.survey_group
-                 WHERE sqrtype.survey_response_type='MULTIPLE'
-                      AND AKB.barcode in ({})
-                 GROUP BY S.survey_id, AKB.barcode, SQ.question_shortname
-                 """.format(barcodes_formatted)
+        multiple_sql = \
+            """SELECT survey_id, barcode, question_shortname,
+                      array_agg(response) as responses
+               FROM ag.ag_kit_barcodes
+               JOIN ag.survey_answers USING (survey_id)
+               JOIN ag.survey_question USING (survey_question_id)
+               JOIN ag.survey_question_response_type USING (survey_question_id)
+               JOIN ag.group_questions USING (survey_question_id)
+               WHERE survey_response_type='MULTIPLE' AND barcode in %s
+               GROUP BY survey_id, barcode, question_shortname"""
 
         # Also need to get the possible responses for multiples
-        multiple_responses_sql = """
-            SELECT SQ.question_shortname, SQR.response
-            FROM survey_question SQ
-            JOIN survey_question_response_type SQRTYPE
-                 ON SQ.survey_question_id = SQRTYPE.survey_question_id
-            JOIN survey_question_response SQR
-                 ON SQ.survey_question_id = SQR.survey_question_id
-            WHERE SQRTYPE.survey_response_type = 'MULTIPLE'"""
+        multiple_responses_sql = \
+            """SELECT question_shortname, response
+               FROM survey_question
+               JOIN survey_question_response_type USING (survey_question_id)
+               JOIN survey_question_response USING (survey_question_id)
+               WHERE survey_response_type = 'MULTIPLE'"""
 
         # STRING and TEXT answers SQL
-        others_sql = """SELECT S.survey_id, AKB.barcode,
-                        SQ.question_shortname, SA.response
-                 FROM ag_kit_barcodes AKB
-                      JOIN survey_answers_other SA ON
-                        AKB.survey_id=SA.survey_id
-                      JOIN survey_question SQ
-                        ON SA.survey_question_id=SQ.survey_question_id
-                      JOIN survey_question_response_type SQRTYPE
-                        ON SQ.survey_question_id=SQRTYPE.survey_question_id
-                      JOIN group_questions GQ
-                        ON SQ.survey_question_id = GQ.survey_question_id
-                      JOIN survey_group SG
-                        ON GQ.survey_group = SG.group_order
-                      JOIN surveys S
-                        ON SG.group_order = S.survey_group
-                 WHERE sqrtype.survey_response_type in ('STRING', 'TEXT')
-                      AND AKB.barcode in ({})""".format(barcodes_formatted)
+        others_sql = \
+        """SELECT survey_id, barcode, question_shortname, response
+           FROM ag.ag_kit_barcodes
+           JOIN ag.survey_answers_other SA USING (survey_id)
+           JOIN ag.survey_question USING (survey_question_id)
+           JOIN ag.survey_question_response_type USING (survey_question_id)
+           JOIN ag.group_questions GQ USING (survey_question_id)
+           WHERE survey_response_type in ('STRING', 'TEXT')
+           AND barcode in %s"""
 
         # Formats a question and response for a MULTIPLE question into a header
         def _translate_multiple_response_to_header(question, response):
@@ -360,9 +331,12 @@ class KniminAccess(object):
 
         # this function reduces code duplication by generalizing as much
         # as possible how questions and responses are fetched from the db
+        bc = tuple(barcodes)
+
         def _format_responses_as_dict(sql, json=False, multiple=False):
             ret_dict = defaultdict(lambda: defaultdict(dict))
-            for survey, barcode, q, a in self._con.execute_fetchall(sql):
+            print ">>>FETCH!!>>>", self._con.execute_fetchall(sql, [bc])
+            for survey, barcode, q, a in self._con.execute_fetchall(sql, [bc]):
                 if json:
                     # Taking this slice here since all json are single-element
                     # lists
