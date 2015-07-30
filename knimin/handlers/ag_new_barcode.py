@@ -9,7 +9,7 @@ from knimin import db
 
 class AGBarcodePrintoutHandler(BaseHandler):
     @authenticated
-    def get(self):
+    def post(self):
         barcodes = self.get_argument('barcodes').split(",")
         pdf = build_barcodes_pdf(barcodes)
         self.add_header('Content-type',  'application/pdf')
@@ -32,41 +32,38 @@ class AGNewBarcodeHandler(BaseHandler):
                     msg="", newbc=[])
 
     @authenticated
-    def post(self):
-        action = self.get_argument('action')
-        barcodes_info = []
-        newbc = []
-        msg=""
-        if action == 'create':
-            num_barcodes = int(self.get_argument('numbarcodes'))
-            newbc = db.create_barcodes(num_barcodes)
-            msg = "%d Barcodes created!" % num_barcodes
-        elif action == 'assign':
-            projects = self.get_arguments('projects')
-            new_project = self.get_argument('newproject').strip()
-            num_barcodes = int(self.get_argument('numbarcodes'))
-            try:
-                if new_project:
-                    db.create_project(new_project)
-                    projects.append(new_project)
-                db.assign_barcodes(num_barcodes, projects)
-            except ValueError as e:
-                msg = "ERROR! %s" % str(e)
-            else:
-                msg = "%d barcodes assigned to %s" % (num_barcodes,
-                                                      ", ".join(projects))
-        elif action == 'view':
-            projects = self.get_arguments('projects')
-            limit = int(self.get_argument('limit'))
-            if limit == 0:
-                limit = None
-            barcodes_info = db.view_barcodes_for_projects(projects, limit)
+    def put(self):
+        # assign barcodes to projects
+        projects = self.get_arguments('projects')
+        new_project = self.get_argument('newproject').strip()
+        num_barcodes = int(self.get_argument('numbarcodes'))
+        try:
+            if new_project:
+                db.create_project(new_project)
+                projects.append(new_project)
+            db.assign_barcodes(num_barcodes, projects)
+        except ValueError as e:
+            msg = "ERROR! %s" % str(e)
         else:
-            raise RuntimeError("Unknown action for AGNewBarcdeHandler: %s" %
-                               action)
+            msg = "%d barcodes assigned to %s" % (num_barcodes,
+                                                  ", ".join(projects))
 
         project_names = ag_data.getProjectNames()
         remaining = len(db.remaining_barcodes())
         self.render("ag_new_barcode.html", currentuser=self.current_user,
-                    projects=project_names, barcodes=barcodes_info,
-                    remaining=remaining, msg=msg, newbc=newbc)
+                    projects=project_names, remaining=remaining, msg=msg,
+                    newbc=[])
+
+    @authenticated
+    def post(self):
+        # create barcodes
+        msg=""
+        num_barcodes = int(self.get_argument('numbarcodes'))
+        newbc = db.create_barcodes(num_barcodes)
+        msg = "%d Barcodes created! Please wait for barcode download" % num_barcodes
+
+        project_names = ag_data.getProjectNames()
+        remaining = len(db.remaining_barcodes())
+        self.render("ag_new_barcode.html", currentuser=self.current_user,
+                    projects=project_names, remaining=remaining, msg=msg,
+                    newbc=newbc)

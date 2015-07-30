@@ -214,7 +214,7 @@ class SQLHandler(object):
 class KniminAccess(object):
     def __init__(self, config):
         self._con = SQLHandler(config)
-        self._con.execute('set search_path to ag, public, barcodes')
+        self._con.execute('set search_path to ag, barcodes, public')
 
     def get_barcode_details(self, barcodes):
         """Retrieve sample, kit, and login details by barcode
@@ -802,11 +802,30 @@ class KniminAccess(object):
         return barcodes
 
     def assign_barcodes(self, num_barcodes, projects):
+        """Assign a given number of barcodes to projects
+
+        Parameters
+        ----------
+        num_barcodes : int
+            Number of barcodes to assign
+        projects : list of str
+            Projects to assgn barcodes to
+
+        Returns
+        -------
+        list of str
+            Barcodes assigned to the projects
+
+        Raises
+        ------
+        ValueError
+            One or more projects given don't exist in the database
+        """
         # Verify projects given exist
         sql = "SELECT project FROM project"
         existing = {x[0] for x in self._con.execute_fetchall(sql)}
-        if any(p not in existing for p in projects):
-            not_exist = [p for p in projects if p not in existing]
+        not_exist = {p for p in projects if p not in existing}
+        if not_exist:
             raise ValueError("Project(s) given don't exist in database: %s"
                              % ', '.join(not_exist))
 
@@ -826,6 +845,7 @@ class KniminAccess(object):
             for project in proj_ids:
                 project_inserts.append((barcode, project))
         self._con.executemany(barcode_project_insert, project_inserts)
+        return barcodes
 
     def create_barcodes(self, num_barcodes):
         """Creates new barcodes
@@ -853,7 +873,7 @@ class KniminAccess(object):
         self._con.executemany(barcode_insert, [[b] for b in barcodes])
         return barcodes
 
-    def view_barcodes_info(self, barcodes):
+    def get_barcodes_info(self, barcodes):
         select_sql = """SELECT barcode, create_date_time, status,scan_date,
                         sample_postmark_date,biomass_remaining,
                         sequencing_status,obsolete,
@@ -865,7 +885,7 @@ class KniminAccess(object):
                         ORDER BY barcode DESC"""
         return self._con.execute_fetchall(select_sql, [tuple(barcodes)])
 
-    def view_barcodes_for_projects(self, projects, limit=None):
+    def get_barcodes_for_projects(self, projects, limit=None):
         """Gets barcode information for barcodes belonging to projects
 
         Parameters

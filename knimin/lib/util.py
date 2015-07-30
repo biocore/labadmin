@@ -55,35 +55,6 @@ def combine_barcodes(cli_barcodes=None, input_file=None):
     return cli_barcodes | file_barcodes
 
 
-def draw_barcodes(barcodes):
-    """Creates printable barcode PDF for given barcodes
-
-    Parameters
-    ----------
-    barcodes : list of str
-        barcodes to write out
-
-    Returns
-    -------
-    StringIO
-        Binary of file in PDF format
-    """
-    font = join(dirname(realpath(__file__)), 'FreeSans.ttf')
-    #creates a new empty image, RGB mode, and size 400 by 400.
-
-    #Iterate through a 4 by 9 grid with 100 spacing, to place my image
-    for i in xrange(0, 500, 100):
-        for j in xrange(0, 500, 100):
-            #I change brightness of the images, just to emphasise they are unique copies.
-            im=Image.eval(code128_image(barcode, font=font, show_text=True))
-            #paste the image at location i,j:
-            new_im.paste(im, (i,j))
-
-    img_io = StringIO()
-    img.save(img_io, 'PDF')
-    return img_io
-
-
 def make_valid_kit_ids(num_ids, kit_id_length=5, tag=None):
     """Generates new unique kit IDs
 
