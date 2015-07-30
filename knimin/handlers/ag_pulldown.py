@@ -13,11 +13,13 @@ class AGPulldownHandler(BaseHandler):
                     barcodes=[])
 
     def post(self):
-        barcodes = self.get_argument('barcodes').split("\n")
-        if len(barcodes) == 1:
+        # Get file information, throwing out first line as header
+        fileinfo = self.request.files['filearg'][0]['body']
+        lines = fileinfo.split("\n")
+        if len(lines) == 1:
             # Windows newlines
-            barcodes = self.get_argument('barcodes').split("\r")
-        barcodes = map(lambda x: x.strip(), barcodes)
+            lines = fileinfo.split("\r")
+        barcodes = [l.split('\t')[0].strip() for l in lines[1:]]
         self.render("ag_pulldown.html", currentuser=self.current_user,
                     barcodes=barcodes)
 
@@ -27,6 +29,7 @@ class AGPulldownDLHandler(BaseHandler):
         barcodes = self.get_argument('barcodes').split(",")
         # Get metadata and create zip file
         metadata, failures = db.pulldown(barcodes)
+
         meta_zip = InMemoryZip()
         failtext = ("The following barcodes were not retrieved for any "
                     "survey:\n%s" % "\n".join(failures))
