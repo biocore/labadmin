@@ -21,12 +21,12 @@ class AGPulldownHandler(BaseHandler):
             lines = fileinfo.split("\r")
         barcodes = [l.split('\t')[0].strip() for l in lines[1:]]
         self.render("ag_pulldown.html", currentuser=self.current_user,
-                    barcodes=barcodes)
+                    barcodes=",".join(barcodes))
 
 
 class AGPulldownDLHandler(BaseHandler):
     def get(self):
-        barcodes = self.get_argument('barcodes').split(",")
+        barcodes = self.get_argument('barcodes').split(',')
         # Get metadata and create zip file
         metadata, failures = db.pulldown(barcodes)
 
@@ -35,7 +35,7 @@ class AGPulldownDLHandler(BaseHandler):
                     "survey:\n%s" % "\n".join(failures))
         meta_zip.append("failures.txt", failtext)
         for survey, meta in viewitems(metadata):
-            meta_zip.append('survey_%d_md.txt' % survey, meta)
+            meta_zip.append('survey_%s_md.txt' % survey, meta)
 
         # write out zip file
         self.add_header('Content-type',  'application/octet-stream')

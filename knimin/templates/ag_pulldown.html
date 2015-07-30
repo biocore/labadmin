@@ -9,10 +9,8 @@ p {
 	{% if barcodes %}
 <script type="text/javascript">
     $(document).ready(function() {
-        var $iframe = $('#download');
-    if ( $iframe.length ) {$iframe.attr('src', ); }
+      $('#download').attr('src', '/ag_pulldown/download/?barcodes={{barcodes}}');
     });
-    $('#download').attr('src', function (i, val) { return val; });
 </script>
   {% end %}
 

@@ -266,31 +266,29 @@ class KniminAccess(object):
         ALLERGIC_TO portion taken from the shortname column of the question
         table).
         """
-
-        # For use with SQL query "IN (...)" clause
-        barcodes_formatted = "'%s'" % "', '".join(barcodes)
-
         # SINGLE answers SQL
         single_sql = \
-            """SELECT survey_id, barcode, question_shortname, response
+            """SELECT S.survey_id, barcode, question_shortname, response
                FROM ag.ag_kit_barcodes
                JOIN ag.survey_answers SA USING (survey_id)
                JOIN ag.survey_question USING (survey_question_id)
                JOIN ag.survey_question_response_type USING (survey_question_id)
                JOIN ag.group_questions GQ USING (survey_question_id)
+               JOIN ag.surveys S USING (survey_group)
                WHERE survey_response_type='SINGLE' AND barcode in %s"""
 
         # MULTIPLE answers SQL
         multiple_sql = \
-            """SELECT survey_id, barcode, question_shortname,
+            """SELECT S.survey_id, barcode, question_shortname,
                       array_agg(response) as responses
                FROM ag.ag_kit_barcodes
                JOIN ag.survey_answers USING (survey_id)
                JOIN ag.survey_question USING (survey_question_id)
                JOIN ag.survey_question_response_type USING (survey_question_id)
                JOIN ag.group_questions USING (survey_question_id)
+               JOIN ag.surveys S USING (survey_group)
                WHERE survey_response_type='MULTIPLE' AND barcode in %s
-               GROUP BY survey_id, barcode, question_shortname"""
+               GROUP BY S.survey_id, barcode, question_shortname"""
 
         # Also need to get the possible responses for multiples
         multiple_responses_sql = \
@@ -302,14 +300,15 @@ class KniminAccess(object):
 
         # STRING and TEXT answers SQL
         others_sql = \
-        """SELECT survey_id, barcode, question_shortname, response
-           FROM ag.ag_kit_barcodes
-           JOIN ag.survey_answers_other SA USING (survey_id)
-           JOIN ag.survey_question USING (survey_question_id)
-           JOIN ag.survey_question_response_type USING (survey_question_id)
-           JOIN ag.group_questions GQ USING (survey_question_id)
-           WHERE survey_response_type in ('STRING', 'TEXT')
-           AND barcode in %s"""
+            """SELECT S.survey_id, barcode, question_shortname, response
+               FROM ag.ag_kit_barcodes
+               JOIN ag.survey_answers_other SA USING (survey_id)
+               JOIN ag.survey_question USING (survey_question_id)
+               JOIN ag.survey_question_response_type USING (survey_question_id)
+               JOIN ag.group_questions GQ USING (survey_question_id)
+               JOIN ag.surveys S USING (survey_group)
+               WHERE survey_response_type in ('STRING', 'TEXT')
+               AND barcode in %s"""
 
         # Formats a question and response for a MULTIPLE question into a header
         def _translate_multiple_response_to_header(question, response):
@@ -346,7 +345,6 @@ class KniminAccess(object):
                             'Yes' if response in a else 'No'
                 else:
                     ret_dict[survey][barcode][q] = a
-
             return ret_dict
 
         single_results = _format_responses_as_dict(single_sql)
@@ -631,16 +629,23 @@ class KniminAccess(object):
             md[1][barcode]['DEPTH'] = 0
 
             # Sample-dependent information
+            try:
+                md[1][barcode]['LATITUDE'] = \
+                    zip_lookup[barcode_info[barcode]['zip']][0]
+                md[1][barcode]['LONGITUDE'] = \
+                    zip_lookup[barcode_info[barcode]['zip']][1]
+                md[1][barcode]['ELEVATION'] = \
+                    zip_lookup[barcode_info[barcode]['zip']][2]
+            except KeyError:
+                #zipcode is unknown, so leave as blank
+                md[1][barcode]['LATITUDE'] = ''
+                md[1][barcode]['LONGITUDE'] = ''
+                md[1][barcode]['ELEVATION'] = ''
+
             md[1][barcode]['TAXON_ID'] = md_lookup[site]['TAXON_ID']
             md[1][barcode]['COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
             md[1][barcode]['COLLECTION_DATE'] = \
                 barcode_info[barcode]['sample_date']
-            md[1][barcode]['LATITUDE'] = \
-                zip_lookup[barcode_info[barcode]['zip']][0]
-            md[1][barcode]['LONGITUDE'] = \
-                zip_lookup[barcode_info[barcode]['zip']][1]
-            md[1][barcode]['ELEVATION'] = \
-                zip_lookup[barcode_info[barcode]['zip']][2]
             md[1][barcode]['ENV_MATTER'] = md_lookup[site]['ENV_MATTER']
             md[1][barcode]['BODY_HABITAT'] = md_lookup[site]['BODY_HABITAT']
             md[1][barcode]['BODY_SITE'] = md_lookup[site]['BODY_SITE']
@@ -684,6 +689,8 @@ class KniminAccess(object):
 
         metadata = {}
         for survey, bc_responses in all_results.items():
+            if len(bc_responses.values()) == 0:
+                continue
             headers = sorted(bc_responses.values()[0])
             survey_md = [''.join(['#SampleID\t', '\t'.join(headers), '\n'])]
             for barcode, shortnames_answers in sorted(bc_responses.items()):
