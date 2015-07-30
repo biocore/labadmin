@@ -1,0 +1,35 @@
+{% extends logged_in_index.html %}
+{% block head %}
+{% from json import dumps %}
+<style>
+.textarea {
+	padding-top: 0;
+  padding-left: 0;
+  width:12em;
+  height:60em
+}
+p {
+	font-weight: bold;
+}
+</style>
+	{% if barcodes %}
+<script type="text/javascript">
+    $(document).ready(function() {
+        document.getElementById("download").src='/ag_pulldown/download/?barcodes=' + {% raw dumps(barcodes) %};
+    });
+</script>
+  {% end %}
+
+{% end %}
+
+{% block content %}
+<iframe id="download" width="1" height="1" style="display:none"></iframe>
+<h3>Metadata Pulldown</h3>
+<p>Before pulldown, remember to update lat/long. <a href="/ag_update_geocode/">Click here</a> to go to the page.</p>
+
+<p>Enter barcodes below, one per line</p>
+<form action="/ag_pulldown/" name="agForm" id="agForm" method="post">
+<p><textarea name="barcodes" class="textarea"></textarea></p>
+<p><input type="submit"></p>
+</form>
+{% end %}

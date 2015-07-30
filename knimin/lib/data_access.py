@@ -442,7 +442,7 @@ class KniminAccess(object):
         dict of dict of dict
         """
         # get barcode information
-        all_barcodes = set.union(*[set(md[s]) for s in md])
+        all_barcodes = set().union(*[set(md[s]) for s in md])
         barcode_info = self.get_barcode_details(all_barcodes)
 
         # Human survey (id 1)
