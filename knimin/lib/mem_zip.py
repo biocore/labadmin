@@ -31,6 +31,10 @@ class InMemoryZip(object):
         with open(filename, 'wb') as f:
             f.write(self.in_memory_data.getvalue())
 
+    def write_to_buffer(self):
+        self.in_memory_zip.close()
+        return self.in_memory_data.getvalue()
+
 if __name__ == "__main__":
     # Run a test
     imz = InMemoryZip()

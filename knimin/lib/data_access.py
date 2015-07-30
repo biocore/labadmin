@@ -673,7 +673,7 @@ class KniminAccess(object):
             Barcodes unable to pull metadata down for
         """
         all_survey_info = self.get_surveys(barcodes)
-        if not all_survey_info:
+        if len(all_survey_info) == 0:
             # No barcodes given match any survey
             failures = set(barcodes)
             return {}, failures
@@ -685,7 +685,7 @@ class KniminAccess(object):
         metadata = {}
         for survey, bc_responses in all_results.items():
             headers = sorted(bc_responses.values()[0])
-            survey_md = ['#SampleID\t' + '\t'.join(headers) + '\n']
+            survey_md = [''.join(['#SampleID\t', '\t'.join(headers), '\n'])]
             for barcode, shortnames_answers in sorted(bc_responses.items()):
                 barcodes_seen.add(barcode)
                 ordered_answers = [shortnames_answers[h] for h in headers]
