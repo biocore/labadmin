@@ -26,7 +26,7 @@ class AGNewBarcodeHandler(BaseHandler):
     @authenticated
     def get(self):
         project_names = ag_data.getProjectNames()
-        remaining = len(db.remaining_barcodes())
+        remaining = len(db.get_unassigned_barcodes())
         self.render("ag_new_barcode.html", currentuser=self.current_user,
                     projects=project_names, barcodes=[], remaining=remaining,
                     msg="", newbc=[])
@@ -49,7 +49,7 @@ class AGNewBarcodeHandler(BaseHandler):
                                                   ", ".join(projects))
 
         project_names = ag_data.getProjectNames()
-        remaining = len(db.remaining_barcodes())
+        remaining = len(db.get_unassigned_barcodes())
         self.render("ag_new_barcode.html", currentuser=self.current_user,
                     projects=project_names, remaining=remaining, msg=msg,
                     newbc=[])
@@ -63,7 +63,7 @@ class AGNewBarcodeHandler(BaseHandler):
         msg = "%d Barcodes created! Please wait for barcode download" % num_barcodes
 
         project_names = ag_data.getProjectNames()
-        remaining = len(db.remaining_barcodes())
+        remaining = len(db.get_unassigned_barcodes())
         self.render("ag_new_barcode.html", currentuser=self.current_user,
                     projects=project_names, remaining=remaining, msg=msg,
                     newbc=newbc)

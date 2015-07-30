@@ -53,7 +53,7 @@ class WebApplication(Application):
             (r"/ag_new_barcode/", AGNewBarcodeHandler),
             (r"/ag_update_geocode/", AGUpdateGeocodeHandler),
             (r"/ag_edit_barcode/", AGEditBarcodeHandler),
-            (r"/download/barcodes/", AGBarcodePrintoutHandler),
+            (r"/ag_new_barcode/download/", AGBarcodePrintoutHandler),
             (r".*", NoPageHandler)
         ]
         settings = {

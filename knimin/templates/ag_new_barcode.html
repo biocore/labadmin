@@ -7,7 +7,7 @@
         $("#create_barcodes").hide();
         $(".chosen-select").chosen({'width': '100%'});
 {% if newbc %}
-        var dummy = new iframeform('/download/barcodes/');
+        var dummy = new iframeform('/ag_new_barcode/download/');
         dummy.addParameter('barcodes', {% raw dumps(newbc) %});
         dummy.send();
 {% end %}

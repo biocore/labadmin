@@ -3,7 +3,7 @@ function iframeform(url)
 {
     var object = this;
     object.time = new Date().getTime();
-    object.form = $('<form action="'+url+'" target="iframe'+object.time+'" method="post" style="display:none;" id="form'+object.time+'" name="form'+object.time+'"></form>');
+    object.form = $('<form action="'+url+'" target="iframe'+object.time+'" method="POST" style="display:none;" id="form'+object.time+'" name="form'+object.time+'"></form>');
 
     object.addParameter = function(parameter,value)
     {
