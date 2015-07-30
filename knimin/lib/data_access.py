@@ -751,9 +751,11 @@ class KniminAccess(object):
                  UNION
                  SELECT kit_id from ag_handout_kits"""
 
-        return set([i[0] for i in self._con.execute_fetchall(sql)])
+        return set(i[0] for i in self._con.execute_fetchall(sql))
 
     def create_project(self, name):
+        if name.strip() == '':
+            raise ValueError("Project name can not be blank!")
         sql = "SELECT EXISTS(SELECT * FROM project WHERE project = %s)"
         exists = self._con.execute_fetchone(sql, [name])[0]
         if exists:
@@ -763,13 +765,13 @@ class KniminAccess(object):
                  SELECT max(project_id)+1, %s FROM project"""
         self._con.execute(sql, [name])
 
-    def remaining_barcodes(self, limit=None):
-        """Returns unassigned barcodes remaining in the database
+    def get_unassigned_barcodes(self, n=None):
+        """Returns unassigned barcodes
 
         Parameters
         ----------
-        limit : int, optional
-            Number of barcodes to limit to
+        n : int, optional
+            Number of barcodes to limit to, default returns all unused
 
         Returns
         -------
@@ -779,7 +781,7 @@ class KniminAccess(object):
         Raises
         ------
         ValueError
-            Not enough unnasigned barcodes for limit
+            Not enough unnasigned barcodes for n
 
         Notes
         -----
@@ -790,13 +792,13 @@ class KniminAccess(object):
                  LEFT JOIN barcodes.project_barcode pb USING (barcode)
                  WHERE pb.barcode IS NULL
                  ORDER BY barcode ASC"""
-        if limit is not None:
+        if n is not None:
             sql += " LIMIT %s"
-            sql_args = [limit]
+            sql_args = [n]
         barcodes = [x[0] for x in self._con.execute_fetchall(sql, sql_args)]
-        if len(barcodes) < limit:
+        if len(barcodes) < n:
             raise ValueError("Not enough barcodes! %d asked for, %d remaining"
-                             % (limit, len(barcodes)))
+                             % (n, len(barcodes)))
         return barcodes
 
     def assign_barcodes(self, num_barcodes, projects):
@@ -809,7 +811,7 @@ class KniminAccess(object):
                              % ', '.join(not_exist))
 
         # Get unassigned barcode list and make sure we have enough barcodes
-        barcodes = self.remaining_barcodes(limit=num_barcodes)
+        barcodes = self.get_unassigned_barcodes(num_barcodes)
 
         # Assign barcodes to the project(s)
         sql = "SELECT project_id from project WHERE project in %s"

@@ -29,6 +29,8 @@ class DataAccessTests(TestCase):
     def test_create_project(self):
         with self.assertRaises(ValueError):
             db.create_project("American Gut Project")
+        with self.assertRaises(ValueError):
+            db.create_project("    ")
 
         db.create_project("New Test Project")
         obs = db._con.execute_fetchall("SELECT * from project")
@@ -36,28 +38,17 @@ class DataAccessTests(TestCase):
         self.assertEqual(obs, exp)
 
     def test_create_barcodes(self):
-        with self.assertRaises(ValueError):
-            db.create_barcodes(29, ["NOTINDB"])
-
-        db.create_project("New Test Project")
         con = db._con
         sql_bc = "SELECT barcode FROM barcode"
         bc = [['000000001'], ['000000002'], ['000000003'], ['000000004'],
               ['000006616'], ['000010860']]
-        sql_bc_proj = "SELECT * FROM project_barcode"
-        bc_proj = [[1, '000000001'], [1, '000006616'], [1, '000010860']]
 
-        barcodes = db.create_barcodes(3, ["American Gut Project",
-                                          "New Test Project"])
+        barcodes = db.create_barcodes(3)
         self.assertEqual(barcodes, ['000010861', '000010862', '000010863'])
 
         bc.extend([['000010861'], ['000010862'], ['000010863']])
         obs = con.execute_fetchall(sql_bc)
         self.assertItemsEqual(obs, bc)
-        bc_proj.extend([[1, '000010861'], [1, '000010862'], [1, '000010863'],
-                        [2, '000010861'], [2, '000010862'], [2, '000010863']])
-        obs = con.execute_fetchall(sql_bc_proj)
-        self.assertItemsEqual(obs, bc_proj)
 
 
 if __name__ == '__main__':
