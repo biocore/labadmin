@@ -698,7 +698,7 @@ class KniminAccess(object):
                 survey_md.append('\t'.join([barcode, ordered_answers]))
             metadata[survey] = '\n'.join(survey_md)
 
-        failures = sorted(barcodes_seen.symmetric_difference(barcodes))
+        failures = sorted(set(barcodes) - barcodes_seen)
 
         return metadata, failures
 

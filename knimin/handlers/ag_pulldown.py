@@ -15,10 +15,8 @@ class AGPulldownHandler(BaseHandler):
     def post(self):
         # Get file information, throwing out first line as header
         fileinfo = self.request.files['filearg'][0]['body']
-        lines = fileinfo.split("\n")
-        if len(lines) == 1:
-            # Windows newlines
-            lines = fileinfo.split("\r")
+        lines = fileinfo.splitlines()
+        # barcodes must be in first column, stripping in case extra spaces
         barcodes = [l.split('\t')[0].strip() for l in lines[1:]]
         self.render("ag_pulldown.html", currentuser=self.current_user,
                     barcodes=",".join(barcodes))
