@@ -12,7 +12,7 @@ p {
     $(document).ready(function() {
   {% if barcodes %}
       var dummy = new iframeform('/ag_pulldown/download/');
-			dummy.addParameter('barcodes', {{barcodes}});
+			dummy.addParameter('barcodes', '{{barcodes}}');
       dummy.send();
   {% end %}
       $('#download').attr('src', '');
