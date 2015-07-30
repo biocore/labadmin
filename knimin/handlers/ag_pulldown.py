@@ -25,7 +25,7 @@ class AGPulldownHandler(BaseHandler):
 
 
 class AGPulldownDLHandler(BaseHandler):
-    def get(self):
+    def post(self):
         barcodes = self.get_argument('barcodes').split(',')
         # Get metadata and create zip file
         metadata, failures = db.pulldown(barcodes)

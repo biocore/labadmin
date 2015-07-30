@@ -1,6 +1,7 @@
 {% extends logged_in_index.html %}
 {% block head %}
 {% from json import dumps %}
+<script type="text/javascript" src="/static/js/labmin.js"></script>
 <style>
 p {
 	font-weight: bold;
@@ -9,7 +10,12 @@ p {
 	{% if barcodes %}
 <script type="text/javascript">
     $(document).ready(function() {
-      $('#download').attr('src', '/ag_pulldown/download/?barcodes={{barcodes}}');
+  {% if barcodes %}
+      var dummy = new iframeform('/ag_pulldown/download/');
+			dummy.addParameter('barcodes', {{barcodes}});
+      dummy.send();
+  {% end %}
+      $('#download').attr('src', '');
     });
 </script>
   {% end %}
@@ -17,7 +23,6 @@ p {
 {% end %}
 
 {% block content %}
-<iframe id="download" width="1" height="1" style="display:none"></iframe>
 <h3>Metadata Pulldown</h3>
 <p>Before pulldown, remember to update lat/long. <a href="/ag_update_geocode/">Click here</a> to go to the page.</p>
 
@@ -26,5 +31,4 @@ p {
 <p>File: <input type="file" name="filearg" /></p>
 <p><input type="submit"></p>
 </form>
-<iframe id="download" width="250" height="100" frameBorder="0" src="about:blank"></iframe>
 {% end %}
