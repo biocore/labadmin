@@ -18,6 +18,7 @@
                 $('.tr_clone:last').remove();
             }
         });
+        document.getElementById("download").src="/ag_new_kit/download/?kitinfo={{kitinfo}}";
     });
 
     function validate() {
@@ -38,6 +39,7 @@
 {% end %}
 
 {% block content %}
+<iframe id="download" width="1" height="1" style="display:none"></iframe>
 {% if msg %} <h3>{{msg}}</h3> {% end %}
 <h3>Add AG Kit</h3>
 <form method="post" action="/ag_new_kit/" name="agForm" id="agForm" onsubmit="return validate()">
