@@ -229,17 +229,14 @@ class KniminAccess(object):
         dict of dict
             {barcode: {column: value}, ...}
         """
-
-        # For use with SQL query "IN (...)" clause
-        barcodes_formatted = "'%s'" % "', '".join(barcodes)
-
-        sql = """SELECT akb.barcode, *
-                 FROM ag_kit_barcodes akb JOIN ag_kit ak USING (ag_kit_id)
-                 JOIN ag_login al USING (ag_login_id)
-                 WHERE akb.barcode in %s"""
+        sql = """SELECT barcode, *
+                 FROM ag_kit_barcodes
+                 JOIN ag_kit USING (ag_kit_id)
+                 JOIN ag_login USING (ag_login_id)
+                 WHERE barcode in %s"""
 
         with self._con.cursor() as cur:
-            cur.execute(sql, tuple(barcodes))
+            cur.execute(sql, [tuple(barcodes)])
             headers = [x[0] for x in cur.description][1:]
             results = {row[0]: dict(zip(headers, row[1:]))
                        for row in cur.fetchall()}
@@ -335,7 +332,6 @@ class KniminAccess(object):
 
         def _format_responses_as_dict(sql, json=False, multiple=False):
             ret_dict = defaultdict(lambda: defaultdict(dict))
-            print ">>>FETCH!!>>>", self._con.execute_fetchall(sql, [bc])
             for survey, barcode, q, a in self._con.execute_fetchall(sql, [bc]):
                 if json:
                     # Taking this slice here since all json are single-element
@@ -677,6 +673,10 @@ class KniminAccess(object):
             Barcodes unable to pull metadata down for
         """
         all_survey_info = self.get_surveys(barcodes)
+        if not all_survey_info:
+            # No barcodes given match any survey
+            failures = set(barcodes)
+            return {}, failures
         all_results = self.format_survey_data(all_survey_info)
 
         # keep track of which barcodes were seen so we know which weren't
