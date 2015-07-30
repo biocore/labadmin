@@ -66,10 +66,15 @@ Please login at: http://www.microbio.me/AmericanGut
 Thanks,
 The American Gut Project
 """
+    kit_id = 0
+    password = 1
+    ver_code = 2
+    bcs = 3
+
     text = []
     for kit in kitinfo:
         text.append(BASE_PRINTOUT_TEXT)
-        barcodes = kit['barcodes']
+        barcodes = kit[bcs]
 
         padding_lines = 5
 
@@ -81,14 +86,14 @@ The American Gut Project
         else:
             text.append("Sample Barcodes:\t%s" % ', '.join(barcodes))
 
-        text.append("Kit ID:\t\t%s" % kit['kit_id'])
-        text.append("Password:\t\t%s" % kit['password'])
+        text.append("Kit ID:\t\t%s" % kit[kit_id])
+        text.append("Password:\t\t%s" % kit[password])
 
         # padding between sheets so they print pretty
         for i in range(padding_lines):
             text.append('')
 
-    return text
+    return '\n'.join(text)
 
 
 def make_valid_kit_ids(num_ids, obs_kit_ids, kit_id_length=5, tag=None):

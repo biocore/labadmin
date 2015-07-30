@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from json import dumps, loads
 from tornado.web import authenticated
-from tornado.escape import urlencode
+from tornado.escape import url_escape
 from knimin.handlers.base import BaseHandler
 from knimin import db
 from knimin.lib.mem_zip import InMemoryZip
@@ -13,8 +13,9 @@ class AGNewKitDLHandler(BaseHandler):
     @authenticated
     def get(self):
         kitinfo = loads(self.get_argument('kitinfo'))
-        table = ['\t'.join(kitinfo[0]._fields)]
-        table.extend(['\t'.join(kit) for kit in kitinfo])
+        fields = self.get_argument('fields').split(',')
+        table = ['\t'.join(fields)]
+        table.extend(['\t'.join(map(str, kit)) for kit in kitinfo])
         kit_zip = InMemoryZip()
         kit_zip.append('kit_printouts.txt', get_printout_data(kitinfo)).append(
             'kit_table.txt', '\n'.join(table))
@@ -34,7 +35,8 @@ class AGNewKitHandler(BaseHandler):
     def get(self):
         project_names = ag_data.getProjectNames()
         self.render("ag_new_kit.html", projects=project_names,
-                    currentuser=self.current_user, msg="")
+                    currentuser=self.current_user, msg="", kitinfo=[],
+                    fields="")
 
     @authenticated
     def post(self):
@@ -42,8 +44,11 @@ class AGNewKitHandler(BaseHandler):
         projects = self.get_arguments("projects")
         num_swabs = map(int, self.get_arguments("swabs"))
         num_kits = map(int, self.get_arguments("kits"))
+        kits = []
+        fields = ""
         try:
             kits = db.create_ag_kits(zip(num_swabs, num_kits), tag, projects)
+            fields = ','.join(kits[0]._fields)
         except Exception as e:
             msg = "ERROR: %s" % str(e)
         else:
@@ -52,4 +57,5 @@ class AGNewKitHandler(BaseHandler):
         project_names = ag_data.getProjectNames()
         self.render("ag_new_kit.html", projects=project_names,
                     currentuser=self.current_user, msg=msg,
-                    kitinfo=urlencode(dumps(kits)))
+                    kitinfo=url_escape(dumps(kits)),
+                    fields=fields)

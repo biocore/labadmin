@@ -18,7 +18,9 @@
                 $('.tr_clone:last').remove();
             }
         });
-        document.getElementById("download").src="/ag_new_kit/download/?kitinfo={{kitinfo}}";
+        {% if kitinfo %}
+        document.getElementById("download").src="/ag_new_kit/download/?kitinfo={{kitinfo}}&fields={{fields}}";
+        {% end %}
     });
 
     function validate() {
