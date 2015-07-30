@@ -1,5 +1,6 @@
 {% extends logged_in_index.html %}
 {% block content %}
+{% from datetime import date %}
 
 <h3>Barcode Scanner </h3>
 {% if msgs is not None %}
@@ -28,7 +29,6 @@
 <div id="{{div_and_msg[0]}}" class="verification_color">
            <div class="verification_text_wrapper">
               <br />
-               
                 <h2 class="verification_text">
                  Project type: {{proj}} <br><br>
                  Barcode: {{div_and_msg[2]}}<br><br>
@@ -66,7 +66,9 @@
              </li>
              <li>
                Scan date (current: {{barcode_info['scan_date']}}): <br />
-               <input type="text" name="scan_date" id="scan_date" value="{{barcode_info['scan_date']}}" onclick="this.select()" /> <br />
+               {% set scandate = barcode_info['scan_date'] %}
+               {% if scandate == 'NA' %} {% set scandate = date.today().strftime('%m/%d/%Y') %} {% end %}
+               <input type="text" name="scan_date" id="scan_date" value="{{scandate}}" onclick="this.select()"/> <br />
                         <script>
                           $(function() {
                             $( "#scan_date" ).datepicker({
@@ -83,7 +85,6 @@
              <li>
              Barcode Status:<br /><select name="bstatus" id="bstatus">
 
-       
         {% for bstatus in ['Recieved', ''] %}
             {% if bstatus == barcode_info['status'] %}
                 <option value="{{bstatus}}" selected>{{bstatus}}</option>
@@ -169,7 +170,7 @@
                Send an email notification (previously sent: {{proj_barcode_info['date_of_last_email']}}): <br />
 
                <table><tr>
-                  <td> <input class="checkbox" type="checkbox" name="send_mail" id="send_mail" value="send_mail" style="float:left;" /> </td>
+                  <td> <input class="checkbox" type="checkbox" name="send_mail" id="send_mail" value="send_mail" style="float:left;" checked /> </td>
                   <td><label for="send_mail" style="display:block;">send kit owner {{proj_barcode_info['login_user']}} ({{proj_barcode_info['email']}}) an email </label> </td></tr>
 
             {% if email_type == '0' %}
