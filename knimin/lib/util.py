@@ -76,6 +76,7 @@ def make_valid_kit_ids(num_ids, kit_id_length=5, tag=None):
     ------
     ValueError
         Tag is more than 4 characters long
+        More kits requested than possible kit ID combinations
 
     Notes
     -----
