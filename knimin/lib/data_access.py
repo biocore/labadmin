@@ -670,7 +670,8 @@ class KniminAccess(object):
         barcodes : list of str
             Barcodes to pull metadata down for
 
-        Returns:
+        Returns
+        -------
         metadata : dict of str
             Tab delimited qiita sample template, keyed to survey ID it came
             from

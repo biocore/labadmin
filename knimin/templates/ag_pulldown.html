@@ -10,12 +10,9 @@ p {
 	{% if barcodes %}
 <script type="text/javascript">
     $(document).ready(function() {
-  {% if barcodes %}
       var dummy = new iframeform('/ag_pulldown/download/');
 			dummy.addParameter('barcodes', '{{barcodes}}');
       dummy.send();
-  {% end %}
-      $('#download').attr('src', '');
     });
 </script>
   {% end %}
