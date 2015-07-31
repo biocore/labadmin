@@ -873,18 +873,6 @@ class KniminAccess(object):
         self._con.executemany(barcode_insert, [[b] for b in barcodes])
         return barcodes
 
-    def get_barcodes_info(self, barcodes):
-        select_sql = """SELECT barcode, create_date_time, status,scan_date,
-                        sample_postmark_date,biomass_remaining,
-                        sequencing_status,obsolete,
-                        array_agg(project) AS projects
-                        FROM barcode
-                        JOIN project_barcode USING (barcode)
-                        JOIN project USING (project_id)
-                        WHERE barcode IN %s GROUP BY barcode
-                        ORDER BY barcode DESC"""
-        return self._con.execute_fetchall(select_sql, [tuple(barcodes)])
-
     def get_barcodes_for_projects(self, projects, limit=None):
         """Gets barcode information for barcodes belonging to projects
 
