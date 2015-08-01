@@ -29,14 +29,28 @@ class DataAccessTests(TestCase):
     def test_create_project(self):
         with self.assertRaises(ValueError):
             db.create_project("American Gut Project")
+        with self.assertRaises(ValueError):
+            db.create_project("    ")
 
         db.create_project("New Test Project")
         obs = db._con.execute_fetchall("SELECT * from project")
         exp = [[1, "American Gut Project"], [2, "New Test Project"]]
         self.assertEqual(obs, exp)
 
+    def test_get_unassigned_barcodes(self):
+        with self.assertRaises(ValueError):
+            db.get_unassigned_barcodes(999999999)
+
+        obs = db.get_unassigned_barcodes()
+        self.assertEqual(obs, [])
+        barcodes = db.create_barcodes(3)
+        obs = db.get_unassigned_barcodes()
+        self.assertEqual(obs, barcodes)
+        obs = db.get_unassigned_barcodes(1)
+        self.assertEqual(obs, [barcodes[0]])
+
+
     def test_create_barcodes(self):
-        db.create_project("New Test Project")
         con = db._con
         sql_bc = "SELECT barcode FROM barcode"
         bc = [['000000001'], ['000000002'], ['000000003'], ['000000004'],

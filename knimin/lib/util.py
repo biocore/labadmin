@@ -8,6 +8,7 @@ __email__ = "adam.robbinspianka@colorado.edu"
 __status__ = "Development"
 
 from random import choice
+from amgut.connections import ag_data
 
 # character sets for kit id, passwords and verification codes
 KIT_ALPHA = "abcdefghjkmnpqrstuvwxyz"  # removed l and o for clarity
@@ -108,22 +109,40 @@ def make_valid_kit_ids(num_ids, obs_kit_ids, kit_id_length=5, tag=None):
     kit_id_length : int, optional
         number of characters in base kit_id created, default 5. Must be <= 9
     tag : str, optional
-        tag to prepend to kit_id, defaut none
+        tag to prepend to kit_id, defaut none. Maximum 4 characters
 
     Returns
     -------
     list
         New kit IDs created
 
+    Raises
+    ------
+    ValueError
+        Tag is more than 4 characters long
+        More kits requested than possible kit ID combinations
+
+    Notes
+    -----
+    If id length is > 9, it will be set to 9. This length includes the
+    passed kit_id_length + tag length + 1 for an underscore seperator.
+    Because of this, kit_id_length should be kept short.
     """
 
     if tag is not None:
+        if len(tag) > 4:
+            raise ValueError("Tag must be 4 or less characters")
+        if (kit_id_length + len(tag) + 1) > 9:
+            # we have a 9 char limit so reduce the kit_id_length
+            kit_id_length = 8 - len(tag)
         tag += '_'
     else:
         tag = ''
-    if kit_id_length + len(tag) > 9:
-            # database table has 9 chars for the kit_id_length
-            kit_id_length = 9 - len(tag)
+
+    if kit_id_length > len(KIT_ALPHA)**kit_id_length:
+        raise ValueError("More kits requested than possible kit ID combos!")
+
+    obs_kit_ids = ag_data.get_used_kit_ids()
 
     def make_kit_id(kit_id_length, tag):
         kit_id = ''.join([choice(KIT_ALPHA) for i in range(kit_id_length)])
