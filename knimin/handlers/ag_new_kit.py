@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from json import dumps, loads
 from tornado.web import authenticated
-from tornado.escape import url_escape
 from knimin.handlers.base import BaseHandler
 from knimin import db
 from knimin.lib.mem_zip import InMemoryZip
@@ -11,7 +10,7 @@ from amgut.connections import ag_data
 
 class AGNewKitDLHandler(BaseHandler):
     @authenticated
-    def get(self):
+    def post(self):
         kitinfo = loads(self.get_argument('kitinfo'))
         fields = self.get_argument('fields').split(',')
         table = ['\t'.join(fields)]
@@ -34,13 +33,16 @@ class AGNewKitHandler(BaseHandler):
     @authenticated
     def get(self):
         project_names = ag_data.getProjectNames()
+        remaining = len(db.get_unassigned_barcodes())
         self.render("ag_new_kit.html", projects=project_names,
                     currentuser=self.current_user, msg="", kitinfo=[],
-                    fields="")
+                    fields="", remaining=remaining)
 
     @authenticated
     def post(self):
         tag = self.get_argument("tag")
+        if not tag:
+            tag = None
         projects = self.get_arguments("projects")
         num_swabs = map(int, self.get_arguments("swabs"))
         num_kits = map(int, self.get_arguments("kits"))
@@ -55,7 +57,8 @@ class AGNewKitHandler(BaseHandler):
             msg = "Kits created! Please wait for downloads."
 
         project_names = ag_data.getProjectNames()
+        remaining = len(db.get_unassigned_barcodes())
         self.render("ag_new_kit.html", projects=project_names,
                     currentuser=self.current_user, msg=msg,
-                    kitinfo=url_escape(dumps(kits)),
+                    kitinfo=dumps(kits), remaining=remaining,
                     fields=fields)

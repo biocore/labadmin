@@ -19,7 +19,10 @@
             }
         });
         {% if kitinfo %}
-        document.getElementById("download").src="/ag_new_kit/download/?kitinfo={{kitinfo}}&fields={{fields}}";
+        var dummy = new iframeform('/ag_new_kit/download/');
+        dummy.addParameter('kitinfo', '{% raw kitinfo %}');
+        dummy.addParameter('fields', '{% raw fields %}');
+        dummy.send();
         {% end %}
     });
 
@@ -58,6 +61,7 @@
     </td></tr>
 </table>
 <table id="kit-table">
+    <tr><td colspan="2">{{remaining}} unassigned barcodes</td></tr>
     <tr><td># of swabs</td><td># of kits</td></tr>
     <tr class="tr_clone"><td>
         <input type="integer" name="swabs" min="1" class="important-nums swabs" style="width:5em">

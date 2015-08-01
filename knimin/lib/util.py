@@ -142,8 +142,6 @@ def make_valid_kit_ids(num_ids, obs_kit_ids, kit_id_length=5, tag=None):
     if kit_id_length > len(KIT_ALPHA)**kit_id_length:
         raise ValueError("More kits requested than possible kit ID combos!")
 
-    obs_kit_ids = ag_data.get_used_kit_ids()
-
     def make_kit_id(kit_id_length, tag):
         kit_id = ''.join([choice(KIT_ALPHA) for i in range(kit_id_length)])
         kit_id = tag + kit_id

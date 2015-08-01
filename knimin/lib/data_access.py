@@ -767,7 +767,7 @@ class KniminAccess(object):
         """
         # make sure we have enough barcodes
         total_swabs = sum(s * k for s, k in swabs_kits)
-        barcodes = self.remaining_barcodes(total_swabs)
+        barcodes = self.get_unassigned_barcodes(total_swabs)
 
         # Assign barcodes to AG and any other subprojects
         if projects is None:
