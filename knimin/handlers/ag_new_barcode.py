@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from tornado.web import authenticated
+from tornado.web import authenticated, HTTPError
 from knimin.handlers.base import BaseHandler
 
 from amgut.connections import ag_data
@@ -35,13 +35,14 @@ class AGNewBarcodeHandler(BaseHandler):
     def post(self):
         # create barcodes
         msg=""
+        newbc=[]
         action = self.get_argument("action")
         num_barcodes = int(self.get_argument('numbarcodes'))
-        if action="create":
+        if action == "create":
             newbc = db.create_barcodes(num_barcodes)
             msg = ("%d Barcodes created! Please wait for barcode download"
                    % num_barcodes)
-        elif action = "attach":
+        elif action == "assign":
             projects = self.get_arguments('projects')
             new_project = self.get_argument('newproject').strip()
             try:
