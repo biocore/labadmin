@@ -32,35 +32,30 @@ class AGNewBarcodeHandler(BaseHandler):
                     msg="", newbc=[])
 
     @authenticated
-    def put(self):
-        # assign barcodes to projects
-        projects = self.get_arguments('projects')
-        new_project = self.get_argument('newproject').strip()
-        num_barcodes = int(self.get_argument('numbarcodes'))
-        try:
-            if new_project:
-                db.create_project(new_project)
-                projects.append(new_project)
-            db.assign_barcodes(num_barcodes, projects)
-        except ValueError as e:
-            msg = "ERROR! %s" % str(e)
-        else:
-            msg = "%d barcodes assigned to %s" % (num_barcodes,
-                                                  ", ".join(projects))
-
-        project_names = ag_data.getProjectNames()
-        remaining = len(db.get_unassigned_barcodes())
-        self.render("ag_new_barcode.html", currentuser=self.current_user,
-                    projects=project_names, remaining=remaining, msg=msg,
-                    newbc=[])
-
-    @authenticated
     def post(self):
         # create barcodes
         msg=""
+        action = self.get_argument("action")
         num_barcodes = int(self.get_argument('numbarcodes'))
-        newbc = db.create_barcodes(num_barcodes)
-        msg = "%d Barcodes created! Please wait for barcode download" % num_barcodes
+        if action="create":
+            newbc = db.create_barcodes(num_barcodes)
+            msg = ("%d Barcodes created! Please wait for barcode download"
+                   % num_barcodes)
+        elif action = "attach":
+            projects = self.get_arguments('projects')
+            new_project = self.get_argument('newproject').strip()
+            try:
+                if new_project:
+                    db.create_project(new_project)
+                    projects.append(new_project)
+                db.assign_barcodes(num_barcodes, projects)
+            except ValueError as e:
+                msg = "ERROR! %s" % str(e)
+            else:
+                msg = "%d barcodes assigned to %s" % (num_barcodes,
+                                                      ", ".join(projects))
+        else:
+            raise HTTPError(400, 'Unknown action: %s' % action)
 
         project_names = ag_data.getProjectNames()
         remaining = len(db.get_unassigned_barcodes())
