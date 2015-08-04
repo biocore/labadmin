@@ -9,6 +9,11 @@
         var dummy = new iframeform('/ag_new_barcode/download/');
         dummy.addParameter('barcodes', {% raw dumps(newbc) %});
         dummy.send();
+{% elif assignedbc %}
+        var dummy = new iframeform('/ag_new_barcode/assigned/');
+        dummy.addParameter('barcodes', {% raw dumps(assignedbc) %});
+        dummy.addParameter('projects', '{% raw assign_projects %}');
+        dummy.send();
 {% end %}
     });
 
@@ -36,6 +41,7 @@
 <h3 style="display:inline;">Add Barcodes</h3> <a href="#" onclick="showhide('create_barcodes')" id="create_barcodes_link">Show</a><br/>
 <div id="create_barcodes">
     <form method="post" action="/ag_new_barcode/" name="agCreateForm" id="agCreateForm">
+    <input type="hidden" name="action" value="create">
         <table>
             <tr><td class="right-td">Number of barcodes to create</td>
             <td><input type='number' name='numbarcodes' value="0" min="1" max="10000" maxlength="7" size="7"></td></tr>
@@ -47,7 +53,8 @@
 
 <h3 style="display:inline;">Assign Barcodes</h3> <a href="#" onclick="showhide('assign_barcodes')" id="create_barcodes_link">Hide</a><br/>
 <div id="create_barcodes">
-    <form method="put" action="/ag_new_barcode/" name="agAssignForm" id="agAssignForm">
+    <form method="post" action="/ag_new_barcode/" name="agAssignForm" id="agAssignForm">
+    <input type="hidden" name="action" value="assign">
         <table>
             <tr><td class="right-td">Existing project(s) to attach barcodes to</td>
             <td>
