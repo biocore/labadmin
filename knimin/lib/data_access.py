@@ -101,7 +101,7 @@ class SQLHandler(object):
                 self._connection.rollback()
                 try:
                     err_sql = cur.mogrify(sql, sql_args)
-                except ValueError:
+                except:
                     err_sql = cur.mogrify(sql, sql_args[0])
                 raise ValueError(("\nError running SQL query: %s"
                                   "\nError: %s" % (err_sql, e)))

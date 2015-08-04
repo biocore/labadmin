@@ -18,7 +18,8 @@ from knimin.handlers.ag_new_participant import AGNewParticipantHandler
 from knimin.handlers.ag_edit_participant import AGEditParticipantHandler
 from knimin.handlers.ag_new_kit import AGNewKitHandler
 from knimin.handlers.ag_edit_kit import AGEditKitHandler
-from knimin.handlers.ag_new_barcode import AGNewBarcodeHandler, AGBarcodePrintoutHandler
+from knimin.handlers.ag_new_barcode import (AGNewBarcodeHandler, AGBarcodePrintoutHandler,
+                                            AGBarcodeAssignedHandler)
 from knimin.handlers.ag_edit_barcode import AGEditBarcodeHandler
 from knimin.handlers.ag_add_bruce_wayne import AGAddBruceWayne
 from knimin.handlers.ag_update_geocode import AGUpdateGeocodeHandler
@@ -54,6 +55,7 @@ class WebApplication(Application):
             (r"/ag_update_geocode/", AGUpdateGeocodeHandler),
             (r"/ag_edit_barcode/", AGEditBarcodeHandler),
             (r"/ag_new_barcode/download/", AGBarcodePrintoutHandler),
+            (r"/ag_new_barcode/assigned/", AGBarcodeAssignedHandler),
             (r".*", NoPageHandler)
         ]
         settings = {

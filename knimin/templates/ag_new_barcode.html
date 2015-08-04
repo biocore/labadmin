@@ -10,6 +10,11 @@
         var dummy = new iframeform('/ag_new_barcode/download/');
         dummy.addParameter('barcodes', {% raw dumps(newbc) %});
         dummy.send();
+{% elif assignedbc %}
+        var dummy = new iframeform('/ag_new_barcode/assigned/');
+        dummy.addParameter('barcodes', {% raw dumps(assignedbc) %});
+        dummy.addParameter('projects', '{% raw assign_projects %}');
+        dummy.send();
 {% end %}
     });
 
