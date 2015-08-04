@@ -21,8 +21,8 @@ from knimin.lib.code128 import code128_image
 def get_image(barcodes):
     font = join(dirname(realpath(__file__)), 'FreeSans.ttf')
     for b in barcodes:
-        yield code128_image(b, height=100, width=300, font=font, thickness=2,
-                            show_text=True)
+        yield code128_image(b, height=100, width=202, font=font, thickness=2,
+                            show_text=True, quiet_zone=False)
 
 def build_barcodes_pdf(barcodes):
     # 36 barcodes per page
@@ -73,7 +73,7 @@ def build_barcodes_pdf(barcodes):
             SHIFT_DOWN = 0
         elif i.size == (300,100):
             SHIFT_RIGHT = 0
-            SHIFT_DOWN = 25
+            SHIFT_DOWN = 15
         else:
             raise AttributeError, "image is an unsupported size: %s" % str(i.size)
 
