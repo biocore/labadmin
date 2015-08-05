@@ -204,7 +204,7 @@ class BarcodeUtilHandler(BaseHandler):
         else:
             div_id = "not_assigned"
             message = ("In American Gut project group but No "
-                       "Amerincan Gut info for barcode")
+                       "American Gut info for barcode")
             ag_details['email_type'] = "-1"
         return div_id, message, ag_details
 
