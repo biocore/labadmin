@@ -13,11 +13,12 @@ class AGPulldownHandler(BaseHandler):
                     barcodes=[])
 
     def post(self):
-        # Get file information, throwing out first line as header
+        # Get file information, ignoring commented out lines
         fileinfo = self.request.files['filearg'][0]['body']
         lines = fileinfo.splitlines()
         # barcodes must be in first column, stripping in case extra spaces
-        barcodes = [l.split('\t')[0].strip() for l in lines[1:]]
+        barcodes = [l.split('\t')[0].strip() for l in lines
+                    if not l.startswith('#')]
         self.render("ag_pulldown.html", currentuser=self.current_user,
                     barcodes=",".join(barcodes))
 
