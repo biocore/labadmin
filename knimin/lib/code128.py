@@ -199,9 +199,12 @@ def code128_image(text, height=100, width=None, thickness=3, quiet_zone=True,
         barcode_width += 20 * thickness
         x = 10 * thickness
 
-    if width is not None and barcode_width > width:
-        raise ValueError("Calculated width %d smaller than provided width %d" %
-                         (barcode_width, width))
+    if width is not None:
+        if barcode_width > width:
+            raise ValueError("Calculated width %d smaller than provided width %d" %
+                             (barcode_width, width))
+        else:
+            x = (width - barcode_width)/2
 
     # Monochrome Image
     img = Image.new('1', (width, height), 1)

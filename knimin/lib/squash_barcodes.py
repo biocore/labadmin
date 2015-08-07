@@ -18,11 +18,13 @@ from shlex import split as cmd_split
 
 from knimin.lib.code128 import code128_image
 
+
 def get_image(barcodes):
     font = join(dirname(realpath(__file__)), 'FreeSans.ttf')
     for b in barcodes:
-        yield code128_image(b, height=100, width=300, font=font, thickness=2,
-                            show_text=True)
+        yield code128_image(b, height=100, width=202, font=font, thickness=2,
+                            show_text=True, quiet_zone=False)
+
 
 def build_barcodes_pdf(barcodes):
     # 36 barcodes per page
@@ -71,11 +73,8 @@ def build_barcodes_pdf(barcodes):
         elif i.size == (300,150):
             SHIFT_RIGHT = 0
             SHIFT_DOWN = 0
-        elif i.size == (300,100):
-            SHIFT_RIGHT = 0
-            SHIFT_DOWN = 25
         else:
-            raise AttributeError, "image is an unsupported size: %s" % str(i.size)
+            raise AttributeError, "image %s is an unsupported size" % i.shape
 
         # shift to new row
         if cur_left + width > PAGE_WIDTH:
@@ -103,7 +102,7 @@ def build_barcodes_pdf(barcodes):
     match_pages = ' '.join([path.join(tmpdir, "squash_barcode_page_%d.pdf" % i) for i in range(len(blanks))])
 
     # magically squash all the pages
-    cmd = cmd_split('gs -r150 -q -sPAPERSIZE=letter -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -sOutputFile=- %s' % match_pages)
+    cmd = cmd_split('gs -r150 -q -sPAPERSIZE=a4 -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -sOutputFile=- %s' % match_pages)
     p = Popen(cmd, stdout=PIPE)
     output, _ = p.communicate()
     rmtree(tmpdir)
