@@ -101,7 +101,7 @@ class SQLHandler(object):
                 self._connection.rollback()
                 try:
                     err_sql = cur.mogrify(sql, sql_args)
-                except ValueError:
+                except:
                     err_sql = cur.mogrify(sql, sql_args[0])
                 raise ValueError(("\nError running SQL query: %s"
                                   "\nError: %s" % (err_sql, e)))
@@ -214,7 +214,7 @@ class SQLHandler(object):
 class KniminAccess(object):
     def __init__(self, config):
         self._con = SQLHandler(config)
-        self._con.execute('set search_path to ag, public')
+        self._con.execute('set search_path to ag, barcodes, public')
 
     def get_barcode_details(self, barcodes):
         """Retrieve sample, kit, and login details by barcode
@@ -759,3 +759,163 @@ class KniminAccess(object):
             raise IncorrectPasswordError("Password not valid!")
 
         return False
+
+    def get_used_kit_ids(self):
+        """Grab in use kit IDs, return set of them
+        """
+        sql = """SELECT supplied_kit_id FROM ag_kit
+                 UNION
+                 SELECT kit_id from ag_handout_kits"""
+
+        return set(i[0] for i in self._con.execute_fetchall(sql))
+
+    def create_project(self, name):
+        if name.strip() == '':
+            raise ValueError("Project name can not be blank!")
+        sql = "SELECT EXISTS(SELECT * FROM project WHERE project = %s)"
+        exists = self._con.execute_fetchone(sql, [name])[0]
+        if exists:
+                raise ValueError("Project %s already exists!" % name)
+
+        sql = """INSERT INTO project (project_id, project)
+                 SELECT max(project_id)+1, %s FROM project"""
+        self._con.execute(sql, [name])
+
+    def get_unassigned_barcodes(self, n=None):
+        """Returns unassigned barcodes
+
+        Parameters
+        ----------
+        n : int, optional
+            Number of barcodes to limit to, default returns all unused
+
+        Returns
+        -------
+        list
+            unassigned barcodes
+
+        Raises
+        ------
+        ValueError
+            Not enough unnasigned barcodes for n
+
+        Notes
+        -----
+        Barcodes are returned in ascending order
+        """
+        sql_args = None
+        sql = """SELECT DISTINCT barcode FROM barcodes.barcode
+                 LEFT JOIN barcodes.project_barcode pb USING (barcode)
+                 WHERE pb.barcode IS NULL
+                 ORDER BY barcode ASC"""
+        if n is not None:
+            sql += " LIMIT %s"
+            sql_args = [n]
+        barcodes = [x[0] for x in self._con.execute_fetchall(sql, sql_args)]
+        if len(barcodes) < n:
+            raise ValueError("Not enough barcodes! %d asked for, %d remaining"
+                             % (n, len(barcodes)))
+        return barcodes
+
+    def assign_barcodes(self, num_barcodes, projects):
+        """Assign a given number of barcodes to projects
+
+        Parameters
+        ----------
+        num_barcodes : int
+            Number of barcodes to assign
+        projects : list of str
+            Projects to assgn barcodes to
+
+        Returns
+        -------
+        list of str
+            Barcodes assigned to the projects
+
+        Raises
+        ------
+        ValueError
+            One or more projects given don't exist in the database
+        """
+        # Verify projects given exist
+        sql = "SELECT project FROM project"
+        existing = {x[0] for x in self._con.execute_fetchall(sql)}
+        not_exist = {p for p in projects if p not in existing}
+        if not_exist:
+            raise ValueError("Project(s) given don't exist in database: %s"
+                             % ', '.join(not_exist))
+
+        # Get unassigned barcode list and make sure we have enough barcodes
+        barcodes = self.get_unassigned_barcodes(num_barcodes)
+
+        # Assign barcodes to the project(s)
+        sql = "SELECT project_id from project WHERE project in %s"
+        proj_ids = [x[0] for x in
+                    self._con.execute_fetchall(sql, [tuple(projects)])]
+
+        barcode_project_insert = """INSERT INTO project_barcode
+                                    (barcode, project_id)
+                                    VALUES (%s, %s)"""
+        project_inserts = []
+        for barcode in barcodes:
+            for project in proj_ids:
+                project_inserts.append((barcode, project))
+        self._con.executemany(barcode_project_insert, project_inserts)
+        return barcodes
+
+    def create_barcodes(self, num_barcodes):
+        """Creates new barcodes
+
+        Parameters
+        ----------
+        num_barcodes : int
+            Number of barcodes to create
+
+        Returns
+        -------
+        list
+            New barcodes created
+        """
+
+        # Get newest barcode as an integer
+        sql = "SELECT max(barcode::integer) from barcode"
+        newest = self._con.execute_fetchone(sql)[0]
+
+        # create new barcodes by padding integers with zeros
+        barcodes = ['%09d' % b for b in range(newest+1, newest+1+num_barcodes)]
+
+        barcode_insert = """INSERT INTO barcode (barcode, obsolete)
+                            VALUES (%s, 'N')"""
+        self._con.executemany(barcode_insert, [[b] for b in barcodes])
+        return barcodes
+
+    def get_barcodes_for_projects(self, projects, limit=None):
+        """Gets barcode information for barcodes belonging to projects
+
+        Parameters
+        ----------
+        projects : list of str
+            Projects to get barcodes for (if multiple given, intersection of
+            barcodes in each project is returned)
+        limit : int, optional
+            Number of barcodes to return, starting with most recent
+            (defult all)
+
+        Returns
+        -------
+        list of dict
+            each barcode with information
+        """
+        select_sql = """SELECT barcode, create_date_time, sample_postmark_date,
+                        scan_date,status,sequencing_status,biomass_remaining,
+                        obsolete,array_agg(project) AS projects
+                        FROM barcode
+                        JOIN project_barcode USING (barcode)
+                        JOIN project USING (project_id)
+                        WHERE project IN %s GROUP BY barcode
+                        ORDER BY barcode DESC"""
+        sql_args = [tuple(projects)]
+        if limit is not None:
+            select_sql += " LIMIT %s"
+            sql_args.append(limit)
+        return self._con.execute_fetchall(select_sql, sql_args)

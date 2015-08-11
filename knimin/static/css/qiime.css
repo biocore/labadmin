@@ -20,7 +20,7 @@ html, body {
 	/*width: 800px;*/
 	position: absolute;
 	top: 0px;
-	left: 300px;
+	left: 225px;
 	margin: 8px;
 	background: #fff;
 	opacity: 0.8;
@@ -42,7 +42,7 @@ html, body {
 	border: 2px black solid;
 	border-radius: 5px;
 	font: 15px normal Arial, Helvetica, sans-serif;
-	width: 270px;
+	width: 200px;
 }
 
 .login {

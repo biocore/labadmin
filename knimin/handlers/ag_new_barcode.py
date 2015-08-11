@@ -1,41 +1,87 @@
 #!/usr/bin/env python
-from tornado.web import authenticated
+from tornado.web import authenticated, HTTPError
 from knimin.handlers.base import BaseHandler
 
 from amgut.connections import ag_data
+from knimin.lib.squash_barcodes import build_barcodes_pdf
+from knimin import db
+
+
+class AGBarcodePrintoutHandler(BaseHandler):
+    @authenticated
+    def post(self):
+        barcodes = self.get_argument('barcodes').split(",")
+        pdf = build_barcodes_pdf(barcodes)
+        self.add_header('Content-type',  'application/pdf')
+        self.add_header('Content-Transfer-Encoding', 'binary')
+        self.add_header('Accept-Ranges', 'bytes')
+        self.add_header('Content-Encoding', 'none')
+        self.add_header('Content-Disposition', 'attachment; filename=barcodes.pdf')
+        self.write(pdf)
+        self.flush()
+        self.finish()
+
+
+class AGBarcodeAssignedHandler(BaseHandler):
+    @authenticated
+    def post(self):
+        barcodes = self.get_argument('barcodes').split(",")
+        projects = self.get_argument('projects')
+        text = "".join(["%s\t%s\n" % (b, projects) for b in barcodes])
+        self.add_header('Content-type',  'plain/text')
+        self.add_header('Content-Transfer-Encoding', 'binary')
+        self.add_header('Accept-Ranges', 'bytes')
+        self.add_header('Content-Encoding', 'none')
+        self.add_header('Content-Disposition', 'attachment; filename=barcodes_assigned.txt')
+        self.write(text)
+        self.flush()
+        self.finish()
 
 
 class AGNewBarcodeHandler(BaseHandler):
     @authenticated
     def get(self):
-        next_barcode, text_barcode = ag_data.getNextAGBarcode()
-        self.render("ag_new_barcode.html", kitid=None, barcode=next_barcode,
-                    t_barcode=text_barcode, response=None,
-                    currentuser=self.current_user)
+        project_names = ag_data.getProjectNames()
+        remaining = len(db.get_unassigned_barcodes())
+        self.render("ag_new_barcode.html", currentuser=self.current_user,
+                    projects=project_names, barcodes=[], remaining=remaining,
+                    msg="", newbc=[],  assignedbc=[], assign_projects="")
 
     @authenticated
     def post(self):
-        num_barcodes = len(self.request.arguments)
-        kit_id = self.get_argument('kitid')
-        kitinfo = ag_data.getAGKitDetails(kit_id)
-        if 'supplied_kit_id' not in kitinfo:
-            next_barcode, text_barcode = ag_data.getNextAGBarcode()
-            self.render("ag_new_barcode.html", kitid=kit_id,
-                        barcode=next_barcode,
-                        t_barcode=text_barcode, response='Bad Kit',
-                        currentuser=self.current_user)
-            return
+        # create barcodes
+        msg = ""
+        newbc = []
+        assignedbc = []
+        projects = []
+        action = self.get_argument("action")
+        num_barcodes = int(self.get_argument('numbarcodes'))
 
-        try:
-            for x in range(1, num_barcodes):
-                field = 'barcode_%s' % x
-                barcode = self.get_argument(field)
-                ag_data.addAGBarcode(kitinfo['ag_kit_id'], barcode)
+        if action == "create":
+            newbc = db.create_barcodes(num_barcodes)
+            msg = ("%d Barcodes created! Please wait for barcode download"
+                   % num_barcodes)
 
-            self.render("ag_new_barcode.html", response='Good',
-                        kitid=None, barcode=None, t_barcode=None,
-                        currentuser=self.current_user)
-        except:
-            self.render("ag_new_barcode.html", response='Bad',
-                        kitid=None, barcode=None, t_barcode=None,
-                        currentuser=self.current_user)
+        elif action == "assign":
+            projects = self.get_arguments('projects')
+            new_project = self.get_argument('newproject').strip()
+            try:
+                if new_project:
+                    db.create_project(new_project)
+                    projects.append(new_project)
+                assignedbc = db.assign_barcodes(num_barcodes, projects)
+            except ValueError as e:
+                msg = "ERROR! %s" % str(e)
+            else:
+                msg = "%d barcodes assigned to %s, please wait for download." % (
+                    num_barcodes, ", ".join(projects))
+
+        else:
+            raise HTTPError(400, 'Unknown action: %s' % action)
+
+        project_names = ag_data.getProjectNames()
+        remaining = len(db.get_unassigned_barcodes())
+        self.render("ag_new_barcode.html", currentuser=self.current_user,
+                    projects=project_names, remaining=remaining, msg=msg,
+                    newbc=newbc, assignedbc=assignedbc,
+                    assign_projects=", ".join(projects))
