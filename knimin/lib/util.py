@@ -8,7 +8,6 @@ __email__ = "adam.robbinspianka@colorado.edu"
 __status__ = "Development"
 
 from random import choice
-
 from amgut.connections import ag_data
 
 # character sets for kit id, passwords and verification codes
@@ -55,15 +54,60 @@ def combine_barcodes(cli_barcodes=None, input_file=None):
     return cli_barcodes | file_barcodes
 
 
-def make_valid_kit_ids(num_ids, kit_id_length=5, tag=None):
+def get_printout_data(kitinfo):
+    """Produce the text for paper slips with kit credentials & mapping table
+    """
+    BASE_PRINTOUT_TEXT = """Thank you for participating in the American Gut \
+Project! Below you will find your sample barcodes (the numbers that \
+anonymously link your samples to you) and your login credentials. It is very \
+important that you login before you begin any sample collection.
+
+Please login at: http://www.microbio.me/AmericanGut
+
+Thanks,
+The American Gut Project
+"""
+    kit_id = 0
+    password = 1
+    ver_code = 2
+    bcs = 3
+
+    text = []
+    for kit in kitinfo:
+        text.append(BASE_PRINTOUT_TEXT)
+        barcodes = kit[bcs]
+
+        padding_lines = 5
+
+        if len(barcodes) > 5:
+            text.append("Sample Barcodes:\t%s" % ', '.join(barcodes[:5]))
+            for i in range(len(barcodes))[5::5]:
+                padding_lines -= 1
+                text.append("\t\t\t%s" % ', '.join(barcodes[i:i+5]))
+        else:
+            text.append("Sample Barcodes:\t%s" % ', '.join(barcodes))
+
+        text.append("Kit ID:\t\t%s" % kit[kit_id])
+        text.append("Password:\t\t%s" % kit[password])
+
+        # padding between sheets so they print pretty
+        for i in range(padding_lines):
+            text.append('')
+
+    return '\n'.join(text)
+
+
+def make_valid_kit_ids(num_ids, obs_kit_ids, kit_id_length=5, tag=None):
     """Generates new unique kit IDs
 
     Parameters
     ----------
     num_ids : int
         Number of kit IDs to create
+    obs_kit_ids : set
+        Already used kit IDs in the database
     kit_id_length : int, optional
-        number of characters in kit_id created, default 5. Must be <= 9
+        number of characters in base kit_id created, default 5. Must be <= 9
     tag : str, optional
         tag to prepend to kit_id, defaut none. Maximum 4 characters
 
@@ -84,9 +128,6 @@ def make_valid_kit_ids(num_ids, kit_id_length=5, tag=None):
     passed kit_id_length + tag length + 1 for an underscore seperator.
     Because of this, kit_id_length should be kept short.
     """
-    if kit_id_length > 9:
-            # database table has 9 chars for the kit_id_length
-            kit_id_length = 9
 
     if tag is not None:
         if len(tag) > 4:
@@ -100,8 +141,6 @@ def make_valid_kit_ids(num_ids, kit_id_length=5, tag=None):
 
     if kit_id_length > len(KIT_ALPHA)**kit_id_length:
         raise ValueError("More kits requested than possible kit ID combos!")
-
-    obs_kit_ids = ag_data.get_used_kit_ids()
 
     def make_kit_id(kit_id_length, tag):
         kit_id = ''.join([choice(KIT_ALPHA) for i in range(kit_id_length)])

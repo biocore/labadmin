@@ -63,6 +63,35 @@ class DataAccessTests(TestCase):
         obs = con.execute_fetchall(sql_bc)
         self.assertItemsEqual(obs, bc)
 
+    def test_create_ag_kits(self):
+        with self.assertRaises(ValueError):
+            db.create_ag_kits([(1, 9999999999)])
+        db.create_barcodes(15)
+        kits = db.create_ag_kits([(1, 2), (5, 2)])
+
+        obs = db._con.execute_fetchall("SELECT * from ag.ag_handout_kits")
+        self.assertEqual(len(obs), 5)
+
+        obs = db._con.execute_fetchall("SELECT * from ag.ag_handout_barcodes")
+        self.assertEqual(len(obs), 15)
+
+    def test_remaining_barcodes(self):
+        with self.assertRaises(ValueError):
+            db.remaining_barcodes(999999999999)
+
+        barcodes = db.remaining_barcodes()
+        exp = []
+        self.assertEqual(barcodes, exp)
+
+        db.create_barcodes(5)
+
+        barcodes = db.remaining_barcodes()
+        exp = ['000010861', '000010862', '000010863', '000010864', '000010865']
+        self.assertEqual(barcodes, exp)
+
+        barcodes = db.remaining_barcodes(2)
+        self.assertEqual(barcodes, ['000010861', '000010862'])
+
 
 if __name__ == '__main__':
     main()

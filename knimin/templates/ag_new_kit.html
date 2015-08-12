@@ -1,39 +1,75 @@
 {% extends logged_in_index.html %}
-{% block content %}
-<h3>Add AG Kit</h3>
-{% if response is None %}
-<form method="post" action="/ag_new_kit/" name="agForm" id="agForm">
-    <table>
-        <tr>
-            <td>Kit Owner</td>
-            <td><input type="text" name="email" id="email"></td>
-            </tr>
-        <tr><td>Kit ID</td><td><input type="text" name="kit_id" id="kit_id" value="{{kitid}}"></td></tr>
-        <tr><td>Kit Password</td><td><input type="text" name="kit_password" id="kit_password" value="{{password}}"></td></tr>
-        <tr><td>Number of Swabs</td><td><input type="text" name="swabs_per_kit" id="swabs_per_kit" onkeypress='validateNumber(event)'></td></tr>
-        <tr><td>Kit Verification Code</td><td><input type="text" name="kit_verification_code" id="state" value="{{vercode}}"></td></tr>
-        <tr><td></td><td><input type="button" onclick="validateAGSingleSubmitForm();" value="Submit"></td></tr>
-    </table>
-</form>
-{% elif response == 'Bad Email' %}
- Email Address not in System<br> Please try again
-<form method="post" action="/ag_new_kit/" name="agForm" id="agForm">
-    <table>
+{% block head %}
+<script type="text/javascript">
+    $(document).ready(function() {
+        $("[value='American Gut Project']").prop('selected', true);
+        $(".chosen-select").chosen({'width': '500px'});
 
-        <tr>
-            <td>Kit Owner</td>
-            <td><input type="text" name="email" id="email" value="{{email}}"></td>
-            </tr>
-        <tr><td>Kit ID</td><td><input type="text" name="kit_id" id="kit_id" value="{{kitid}}"></td></tr>
-        <tr><td>Kit Password</td><td><input type="text" name="kit_password" id="kit_password" value="{{password}}"></td></tr>
-        <tr><td>Number of Swabs</td><td><input type="text" name="swabs_per_kit" id="swabs_per_kit" onkeypress='validateNumber(event)'></td></tr>
-        <tr><td>Kit Verification Code</td><td><input type="text" name="kit_verification_code" id="state" value="{{vercode}}"></td></tr>
-        <tr><td></td><td><input type="button" onclick="validateAGSingleSubmitForm();" value="Submit"></td></tr>
-    </table>
-</form>
-{% elif response == 'Good' %}
-    Kit Added
-{%elif response == 'Bad' %}
-    Error Adding Kit
+        // http://stackoverflow.com/a/7961934
+        $(".tr_clone_add").on('click', function() {
+            var $tr    = $('.tr_clone:last');
+            var $clone = $tr.clone();
+            $clone.find(':input').val('');
+            $tr.after($clone);
+        });
+
+        $(".tr_clone_rem").on('click', function() {
+            if($('.tr_clone').length > 1) {
+                $('.tr_clone:last').remove();
+            }
+        });
+        {% if kitinfo %}
+        var dummy = new iframeform('/ag_new_kit/download/');
+        dummy.addParameter('kitinfo', '{% raw kitinfo %}');
+        dummy.addParameter('fields', '{% raw fields %}');
+        dummy.send();
+        {% end %}
+    });
+
+    function validate() {
+        var empties = $('.important-nums').filter(function () {
+            return $.trim($(this).val()) == '';
+        });
+        if (empties.length) {
+            alert('Must fill all swab and kit fields!');
+            return false;
+        }
+        var swabs = $(".swabs").map(function() { return parseInt(this.value); });
+        swabs = swabs.sort(function(a, b) { return b-a; })[0];
+
+        if(swabs > 7 && confirm(swabs + " swabs per kit? REALLY?") == false) { return false; }
+        return true;
+    }
+</script>
 {% end %}
+
+{% block content %}
+<iframe id="download" width="1" height="1" style="display:none"></iframe>
+{% if msg %} <h3>{{msg}}</h3> {% end %}
+<h3>Add AG Kit</h3>
+<form method="post" action="/ag_new_kit/" name="agForm" id="agForm" onsubmit="return validate()">
+<table>
+    <tr><td style="width:150px">
+        <label for="tag">Tag: </label><input type="text" name="tag" id="tag" style="width:5em" maxlength="3">
+    </td><td style="display: inline">
+        <label for="project">Projects: </label>
+        <select id="create-select-project" name="projects" multiple class="chosen-select">
+            {% for p in projects %}
+            <option value='{{p}}'>{{p}}</option>
+            {% end %}
+        </select>
+    </td></tr>
+</table>
+<table id="kit-table">
+    <tr><td colspan="2">{{remaining}} unassigned barcodes</td></tr>
+    <tr><td># of swabs</td><td># of kits</td></tr>
+    <tr class="tr_clone"><td>
+        <input type="integer" name="swabs" min="1" class="important-nums swabs" style="width:5em">
+    </td><td>
+        <input type="integer" name="kits" min="1" class="important-nums kits" style="width:5em">
+    </td></tr>
+</table>
+<p><a href="#" class="tr_clone_add">Add another kit type</a> | <a href="#" class="tr_clone_rem">Remove last kit type</a></p>
+<input type="submit">
+</form>
 {% end %}

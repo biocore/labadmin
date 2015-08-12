@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from re import sub
 from hashlib import md5
 from datetime import datetime
@@ -8,6 +8,8 @@ from bcrypt import hashpw, gensalt
 
 from psycopg2 import connect, Error as PostgresError
 from psycopg2.extras import DictCursor
+
+from util import make_valid_kit_ids, make_verification_code, make_passwd
 
 
 class IncorrectEmailError(Exception):
@@ -759,6 +761,72 @@ class KniminAccess(object):
             raise IncorrectPasswordError("Password not valid!")
 
         return False
+
+    def create_ag_kits(self, swabs_kits, tag=None, projects=None):
+        """ Creates american gut handout kits on the database
+
+        Parameters
+        ----------
+        swabs_kits : list of tuples
+            kits and swab counts, with tuples in the form
+            (# of swabs, # of kits with this swab count)
+        tag : str, optional
+            Tag to add to kit IDs. Default None
+        projects : list of str, optional
+            Subprojects to attach to, if given. Default None.
+
+        Returns
+        -------
+        list of namedtuples
+            The new kit information, in the form
+            [(kit_id, password, verification_code, (barcode, barcode,...)),...]
+        """
+        # make sure we have enough barcodes
+        total_swabs = sum(s * k for s, k in swabs_kits)
+        barcodes = self.get_unassigned_barcodes(total_swabs)
+
+        # Assign barcodes to AG and any other subprojects
+        if projects is None:
+            projects = ["American Gut Project"]
+        else:
+            if "American Gut Project" not in projects:
+                projects.append("American Gut Project")
+        self.assign_barcodes(total_swabs, projects)
+
+        kits = []
+        kit_barcode_inserts = []
+        kit_inserts = []
+        start = 0
+        KitTuple = namedtuple('AGKit', ['kit_id', 'password',
+                              'verification_code', 'barcodes'])
+        # build the kits information and the sql insert information
+        for num_swabs, num_kits in swabs_kits:
+            kit_ids = make_valid_kit_ids(num_kits, self.get_used_kit_ids(),
+                                         tag=tag)
+            for i in range(num_kits):
+                ver_code = make_verification_code()
+                password = make_passwd()
+                kit_bcs = tuple(barcodes[start:start + num_swabs])
+                start += num_swabs
+                kits.append(KitTuple(kit_ids[i], password, ver_code, kit_bcs))
+                kit_inserts.append((kit_ids[i],
+                                    self._hash_password(password),
+                                    ver_code, num_swabs))
+                for barcode in kit_bcs:
+                    kit_barcode_inserts.append((kit_ids[i], barcode, barcode))
+
+        # Insert kits, followed by barcodes attached to the kits
+        kit_sql = """INSERT INTO ag_handout_kits
+                     (kit_id, password, verification_code, swabs_per_kit)
+                     VALUES (%s, %s, %s, %s)"""
+        kit_barcode_sql = """INSERT INTO ag_handout_barcodes
+                             (kit_id, barcode, sample_barcode_file)
+                             VALUES(%s, %s, %s || '.jpg')"""
+
+        self._con.executemany(kit_sql, kit_inserts)
+        self._con.executemany(kit_barcode_sql, kit_barcode_inserts)
+
+        return kits
 
     def get_used_kit_ids(self):
         """Grab in use kit IDs, return set of them

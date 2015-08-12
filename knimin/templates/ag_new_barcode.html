@@ -1,7 +1,6 @@
 {% extends logged_in_index.html %}
 {% block head %}
 {% from json import dumps %}
-<script type="text/javascript" src="/static/js/labmin.js"></script>
 <script type="text/javascript">
     $(document).ready(function() {
         $("#create_barcodes").hide();
@@ -65,7 +64,7 @@
                 {% end %}
             </select>
             </td></tr>
-            <tr><td class="right-td">New project to attach barcode to</td>
+            <tr><td class="right-td">New project to attach barcode to (optional)</td>
             <td><input type='text' name='newproject' value=''></td></tr>
             <tr><td class="right-td">Number of barcodes ({{remaining}} unassigned)</td>
             <td><input type='number' name='numbarcodes' value="0" min="1" max="10000" maxlength="7" size="7"></td></tr>

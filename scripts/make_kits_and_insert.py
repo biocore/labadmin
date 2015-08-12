@@ -191,9 +191,9 @@ Thanks,
 The American Gut Project
 """
     text = []
-    for kit_id, passwd in kit_passwd_map:
+    for kit in kit_passwd_map:
         text.append(BASE_PRINTOUT_TEXT)
-        barcodes = kit_barcode_map[kit_id]
+        barcodes = kit['barcodes']
 
         padding_lines = 5
 
@@ -205,14 +205,14 @@ The American Gut Project
         else:
             text.append("Sample Barcodes:\t%s" % ', '.join(barcodes))
 
-        text.append("Kit ID:\t\t%s" % kit_id)
-        text.append("Password:\t\t%s" % passwd)
+        text.append("Kit ID:\t\t%s" % kit['kit_id'])
+        text.append("Password:\t\t%s" % kit['password'])
 
         # padding between sheets so they print pretty
         for i in range(padding_lines):
             text.append('')
 
-    return text
+    return '\n'.join(text)
 
 
 def unassigned_kits(starting_sample, cursor, existing_kit_ids, output,

@@ -16,7 +16,7 @@ from knimin.handlers.barcode_util import BarcodeUtilHandler
 from knimin.handlers.ag_stats import AGStatsHandler
 from knimin.handlers.ag_new_participant import AGNewParticipantHandler
 from knimin.handlers.ag_edit_participant import AGEditParticipantHandler
-from knimin.handlers.ag_new_kit import AGNewKitHandler
+from knimin.handlers.ag_new_kit import AGNewKitHandler, AGNewKitDLHandler
 from knimin.handlers.ag_edit_kit import AGEditKitHandler
 from knimin.handlers.ag_new_barcode import (AGNewBarcodeHandler,
                                             AGBarcodePrintoutHandler,
@@ -50,6 +50,7 @@ class WebApplication(Application):
             (r"/ag_stats/", AGStatsHandler),
             (r"/ag_edit_participant/", AGEditParticipantHandler),
             (r"/ag_new_kit/", AGNewKitHandler),
+            (r"/ag_new_kit/download/", AGNewKitDLHandler),
             (r"/ag_edit_kit/", AGEditKitHandler),
             (r"/ag_new_barcode/", AGNewBarcodeHandler),
             (r"/ag_update_geocode/", AGUpdateGeocodeHandler),
