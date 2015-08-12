@@ -929,6 +929,10 @@ class KniminAccess(object):
             for project in proj_ids:
                 project_inserts.append((barcode, project))
         self._con.executemany(barcode_project_insert, project_inserts)
+        # Set assign date for the barcodes
+        sql = """UPDATE barcodes.barcode
+                 SET assigned_on = NOW() WHERE barcode IN %s"""
+        self._con.execute(sql, tuple(barcodes))
         return barcodes
 
     def create_barcodes(self, num_barcodes):
