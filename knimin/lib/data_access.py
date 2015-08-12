@@ -932,7 +932,7 @@ class KniminAccess(object):
         # Set assign date for the barcodes
         sql = """UPDATE barcodes.barcode
                  SET assigned_on = NOW() WHERE barcode IN %s"""
-        self._con.execute(sql, tuple(barcodes))
+        self._con.execute(sql, [tuple(barcodes)])
         return barcodes
 
     def create_barcodes(self, num_barcodes):
