@@ -528,6 +528,9 @@ class KniminAccess(object):
         zip_lookup = {row[0]: tuple(row[1:])
                       for row in self._con.execute_fetchall(zipcode_sql)}
 
+        survey_sql = "SELECT barcode, survey_id FROM ag.ag_kit_barcodes"
+        survey_lookup = dict(self._con.execute_fetchall(survey_sql))
+
         country_lookup = defaultdict(lambda: 'unknown')
         country_lookup.update({
             'united states': 'GAZ:United States of America',
@@ -644,6 +647,7 @@ class KniminAccess(object):
                 md[1][barcode]['LONGITUDE'] = ''
                 md[1][barcode]['ELEVATION'] = ''
 
+            md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode]
             md[1][barcode]['TAXON_ID'] = md_lookup[site]['TAXON_ID']
             md[1][barcode]['COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
             md[1][barcode]['COLLECTION_DATE'] = \
