@@ -229,17 +229,14 @@ class KniminAccess(object):
         dict of dict
             {barcode: {column: value}, ...}
         """
-
-        # For use with SQL query "IN (...)" clause
-        barcodes_formatted = "'%s'" % "', '".join(barcodes)
-
-        sql = """SELECT akb.barcode, *
-                 FROM ag_kit_barcodes akb JOIN ag_kit ak USING (ag_kit_id)
-                 JOIN ag_login al USING (ag_login_id)
-                 WHERE akb.barcode in ({})""".format(barcodes_formatted)
+        sql = """SELECT barcode, *
+                 FROM ag_kit_barcodes
+                 JOIN ag_kit USING (ag_kit_id)
+                 JOIN ag_login USING (ag_login_id)
+                 WHERE barcode in %s"""
 
         with self._con.cursor() as cur:
-            cur.execute(sql)
+            cur.execute(sql, [tuple(barcodes)])
             headers = [x[0] for x in cur.description][1:]
             results = {row[0]: dict(zip(headers, row[1:]))
                        for row in cur.fetchall()}
@@ -269,79 +266,49 @@ class KniminAccess(object):
         ALLERGIC_TO portion taken from the shortname column of the question
         table).
         """
-
-        # For use with SQL query "IN (...)" clause
-        barcodes_formatted = "'%s'" % "', '".join(barcodes)
-
         # SINGLE answers SQL
-        single_sql = """SELECT S.survey_id, AKB.barcode, SQ.question_shortname,
-                               SA.response
-                 FROM ag_kit_barcodes AKB
-                      JOIN survey_answers SA ON
-                        AKB.survey_id=SA.survey_id
-                      JOIN survey_question SQ
-                        ON SA.survey_question_id=SQ.survey_question_id
-                      JOIN survey_question_response_type SQRTYPE
-                        ON SQ.survey_question_id=SQRTYPE.survey_question_id
-                      JOIN group_questions GQ
-                        ON SQ.survey_question_id = GQ.survey_question_id
-                      JOIN survey_group SG
-                        ON GQ.survey_group = SG.group_order
-                      JOIN surveys S
-                        ON SG.group_order = S.survey_group
-                 WHERE sqrtype.survey_response_type='SINGLE'
-                      AND AKB.barcode in ({})""".format(barcodes_formatted)
+        single_sql = \
+            """SELECT S.survey_id, barcode, question_shortname, response
+               FROM ag.ag_kit_barcodes
+               JOIN ag.survey_answers SA USING (survey_id)
+               JOIN ag.survey_question USING (survey_question_id)
+               JOIN ag.survey_question_response_type USING (survey_question_id)
+               JOIN ag.group_questions GQ USING (survey_question_id)
+               JOIN ag.surveys S USING (survey_group)
+               WHERE survey_response_type='SINGLE' AND barcode in %s"""
 
         # MULTIPLE answers SQL
-        multiple_sql = """SELECT S.survey_id, AKB.barcode,
-                                 SQ.question_shortname,
-                                 array_agg(SA.response) as responses
-                 FROM ag_kit_barcodes AKB
-                      JOIN survey_answers SA ON
-                        AKB.survey_id=SA.survey_id
-                      JOIN survey_question SQ
-                        ON SA.survey_question_id=SQ.survey_question_id
-                      JOIN survey_question_response_type SQRTYPE
-                        ON SQ.survey_question_id=SQRTYPE.survey_question_id
-                      JOIN group_questions GQ
-                        ON SQ.survey_question_id = GQ.survey_question_id
-                      JOIN survey_group SG
-                        ON GQ.survey_group = SG.group_order
-                      JOIN surveys S
-                        ON SG.group_order = S.survey_group
-                 WHERE sqrtype.survey_response_type='MULTIPLE'
-                      AND AKB.barcode in ({})
-                 GROUP BY S.survey_id, AKB.barcode, SQ.question_shortname
-                 """.format(barcodes_formatted)
+        multiple_sql = \
+            """SELECT S.survey_id, barcode, question_shortname,
+                      array_agg(response) as responses
+               FROM ag.ag_kit_barcodes
+               JOIN ag.survey_answers USING (survey_id)
+               JOIN ag.survey_question USING (survey_question_id)
+               JOIN ag.survey_question_response_type USING (survey_question_id)
+               JOIN ag.group_questions USING (survey_question_id)
+               JOIN ag.surveys S USING (survey_group)
+               WHERE survey_response_type='MULTIPLE' AND barcode in %s
+               GROUP BY S.survey_id, barcode, question_shortname"""
 
         # Also need to get the possible responses for multiples
-        multiple_responses_sql = """
-            SELECT SQ.question_shortname, SQR.response
-            FROM survey_question SQ
-            JOIN survey_question_response_type SQRTYPE
-                 ON SQ.survey_question_id = SQRTYPE.survey_question_id
-            JOIN survey_question_response SQR
-                 ON SQ.survey_question_id = SQR.survey_question_id
-            WHERE SQRTYPE.survey_response_type = 'MULTIPLE'"""
+        multiple_responses_sql = \
+            """SELECT question_shortname, response
+               FROM survey_question
+               JOIN survey_question_response_type USING (survey_question_id)
+               JOIN survey_question_response USING (survey_question_id)
+               WHERE survey_response_type = 'MULTIPLE'"""
 
         # STRING and TEXT answers SQL
-        others_sql = """SELECT S.survey_id, AKB.barcode,
-                        SQ.question_shortname, SA.response
-                 FROM ag_kit_barcodes AKB
-                      JOIN survey_answers_other SA ON
-                        AKB.survey_id=SA.survey_id
-                      JOIN survey_question SQ
-                        ON SA.survey_question_id=SQ.survey_question_id
-                      JOIN survey_question_response_type SQRTYPE
-                        ON SQ.survey_question_id=SQRTYPE.survey_question_id
-                      JOIN group_questions GQ
-                        ON SQ.survey_question_id = GQ.survey_question_id
-                      JOIN survey_group SG
-                        ON GQ.survey_group = SG.group_order
-                      JOIN surveys S
-                        ON SG.group_order = S.survey_group
-                 WHERE sqrtype.survey_response_type in ('STRING', 'TEXT')
-                      AND AKB.barcode in ({})""".format(barcodes_formatted)
+        others_sql = \
+            """SELECT S.survey_id, barcode, question_shortname, response
+               FROM ag.ag_kit_barcodes
+               JOIN ag.survey_answers_other SA USING (survey_id)
+               JOIN ag.survey_question USING (survey_question_id)
+               JOIN ag.survey_question_response_type USING (survey_question_id)
+               JOIN ag.group_questions GQ USING (survey_question_id)
+               JOIN ag.surveys S USING (survey_group)
+               WHERE survey_response_type in ('STRING', 'TEXT')
+               AND barcode in %s"""
 
         # Formats a question and response for a MULTIPLE question into a header
         def _translate_multiple_response_to_header(question, response):
@@ -360,9 +327,11 @@ class KniminAccess(object):
 
         # this function reduces code duplication by generalizing as much
         # as possible how questions and responses are fetched from the db
+        bc = tuple(barcodes)
+
         def _format_responses_as_dict(sql, json=False, multiple=False):
             ret_dict = defaultdict(lambda: defaultdict(dict))
-            for survey, barcode, q, a in self._con.execute_fetchall(sql):
+            for survey, barcode, q, a in self._con.execute_fetchall(sql, [bc]):
                 if json:
                     # Taking this slice here since all json are single-element
                     # lists
@@ -376,7 +345,6 @@ class KniminAccess(object):
                             'Yes' if response in a else 'No'
                 else:
                     ret_dict[survey][barcode][q] = a
-
             return ret_dict
 
         single_results = _format_responses_as_dict(single_sql)
@@ -442,7 +410,7 @@ class KniminAccess(object):
         dict of dict of dict
         """
         # get barcode information
-        all_barcodes = set.union(*[set(md[s]) for s in md])
+        all_barcodes = set().union(*[set(md[s]) for s in md])
         barcode_info = self.get_barcode_details(all_barcodes)
 
         # Human survey (id 1)
@@ -661,16 +629,23 @@ class KniminAccess(object):
             md[1][barcode]['DEPTH'] = 0
 
             # Sample-dependent information
+            try:
+                md[1][barcode]['LATITUDE'] = \
+                    zip_lookup[barcode_info[barcode]['zip']][0]
+                md[1][barcode]['LONGITUDE'] = \
+                    zip_lookup[barcode_info[barcode]['zip']][1]
+                md[1][barcode]['ELEVATION'] = \
+                    zip_lookup[barcode_info[barcode]['zip']][2]
+            except KeyError:
+                #zipcode is unknown, so leave as blank
+                md[1][barcode]['LATITUDE'] = ''
+                md[1][barcode]['LONGITUDE'] = ''
+                md[1][barcode]['ELEVATION'] = ''
+
             md[1][barcode]['TAXON_ID'] = md_lookup[site]['TAXON_ID']
             md[1][barcode]['COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
             md[1][barcode]['COLLECTION_DATE'] = \
                 barcode_info[barcode]['sample_date']
-            md[1][barcode]['LATITUDE'] = \
-                zip_lookup[barcode_info[barcode]['zip']][0]
-            md[1][barcode]['LONGITUDE'] = \
-                zip_lookup[barcode_info[barcode]['zip']][1]
-            md[1][barcode]['ELEVATION'] = \
-                zip_lookup[barcode_info[barcode]['zip']][2]
             md[1][barcode]['ENV_MATTER'] = md_lookup[site]['ENV_MATTER']
             md[1][barcode]['BODY_HABITAT'] = md_lookup[site]['BODY_HABITAT']
             md[1][barcode]['BODY_SITE'] = md_lookup[site]['BODY_SITE']
@@ -686,6 +661,47 @@ class KniminAccess(object):
             md[1][barcode]['PUBLIC'] = 'Yes'
 
         return md
+
+    def pulldown(self, barcodes):
+        """Pulls down AG metadata for given barcodes
+
+        Parameters
+        ----------
+        barcodes : list of str
+            Barcodes to pull metadata down for
+
+        Returns
+        -------
+        metadata : dict of str
+            Tab delimited qiita sample template, keyed to survey ID it came
+            from
+        failures : list of str
+            Barcodes unable to pull metadata down for
+        """
+        all_survey_info = self.get_surveys(barcodes)
+        if len(all_survey_info) == 0:
+            # No barcodes given match any survey
+            failures = set(barcodes)
+            return {}, failures
+        all_results = self.format_survey_data(all_survey_info)
+
+        # keep track of which barcodes were seen so we know which weren't
+        barcodes_seen = set()
+
+        metadata = {}
+        for survey, bc_responses in all_results.items():
+            headers = sorted(bc_responses.values()[0])
+            survey_md = [''.join(['#SampleID\t', '\t'.join(headers)])]
+            for barcode, shortnames_answers in sorted(bc_responses.items()):
+                barcodes_seen.add(barcode)
+                ordered_answers = [shortnames_answers[h] for h in headers]
+                ordered_answers = '\t'.join([str(x) for x in ordered_answers])
+                survey_md.append('\t'.join([barcode, ordered_answers]))
+            metadata[survey] = '\n'.join(survey_md)
+
+        failures = sorted(set(barcodes) - barcodes_seen)
+
+        return metadata, failures
 
     def _hash_password(self, password, hashedpw=None):
         """Hashes password

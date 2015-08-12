@@ -1,0 +1,31 @@
+{% extends logged_in_index.html %}
+{% block head %}
+{% from json import dumps %}
+<script type="text/javascript" src="/static/js/labmin.js"></script>
+<style>
+p {
+	font-weight: bold;
+}
+</style>
+	{% if barcodes %}
+<script type="text/javascript">
+    $(document).ready(function() {
+      var dummy = new iframeform('/ag_pulldown/download/');
+			dummy.addParameter('barcodes', '{{barcodes}}');
+      dummy.send();
+    });
+</script>
+  {% end %}
+
+{% end %}
+
+{% block content %}
+<h3>Metadata Pulldown</h3>
+<p>Before pulldown, remember to update lat/long. <a href="/ag_update_geocode/">Click here</a> to go to the page.</p>
+
+<p>Upload qiime mapping file, or other file with first line header and one barcode per line</p>
+<form enctype="multipart/form-data" action="/ag_pulldown/" name="agForm" id="agForm" method="post">
+<p>File: <input type="file" name="filearg" /></p>
+<p><input type="submit"></p>
+</form>
+{% end %}

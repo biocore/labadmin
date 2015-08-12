@@ -40,29 +40,14 @@ def pulldown(input_file, output_dir, barcodes):
                    "one barcode")
 
     all_barcodes = combine_barcodes(barcodes, input_file)
-
+    metadata, failures = db.pulldown(all_barcodes)
     makedirs(output_dir)
 
-    all_survey_info = db.get_surveys(all_barcodes)
-    all_results = db.format_survey_data(all_survey_info)
-
-    # keep track of which barcodes were seen so we know which were never seen
-    barcodes_seen = set()
-
-    for survey, barcodes_responses in all_results.items():
-        headers = sorted(barcodes_responses.values()[0])
-
+    for survey, barcodes_responses in metadata.items():
         with open(join(output_dir,
                        'survey_%d_md.txt' % survey), 'w') as outfile:
-            outfile.write('#SampleID\t' + '\t'.join(headers) + '\n')
-            for barcode, shortnames_answers in \
-                    sorted(barcodes_responses.items()):
-                barcodes_seen.add(barcode)
-                ordered_answers = [shortnames_answers[h] for h in headers]
-                ordered_answers = '\t'.join([str(x) for x in ordered_answers])
-                outfile.write('\t'.join([barcode, ordered_answers]) + '\n')
+            outfile.write(barcodes_responses)
 
-    failures = all_barcodes - barcodes_seen
     if failures:
         click.echo("The following barcodes were not retrieved for any survey:"
                    "\n%s\n" % '\n'.join(sorted(failures)))
