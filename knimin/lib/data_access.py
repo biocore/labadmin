@@ -636,11 +636,11 @@ class KniminAccess(object):
             # Sample-dependent information
             try:
                 md[1][barcode]['LATITUDE'] = \
-                    zip_lookup[barcode_info[barcode]['zip']][0]
+                    zip_lookup[md[1][barcode]['ZIP_CODE']][0]
                 md[1][barcode]['LONGITUDE'] = \
-                    zip_lookup[barcode_info[barcode]['zip']][1]
+                    zip_lookup[md[1][barcode]['ZIP_CODE']][1]
                 md[1][barcode]['ELEVATION'] = \
-                    zip_lookup[barcode_info[barcode]['zip']][2]
+                    zip_lookup[md[1][barcode]['ZIP_CODE']][2]
             except KeyError:
                 #zipcode is unknown, so leave as blank
                 md[1][barcode]['LATITUDE'] = ''
