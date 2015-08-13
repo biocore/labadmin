@@ -648,7 +648,12 @@ class KniminAccess(object):
                 md[1][barcode]['ELEVATION'] = ''
 
             md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode]
-            md[1][barcode]['TAXON_ID'] = md_lookup[site]['TAXON_ID']
+            try:
+                md[1][barcode]['TAXON_ID'] = md_lookup[site]['TAXON_ID']
+            except Exception as e:
+                print("BARCODE:", barcode, "  SITE:", site)
+                raise e
+
             md[1][barcode]['COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
             md[1][barcode]['COLLECTION_DATE'] = \
                 barcode_info[barcode]['sample_date']
