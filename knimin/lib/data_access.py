@@ -158,6 +158,32 @@ class SQLHandler(object):
             result = pgcursor.fetchone()
         return result
 
+    def execute_fetchdict(self, sql, sql_args=None):
+        """ Executes a fetchall SQL query and returns each row as a dict
+
+        Parameters
+        ----------
+        sql: str
+            The SQL query
+        sql_args: tuple or list, optional
+            The arguments for the SQL query
+
+        Returns
+        -------
+        list of dict
+            The results of the query as [{colname: val, colname: val, ...}, ...]
+
+        Notes
+        -----
+        from psycopg2 documentation, only variable values should be bound
+            via sql_args, it shouldn't be used to set table or field names. For
+            those elements, ordinary string formatting should be used before
+            running execute.
+        """
+        with self._sql_executor(sql, sql_args) as pgcursor:
+            result = [dict(row) for row in pgcursor.fetchall()]
+        return result
+
     def execute(self, sql, sql_args=None):
         """ Executes an SQL query with no results
 
@@ -1114,31 +1140,28 @@ class KniminAccess(object):
 
     def updateAGLogin(self, ag_login_id, email, name, address, city, state,
                       zip, country):
-        self.get_cursor().callproc('ag_update_login', [ag_login_id,
-                                   email.strip().lower(), name,
-                                   address, city, state, zip, country])
-        self.connection.commit()
+        self._con.execute_proc_return_cursor(
+            'ag_update_login', [ag_login_id, email.strip().lower(), name,
+                                address, city, state, zip, country])
 
     def updateAGKit(self, ag_kit_id, supplied_kit_id, kit_password,
                     swabs_per_kit, kit_verification_code):
         kit_password = hashpw(kit_password)
 
-        self.get_cursor().callproc('ag_update_kit',
+        self._con.execute_proc_return_cursor('ag_update_kit',
                                    [ag_kit_id, supplied_kit_id,
                                     kit_password, swabs_per_kit,
                                     kit_verification_code])
-        self.connection.commit()
 
     def updateAGBarcode(self, barcode, ag_kit_id, site_sampled,
                         environment_sampled, sample_date, sample_time,
                         participant_name, notes, refunded, withdrawn):
-        self.get_cursor().callproc('ag_update_barcode',
+        self._con.execute_proc_return_cursor('ag_update_barcode',
                                    [barcode, ag_kit_id, site_sampled,
                                     environment_sampled,
                                     sample_date, sample_time,
                                     participant_name, notes,
                                     refunded, withdrawn])
-        self.connection.commit()
 
     def AGGetBarcodeMetadata(self, barcode):
         results = self._sql.execute_proc_return_cursor(
@@ -1191,22 +1214,18 @@ class KniminAccess(object):
                   date_of_last_email):
         """ Update ag_kit_barcodes table.
         """
-        self.get_cursor().callproc('update_akb', [barcode, moldy,
+        self._con.execute_proc_return_cursor('update_akb', [barcode, moldy,
                                                   overloaded, other,
                                                   other_text,
                                                   date_of_last_email])
-        self.connection.commit()
 
     def search_participant_info(self, term):
         sql = """select   cast(ag_login_id as varchar(100)) as ag_login_id
                  from    ag_login al
                  where   lower(email) like %s or lower(name) like
                  %s or lower(address) like %s"""
-        cursor = self.get_cursor()
         liketerm = '%%' + term.lower() + '%%'
-        cursor.execute(sql, [liketerm, liketerm, liketerm])
-        results = cursor.fetchall()
-        cursor.close()
+        results = self._con.execute_fetchall(sql, [liketerm, liketerm, liketerm])
         return [x[0] for x in results]
 
     def search_kits(self, term):
@@ -1215,11 +1234,8 @@ class KniminAccess(object):
                  where   lower(supplied_kit_id) like %s or
                  lower(kit_password) like %s or
                  lower(kit_verification_code) = %s"""
-        cursor = self.get_cursor()
         liketerm = '%%' + term.lower() + '%%'
-        cursor.execute(sql, [liketerm, liketerm, term])
-        results = cursor.fetchall()
-        cursor.close()
+        results = self._con.execute_fetchall(sql, [liketerm, liketerm, liketerm])
         return [x[0] for x in results]
 
     def search_barcodes(self, term):
@@ -1229,11 +1245,8 @@ class KniminAccess(object):
                  on ak.ag_kit_id = akb.ag_kit_id
                  where   barcode like %s or lower(participant_name) like
                  %s or lower(notes) like %s"""
-        cursor = self.get_cursor()
         liketerm = '%%' + term.lower() + '%%'
-        cursor.execute(sql, [liketerm, liketerm, liketerm])
-        results = cursor.fetchall()
-        cursor.close()
+        results = self._con.execute_fetchall(sql, [liketerm, liketerm, liketerm])
         return [x[0] for x in results]
 
     def get_kit_info_by_login(self, ag_login_id):
@@ -1243,12 +1256,8 @@ class KniminAccess(object):
                         kit_verification_code, kit_verified
                 from    ag_kit
                 where   ag_login_id = %s"""
-        cursor = self.get_cursor()
-        cursor.execute(sql, [ag_login_id])
-        col_names = [x[0] for x in cursor.description]
-        results = [dict(zip(col_names, row)) for row in cursor.fetchall()]
-        cursor.close()
-        return results
+        self._con.execute_fetchdict(sql, [ag_login_id])
+        return []
 
     def search_handout_kits(self, term):
         sql = """SELECT kit_id, password, barcode, verification_code
@@ -1257,18 +1266,13 @@ class KniminAccess(object):
                     FROM ag.ag_handout_barcodes
                     GROUP BY kit_id, barcode) AS hb USING (kit_id)
                  WHERE kit_id LIKE %s or barcode LIKE %s"""
-        cursor = self.get_cursor()
         liketerm = '%%' + term + '%%'
-        cursor.execute(sql, [liketerm, liketerm])
-        col_names = [x[0] for x in cursor.description]
-        results = [dict(zip(col_names, row)) for row in cursor.fetchall()]
-        cursor.close()
-        return results
+        results = self._con.execute_fetchall(sql, [liketerm, liketerm])
+        return [x[0] for x in results]
 
     def get_login_by_email(self, email):
         sql = """select name, address, city, state, zip, country, ag_login_id
                  from ag_login where email = %s"""
-        cursor = self.get_cursor()
         cursor.execute(sql, [email])
         col_names = self._get_col_names_from_cursor(cursor)
         row = cursor.fetchone()
@@ -1299,7 +1303,6 @@ class KniminAccess(object):
                  from    plate p inner join plate_barcode pb on
                  pb.plate_id = p.plate_id \
                 where   pb.barcode = %s"""
-        cursor = self.get_cursor()
         cursor.execute(sql, [barcode])
         col_names = [x[0] for x in cursor.description]
         results = [dict(zip(col_names, row)) for row in cursor.fetchall()]
@@ -1313,7 +1316,6 @@ class KniminAccess(object):
         sql = """select p.project from project p inner join
                  project_barcode pb on (pb.project_id = p.project_id)
                  where pb.barcode = %s"""
-        cursor = self.get_cursor()
         cursor.execute(sql, [barcode])
         results = cursor.fetchone()
         proj = results[0]
@@ -1340,9 +1342,7 @@ class KniminAccess(object):
                 (select project_id from project where project = %s)
                 where barcode = %s"""
         result = self.get_cursor()
-        cursor = self.get_cursor()
         cursor.execute(sql, [project, barcode])
-        self.connection.commit()
         cursor.close()
 
     def getProjectNames(self):
@@ -1350,7 +1350,6 @@ class KniminAccess(object):
         """
         sql = """select project from project"""
         result = self.get_cursor()
-        cursor = self.get_cursor()
         cursor.execute(sql)
         results = cursor.fetchall()
         return [x[0] for x in results]
