@@ -283,6 +283,12 @@ class KniminAccess(object):
         self._con = SQLHandler(config)
         self._con.execute('set search_path to ag, barcodes, public')
 
+    def _get_col_names_from_cursor(self, cur):
+        if cur.description:
+            return [x[0] for x in cur.description]
+        else:
+            return []
+
     def get_barcode_details(self, barcode):
         """
         Returns the general barcode details for a barcode
@@ -1535,7 +1541,7 @@ class KniminAccess(object):
         return [dict(row) for row in self._con.execute_fetchall(sql, [ag_login_id])]
 
     def getAGBarcodeDetails(self, barcode):
-        results = self._sql.execute_proc_return_cursor(
+        results = self._con.execute_proc_return_cursor(
             'ag_get_barcode_details', [barcode])
         barcode_details = results.fetchone()
         col_names = self._get_col_names_from_cursor(results)
