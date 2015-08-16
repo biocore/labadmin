@@ -1183,6 +1183,19 @@ class KniminAccess(object):
                 for s, a in self._con.execute_fetchall(
                     sql.format(format_str), sql_args)}
 
+    def addAGLogin(self, email, name, address, city, state, zip_, country):
+        clean_email = email.strip().lower()
+        sql = "select ag_login_id from ag_login WHERE LOWER(email) = %s"
+        ag_login_id = self._con.execute_fetchone(sql, [clean_email])
+        if not ag_login_id:
+            # create the login
+            sql = ("INSERT INTO ag_login (email, name, address, city, state, "
+                   "zip, country) VALUES (%s, %s, %s, %s, %s, %s, %s) "
+                   "RETURNING ag_login_id")
+            ag_login_id = self._con.execute_fetchone(
+                sql, [clean_email, name, address, city, state, zip_, country])
+        return ag_login_id[0]
+
     def updateAGLogin(self, ag_login_id, email, name, address, city, state,
                       zip, country):
         self._con.execute_proc_return_cursor(
