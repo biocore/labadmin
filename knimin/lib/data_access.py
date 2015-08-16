@@ -251,7 +251,18 @@ class KniminAccess(object):
         self._con = SQLHandler(config)
         self._con.execute('set search_path to ag, barcodes, public')
 
-    def get_barcode_details(self, barcodes):
+    def get_barcode_details(self, barcode):
+        """
+        Returns the general barcode details for a barcode
+        """
+        sql = """SELECT  create_date_time, status, scan_date,
+                  sample_postmark_date,
+                  biomass_remaining, sequencing_status, obsolete
+                  FROM    barcode
+                  WHERE barcode = %s"""
+        return dict(self._con.execute_fetchone(sql, [barcode]))
+
+    def get_ag_barcode_details(self, barcodes):
         """Retrieve sample, kit, and login details by barcode
 
         Parameters
@@ -269,13 +280,8 @@ class KniminAccess(object):
                  JOIN ag_kit USING (ag_kit_id)
                  JOIN ag_login USING (ag_login_id)
                  WHERE barcode in %s"""
-
-        with self._con.cursor() as cur:
-            cur.execute(sql, [tuple(barcodes)])
-            headers = [x[0] for x in cur.description][1:]
-            results = {row[0]: dict(zip(headers, row[1:]))
-                       for row in cur.fetchall()}
-
+        results = {row[0]: dict(row)
+                   for row in self._con.execute_fetchall(sql, [tuple(barcodes)])}
         return results
 
     def get_surveys(self, barcodes):
@@ -446,7 +452,7 @@ class KniminAccess(object):
         """
         # get barcode information
         all_barcodes = set().union(*[set(md[s]) for s in md])
-        barcode_info = self.get_barcode_details(all_barcodes)
+        barcode_info = self.get_ag_barcode_details(all_barcodes)
 
         # Human survey (id 1)
 
@@ -1171,23 +1177,20 @@ class KniminAccess(object):
                                     refunded, withdrawn])
 
     def AGGetBarcodeMetadata(self, barcode):
-        results = self._sql.execute_proc_return_cursor(
+        results = self._con.execute_proc_return_cursor(
             'ag_get_barcode_metadata', [barcode])
         rows = results.fetchall()
-        col_names = self._get_col_names_from_cursor(results)
         results.close()
 
-        return_res = [dict(zip(col_names, row)) for row in rows]
-
-        return return_res
+        return [dict(row) for row in rows]
 
     def AGGetBarcodeMetadataAnimal(self, barcode):
-        results = self._sql.execute_proc_return_cursor(
+        results = self._con.execute_proc_return_cursor(
             'ag_get_barcode_md_animal', [barcode])
-        col_names = self._get_col_names_from_cursor(results)
-        return_res = [dict(zip(col_names, row)) for row in results]
+        rows = results.fetchall()
         results.close()
-        return return_res
+
+        return [dict(row) for row in rows]
 
     def addGeocodingInfo(self, limit=None, retry=False):
         """Adds latitude, longitude, and elevation to ag_login_table
@@ -1484,11 +1487,8 @@ class KniminAccess(object):
         Returns metadata for an american gut barcode in the new database
         tables
         """
-        sql = "select survey_id from ag_kit_barcodes where barcode = %s"
-        cursor = self.connection.cursor()
-        cursor.execute(sql, [barcode])
-        survey_id = cursor.fetchone()
-        return survey_id is not None
+        sql = "SELECT EXISTS(SELECT * from ag_kit_barcodes WHERE barcode = %s)"
+        return self._con.execute_fetchone(sql, [barcode])[0]
 
     def get_plate_for_barcode(self, barcode):
         """
@@ -1511,8 +1511,7 @@ class KniminAccess(object):
         sql = """select p.project from project p inner join
                  project_barcode pb on (pb.project_id = p.project_id)
                  where pb.barcode = %s"""
-        cursor.execute(sql, [barcode])
-        results = cursor.fetchone()
+        results = self._con.execute_fetchone(sql, [barcode])
         proj = results[0]
         #this will get changed to get the project type from the db
         if proj in ('American Gut Project', 'ICU Microbiome', 'Handout Kits',
