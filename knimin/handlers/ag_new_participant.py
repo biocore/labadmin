@@ -2,7 +2,7 @@
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
 
-from amgut.connections import ag_data
+from knimin import db
 
 
 class AGNewParticipantHandler(BaseHandler):
@@ -21,7 +21,7 @@ class AGNewParticipantHandler(BaseHandler):
         zipcode = self.get_argument('zipcode')
         country = self.get_argument('country')
         try:
-            ag_data.addAGLogin(email, name, address, city, state,
+            db.addAGLogin(email, name, address, city, state,
                                       zipcode, country)
             self.render("ag_new_participant.html", response='Good',
                         currentuser=self.current_user)

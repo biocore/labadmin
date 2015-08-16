@@ -1,12 +1,11 @@
-#!/usr/bin/env pythonget_barcode_info_by_kit_id
+#!/usr/bin/env python
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
 from urllib import unquote
 import time
 
-from amgut.connections import ag_data
 from knimin import db
-from amgut.lib.mail import send_email
+from knimin.lib.mail import send_email
 
 
 class BarcodeUtilHandler(BaseHandler):
@@ -118,7 +117,7 @@ class BarcodeUtilHandler(BaseHandler):
         return
 
     def get_ag_details(self, barcode):
-        ag_details = ag_data.getAGBarcodeDetails(barcode)
+        ag_details = db.getAGBarcodeDetails(barcode)
         if len(ag_details) > 0:
             if ag_details['site_sampled'] is None:
                 ag_details['site_sampled'] = ''

@@ -247,6 +247,38 @@ class SQLHandler(object):
 
 
 class KniminAccess(object):
+    # arbitrary, unique ID and value
+    human_sites = ['Stool',
+                   'Mouth',
+                   'Right hand',
+                   'Left hand',
+                   'Forehead',
+                   'Nares',
+                   'Hair',
+                   'Tears',
+                   'Nasal mucus',
+                   'Ear wax',
+                   'Vaginal mucus']
+
+    animal_sites = ['Stool',
+                    'Mouth',
+                    'Nares',
+                    'Ears',
+                    'Skin',
+                    'Fur']
+
+    general_sites = ['Animal Habitat',
+                     'Biofilm',
+                     'Dust',
+                     'Food',
+                     'Fermented Food',
+                     'Indoor Surface',
+                     'Outdoor Surface',
+                     'Plant habitat',
+                     'Soil',
+                     'Sole of shoe',
+                     'Water']
+
     def __init__(self, config):
         self._con = SQLHandler(config)
         self._con.execute('set search_path to ag, barcodes, public')
@@ -1481,6 +1513,19 @@ class KniminAccess(object):
             login['email'] = email
 
         return login
+
+    def getAGBarcodeDetails(self, barcode):
+        results = self._sql.execute_proc_return_cursor(
+            'ag_get_barcode_details', [barcode])
+        barcode_details = results.fetchone()
+        col_names = self._get_col_names_from_cursor(results)
+        results.close()
+
+        row_dict = {}
+        if barcode_details:
+            row_dict = dict(zip(col_names, barcode_details))
+
+        return row_dict
 
     def getAGKitsByLogin(self):
         sql = """SELECT  lower(al.email) as email, supplied_kit_id,
