@@ -1214,10 +1214,11 @@ class KniminAccess(object):
                   date_of_last_email):
         """ Update ag_kit_barcodes table.
         """
-        self._con.execute_proc_return_cursor('update_akb', [barcode, moldy,
+        r = self._con.execute_proc_return_cursor('update_akb', [barcode, moldy,
                                                   overloaded, other,
                                                   other_text,
                                                   date_of_last_email])
+        r.close()
 
     def search_participant_info(self, term):
         sql = """select   cast(ag_login_id as varchar(100)) as ag_login_id
@@ -1348,8 +1349,5 @@ class KniminAccess(object):
     def getProjectNames(self):
         """Returns a list of project names
         """
-        sql = """select project from project"""
-        result = self.get_cursor()
-        cursor.execute(sql)
-        results = cursor.fetchall()
-        return [x[0] for x in results]
+        sql = """SELECT project FROM project"""
+        return [x[0] for x in self._con.execute_fetchall(sql)]

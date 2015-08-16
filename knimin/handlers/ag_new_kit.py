@@ -5,7 +5,7 @@ from knimin.handlers.base import BaseHandler
 from knimin import db
 from knimin.lib.mem_zip import InMemoryZip
 from knimin.lib.util import get_printout_data
-from amgut.connections import ag_data
+from knimin import db
 
 
 class AGNewKitDLHandler(BaseHandler):
@@ -32,7 +32,7 @@ class AGNewKitDLHandler(BaseHandler):
 class AGNewKitHandler(BaseHandler):
     @authenticated
     def get(self):
-        project_names = ag_data.getProjectNames()
+        project_names = db.getProjectNames()
         remaining = len(db.get_unassigned_barcodes())
         self.render("ag_new_kit.html", projects=project_names,
                     currentuser=self.current_user, msg="", kitinfo=[],
@@ -56,7 +56,7 @@ class AGNewKitHandler(BaseHandler):
         else:
             msg = "Kits created! Please wait for downloads."
 
-        project_names = ag_data.getProjectNames()
+        project_names = db.getProjectNames()
         remaining = len(db.get_unassigned_barcodes())
         self.render("ag_new_kit.html", projects=project_names,
                     currentuser=self.current_user, msg=msg,
