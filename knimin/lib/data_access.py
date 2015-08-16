@@ -1482,6 +1482,15 @@ class KniminAccess(object):
 
         return login
 
+    def getAGKitsByLogin(self):
+        sql = """SELECT  lower(al.email) as email, supplied_kit_id,
+                cast(ag_kit_id as varchar(100)) as ag_kit_id
+                FROM ag_login al
+                INNER JOIN ag_kit USING (ag_login_id)
+                ORDER BY lower(email), supplied_kit_id"""
+        rows = self._con.execute_fetchall(sql)
+        return [dict(row) for row in rows]
+
     def ag_new_survey_exists(self, barcode):
         """
         Returns metadata for an american gut barcode in the new database

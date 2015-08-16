@@ -3,6 +3,7 @@ from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
 
 from amgut.connections import ag_data
+from knimin import db
 
 
 class AGEditBarcodeHandler(BaseHandler):
@@ -13,7 +14,7 @@ class AGEditBarcodeHandler(BaseHandler):
             details = ag_data.getAGBarcodeDetails(barcode)
             site_sampled = ag_data.human_sites
             environment_sampled = ag_data.general_sites
-            logins = ag_data.getAGKitsByLogin()
+            logins = db.getAGKitsByLogin()
             self.render("ag_edit_barcode.html", response=None, barcode=barcode,
                         sites_sampled=site_sampled, details=details,
                         environments_sampled=environment_sampled,
@@ -32,7 +33,7 @@ class AGEditBarcodeHandler(BaseHandler):
         refunded = self.get_argument('refunded')
         withdrawn = self.get_argument('withdrawn')
         try:
-            ag_data.updateAGBarcode(barcode, ag_kit_id, site_sampled,
+            db.updateAGBarcode(barcode, ag_kit_id, site_sampled,
                                            environment_sampled, sample_date,
                                            sample_time, participant_name,
                                            notes, refunded, withdrawn)
