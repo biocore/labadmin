@@ -1205,7 +1205,7 @@ class KniminAccess(object):
         # returned tuple consists of:
         # site_sampled, sample_date, sample_time, participant_name,
         # environment_sampled, notes
-        results = self._sql.execute_proc_return_cursor('ag_stats', [])
+        results = self._con.execute_proc_return_cursor('ag_stats', [])
         ag_stats = results.fetchall()
         results.close()
         return ag_stats
