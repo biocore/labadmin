@@ -1514,6 +1514,13 @@ class KniminAccess(object):
 
         return login
 
+    def get_login_info(self, ag_login_id):
+        sql = """SELECT  ag_login_id, email, name, address, city, state, zip,
+                         country
+                 FROM    ag_login
+                 WHERE   ag_login_id = %s"""
+        return [dict(row) for row in self._con.execute_fetchall(sql, [ag_login_id])]
+
     def getAGBarcodeDetails(self, barcode):
         results = self._sql.execute_proc_return_cursor(
             'ag_get_barcode_details', [barcode])
@@ -1527,6 +1534,16 @@ class KniminAccess(object):
 
         return row_dict
 
+    def getHumanParticipants(self, ag_login_id):
+        # get people from new survey setup
+        sql = """SELECT participant_name from ag.ag_login_surveys
+                 JOIN ag.survey_answers USING (survey_id)
+                 JOIN ag.group_questions gq USING (survey_question_id)
+                 JOIN ag.surveys ags USING (survey_group)
+                 WHERE ag_login_id = %s AND ags.survey_id = %s"""
+        results = self._con.execute_fetchall(sql, [ag_login_id, 1])
+        return [row[0] for row in results]
+
     def getAGKitsByLogin(self):
         sql = """SELECT  lower(al.email) as email, supplied_kit_id,
                 cast(ag_kit_id as varchar(100)) as ag_kit_id
@@ -1535,6 +1552,15 @@ class KniminAccess(object):
                 ORDER BY lower(email), supplied_kit_id"""
         rows = self._con.execute_fetchall(sql)
         return [dict(row) for row in rows]
+
+    def getAnimalParticipants(self, ag_login_id):
+        sql = """SELECT participant_name from ag.ag_login_surveys
+                 JOIN ag.survey_answers USING (survey_id)
+                 JOIN ag.group_questions gq USING (survey_question_id)
+                 JOIN ag.surveys ags USING (survey_group)
+                 WHERE ag_login_id = %s AND ags.survey_id = %s"""
+        return [row[0] for row in self._con.execute_fetchall(
+                    sql, [ag_login_id, 2])]
 
     def ag_new_survey_exists(self, barcode):
         """
