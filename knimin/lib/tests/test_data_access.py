@@ -3,10 +3,8 @@ from __future__ import division
 from unittest import TestCase, main
 
 from knimin import db
-from amgut.lib.util import ag_test_checker
 
 
-@ag_test_checker()
 class DataAccessTests(TestCase):
     def test_get_barcode_metadata(self):
         obs = db.get_barcode_metadata(set(['000000001']))
