@@ -2,7 +2,6 @@
 from tornado.web import authenticated, HTTPError
 from knimin.handlers.base import BaseHandler
 
-from amgut.connections import ag_data
 from knimin.lib.squash_barcodes import build_barcodes_pdf
 from knimin import db
 
@@ -41,7 +40,7 @@ class AGBarcodeAssignedHandler(BaseHandler):
 class AGNewBarcodeHandler(BaseHandler):
     @authenticated
     def get(self):
-        project_names = ag_data.getProjectNames()
+        project_names = db.getProjectNames()
         remaining = len(db.get_unassigned_barcodes())
         self.render("ag_new_barcode.html", currentuser=self.current_user,
                     projects=project_names, barcodes=[], remaining=remaining,
@@ -79,7 +78,7 @@ class AGNewBarcodeHandler(BaseHandler):
         else:
             raise HTTPError(400, 'Unknown action: %s' % action)
 
-        project_names = ag_data.getProjectNames()
+        project_names = db.getProjectNames()
         remaining = len(db.get_unassigned_barcodes())
         self.render("ag_new_barcode.html", currentuser=self.current_user,
                     projects=project_names, remaining=remaining, msg=msg,
