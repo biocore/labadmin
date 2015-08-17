@@ -1462,11 +1462,27 @@ class KniminAccess(object):
                   date_of_last_email):
         """ Update ag_kit_barcodes table.
         """
-        r = self._con.execute_proc_return_cursor('update_akb', [barcode, moldy,
-                                                  overloaded, other,
-                                                  other_text,
-                                                  date_of_last_email])
-        r.close()
+        sql = """UPDATE  ag_kit_barcodes
+                 SET moldy = %s, overloaded = %s, other = %s,
+                     other_text = %s, date_of_last_email = %s
+                 WHERE barcode = %s"""
+        self._con.execute(sql, [moldy, overloaded, other,
+                          other_text, date_of_last_email, barcode])
+
+    def updateBarcodeStatus(self, status, postmark, scan_date, barcode,
+                            biomass_remaining, sequencing_status, obsolete):
+        """ Updates a barcode's status
+        """
+        sql = """update  barcode
+        set     status = %s,
+            sample_postmark_date = %s,
+            scan_date = %s,
+            biomass_remaining = %s,
+            sequencing_status = %s,
+            obsolete = %s
+        where   barcode = %s"""
+        self._con.execute(sql, [status, postmark, scan_date, biomass_remaining,
+                                sequencing_status, obsolete, barcode])
 
     def search_participant_info(self, term):
         sql = """select   cast(ag_login_id as varchar(100)) as ag_login_id
@@ -1631,12 +1647,11 @@ class KniminAccess(object):
             project is the project name from the project table
             barcode is the barcode
         """
-        sql = """update project_barcode set project_id =
+        sql = """UPDATE project_barcode
+                 SET project_id =
                 (select project_id from project where project = %s)
                 where barcode = %s"""
-        result = self.get_cursor()
-        cursor.execute(sql, [project, barcode])
-        cursor.close()
+        self._con.execute(sql, [project, barcode])
 
     def getProjectNames(self):
         """Returns a list of project names
