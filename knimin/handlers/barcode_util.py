@@ -311,7 +311,6 @@ Thank you for your participation!
                                      self.get_argument('other_text', None),
                                      sent_date)
             msg3 = ("Barcode %s AG info was sucessfully updated" % barcode)
-        except Exception as e:
+        except:
             msg3 = ("Barcode %s AG update failed!!!" % barcode)
-            raise e
         return msg2, msg3
