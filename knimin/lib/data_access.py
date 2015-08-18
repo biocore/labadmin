@@ -1562,17 +1562,22 @@ class KniminAccess(object):
         return [dict(row) for row in self._con.execute_fetchall(sql, [ag_login_id])]
 
     def getAGBarcodeDetails(self, barcode):
-        results = self._con.execute_proc_return_cursor(
-            'ag_get_barcode_details', [barcode])
-        barcode_details = results.fetchone()
-        col_names = self._get_col_names_from_cursor(results)
-        results.close()
+        sql = """SELECT  email, cast(ag_kit_barcode_id as varchar(100)),
+                    cast(ag_kit_id as varchar(100)), barcode,  site_sampled,
+                    environment_sampled, sample_date, sample_time,
+                    participant_name, notes, refunded, withdrawn, moldy, other,
+                    other_text, date_of_last_email ,overloaded, name, status
+                 FROM ag_kit_barcodes akb
+                 JOIN ag_kit USING(ag_kit_id)
+                 JOIN ag_login USING (ag_login_id)
+                 JOIN barcode USING(barcode)
+                 WHERE barcode = %s"""
 
-        row_dict = {}
-        if barcode_details:
-            row_dict = dict(zip(col_names, barcode_details))
-
-        return row_dict
+        results = self._con.execute_fetchone(sql, [barcode])
+        if not results:
+            return {}
+        else:
+            return dict(results)
 
     def getHumanParticipants(self, ag_login_id):
         # get people from new survey setup
