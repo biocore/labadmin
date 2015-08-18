@@ -13,6 +13,7 @@ from psycopg2 import connect, Error as PostgresError
 from psycopg2.extras import DictCursor
 
 from util import make_valid_kit_ids, make_verification_code, make_passwd
+from constants import country_lookup, md_lookup, month_lookup
 
 
 class IncorrectEmailError(Exception):
@@ -493,112 +494,6 @@ class KniminAccess(object):
         barcode_info = self.get_ag_barcode_details(all_barcodes)
 
         # Human survey (id 1)
-
-        # standard fields that are set based on sampling site
-        md_lookup = {
-            'Hair':
-                {'BODY_PRODUCT': 'UBERON:sebum',
-                 'COMMON_NAME': 'human skin metagenome',
-                 'SAMPLE_TYPE': 'Hair',
-                 'TAXON_ID': '539655',
-                 'BODY_HABITAT': 'UBERON:hair',
-                 'ENV_MATTER': 'ENVO:sebum',
-                 'BODY_SITE': 'UBERON:hair'},
-            'Nares': {
-                'BODY_PRODUCT': 'UBERON:mucus',
-                'COMMON_NAME': 'human nasal/pharyngeal metagenome',
-                'SAMPLE_TYPE': 'Nares',
-                'TAXON_ID': '1131769',
-                'BODY_HABITAT': 'UBERON:nose',
-                'ENV_MATTER': 'ENVO:mucus',
-                'BODY_SITE': 'UBERON:nostril'},
-            'Vaginal mucus': {
-                'BODY_PRODUCT': 'UBERON:mucus',
-                'COMMON_NAME': 'vaginal metagenome',
-                'SAMPLE_TYPE': 'Vaginal mucus',
-                'TAXON_ID': '1549736',
-                'BODY_HABITAT': 'UBERON:vagina',
-                'ENV_MATTER': 'ENVO:mucus',
-                'BODY_SITE': 'UBERON:vaginal introitus'},
-            'Sole of foot': {
-                'BODY_PRODUCT': 'UBERON:sebum',
-                'COMMON_NAME': 'human skin metagenome',
-                'SAMPLE_TYPE': 'Sole of foot',
-                'TAXON_ID': '539655',
-                'BODY_HABITAT': 'UBERON:skin',
-                'ENV_MATTER': 'ENVO:sebum',
-                'BODY_SITE': 'UBERON:skin of foot'},
-            'Nasal mucus': {
-                'BODY_PRODUCT': 'UBERON:mucus',
-                'COMMON_NAME': 'human nasal/pharyngeal metagenome',
-                'SAMPLE_TYPE': 'Nasal mucus',
-                'TAXON_ID': '1131769',
-                'BODY_HABITAT': 'UBERON:nose',
-                'ENV_MATTER': 'ENVO:mucus',
-                'BODY_SITE': 'UBERON:nostril'},
-            'Stool': {
-                'BODY_PRODUCT': 'UBERON:feces',
-                'COMMON_NAME': 'human gut metagenome',
-                'SAMPLE_TYPE': 'Stool',
-                'TAXON_ID': '408170',
-                'BODY_HABITAT': 'UBERON:feces',
-                'ENV_MATTER': 'ENVO:feces',
-                'BODY_SITE': 'UBERON:feces'},
-            'Forehead': {
-                'BODY_PRODUCT': 'UBERON:sebum',
-                'COMMON_NAME': 'human skin metagenome',
-                'SAMPLE_TYPE': 'Forehead',
-                'TAXON_ID': '539655',
-                'BODY_HABITAT': 'UBERON:skin',
-                'ENV_MATTER': 'ENVO:sebum',
-                'BODY_SITE': 'UBERON:skin of head'},
-            'Tears': {
-                'BODY_PRODUCT': 'UBERON:tears',
-                'COMMON_NAME': 'human metagenome',
-                'SAMPLE_TYPE': 'Tears',
-                'TAXON_ID': '646099',
-                'BODY_HABITAT': 'UBERON:eye',
-                'ENV_MATTER': 'ENVO:tears',
-                'BODY_SITE': 'UBERON:eye'},
-            'Right hand': {
-                'BODY_PRODUCT': 'UBERON:sebum',
-                'COMMON_NAME': 'human skin metagenome',
-                'SAMPLE_TYPE': 'Right Hand',
-                'TAXON_ID': '539655',
-                'BODY_HABITAT': 'UBERON:skin',
-                'ENV_MATTER': 'ENVO:sebum',
-                'BODY_SITE': 'UBERON:skin of hand'},
-            'Mouth': {
-                'BODY_PRODUCT': 'UBERON:saliva',
-                'COMMON_NAME': 'human oral metagenome',
-                'SAMPLE_TYPE': 'Mouth',
-                'TAXON_ID': '447426',
-                'BODY_HABITAT': 'UBERON:oral cavity',
-                'ENV_MATTER': 'ENVO:saliva',
-                'BODY_SITE': 'UBERON:tongue'},
-            'Left hand': {
-                'BODY_PRODUCT': 'UBERON:sebum',
-                'COMMON_NAME': 'human skin metagenome',
-                'SAMPLE_TYPE': 'Left Hand',
-                'TAXON_ID': '539655',
-                'BODY_HABITAT': 'UBERON:skin',
-                'ENV_MATTER': 'ENVO:sebum',
-                'BODY_SITE': 'UBERON:skin of hand'},
-            'Ear wax': {
-                'BODY_PRODUCT': 'UBERON:ear wax',
-                'COMMON_NAME': 'human metagenome',
-                'SAMPLE_TYPE': 'Ear wax',
-                'TAXON_ID': '646099',
-                'BODY_HABITAT': 'UBERON:ear',
-                'ENV_MATTER': 'ENVO:ear wax',
-                'BODY_SITE': 'UBERON:external auditory meatus'}
-        }
-
-        month_lookup = {'January': 1, 'February': 2, 'March': 3,
-                        'April': 4, 'May': 5, 'June': 6,
-                        'July': 7, 'August': 8, 'September': 9,
-                        'October': 10, 'November': 11, 'December': 12}
-
         # tuples are latitude, longitude, elevation
         zipcode_sql = """SELECT zipcode, latitude, longitude, elevation
                          FROM zipcodes"""
@@ -607,43 +502,6 @@ class KniminAccess(object):
 
         survey_sql = "SELECT barcode, survey_id FROM ag.ag_kit_barcodes"
         survey_lookup = dict(self._con.execute_fetchall(survey_sql))
-
-        country_lookup = defaultdict(lambda: 'unknown')
-        country_lookup.update({
-            'united states': 'GAZ:United States of America',
-            'united states of america': 'GAZ:United States of America',
-            'us': 'GAZ:United States of America',
-            'usa': 'GAZ:United States of America',
-            'u.s.a': 'GAZ:United States of America',
-            'u.s.': 'GAZ:United States of America',
-            'canada': 'GAZ:Canada',
-            'canadian': 'GAZ:Canada',
-            'ca': 'GAZ:Canada',
-            'australia': 'GAZ:Australia',
-            'au': 'GAZ:Australia',
-            'united kingdom': 'GAZ:United Kingdom',
-            'belgium': 'GAZ:Belgium',
-            'gb': 'GAZ:Great Britain',
-            'korea, republic of': 'GAZ:South Korea',
-            'nl': 'GAZ:Netherlands',
-            'netherlands': 'GAZ:Netherlands',
-            'spain': 'GAZ:Spain',
-            'es': 'GAZ:Spain',
-            'norway': 'GAZ:Norway',
-            'germany': 'GAZ:Germany',
-            'de': 'GAZ:Germany',
-            'china': 'GAZ:China',
-            'singapore': 'GAZ:Singapore',
-            'new zealand': 'GAZ:New Zealand',
-            'france': 'GAZ:France',
-            'fr': 'GAZ:France',
-            'ch': 'GAZ:Switzerland',
-            'switzerland': 'GAZ:Switzerland',
-            'denmark': 'GAZ:Denmark',
-            'scotland': 'GAZ:Scotland',
-            'united arab emirates': 'GAZ:United Arab Emirates',
-            'ireland': 'GAZ:Ireland',
-            'thailand': 'GAZ:Thailand'})
 
         for barcode, responses in md[1].items():
             # Get rid of ABOUT_YOURSELF_TEXT
@@ -686,7 +544,11 @@ class KniminAccess(object):
                 md[1][barcode]['AGE_YEARS'] = 'Unspecified'
 
             # GENDER to SEX
-            md[1][barcode]['SEX'] = md[1][barcode]['GENDER']
+            sex = md[1][barcode]['GENDER']
+            del md[1][barcode]['GENDER']
+            if type(sex) == str:
+                sex = sex.lower()
+            md[1][barcode]['SEX'] = sex
 
             # get COUNTRY from barcode_info
             md[1][barcode]['COUNTRY'] = country_lookup[
@@ -700,7 +562,6 @@ class KniminAccess(object):
             site = barcode_info[barcode]['site_sampled']
 
             # Invariant information
-            md[1][barcode]['SAMPLE_NAME'] = barcode
             md[1][barcode]['ANONYMIZED_NAME'] = barcode
             md[1][barcode]['HOST_TAXID'] = 9606
             md[1][barcode]['TITLE'] = 'American Gut Project'
@@ -735,6 +596,8 @@ class KniminAccess(object):
             md[1][barcode]['COLLECTION_DATE'] = \
                 barcode_info[barcode]['sample_date']
             md[1][barcode]['ENV_MATTER'] = md_lookup[site]['ENV_MATTER']
+            md[1][barcode]['SCIENTIFIC_NAME'] = md_lookup[site]['SCIENTIFIC_NAME']
+            md[1][barcode]['SAMPLE_TYPE'] = md_lookup[site]['SAMPLE_TYPE']
             md[1][barcode]['BODY_HABITAT'] = md_lookup[site]['BODY_HABITAT']
             md[1][barcode]['BODY_SITE'] = md_lookup[site]['BODY_SITE']
             md[1][barcode]['BODY_PRODUCT'] = md_lookup[site]['BODY_PRODUCT']
@@ -779,7 +642,7 @@ class KniminAccess(object):
         metadata = {}
         for survey, bc_responses in all_results.items():
             headers = sorted(bc_responses.values()[0])
-            survey_md = [''.join(['#SampleID\t', '\t'.join(headers)])]
+            survey_md = [''.join(['SAMPLE_NAME\t', '\t'.join(headers)])]
             for barcode, shortnames_answers in sorted(bc_responses.items()):
                 barcodes_seen.add(barcode)
                 ordered_answers = [shortnames_answers[h] for h in headers]
