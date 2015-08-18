@@ -1147,34 +1147,42 @@ class KniminAccess(object):
             format_str = " AND pulldown_date = %s "
             sql_args.append(pulldown_date)
 
-        return {s: loads(a)
+        return {s: json.loads(a)
                 for s, a in self._con.execute_fetchall(
                     sql.format(format_str), sql_args)}
 
     def updateAGLogin(self, ag_login_id, email, name, address, city, state,
-                      zip, country):
-        self._con.execute_proc_return_cursor(
-            'ag_update_login', [ag_login_id, email.strip().lower(), name,
-                                address, city, state, zip, country])
+                      zipcode, country):
+        sql = """UPDATE  ag_login
+                SET email = %s, name = %s, address = %s, city = %s, state = %s,
+                    zip = %s, country = %s
+                WHERE ag_login_id = %s"""
+        self._con.execute(sql, [email.strip().lower(), name,
+                                address, city, state, zipcode, country,
+                                ag_login_id])
 
     def updateAGKit(self, ag_kit_id, supplied_kit_id, kit_password,
                     swabs_per_kit, kit_verification_code):
         kit_password = hashpw(kit_password)
+        sql = """UPDATE ag_kit
+                 SET supplied_kit_id = %s, kit_password = %s,
+                     swabs_per_kit = %s, kit_verification_code = %s
+                 WHERE ag_kit_id = %s"""
 
-        self._con.execute_proc_return_cursor('ag_update_kit',
-                                   [ag_kit_id, supplied_kit_id,
-                                    kit_password, swabs_per_kit,
-                                    kit_verification_code])
+        self._con.execute(sql, [supplied_kit_id, kit_password, swabs_per_kit,
+                                kit_verification_code, ag_kit_id])
 
     def updateAGBarcode(self, barcode, ag_kit_id, site_sampled,
                         environment_sampled, sample_date, sample_time,
                         participant_name, notes, refunded, withdrawn):
-        self._con.execute_proc_return_cursor('ag_update_barcode',
-                                   [barcode, ag_kit_id, site_sampled,
-                                    environment_sampled,
-                                    sample_date, sample_time,
-                                    participant_name, notes,
-                                    refunded, withdrawn])
+        sql = """UPDATE  ag_kit_barcodes
+                 SET ag_kit_id = %s, site_sampled = %s, environment_sampled = %s,
+                     sample_date = %s, sample_time = %s, participant_name = %s,
+                     notes = %s, refunded = %s, withdrawn = %s
+                 WHERE barcode = %s"""
+        self._con.execute(sql, [ag_kit_id, site_sampled, environment_sampled,
+                                sample_date, sample_time, participant_name,
+                                notes, refunded, withdrawn, barcode])
 
     def AGGetBarcodeMetadata(self, barcode):
         results = self._con.execute_proc_return_cursor(
@@ -1410,10 +1418,12 @@ class KniminAccess(object):
                   date_of_last_email):
         """ Update ag_kit_barcodes table.
         """
-        r = self._con.execute_proc_return_cursor('update_akb', [barcode, moldy,
-                                                  overloaded, other,
-                                                  other_text,
-                                                  date_of_last_email])
+        sql = """UPDATE  ag_kit_barcodes
+                 SET moldy = %s, overloaded = %s, other = %s, other_text = %s,
+                     date_of_last_email = %s
+                 WHERE barcode = %s"""
+        r = self._con.execute(sql, [moldy, overloaded, other, other_text,
+                                    date_of_last_email, barcode])
         r.close()
 
     def search_participant_info(self, term):
