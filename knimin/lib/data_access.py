@@ -1060,7 +1060,7 @@ class KniminAccess(object):
         return self._con.execute_fetchone(sql, [survey, description, url])[0]
 
     def store_external_survey(self, in_file, survey, pulldown_date=None,
-                              seperator="\t", survey_id_col="survey_id"):
+                              separator="\t", survey_id_col="survey_id"):
         """Stores third party survey answers in the database
 
         Parameters
@@ -1071,8 +1071,8 @@ class KniminAccess(object):
             What third party survey this belongs to
         pulldown_date : datetime object, optional
             When the data was pulled from the external source, default now()
-        seperator : str, optional
-            What seperator is used, default tab
+        separator : str, optional
+            What separator is used, default tab
         survey_id_col : str
             What column header holds the associated user AG survey id
             Default 'survey_id'
@@ -1097,12 +1097,12 @@ class KniminAccess(object):
         inserts = []
         with open(in_file) as f:
             header = f.readline().strip().split('\t')
-            for line in f.readlines():
+            for line in f:
                 line = line.strip()
-                hold = {h: v for h, v in zip(header, line.split('\t'))}
+                hold = {h: v.strip() for h, v in zip(header, line.split('\t'))}
                 sid = hold[survey_id_col]
                 del hold[survey_id_col]
-                inserts.append([sid, external_id, pulldown_date, dumps(hold)])
+                inserts.append([sid, external_id, pulldown_date, json.dumps(hold)])
 
         # insert into the database
         sql = """INSERT INTO ag.external_survey_answers
@@ -1209,7 +1209,6 @@ class KniminAccess(object):
             sql = """SELECT cast(ag_login_id as varchar(100)) FROM ag_login
                 WHERE cannot_geocode = 'y'"""
             logins = [x[0] for x in self._con.execute_fetchall(sql)]
-            print logins
 
             for ag_login_id in logins:
                 self.updateGeoInfo(ag_login_id, None, None, None, '')
@@ -1471,13 +1470,11 @@ class KniminAccess(object):
     def get_login_by_email(self, email):
         sql = """select name, address, city, state, zip, country, ag_login_id
                  from ag_login where email = %s"""
-        cursor.execute(sql, [email])
-        col_names = self._get_col_names_from_cursor(cursor)
-        row = cursor.fetchone()
+        row = self._con.execute_fetchone(sql, [email])
 
         login = {}
         if row:
-            login = dict(zip(col_names, row))
+            login = dict(row)
             login['email'] = email
 
         return login
@@ -1507,31 +1504,23 @@ class KniminAccess(object):
                  from    plate p inner join plate_barcode pb on
                  pb.plate_id = p.plate_id \
                 where   pb.barcode = %s"""
-        cursor.execute(sql, [barcode])
-        col_names = [x[0] for x in cursor.description]
-        results = [dict(zip(col_names, row)) for row in cursor.fetchall()]
-        cursor.close()
-        return results
+
+        return [dict(row) for row in self._con.execute_fetchall(sql, [barcode])]
 
     def getBarcodeProjType(self, barcode):
         """ Get the project type of the barcode.
             Return a tuple of project and project type.
         """
-        sql = """select p.project from project p inner join
-                 project_barcode pb on (pb.project_id = p.project_id)
-                 where pb.barcode = %s"""
-        results = self._con.execute_fetchone(sql, [barcode])
-        proj = results[0]
-        #this will get changed to get the project type from the db
-        if proj in ('American Gut Project', 'ICU Microbiome', 'Handout Kits',
-                    'Office Succession Study',
-                    'American Gut Project: Functional Feces',
-                    'Down Syndrome Microbiome', 'Beyond Bacteria',
-                    'All in the Family', 'American Gut Handout kit',
-                    'Personal Genome Project', 'Sleep Study',
-                    'Anxiety/Depression cohort', 'Alzheimers Study'):
+        sql = """SELECT project from barcodes.project
+                 JOIN barcodes.project_barcode USING (project_id)
+                 where barcode = %s"""
+        results = [x[0] for x in self._con.execute_fetchall(sql, [barcode])]
+        if 'American Gut Project' in results:
             proj_type = 'American Gut'
+            results.remove('American Gut Project')
+            proj = ', '.join(results)
         else:
+            proj = ', '.join(results)
             proj_type = proj
         return (proj, proj_type)
 
@@ -1544,9 +1533,7 @@ class KniminAccess(object):
         sql = """update project_barcode set project_id =
                 (select project_id from project where project = %s)
                 where barcode = %s"""
-        result = self.get_cursor()
-        cursor.execute(sql, [project, barcode])
-        cursor.close()
+        self._con.execute(sql, [project, barcode])
 
     def getProjectNames(self):
         """Returns a list of project names
