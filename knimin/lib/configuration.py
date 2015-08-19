@@ -51,7 +51,7 @@ class KniminConfig(object):
         with open(config_fp, 'U') as conf_file:
             config.readfp(conf_file)
 
-        _expected_sections = {'main', 'postgres', 'tornado'}
+        _expected_sections = {'main', 'postgres', 'tornado', 'email'}
         if set(config.sections()) != _expected_sections:
             missing = _expected_sections - set(config.sections())
             raise ValueError("Missing sections: %s" % missing)
@@ -59,6 +59,7 @@ class KniminConfig(object):
         self._get_main(config)
         self._get_postgres(config)
         self._get_tornado(config)
+        self._get_email(config)
 
     def _get_main(self, config):
         """Get the configuration of the main section"""
