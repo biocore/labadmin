@@ -3,9 +3,6 @@ from collections import defaultdict, namedtuple
 from re import sub
 from hashlib import md5
 from datetime import datetime
-import urllib
-import json
-import httplib
 
 from bcrypt import hashpw, gensalt
 
@@ -14,7 +11,8 @@ from psycopg2.extras import DictCursor
 
 from util import make_valid_kit_ids, make_verification_code, make_passwd
 from constants import country_lookup, md_lookup, month_lookup
-from geocoder import geocode
+from geocoder import geocode, GoogleAPILimitExceeded
+
 
 class IncorrectEmailError(Exception):
     pass
@@ -576,10 +574,12 @@ class KniminAccess(object):
                 md[1][barcode]['ELEVATION'] = \
                     zip_lookup[md[1][barcode]['ZIP_CODE']][2]
             except KeyError:
-                info = add_zipcode(md[1][barcode]['ZIP_CODE'])
-                md[1][barcode]['LATITUDE'] = info['lat'] if info.lat is not None else ''
-                md[1][barcode]['LONGITUDE'] = info['long'] if info.long is not None else ''
-                md[1][barcode]['ELEVATION'] = info['elev'] if info.elev is not None else ''
+                # geocode unknown zip and add to zipcode table & lookup dict
+                info = self.add_zipcode(md[1][barcode]['ZIP_CODE'])
+                zip_lookup[info.zip] = [info.lat, info.long, info.elev]
+                md[1][barcode]['LATITUDE'] = info.lat if info.lat is not None else ''
+                md[1][barcode]['LONGITUDE'] = info.elev if info.long is not None else ''
+                md[1][barcode]['ELEVATION'] = info.elev if info.elev is not None else ''
 
             md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode]
             try:
@@ -1134,13 +1134,13 @@ class KniminAccess(object):
             raise ValueError("Zipcode %s already in table!" % zipcode)
 
         info = geocode(zipcode, country)
+        cannot_geocode = False
         if not info.lat:
-            # could not geocode so just return empty
-            return info
+            cannot_geocode = True
         sql = """INSERT INTO ag.zipcode(zipcode, latitude, longitude, elevation,
                                         city, state, cannot_geocode)
                  VALUES (%s,%s,%s,%s,%s,%s,%s)"""
-        self._con.execute(sql, info[:-1] + [False])
+        self._con.execute(sql, info[:-1].append(cannot_geocode))
         return info
 
     def addGeocodingInfo(self, limit=None, retry=False):
@@ -1157,11 +1157,12 @@ class KniminAccess(object):
 
         # clear previous geocoding attempts if retry is True
         if retry:
-            sql = """SELECT cast(ag_login_id as varchar(100)) FROM ag_login
-                WHERE cannot_geocode = 'y'"""
-            logins = [x[0] for x in self._con.execute_fetchall(sql)]
-            for ag_login_id in logins:
-                self.updateGeoInfo(ag_login_id, None, None, None, '')
+            sql = """UPDATE  ag_login
+                     SET latitude = %s, longitude = %s, elevation = %s, cannot_geocode = %s
+                     WHERE ag_login_id IN (
+                        SELECT ag_login_id FROM ag_login
+                        WHERE cannot_geocode = 'y')"""
+            self._con.execute(sql)
 
         # get logins that have not been geocoded yet
         sql = """SELECT city, state, zip, country,
@@ -1171,164 +1172,28 @@ class KniminAccess(object):
         logins = self._con.execute_fetchall(sql)
 
         row_counter = 0
-        for row in logins:
+        sql_args = []
+        for city, state, zipcode, country, ag_login_id in logins:
             row_counter += 1
             if limit is not None and row_counter > limit:
                 break
 
-            ag_login_id = row[4]
             # Attempt to geocode
-            address = '{0} {1} {2} {3}'.format(row[0], row[1], row[2], row[3])
-            encoded_address = urllib.urlencode({'address': address})
-            url = '/maps/api/geocode/json?{0}&sensor=false'.format(
-                encoded_address)
+            address = '{0} {1} {2} {3}'.format(city, state, zipcode, country)
+            try:
+                info = geocode(address)
+                sql_args.append([info.lat, info.long, info.elev, '', ag_login_id])
+            except GoogleAPILimitExceeded:
+                # limit exceeded so no use trying to keep geocoding
+                break
+            except:
+                # Catch ANY other error and set to could not geocode
+                sql_args.append([None, None, None, 'y', ag_login_id])
 
-            r = self.getGeocodeJSON(url)
-
-            if r in ('unknown_error', 'not_OK', 'no_results'):
-                # Could not geocode, mark it so we don't try next time
-                self.updateGeoInfo(ag_login_id, None, None, None, 'y')
-                continue
-            elif r == 'over_limit':
-                # If the reason for failure is merely that we are over the
-                # Google API limit, then we should try again next time
-                # ... but we should stop hitting their servers, so raise an
-                # exception
-                raise GoogleAPILimitExceeded("Exceeded Google API limit")
-
-            # Unpack it and write to DB
-            lat, lon = r
-
-            encoded_lat_lon = urllib.urlencode(
-                {'locations': ','.join(map(str, [lat, lon]))})
-
-            url2 = '/maps/api/elevation/json?{0}&sensor=false'.format(
-                encoded_lat_lon)
-
-            r2 = self.getElevationJSON(url2)
-
-            if r2 in ('unknown_error', 'not_OK', 'no_results'):
-                # Could not geocode, mark it so we don't try next time
-                self.updateGeoInfo(ag_login_id, None, None, None, 'y')
-                continue
-            elif r2 == 'over_limit':
-                # If the reason for failure is merely that we are over the
-                # Google API limit, then we should try again next time
-                # ... but we should stop hitting their servers, so raise an
-                # exception
-                pass
-
-            elevation = r2
-
-            self.updateGeoInfo(ag_login_id, lat, lon, elevation, '')
-
-    def getGeocodeJSON(self, url):
-        conn = httplib.HTTPConnection('maps.googleapis.com')
-        success = False
-        num_tries = 0
-        while num_tries < 2 and not success:
-            conn.request('GET', url)
-            result = conn.getresponse()
-
-            # Make sure we get an 'OK' status
-            if result.status != 200:
-                return 'not_OK'
-
-            data = json.loads(result.read())
-
-            # if we're over the query limit, wait 2 seconds and try again,
-            # it may just be that we're submitting requests too fast
-            if data.get('status', None) == 'OVER_QUERY_LIMIT':
-                num_tries += 1
-                sleep(2)
-            elif 'results' in data:
-                success = True
-            else:
-                return 'unknown_error'
-
-        conn.close()
-
-        # if we got here without getting an unknown_error or succeeding, then
-        # we are over the request limit for the 24 hour period
-        if not success:
-            return 'over_limit'
-
-        # sanity check the data returned by Google and return the lat/lng
-        if len(data['results']) == 0:
-            return 'no_results'
-
-        geometry = data['results'][0].get('geometry', {})
-        location = geometry.get('location', {})
-        lat = location.get('lat', {})
-        lon = location.get('lng', {})
-
-        if not lat or not lon:
-            return 'unknown_error'
-
-        return (lat, lon)
-
-    def getElevationJSON(self, url):
-        """Use Google's Maps API to retrieve an elevation
-
-        url should be formatted as described here:
-        https://developers.google.com/maps/documentation/elevation
-        /#ElevationRequests
-
-        The number of API requests is limited to 2500 per 24 hour period.
-        If this function is called and the limit is surpassed, the return value
-        will be "over_limit".  Other errors will cause the return value to be
-        "unknown_error".  On success, the return value is the elevation of the
-        location requested in the url.
-        """
-        conn = httplib.HTTPConnection('maps.googleapis.com')
-        success = False
-        num_tries = 0
-        while num_tries < 2 and not success:
-            conn.request('GET', url)
-            result = conn.getresponse()
-
-            # Make sure we get an 'OK' status
-            if result.status != 200:
-                return 'not_OK'
-
-            data = json.loads(result.read())
-
-            # if we're over the query limit, wait 2 seconds and try again,
-            # it may just be that we're submitting requests too fast
-            if data.get('status', None) == 'OVER_QUERY_LIMIT':
-                num_tries += 1
-                sleep(2)
-            elif 'results' in data:
-                success = True
-            else:
-                return 'unknown_error'
-
-        conn.close()
-
-        # if we got here without getting an unknown_error or succeeding, then
-        # we are over the request limit for the 24 hour period
-        if not success:
-            return 'over_limit'
-
-        # sanity check the data returned by Google and return the lat/lng
-        if len(data['results']) == 0:
-            return 'no_results'
-
-        elevation = data['results'][0].get('elevation', {})
-
-        if not elevation:
-            return 'unknown_error'
-
-        return elevation
-
-    def updateGeoInfo(self, ag_login_id, lat, lon, elevation, cannot_geocode):
         sql = """UPDATE  ag_login
-                 SET latitude = %s,
-                     longitude = %s,
-                     elevation = %s,
-                     cannot_geocode = %s
+                 SET latitude = %s, longitude = %s, elevation = %s, cannot_geocode = %s
                  WHERE ag_login_id = %s"""
-        self._con.execute(sql, [lat, lon, elevation, cannot_geocode, ag_login_id])
+        self._con.executemany(sql, sql_args)
 
     def getGeocodeStats(self):
         stat_queries = [
