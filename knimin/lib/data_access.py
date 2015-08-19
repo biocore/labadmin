@@ -3,9 +3,7 @@ from collections import defaultdict, namedtuple
 from re import sub
 from hashlib import md5
 from datetime import datetime
-import urllib
 import json
-import httplib
 
 from bcrypt import hashpw, gensalt
 
@@ -13,6 +11,8 @@ from psycopg2 import connect, Error as PostgresError
 from psycopg2.extras import DictCursor
 
 from util import make_valid_kit_ids, make_verification_code, make_passwd
+from constants import country_lookup, md_lookup, month_lookup
+from geocoder import geocode, Location, GoogleAPILimitExceeded
 
 
 class IncorrectEmailError(Exception):
@@ -20,10 +20,6 @@ class IncorrectEmailError(Exception):
 
 
 class IncorrectPasswordError(Exception):
-    pass
-
-
-class GoogleAPILimitExceeded(Exception):
     pass
 
 
@@ -493,112 +489,6 @@ class KniminAccess(object):
         barcode_info = self.get_ag_barcode_details(all_barcodes)
 
         # Human survey (id 1)
-
-        # standard fields that are set based on sampling site
-        md_lookup = {
-            'Hair':
-                {'BODY_PRODUCT': 'UBERON:sebum',
-                 'COMMON_NAME': 'human skin metagenome',
-                 'SAMPLE_TYPE': 'Hair',
-                 'TAXON_ID': '539655',
-                 'BODY_HABITAT': 'UBERON:hair',
-                 'ENV_MATTER': 'ENVO:sebum',
-                 'BODY_SITE': 'UBERON:hair'},
-            'Nares': {
-                'BODY_PRODUCT': 'UBERON:mucus',
-                'COMMON_NAME': 'human nasal/pharyngeal metagenome',
-                'SAMPLE_TYPE': 'Nares',
-                'TAXON_ID': '1131769',
-                'BODY_HABITAT': 'UBERON:nose',
-                'ENV_MATTER': 'ENVO:mucus',
-                'BODY_SITE': 'UBERON:nostril'},
-            'Vaginal mucus': {
-                'BODY_PRODUCT': 'UBERON:mucus',
-                'COMMON_NAME': 'vaginal metagenome',
-                'SAMPLE_TYPE': 'Vaginal mucus',
-                'TAXON_ID': '1549736',
-                'BODY_HABITAT': 'UBERON:vagina',
-                'ENV_MATTER': 'ENVO:mucus',
-                'BODY_SITE': 'UBERON:vaginal introitus'},
-            'Sole of foot': {
-                'BODY_PRODUCT': 'UBERON:sebum',
-                'COMMON_NAME': 'human skin metagenome',
-                'SAMPLE_TYPE': 'Sole of foot',
-                'TAXON_ID': '539655',
-                'BODY_HABITAT': 'UBERON:skin',
-                'ENV_MATTER': 'ENVO:sebum',
-                'BODY_SITE': 'UBERON:skin of foot'},
-            'Nasal mucus': {
-                'BODY_PRODUCT': 'UBERON:mucus',
-                'COMMON_NAME': 'human nasal/pharyngeal metagenome',
-                'SAMPLE_TYPE': 'Nasal mucus',
-                'TAXON_ID': '1131769',
-                'BODY_HABITAT': 'UBERON:nose',
-                'ENV_MATTER': 'ENVO:mucus',
-                'BODY_SITE': 'UBERON:nostril'},
-            'Stool': {
-                'BODY_PRODUCT': 'UBERON:feces',
-                'COMMON_NAME': 'human gut metagenome',
-                'SAMPLE_TYPE': 'Stool',
-                'TAXON_ID': '408170',
-                'BODY_HABITAT': 'UBERON:feces',
-                'ENV_MATTER': 'ENVO:feces',
-                'BODY_SITE': 'UBERON:feces'},
-            'Forehead': {
-                'BODY_PRODUCT': 'UBERON:sebum',
-                'COMMON_NAME': 'human skin metagenome',
-                'SAMPLE_TYPE': 'Forehead',
-                'TAXON_ID': '539655',
-                'BODY_HABITAT': 'UBERON:skin',
-                'ENV_MATTER': 'ENVO:sebum',
-                'BODY_SITE': 'UBERON:skin of head'},
-            'Tears': {
-                'BODY_PRODUCT': 'UBERON:tears',
-                'COMMON_NAME': 'human metagenome',
-                'SAMPLE_TYPE': 'Tears',
-                'TAXON_ID': '646099',
-                'BODY_HABITAT': 'UBERON:eye',
-                'ENV_MATTER': 'ENVO:tears',
-                'BODY_SITE': 'UBERON:eye'},
-            'Right hand': {
-                'BODY_PRODUCT': 'UBERON:sebum',
-                'COMMON_NAME': 'human skin metagenome',
-                'SAMPLE_TYPE': 'Right Hand',
-                'TAXON_ID': '539655',
-                'BODY_HABITAT': 'UBERON:skin',
-                'ENV_MATTER': 'ENVO:sebum',
-                'BODY_SITE': 'UBERON:skin of hand'},
-            'Mouth': {
-                'BODY_PRODUCT': 'UBERON:saliva',
-                'COMMON_NAME': 'human oral metagenome',
-                'SAMPLE_TYPE': 'Mouth',
-                'TAXON_ID': '447426',
-                'BODY_HABITAT': 'UBERON:oral cavity',
-                'ENV_MATTER': 'ENVO:saliva',
-                'BODY_SITE': 'UBERON:tongue'},
-            'Left hand': {
-                'BODY_PRODUCT': 'UBERON:sebum',
-                'COMMON_NAME': 'human skin metagenome',
-                'SAMPLE_TYPE': 'Left Hand',
-                'TAXON_ID': '539655',
-                'BODY_HABITAT': 'UBERON:skin',
-                'ENV_MATTER': 'ENVO:sebum',
-                'BODY_SITE': 'UBERON:skin of hand'},
-            'Ear wax': {
-                'BODY_PRODUCT': 'UBERON:ear wax',
-                'COMMON_NAME': 'human metagenome',
-                'SAMPLE_TYPE': 'Ear wax',
-                'TAXON_ID': '646099',
-                'BODY_HABITAT': 'UBERON:ear',
-                'ENV_MATTER': 'ENVO:ear wax',
-                'BODY_SITE': 'UBERON:external auditory meatus'}
-        }
-
-        month_lookup = {'January': 1, 'February': 2, 'March': 3,
-                        'April': 4, 'May': 5, 'June': 6,
-                        'July': 7, 'August': 8, 'September': 9,
-                        'October': 10, 'November': 11, 'December': 12}
-
         # tuples are latitude, longitude, elevation
         zipcode_sql = """SELECT zipcode, latitude, longitude, elevation
                          FROM zipcodes"""
@@ -607,43 +497,6 @@ class KniminAccess(object):
 
         survey_sql = "SELECT barcode, survey_id FROM ag.ag_kit_barcodes"
         survey_lookup = dict(self._con.execute_fetchall(survey_sql))
-
-        country_lookup = defaultdict(lambda: 'unknown')
-        country_lookup.update({
-            'united states': 'GAZ:United States of America',
-            'united states of america': 'GAZ:United States of America',
-            'us': 'GAZ:United States of America',
-            'usa': 'GAZ:United States of America',
-            'u.s.a': 'GAZ:United States of America',
-            'u.s.': 'GAZ:United States of America',
-            'canada': 'GAZ:Canada',
-            'canadian': 'GAZ:Canada',
-            'ca': 'GAZ:Canada',
-            'australia': 'GAZ:Australia',
-            'au': 'GAZ:Australia',
-            'united kingdom': 'GAZ:United Kingdom',
-            'belgium': 'GAZ:Belgium',
-            'gb': 'GAZ:Great Britain',
-            'korea, republic of': 'GAZ:South Korea',
-            'nl': 'GAZ:Netherlands',
-            'netherlands': 'GAZ:Netherlands',
-            'spain': 'GAZ:Spain',
-            'es': 'GAZ:Spain',
-            'norway': 'GAZ:Norway',
-            'germany': 'GAZ:Germany',
-            'de': 'GAZ:Germany',
-            'china': 'GAZ:China',
-            'singapore': 'GAZ:Singapore',
-            'new zealand': 'GAZ:New Zealand',
-            'france': 'GAZ:France',
-            'fr': 'GAZ:France',
-            'ch': 'GAZ:Switzerland',
-            'switzerland': 'GAZ:Switzerland',
-            'denmark': 'GAZ:Denmark',
-            'scotland': 'GAZ:Scotland',
-            'united arab emirates': 'GAZ:United Arab Emirates',
-            'ireland': 'GAZ:Ireland',
-            'thailand': 'GAZ:Thailand'})
 
         for barcode, responses in md[1].items():
             # Get rid of ABOUT_YOURSELF_TEXT
@@ -686,7 +539,11 @@ class KniminAccess(object):
                 md[1][barcode]['AGE_YEARS'] = 'Unspecified'
 
             # GENDER to SEX
-            md[1][barcode]['SEX'] = md[1][barcode]['GENDER']
+            sex = md[1][barcode]['GENDER']
+            del md[1][barcode]['GENDER']
+            if sex is not None:
+                sex = sex.lower()
+            md[1][barcode]['SEX'] = sex
 
             # get COUNTRY from barcode_info
             md[1][barcode]['COUNTRY'] = country_lookup[
@@ -700,7 +557,6 @@ class KniminAccess(object):
             site = barcode_info[barcode]['site_sampled']
 
             # Invariant information
-            md[1][barcode]['SAMPLE_NAME'] = barcode
             md[1][barcode]['ANONYMIZED_NAME'] = barcode
             md[1][barcode]['HOST_TAXID'] = 9606
             md[1][barcode]['TITLE'] = 'American Gut Project'
@@ -719,10 +575,12 @@ class KniminAccess(object):
                 md[1][barcode]['ELEVATION'] = \
                     zip_lookup[md[1][barcode]['ZIP_CODE']][2]
             except KeyError:
-                #zipcode is unknown, so leave as blank
-                md[1][barcode]['LATITUDE'] = ''
-                md[1][barcode]['LONGITUDE'] = ''
-                md[1][barcode]['ELEVATION'] = ''
+                # geocode unknown zip and add to zipcode table & lookup dict
+                info = self.get_geocode_zipcode(md[1][barcode]['ZIP_CODE'])
+                zip_lookup[info.input] = [info.lat, info.long, info.elev]
+                md[1][barcode]['LATITUDE'] = info.lat if info.lat is not None else ''
+                md[1][barcode]['LONGITUDE'] = info.elev if info.long is not None else ''
+                md[1][barcode]['ELEVATION'] = info.elev if info.elev is not None else ''
 
             md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode]
             try:
@@ -735,6 +593,8 @@ class KniminAccess(object):
             md[1][barcode]['COLLECTION_DATE'] = \
                 barcode_info[barcode]['sample_date']
             md[1][barcode]['ENV_MATTER'] = md_lookup[site]['ENV_MATTER']
+            md[1][barcode]['SCIENTIFIC_NAME'] = md_lookup[site]['SCIENTIFIC_NAME']
+            md[1][barcode]['SAMPLE_TYPE'] = md_lookup[site]['SAMPLE_TYPE']
             md[1][barcode]['BODY_HABITAT'] = md_lookup[site]['BODY_HABITAT']
             md[1][barcode]['BODY_SITE'] = md_lookup[site]['BODY_SITE']
             md[1][barcode]['BODY_PRODUCT'] = md_lookup[site]['BODY_PRODUCT']
@@ -779,7 +639,7 @@ class KniminAccess(object):
         metadata = {}
         for survey, bc_responses in all_results.items():
             headers = sorted(bc_responses.values()[0])
-            survey_md = [''.join(['#SampleID\t', '\t'.join(headers)])]
+            survey_md = [''.join(['sample_name\t', '\t'.join(headers)])]
             for barcode, shortnames_answers in sorted(bc_responses.items()):
                 barcodes_seen.add(barcode)
                 ordered_answers = [shortnames_answers[h] for h in headers]
@@ -1297,6 +1157,48 @@ class KniminAccess(object):
 
         return [dict(row) for row in rows]
 
+    def get_geocode_zipcode(self, zipcode, country=None):
+        """Adds geocode information to zipcode table if needed and return info
+
+        Parameters
+        ----------
+        zipcode : str
+            Zipcode to geocode
+        country : str, optional
+            Country zipcode belongs in. Default infer from zipcode. Useful
+            for countries with zipcode formated like USA
+
+        Returns
+        -------
+        info : NamedTuple
+            Location namedtuple in form
+            Location('zip', 'lat', 'long', 'elev', 'city', 'state', 'country')
+
+        Notes
+        -----
+        If the tuple contains nothing but the zipcode and None for all other
+        fields, no geocode was found so zipcode was not added.
+        """
+        if country is None:
+            country = ""
+
+        sql = """SELECT SELECT latitude, longitude, elevation, city, state
+                 FROM ag.zipcodes WHERE zipcode = %s)"""
+        zip_info = self._con.execute_fetchone(sql, [zipcode])
+        if zip_info is not None:
+            return Location([zipcode] + zip_info + [country])
+
+        info = geocode('%s %s' % (zipcode, country))
+        cannot_geocode = False
+        if not info.lat:
+            cannot_geocode = True
+        sql = """INSERT INTO ag.zipcodes
+                     (zipcode, latitude, longitude, elevation, city, state, cannot_geocode)
+                 VALUES (%s,%s,%s,%s,%s,%s,%s)"""
+        self._con.execute(sql, [zipcode, info.lat, info.long, info.elev,
+                                info.city, info.state, cannot_geocode])
+        return info
+
     def addGeocodingInfo(self, limit=None, retry=False):
         """Adds latitude, longitude, and elevation to ag_login_table
 
@@ -1311,12 +1213,12 @@ class KniminAccess(object):
 
         # clear previous geocoding attempts if retry is True
         if retry:
-            sql = """SELECT cast(ag_login_id as varchar(100)) FROM ag_login
-                WHERE cannot_geocode = 'y'"""
-            logins = [x[0] for x in self._con.execute_fetchall(sql)]
-
-            for ag_login_id in logins:
-                self.updateGeoInfo(ag_login_id, None, None, None, '')
+            sql = """UPDATE  ag_login
+                     SET latitude = %s, longitude = %s, elevation = %s, cannot_geocode = %s
+                     WHERE ag_login_id IN (
+                        SELECT ag_login_id FROM ag_login
+                        WHERE cannot_geocode = 'y')"""
+            self._con.execute(sql)
 
         # get logins that have not been geocoded yet
         sql = """SELECT city, state, zip, country,
@@ -1326,164 +1228,29 @@ class KniminAccess(object):
         logins = self._con.execute_fetchall(sql)
 
         row_counter = 0
-        for row in logins:
+        sql_args = []
+        for city, state, zipcode, country, ag_login_id in logins:
             row_counter += 1
             if limit is not None and row_counter > limit:
                 break
 
-            ag_login_id = row[4]
             # Attempt to geocode
-            address = '{0} {1} {2} {3}'.format(row[0], row[1], row[2], row[3])
-            encoded_address = urllib.urlencode({'address': address})
-            url = '/maps/api/geocode/json?{0}&sensor=false'.format(
-                encoded_address)
+            address = '{0} {1} {2} {3}'.format(city, state, zipcode, country)
+            try:
+                info = geocode(address)
+                # empty string to indicate geocode was successful
+                sql_args.append([info.lat, info.long, info.elev, '', ag_login_id])
+            except GoogleAPILimitExceeded:
+                # limit exceeded so no use trying to keep geocoding
+                break
+            except:
+                # Catch ANY other error and set to could not geocode
+                sql_args.append([None, None, None, 'y', ag_login_id])
 
-            r = self.getGeocodeJSON(url)
-
-            if r in ('unknown_error', 'not_OK', 'no_results'):
-                # Could not geocode, mark it so we don't try next time
-                self.updateGeoInfo(ag_login_id, None, None, None, 'y')
-                continue
-            elif r == 'over_limit':
-                # If the reason for failure is merely that we are over the
-                # Google API limit, then we should try again next time
-                # ... but we should stop hitting their servers, so raise an
-                # exception
-                raise GoogleAPILimitExceeded("Exceeded Google API limit")
-
-            # Unpack it and write to DB
-            lat, lon = r
-
-            encoded_lat_lon = urllib.urlencode(
-                {'locations': ','.join(map(str, [lat, lon]))})
-
-            url2 = '/maps/api/elevation/json?{0}&sensor=false'.format(
-                encoded_lat_lon)
-
-            r2 = self.getElevationJSON(url2)
-
-            if r2 in ('unknown_error', 'not_OK', 'no_results'):
-                # Could not geocode, mark it so we don't try next time
-                self.updateGeoInfo(ag_login_id, None, None, None, 'y')
-                continue
-            elif r2 == 'over_limit':
-                # If the reason for failure is merely that we are over the
-                # Google API limit, then we should try again next time
-                # ... but we should stop hitting their servers, so raise an
-                # exception
-                raise GoogleAPILimitExceeded("Exceeded Google API limit")
-
-            elevation = r2
-
-            self.updateGeoInfo(ag_login_id, lat, lon, elevation, '')
-
-    def getGeocodeJSON(self, url):
-        conn = httplib.HTTPConnection('maps.googleapis.com')
-        success = False
-        num_tries = 0
-        while num_tries < 2 and not success:
-            conn.request('GET', url)
-            result = conn.getresponse()
-
-            # Make sure we get an 'OK' status
-            if result.status != 200:
-                return 'not_OK'
-
-            data = json.loads(result.read())
-
-            # if we're over the query limit, wait 2 seconds and try again,
-            # it may just be that we're submitting requests too fast
-            if data.get('status', None) == 'OVER_QUERY_LIMIT':
-                num_tries += 1
-                sleep(2)
-            elif 'results' in data:
-                success = True
-            else:
-                return 'unknown_error'
-
-        conn.close()
-
-        # if we got here without getting an unknown_error or succeeding, then
-        # we are over the request limit for the 24 hour period
-        if not success:
-            return 'over_limit'
-
-        # sanity check the data returned by Google and return the lat/lng
-        if len(data['results']) == 0:
-            return 'no_results'
-
-        geometry = data['results'][0].get('geometry', {})
-        location = geometry.get('location', {})
-        lat = location.get('lat', {})
-        lon = location.get('lng', {})
-
-        if not lat or not lon:
-            return 'unknown_error'
-
-        return (lat, lon)
-
-    def getElevationJSON(self, url):
-        """Use Google's Maps API to retrieve an elevation
-
-        url should be formatted as described here:
-        https://developers.google.com/maps/documentation/elevation
-        /#ElevationRequests
-
-        The number of API requests is limited to 2500 per 24 hour period.
-        If this function is called and the limit is surpassed, the return value
-        will be "over_limit".  Other errors will cause the return value to be
-        "unknown_error".  On success, the return value is the elevation of the
-        location requested in the url.
-        """
-        conn = httplib.HTTPConnection('maps.googleapis.com')
-        success = False
-        num_tries = 0
-        while num_tries < 2 and not success:
-            conn.request('GET', url)
-            result = conn.getresponse()
-
-            # Make sure we get an 'OK' status
-            if result.status != 200:
-                return 'not_OK'
-
-            data = json.loads(result.read())
-
-            # if we're over the query limit, wait 2 seconds and try again,
-            # it may just be that we're submitting requests too fast
-            if data.get('status', None) == 'OVER_QUERY_LIMIT':
-                num_tries += 1
-                sleep(2)
-            elif 'results' in data:
-                success = True
-            else:
-                return 'unknown_error'
-
-        conn.close()
-
-        # if we got here without getting an unknown_error or succeeding, then
-        # we are over the request limit for the 24 hour period
-        if not success:
-            return 'over_limit'
-
-        # sanity check the data returned by Google and return the lat/lng
-        if len(data['results']) == 0:
-            return 'no_results'
-
-        elevation = data['results'][0].get('elevation', {})
-
-        if not elevation:
-            return 'unknown_error'
-
-        return elevation
-
-    def updateGeoInfo(self, ag_login_id, lat, lon, elevation, cannot_geocode):
         sql = """UPDATE  ag_login
-                 SET latitude = %s,
-                     longitude = %s,
-                     elevation = %s,
-                     cannot_geocode = %s
+                 SET latitude = %s, longitude = %s, elevation = %s, cannot_geocode = %s
                  WHERE ag_login_id = %s"""
-        self._con.execute(sql, [lat, lon, elevation, cannot_geocode, ag_login_id])
+        self._con.executemany(sql, sql_args)
 
     def getGeocodeStats(self):
         stat_queries = [
