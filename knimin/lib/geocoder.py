@@ -6,13 +6,18 @@ from time import sleep
 
 class GoogleAPILimitExceeded(Exception):
     pass
+
+
 class GoogleAPIRequestDenied(Exception):
     pass
+
+
 class GoogleAPIInvalidRequest(Exception):
     pass
 
-Location = namedtuple('Location', ['zip', 'lat', 'long', 'elev', 'city',
+Location = namedtuple('Location', ['input', 'lat', 'long', 'elev', 'city',
                       'state', 'country'])
+
 
 def _call_wrapper(url):
     """Encapsulate all checks for API calls"""
@@ -42,15 +47,13 @@ def _call_wrapper(url):
     return geo['results']
 
 
-def geocode(zipcode, country=None):
+def geocode(address):
     geo_url = 'https://maps.googleapis.com/maps/api/geocode/json?address=%s'
     elev_url = 'https://maps.googleapis.com/maps/api/elevation/json?locations=%s'
-    if country is None:
-        country = ""
 
-    geo = _call_wrapper(geo_url % "%s %s" % (zipcode, country))
+    geo = _call_wrapper(geo_url % address)
     if not geo:
-        return Location(zipcode, None, None, None, None, None, None)
+        return Location(address, None, None, None, None, None, None)
     # Get the actual lat and long readings
     geo = geo[0]
     lat = geo['geometry']['location']['lat']
@@ -71,4 +74,4 @@ def geocode(zipcode, country=None):
     geo2 = _call_wrapper(elev_url % "%s,%s" % (lat, lng))
     elev = geo2[0]['elevation']
 
-    return Location(zipcode, lat, lng, elev, city, state, ctry)
+    return Location(address, lat, lng, elev, city, state, ctry)
