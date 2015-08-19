@@ -577,7 +577,7 @@ class KniminAccess(object):
             except KeyError:
                 # geocode unknown zip and add to zipcode table & lookup dict
                 info = self.add_zipcode(md[1][barcode]['ZIP_CODE'])
-                zip_lookup[info.zip] = [info.lat, info.long, info.elev]
+                zip_lookup[info.input] = [info.lat, info.long, info.elev]
                 md[1][barcode]['LATITUDE'] = info.lat if info.lat is not None else ''
                 md[1][barcode]['LONGITUDE'] = info.elev if info.long is not None else ''
                 md[1][barcode]['ELEVATION'] = info.elev if info.elev is not None else ''
@@ -1187,15 +1187,18 @@ class KniminAccess(object):
         sql = "SELECT EXISTS(SELECT * from ag.zipcodes WHERE zipcode = %s)"
         if self._con.execute_fetchone(sql, [zipcode])[0]:
             raise ValueError("Zipcode %s already in table!" % zipcode)
+        if country is None:
+            country = ""
 
-        info = geocode(zipcode, country)
+        info = geocode('%s %s' % (zipcode, country))
         cannot_geocode = False
         if not info.lat:
             cannot_geocode = True
         sql = """INSERT INTO ag.zipcodes (zipcode, latitude, longitude, elevation,
                                         city, state, cannot_geocode)
                  VALUES (%s,%s,%s,%s,%s,%s,%s)"""
-        self._con.execute(sql, info[:-1] + (cannot_geocode, ))
+        self._con.execute(sql, [zipcode, info.lat, info.long, info.elev,
+                                info.city, info.state, cannot_geocode])
         return info
 
     def addGeocodingInfo(self, limit=None, retry=False):
