@@ -1,9 +1,45 @@
 from collections import namedtuple
 from json import loads
 import requests
+from time import sleep
+
+
+class GoogleAPILimitExceeded(Exception):
+    pass
+class GoogleAPIRequestDenied(Exception):
+    pass
+class GoogleAPIInvalidRequest(Exception):
+    pass
 
 Location = namedtuple('Location', ['zip', 'lat', 'long', 'elev', 'city',
                       'state', 'country'])
+
+def _call_wrapper(url):
+    """Encapsulate all checks for API calls"""
+    # allow 4 retries do we sleep longer than a second if all loops happen
+    for retry in range(4):
+        req = requests.get(url)
+        if req.status_code != 200:
+            raise IOError('Error on request: %s' % url)
+
+        geo = loads(req.content)
+        if geo['status'] == "OK":
+            break
+        elif geo['status'] == "OVER_QUERY_LIMIT":
+            # sleep in case we're over the 5 requests/sec limit
+            sleep(0.3)
+        elif geo['status'] == "ZERO_RESULTS":
+            return {}
+        elif geo['status'] == "REQUEST_DENIED":
+            raise GoogleAPIRequestDenied()
+        elif geo['status'] == "INVALID_REQUEST":
+            raise GoogleAPIInvalidRequest(url)
+
+    if geo['status'] == "OVER_QUERY_LIMIT":
+        raise GoogleAPILimitExceeded("Exceeded max calls per day")
+    if geo['status'] == "UNKNOWN_ERROR":
+        raise IOError("Unknown server error in Google API")
+    return geo['results']
 
 
 def geocode(zipcode, country=None):
@@ -12,16 +48,11 @@ def geocode(zipcode, country=None):
     if country is None:
         country = ""
 
-    req = requests.get(geo_url % "%s %s" % (zipcode, country))
-    if req.status_code != 200:
-        raise IOError('Error on geocode request')
-
-    geo = loads(req.content)
-    if geo['status'] == "ZERO_RESULTS":
-        # Couldn't be geocoded, so return empty namedtuple
-        return Location(zipcode, None, None,  None,  None, None, None)
+    geo = _call_wrapper(geo_url % "%s %s" % (zipcode, country))
+    if not geo:
+        return Location(zipcode, None, None, None, None, None, None)
     # Get the actual lat and long readings
-    geo = geo['results'][0]
+    geo = geo[0]
     lat = geo['geometry']['location']['lat']
     lng = geo['geometry']['location']['lng']
 
@@ -37,10 +68,7 @@ def geocode(zipcode, country=None):
             state = geo_dict['short_name']
         elif geotype == "country":
             ctry = geo_dict['long_name']
-
-    req2 = requests.get(elev_url % "%s,%s" % (lat, lng))
-    if req2.status_code != 200:
-        raise IOError('Error on elevation request')
-    elev = loads(req2.content)['results'][0]['elevation']
+    geo2 = _call_wrapper(elev_url % "%s,%s" % (lat, lng))
+    elev = geo2[0]['elevation']
 
     return Location(zipcode, lat, lng, elev, city, state, ctry)

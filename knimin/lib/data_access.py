@@ -24,10 +24,6 @@ class IncorrectPasswordError(Exception):
     pass
 
 
-class GoogleAPILimitExceeded(Exception):
-    pass
-
-
 class SQLHandler(object):
     """Encapsulates the DB connection with the Postgres DB
 
@@ -1164,8 +1160,6 @@ class KniminAccess(object):
             sql = """SELECT cast(ag_login_id as varchar(100)) FROM ag_login
                 WHERE cannot_geocode = 'y'"""
             logins = [x[0] for x in self._con.execute_fetchall(sql)]
-            print logins
-
             for ag_login_id in logins:
                 self.updateGeoInfo(ag_login_id, None, None, None, '')
 
@@ -1222,7 +1216,7 @@ class KniminAccess(object):
                 # Google API limit, then we should try again next time
                 # ... but we should stop hitting their servers, so raise an
                 # exception
-                raise GoogleAPILimitExceeded("Exceeded Google API limit")
+                pass
 
             elevation = r2
 
