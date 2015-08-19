@@ -14,7 +14,6 @@ from knimin.handlers.ag_search import AGSearchHandler
 from knimin.handlers.logged_in_index import LoggedInIndexHandler
 from knimin.handlers.barcode_util import BarcodeUtilHandler
 from knimin.handlers.ag_stats import AGStatsHandler
-from knimin.handlers.ag_new_participant import AGNewParticipantHandler
 from knimin.handlers.ag_edit_participant import AGEditParticipantHandler
 from knimin.handlers.ag_new_kit import AGNewKitHandler, AGNewKitDLHandler
 from knimin.handlers.ag_edit_kit import AGEditKitHandler
@@ -24,6 +23,7 @@ from knimin.handlers.ag_new_barcode import (AGNewBarcodeHandler,
 from knimin.handlers.ag_edit_barcode import AGEditBarcodeHandler
 from knimin.handlers.ag_update_geocode import AGUpdateGeocodeHandler
 from knimin.handlers.ag_pulldown import AGPulldownHandler, AGPulldownDLHandler
+from knimin.handlers.ag_add_barcode_kit import AGAddBarcodeKitHandler
 
 define("port", default=config.http_port, type=int)
 
@@ -46,7 +46,7 @@ class WebApplication(Application):
             (r"/logged_in_index/", LoggedInIndexHandler),
             (r"/ag_search/", AGSearchHandler),
             (r"/barcode_util/", BarcodeUtilHandler),
-            (r"/ag_new_participant/", AGNewParticipantHandler),
+            (r"/ag_add_barcode_kit/", AGAddBarcodeKitHandler),
             (r"/ag_stats/", AGStatsHandler),
             (r"/ag_edit_participant/", AGEditParticipantHandler),
             (r"/ag_new_kit/", AGNewKitHandler),
