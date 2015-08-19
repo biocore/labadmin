@@ -1106,6 +1106,26 @@ class KniminAccess(object):
 
         return [dict(row) for row in rows]
 
+    def add_zipcode(self, zipcode):
+        """Adds zipcode information to zipcode table
+
+        Parameters
+        ----------
+        zipcode : str
+            Zipcode to geocode
+
+        Raises
+        ------
+        ValueError
+            Zipcode already exists in table
+        """
+        sql = "SELECT EXISTS(SELECT * from ag.zipcode WHERE zipcode = %s)"
+        if self._con.execute_fetchone(sql, [zipcode])[0]:
+            raise ValueError("Zipcode %s already in table!" % zipcode)
+
+        info = 1
+
+
     def addGeocodingInfo(self, limit=None, retry=False):
         """Adds latitude, longitude, and elevation to ag_login_table
 

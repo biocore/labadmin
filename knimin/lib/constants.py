@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 # standard fields that are set based on sampling site
 md_lookup = {
     'Hair':
