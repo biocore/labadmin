@@ -707,6 +707,52 @@ class KniminAccess(object):
 
         return False
 
+    def getAGKitDetails(self, supplied_kit_id):
+        sql = """SELECT
+                 cast(ag_kit_id AS varchar(100)), supplied_kit_id,
+                 kit_password, swabs_per_kit, kit_verification_code,
+                 kit_verified, verification_email_sent
+                 FROM ag_kit
+                 WHERE supplied_kit_id = %s"""
+        res = self._con.execute_fetchone(sql, [supplied_kit_id])
+        if res is not None:
+            return dict(res)
+        else:
+            return {}
+
+    def add_barcodes_to_kit(self, ag_kit_id, num_barcodes=1):
+        """Attaches barcodes to an existing american gut kit
+
+        Parameters
+        ----------
+        ag_kit_id : str
+            Kit ID to attach barcodes to
+        num_barcodes : int, optional
+            Number of barcodes to attach. Default 1
+        """
+        barcodes = self.get_unassigned_barcodes(num_barcodes)
+        # assign barcodes to projects for the kit
+        sql = """SELECT DISTINCT project_id FROM barcodes.project_barcode
+                 JOIN ag.ag_kit_barcodes USING (barcode)
+                 WHERE ag_kit_id = %s"""
+        proj_ids = [x[0] for x in self._con.execute_fetchall(sql, [ag_kit_id])]
+        barcode_project_insert = """INSERT INTO project_barcode
+                                    (barcode, project_id)
+                                    VALUES (%s, %s)"""
+        project_inserts = []
+        for barcode in barcodes:
+            for project in proj_ids:
+                project_inserts.append((barcode, project))
+        self._con.executemany(barcode_project_insert, project_inserts)
+
+        # Add barcodes to the kit
+        sql = """INSERT  INTO ag_kit_barcodes
+                (ag_kit_id, barcode, sample_barcode_file)
+                VALUES (%s, %s, %s || '.jpg')"""
+        barcode_info = [(ag_kit_id, b, b) for b in barcodes]
+        for info in barcode_info:
+            self._con.execute(sql, info)
+
     def create_ag_kits(self, swabs_kits, tag=None, projects=None):
         """ Creates american gut handout kits on the database
 
@@ -957,7 +1003,7 @@ class KniminAccess(object):
         return self._con.execute_fetchone(sql, [survey, description, url])[0]
 
     def store_external_survey(self, in_file, survey, pulldown_date=None,
-                              seperator="\t", survey_id_col="survey_id"):
+                              separator="\t", survey_id_col="survey_id"):
         """Stores third party survey answers in the database
 
         Parameters
@@ -968,8 +1014,8 @@ class KniminAccess(object):
             What third party survey this belongs to
         pulldown_date : datetime object, optional
             When the data was pulled from the external source, default now()
-        seperator : str, optional
-            What seperator is used, default tab
+        separator : str, optional
+            What separator is used, default tab
         survey_id_col : str
             What column header holds the associated user AG survey id
             Default 'survey_id'
@@ -994,12 +1040,12 @@ class KniminAccess(object):
         inserts = []
         with open(in_file) as f:
             header = f.readline().strip().split('\t')
-            for line in f.readlines():
+            for line in f:
                 line = line.strip()
-                hold = {h: v for h, v in zip(header, line.split('\t'))}
+                hold = {h: v.strip() for h, v in zip(header, line.split('\t'))}
                 sid = hold[survey_id_col]
                 del hold[survey_id_col]
-                inserts.append([sid, external_id, pulldown_date, dumps(hold)])
+                inserts.append([sid, external_id, pulldown_date, json.dumps(hold)])
 
         # insert into the database
         sql = """INSERT INTO ag.external_survey_answers
@@ -1044,7 +1090,7 @@ class KniminAccess(object):
             format_str = " AND pulldown_date = %s "
             sql_args.append(pulldown_date)
 
-        return {s: loads(a)
+        return {s: json.loads(a)
                 for s, a in self._con.execute_fetchall(
                     sql.format(format_str), sql_args)}
 
@@ -1062,29 +1108,37 @@ class KniminAccess(object):
         return ag_login_id[0]
 
     def updateAGLogin(self, ag_login_id, email, name, address, city, state,
-                      zip, country):
-        self._con.execute_proc_return_cursor(
-            'ag_update_login', [ag_login_id, email.strip().lower(), name,
-                                address, city, state, zip, country])
+                      zipcode, country):
+        sql = """UPDATE  ag_login
+                SET email = %s, name = %s, address = %s, city = %s, state = %s,
+                    zip = %s, country = %s
+                WHERE ag_login_id = %s"""
+        self._con.execute(sql, [email.strip().lower(), name,
+                                address, city, state, zipcode, country,
+                                ag_login_id])
 
     def updateAGKit(self, ag_kit_id, supplied_kit_id, kit_password,
                     swabs_per_kit, kit_verification_code):
         kit_password = hashpw(kit_password)
+        sql = """UPDATE ag_kit
+                 SET supplied_kit_id = %s, kit_password = %s,
+                     swabs_per_kit = %s, kit_verification_code = %s
+                 WHERE ag_kit_id = %s"""
 
-        self._con.execute_proc_return_cursor('ag_update_kit',
-                                   [ag_kit_id, supplied_kit_id,
-                                    kit_password, swabs_per_kit,
-                                    kit_verification_code])
+        self._con.execute(sql, [supplied_kit_id, kit_password, swabs_per_kit,
+                                kit_verification_code, ag_kit_id])
 
     def updateAGBarcode(self, barcode, ag_kit_id, site_sampled,
                         environment_sampled, sample_date, sample_time,
                         participant_name, notes, refunded, withdrawn):
-        self._con.execute_proc_return_cursor('ag_update_barcode',
-                                   [barcode, ag_kit_id, site_sampled,
-                                    environment_sampled,
-                                    sample_date, sample_time,
-                                    participant_name, notes,
-                                    refunded, withdrawn])
+        sql = """UPDATE  ag_kit_barcodes
+                 SET ag_kit_id = %s, site_sampled = %s, environment_sampled = %s,
+                     sample_date = %s, sample_time = %s, participant_name = %s,
+                     notes = %s, refunded = %s, withdrawn = %s
+                 WHERE barcode = %s"""
+        self._con.execute(sql, [ag_kit_id, site_sampled, environment_sampled,
+                                sample_date, sample_time, participant_name,
+                                notes, refunded, withdrawn, barcode])
 
     def AGGetBarcodeMetadata(self, barcode):
         results = self._con.execute_proc_return_cursor(
@@ -1301,13 +1355,11 @@ class KniminAccess(object):
     def get_login_by_email(self, email):
         sql = """select name, address, city, state, zip, country, ag_login_id
                  from ag_login where email = %s"""
-        cursor.execute(sql, [email])
-        col_names = self._get_col_names_from_cursor(cursor)
-        row = cursor.fetchone()
+        row = self._con.execute_fetchone(sql, [email])
 
         login = {}
         if row:
-            login = dict(zip(col_names, row))
+            login = dict(row)
             login['email'] = email
 
         return login
@@ -1320,17 +1372,22 @@ class KniminAccess(object):
         return [dict(row) for row in self._con.execute_fetchall(sql, [ag_login_id])]
 
     def getAGBarcodeDetails(self, barcode):
-        results = self._con.execute_proc_return_cursor(
-            'ag_get_barcode_details', [barcode])
-        barcode_details = results.fetchone()
-        col_names = self._get_col_names_from_cursor(results)
-        results.close()
+        sql = """SELECT  email, cast(ag_kit_barcode_id as varchar(100)),
+                    cast(ag_kit_id as varchar(100)), barcode,  site_sampled,
+                    environment_sampled, sample_date, sample_time,
+                    participant_name, notes, refunded, withdrawn, moldy, other,
+                    other_text, date_of_last_email ,overloaded, name, status
+                 FROM ag_kit_barcodes akb
+                 JOIN ag_kit USING(ag_kit_id)
+                 JOIN ag_login USING (ag_login_id)
+                 JOIN barcode USING(barcode)
+                 WHERE barcode = %s"""
 
-        row_dict = {}
-        if barcode_details:
-            row_dict = dict(zip(col_names, barcode_details))
-
-        return row_dict
+        results = self._con.execute_fetchone(sql, [barcode])
+        if not results:
+            return {}
+        else:
+            return dict(results)
 
     def getHumanParticipants(self, ag_login_id):
         # get people from new survey setup
@@ -1376,31 +1433,23 @@ class KniminAccess(object):
                  from    plate p inner join plate_barcode pb on
                  pb.plate_id = p.plate_id \
                 where   pb.barcode = %s"""
-        cursor.execute(sql, [barcode])
-        col_names = [x[0] for x in cursor.description]
-        results = [dict(zip(col_names, row)) for row in cursor.fetchall()]
-        cursor.close()
-        return results
+
+        return [dict(row) for row in self._con.execute_fetchall(sql, [barcode])]
 
     def getBarcodeProjType(self, barcode):
         """ Get the project type of the barcode.
             Return a tuple of project and project type.
         """
-        sql = """select p.project from project p inner join
-                 project_barcode pb on (pb.project_id = p.project_id)
-                 where pb.barcode = %s"""
-        results = self._con.execute_fetchone(sql, [barcode])
-        proj = results[0]
-        #this will get changed to get the project type from the db
-        if proj in ('American Gut Project', 'ICU Microbiome', 'Handout Kits',
-                    'Office Succession Study',
-                    'American Gut Project: Functional Feces',
-                    'Down Syndrome Microbiome', 'Beyond Bacteria',
-                    'All in the Family', 'American Gut Handout kit',
-                    'Personal Genome Project', 'Sleep Study',
-                    'Anxiety/Depression cohort', 'Alzheimers Study'):
+        sql = """SELECT project from barcodes.project
+                 JOIN barcodes.project_barcode USING (project_id)
+                 where barcode = %s"""
+        results = [x[0] for x in self._con.execute_fetchall(sql, [barcode])]
+        if 'American Gut Project' in results:
             proj_type = 'American Gut'
+            results.remove('American Gut Project')
+            proj = ', '.join(results)
         else:
+            proj = ', '.join(results)
             proj_type = proj
         return (proj, proj_type)
 
