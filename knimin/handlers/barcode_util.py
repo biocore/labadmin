@@ -5,6 +5,7 @@ from urllib import unquote
 import time
 
 from amgut.connections import ag_data
+from knimin import db
 from amgut.lib.mail import send_email
 
 
@@ -32,7 +33,7 @@ class BarcodeUtilHandler(BaseHandler):
         ag_details = {}
         if bstatus is None:
             # gather info to display
-            barcode_details = ag_data.get_barcode_details(barcode)
+            barcode_details = db.get_barcode_details(barcode)
             if len(barcode_details) == 0:
                 div_id = "invalid_barcode"
                 message = ("Barcode %s does not exisit in the database" %
@@ -46,9 +47,9 @@ class BarcodeUtilHandler(BaseHandler):
                             currentuser=self.current_user)
                 return
             else:
-                proj_type, proj_group = ag_data.getBarcodeProjType(
+                proj_type, proj_group = db.getBarcodeProjType(
                     barcode)
-                project_names = ag_data.getProjectNames()
+                project_names = db.getProjectNames()
                 # barcode exists get general info
                 if barcode_details['status'] is None:
                     barcode_details['status'] = 'Received'
@@ -86,7 +87,7 @@ class BarcodeUtilHandler(BaseHandler):
             #now we collect data and update based on forms
             #first update general barcode info
             try:
-                ag_data.updateBarcodeStatus('Received', postmark_date,
+                db.updateBarcodeStatus('Received', postmark_date,
                                                    scan_date, barcode,
                                                    biomass_remaining_value,
                                                    sequencing_status,
@@ -95,15 +96,15 @@ class BarcodeUtilHandler(BaseHandler):
             except:
                 msg1 = "Barcode %s general details failed" % barcode
             msg2 = msg3 = msg4 = None
-            exisiting_proj, proj_group = ag_data.getBarcodeProjType(
+            exisiting_proj, proj_group = db.getBarcodeProjType(
                 barcode)
             if exisiting_proj != project:
                 try:
-                    ag_data.setBarcodeProjType(project, barcode)
+                    db.setBarcodeProjType(project, barcode)
                     msg4 = "Project successfully changed"
                 except:
                     msg4 = "Error changing project"
-                new_proj, proj_group = ag_data.getBarcodeProjType(
+                new_proj, proj_group = db.getBarcodeProjType(
                     barcode)
             if proj_group == 'American Gut':
                 msg2, msg3 = self.update_ag_barcode(barcode)
@@ -155,7 +156,7 @@ class BarcodeUtilHandler(BaseHandler):
             else:
                 ag_details['other_checked'] = ''
 
-            barcode_metadata = ag_data.AGGetBarcodeMetadata(
+            barcode_metadata = db.AGGetBarcodeMetadata(
                 barcode)
             if not (ag_details['sample_date'] ==
                     ag_details['site_sampled'] ==
@@ -170,11 +171,11 @@ class BarcodeUtilHandler(BaseHandler):
                     ag_details['email_type'] = "1"
                 elif len(barcode_metadata) == 0:
                     barcode_metadata_animal = \
-                        ag_data.AGGetBarcodeMetadataAnimal(
+                        db.AGGetBarcodeMetadataAnimal(
                             barcode)
                     if len(barcode_metadata_animal) == 0:
                         #check for new survey
-                        if ag_data.ag_new_survey_exists(barcode):
+                        if db.ag_new_survey_exists(barcode):
                             div_id = "verified"
                             message = "All good"
                             ag_details['email_type'] = "1"
@@ -307,7 +308,7 @@ Thank you for your participation!
         if 'other' in sample_issue:
             other = 'Y'
         try:
-            ag_data.updateAKB(barcode, moldy, overloaded, other,
+            db.updateAKB(barcode, moldy, overloaded, other,
                                      self.get_argument('other_text', None),
                                      sent_date)
             msg3 = ("Barcode %s AG info was sucessfully updated" % barcode)

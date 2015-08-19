@@ -3,6 +3,9 @@ from collections import defaultdict, namedtuple
 from re import sub
 from hashlib import md5
 from datetime import datetime
+import urllib
+import json
+import httplib
 
 from bcrypt import hashpw, gensalt
 
@@ -17,6 +20,10 @@ class IncorrectEmailError(Exception):
 
 
 class IncorrectPasswordError(Exception):
+    pass
+
+
+class GoogleAPILimitExceeded(Exception):
     pass
 
 
@@ -158,6 +165,32 @@ class SQLHandler(object):
             result = pgcursor.fetchone()
         return result
 
+    def execute_fetchdict(self, sql, sql_args=None):
+        """ Executes a fetchall SQL query and returns each row as a dict
+
+        Parameters
+        ----------
+        sql: str
+            The SQL query
+        sql_args: tuple or list, optional
+            The arguments for the SQL query
+
+        Returns
+        -------
+        list of dict
+            The results of the query as [{colname: val, colname: val, ...}, ...]
+
+        Notes
+        -----
+        from psycopg2 documentation, only variable values should be bound
+            via sql_args, it shouldn't be used to set table or field names. For
+            those elements, ordinary string formatting should be used before
+            running execute.
+        """
+        with self._sql_executor(sql, sql_args) as pgcursor:
+            result = [dict(row) for row in pgcursor.fetchall()]
+        return result
+
     def execute(self, sql, sql_args=None):
         """ Executes an SQL query with no results
 
@@ -218,7 +251,18 @@ class KniminAccess(object):
         self._con = SQLHandler(config)
         self._con.execute('set search_path to ag, barcodes, public')
 
-    def get_barcode_details(self, barcodes):
+    def get_barcode_details(self, barcode):
+        """
+        Returns the general barcode details for a barcode
+        """
+        sql = """SELECT  create_date_time, status, scan_date,
+                  sample_postmark_date,
+                  biomass_remaining, sequencing_status, obsolete
+                  FROM    barcode
+                  WHERE barcode = %s"""
+        return dict(self._con.execute_fetchone(sql, [barcode]))
+
+    def get_ag_barcode_details(self, barcodes):
         """Retrieve sample, kit, and login details by barcode
 
         Parameters
@@ -236,13 +280,8 @@ class KniminAccess(object):
                  JOIN ag_kit USING (ag_kit_id)
                  JOIN ag_login USING (ag_login_id)
                  WHERE barcode in %s"""
-
-        with self._con.cursor() as cur:
-            cur.execute(sql, [tuple(barcodes)])
-            headers = [x[0] for x in cur.description][1:]
-            results = {row[0]: dict(zip(headers, row[1:]))
-                       for row in cur.fetchall()}
-
+        results = {row[0]: dict(row)
+                   for row in self._con.execute_fetchall(sql, [tuple(barcodes)])}
         return results
 
     def get_surveys(self, barcodes):
@@ -413,7 +452,7 @@ class KniminAccess(object):
         """
         # get barcode information
         all_barcodes = set().union(*[set(md[s]) for s in md])
-        barcode_info = self.get_barcode_details(all_barcodes)
+        barcode_info = self.get_ag_barcode_details(all_barcodes)
 
         # Human survey (id 1)
 
@@ -1000,3 +1039,514 @@ class KniminAccess(object):
             select_sql += " LIMIT %s"
             sql_args.append(limit)
         return self._con.execute_fetchall(select_sql, sql_args)
+
+    def add_external_survey(self, survey, description, url):
+        """Adds a new external survey to the database
+
+        Parameters
+        ----------
+        survey : str
+            Name of the external survey
+        description : str
+            Short description of what the survey is about
+        url : str
+            URL for the external survey
+        """
+        sql = """INSERT INTO ag.external_survey_sources
+                 (external_survey, external_survey_description,
+                  external_survey_url)
+                 VALUES (%s, %s, %s)
+                 RETURNING external_survey_id"""
+        return self._con.execute_fetchone(sql, [survey, description, url])[0]
+
+    def store_external_survey(self, in_file, survey, pulldown_date=None,
+                              separator="\t", survey_id_col="survey_id"):
+        """Stores third party survey answers in the database
+
+        Parameters
+        ----------
+        in_file : str
+            Filepath to the survey answers spreadsheet
+        survey : str
+            What third party survey this belongs to
+        pulldown_date : datetime object, optional
+            When the data was pulled from the external source, default now()
+        separator : str, optional
+            What separator is used, default tab
+        survey_id_col : str
+            What column header holds the associated user AG survey id
+            Default 'survey_id'
+
+        Raises
+        ------
+        ValueError
+            Survey passed is not found
+        """
+        # Get the external survey ID
+        sql = """SELECT external_survey_id
+                 FROM external_survey_sources
+                 WHERE external_survey = %s"""
+        external_id = self._con.execute_fetchall(sql, [survey])
+        if not external_id:
+            raise ValueError("Unknown external survey: %s" % survey)
+        external_id = external_id[0]
+        if pulldown_date is None:
+            pulldown_date = datetime.now()
+
+        # Load file data into insertable json format
+        inserts = []
+        with open(in_file) as f:
+            header = f.readline().strip().split('\t')
+            for line in f:
+                line = line.strip()
+                hold = {h: v.strip() for h, v in zip(header, line.split('\t'))}
+                sid = hold[survey_id_col]
+                del hold[survey_id_col]
+                inserts.append([sid, external_id, pulldown_date, json.dumps(hold)])
+
+        # insert into the database
+        sql = """INSERT INTO ag.external_survey_answers
+                 (survey_id, external_survey_id, pulldown_date, answers)
+                 VALUES (%s, %s, %s, %s)"""
+        self._con.executemany(sql, inserts)
+
+    def get_external_survey(self, survey, survey_ids, pulldown_date=None):
+        """Get the answers to a survey for given survey IDs
+
+        Parameters
+        ----------
+        survey : str
+            Survey to retrieve answers for
+        survey_ids : list of str
+            AG survey ids to retrieve answers for
+        pulldown_date : datetime object, optional
+            Specific pulldown date to limit answers to, default None
+
+        Returns
+        -------
+        dict of dicts
+            Answers to the survey keyed to the given survey IDs, in the form
+            {survey_id: {header1: answer, header2: answer, ...}, ...}
+
+        Notes
+        -----
+        If there are multiple pulldowns for a given survey_id, the newest one
+        will be returned.
+        """
+        # Do pulldown of ids and answers, ordered so newest comes out last
+        # This allows you to not specify pulldown date and still get newest
+        # answers for the survey
+        sql = """SELECT survey_id, answers FROM
+                 (SELECT * FROM ag.external_survey_answers
+                 JOIN ag.external_survey_sources USING (external_survey_id)
+                 WHERE external_survey = %s{0}
+                 ORDER BY pulldown_date ASC)"""
+        sql_args = [survey]
+        format_str = ""
+        if pulldown_date is not None:
+            format_str = " AND pulldown_date = %s "
+            sql_args.append(pulldown_date)
+
+        return {s: json.loads(a)
+                for s, a in self._con.execute_fetchall(
+                    sql.format(format_str), sql_args)}
+
+    def updateAGLogin(self, ag_login_id, email, name, address, city, state,
+                      zipcode, country):
+        sql = """UPDATE  ag_login
+                SET email = %s, name = %s, address = %s, city = %s, state = %s,
+                    zip = %s, country = %s
+                WHERE ag_login_id = %s"""
+        self._con.execute(sql, [email.strip().lower(), name,
+                                address, city, state, zipcode, country,
+                                ag_login_id])
+
+    def updateAGKit(self, ag_kit_id, supplied_kit_id, kit_password,
+                    swabs_per_kit, kit_verification_code):
+        kit_password = hashpw(kit_password)
+        sql = """UPDATE ag_kit
+                 SET supplied_kit_id = %s, kit_password = %s,
+                     swabs_per_kit = %s, kit_verification_code = %s
+                 WHERE ag_kit_id = %s"""
+
+        self._con.execute(sql, [supplied_kit_id, kit_password, swabs_per_kit,
+                                kit_verification_code, ag_kit_id])
+
+    def updateAGBarcode(self, barcode, ag_kit_id, site_sampled,
+                        environment_sampled, sample_date, sample_time,
+                        participant_name, notes, refunded, withdrawn):
+        sql = """UPDATE  ag_kit_barcodes
+                 SET ag_kit_id = %s, site_sampled = %s, environment_sampled = %s,
+                     sample_date = %s, sample_time = %s, participant_name = %s,
+                     notes = %s, refunded = %s, withdrawn = %s
+                 WHERE barcode = %s"""
+        self._con.execute(sql, [ag_kit_id, site_sampled, environment_sampled,
+                                sample_date, sample_time, participant_name,
+                                notes, refunded, withdrawn, barcode])
+
+    def AGGetBarcodeMetadata(self, barcode):
+        results = self._con.execute_proc_return_cursor(
+            'ag_get_barcode_metadata', [barcode])
+        rows = results.fetchall()
+        results.close()
+
+        return [dict(row) for row in rows]
+
+    def AGGetBarcodeMetadataAnimal(self, barcode):
+        results = self._con.execute_proc_return_cursor(
+            'ag_get_barcode_md_animal', [barcode])
+        rows = results.fetchall()
+        results.close()
+
+        return [dict(row) for row in rows]
+
+    def addGeocodingInfo(self, limit=None, retry=False):
+        """Adds latitude, longitude, and elevation to ag_login_table
+
+        Uses the city, state, zip, and country from the database to retrieve
+        lat, long, and elevation from the google maps API.
+
+        If any of that information cannot be retrieved, then cannot_geocode
+        is set to 'y' in the ag_login table, and it will not be tried again
+        on subsequent calls to this function.  Pass retry=True to retry all
+        (or maximum of limit) previously failed geocodings.
+        """
+
+        # clear previous geocoding attempts if retry is True
+        if retry:
+            sql = """SELECT cast(ag_login_id as varchar(100)) FROM ag_login
+                WHERE cannot_geocode = 'y'"""
+            logins = [x[0] for x in self._con.execute_fetchall(sql)]
+
+            for ag_login_id in logins:
+                self.updateGeoInfo(ag_login_id, None, None, None, '')
+
+        # get logins that have not been geocoded yet
+        sql = """SELECT city, state, zip, country,
+                     cast(ag_login_id as varchar(100))
+                FROM ag_login
+                WHERE elevation is NULL AND cannot_geocode is NULL"""
+        logins = self._con.execute_fetchall(sql)
+
+        row_counter = 0
+        for row in logins:
+            row_counter += 1
+            if limit is not None and row_counter > limit:
+                break
+
+            ag_login_id = row[4]
+            # Attempt to geocode
+            address = '{0} {1} {2} {3}'.format(row[0], row[1], row[2], row[3])
+            encoded_address = urllib.urlencode({'address': address})
+            url = '/maps/api/geocode/json?{0}&sensor=false'.format(
+                encoded_address)
+
+            r = self.getGeocodeJSON(url)
+
+            if r in ('unknown_error', 'not_OK', 'no_results'):
+                # Could not geocode, mark it so we don't try next time
+                self.updateGeoInfo(ag_login_id, None, None, None, 'y')
+                continue
+            elif r == 'over_limit':
+                # If the reason for failure is merely that we are over the
+                # Google API limit, then we should try again next time
+                # ... but we should stop hitting their servers, so raise an
+                # exception
+                raise GoogleAPILimitExceeded("Exceeded Google API limit")
+
+            # Unpack it and write to DB
+            lat, lon = r
+
+            encoded_lat_lon = urllib.urlencode(
+                {'locations': ','.join(map(str, [lat, lon]))})
+
+            url2 = '/maps/api/elevation/json?{0}&sensor=false'.format(
+                encoded_lat_lon)
+
+            r2 = self.getElevationJSON(url2)
+
+            if r2 in ('unknown_error', 'not_OK', 'no_results'):
+                # Could not geocode, mark it so we don't try next time
+                self.updateGeoInfo(ag_login_id, None, None, None, 'y')
+                continue
+            elif r2 == 'over_limit':
+                # If the reason for failure is merely that we are over the
+                # Google API limit, then we should try again next time
+                # ... but we should stop hitting their servers, so raise an
+                # exception
+                raise GoogleAPILimitExceeded("Exceeded Google API limit")
+
+            elevation = r2
+
+            self.updateGeoInfo(ag_login_id, lat, lon, elevation, '')
+
+    def getGeocodeJSON(self, url):
+        conn = httplib.HTTPConnection('maps.googleapis.com')
+        success = False
+        num_tries = 0
+        while num_tries < 2 and not success:
+            conn.request('GET', url)
+            result = conn.getresponse()
+
+            # Make sure we get an 'OK' status
+            if result.status != 200:
+                return 'not_OK'
+
+            data = json.loads(result.read())
+
+            # if we're over the query limit, wait 2 seconds and try again,
+            # it may just be that we're submitting requests too fast
+            if data.get('status', None) == 'OVER_QUERY_LIMIT':
+                num_tries += 1
+                sleep(2)
+            elif 'results' in data:
+                success = True
+            else:
+                return 'unknown_error'
+
+        conn.close()
+
+        # if we got here without getting an unknown_error or succeeding, then
+        # we are over the request limit for the 24 hour period
+        if not success:
+            return 'over_limit'
+
+        # sanity check the data returned by Google and return the lat/lng
+        if len(data['results']) == 0:
+            return 'no_results'
+
+        geometry = data['results'][0].get('geometry', {})
+        location = geometry.get('location', {})
+        lat = location.get('lat', {})
+        lon = location.get('lng', {})
+
+        if not lat or not lon:
+            return 'unknown_error'
+
+        return (lat, lon)
+
+    def getElevationJSON(self, url):
+        """Use Google's Maps API to retrieve an elevation
+
+        url should be formatted as described here:
+        https://developers.google.com/maps/documentation/elevation
+        /#ElevationRequests
+
+        The number of API requests is limited to 2500 per 24 hour period.
+        If this function is called and the limit is surpassed, the return value
+        will be "over_limit".  Other errors will cause the return value to be
+        "unknown_error".  On success, the return value is the elevation of the
+        location requested in the url.
+        """
+        conn = httplib.HTTPConnection('maps.googleapis.com')
+        success = False
+        num_tries = 0
+        while num_tries < 2 and not success:
+            conn.request('GET', url)
+            result = conn.getresponse()
+
+            # Make sure we get an 'OK' status
+            if result.status != 200:
+                return 'not_OK'
+
+            data = json.loads(result.read())
+
+            # if we're over the query limit, wait 2 seconds and try again,
+            # it may just be that we're submitting requests too fast
+            if data.get('status', None) == 'OVER_QUERY_LIMIT':
+                num_tries += 1
+                sleep(2)
+            elif 'results' in data:
+                success = True
+            else:
+                return 'unknown_error'
+
+        conn.close()
+
+        # if we got here without getting an unknown_error or succeeding, then
+        # we are over the request limit for the 24 hour period
+        if not success:
+            return 'over_limit'
+
+        # sanity check the data returned by Google and return the lat/lng
+        if len(data['results']) == 0:
+            return 'no_results'
+
+        elevation = data['results'][0].get('elevation', {})
+
+        if not elevation:
+            return 'unknown_error'
+
+        return elevation
+
+    def updateGeoInfo(self, ag_login_id, lat, lon, elevation, cannot_geocode):
+        sql = """UPDATE  ag_login
+                 SET latitude = %s,
+                     longitude = %s,
+                     elevation = %s,
+                     cannot_geocode = %s
+                 WHERE ag_login_id = %s"""
+        self._con.execute(sql, [lat, lon, elevation, cannot_geocode, ag_login_id])
+
+    def getGeocodeStats(self):
+        stat_queries = [
+            ("Total Rows",
+             "select count(*) from ag_login"),
+            ("Cannot Geocode",
+             "select count(*) from ag_login where cannot_geocode = 'y'"),
+            ("Null Latitude Field",
+             "select count(*) from ag_login where latitude is null"),
+            ("Null Elevation Field",
+             "select count(*) from ag_login where elevation is null")
+        ]
+        results = []
+        for name, sql in stat_queries:
+            total = self._con.execute_fetchone(sql)[0]
+            results.append((name, total))
+        return results
+
+    def getAGStats(self):
+        # returned tuple consists of:
+        # site_sampled, sample_date, sample_time, participant_name,
+        # environment_sampled, notes
+        results = self._con.execute_proc_return_cursor('ag_stats', [])
+        ag_stats = results.fetchall()
+        results.close()
+        return ag_stats
+
+    def updateAKB(self, barcode, moldy, overloaded, other, other_text,
+                  date_of_last_email):
+        """ Update ag_kit_barcodes table.
+        """
+        sql = """UPDATE  ag_kit_barcodes
+                 SET moldy = %s, overloaded = %s, other = %s, other_text = %s,
+                     date_of_last_email = %s
+                 WHERE barcode = %s"""
+        r = self._con.execute(sql, [moldy, overloaded, other, other_text,
+                                    date_of_last_email, barcode])
+        r.close()
+
+    def search_participant_info(self, term):
+        sql = """select   cast(ag_login_id as varchar(100)) as ag_login_id
+                 from    ag_login al
+                 where   lower(email) like %s or lower(name) like
+                 %s or lower(address) like %s"""
+        liketerm = '%%' + term.lower() + '%%'
+        results = self._con.execute_fetchall(sql, [liketerm, liketerm, liketerm])
+        return [x[0] for x in results]
+
+    def search_kits(self, term):
+        sql = """ select  cast(ag_login_id as varchar(100)) as ag_login_id
+                 from    ag_kit
+                 where   lower(supplied_kit_id) like %s or
+                 lower(kit_password) like %s or
+                 lower(kit_verification_code) = %s"""
+        liketerm = '%%' + term.lower() + '%%'
+        results = self._con.execute_fetchall(sql, [liketerm, liketerm, liketerm])
+        return [x[0] for x in results]
+
+    def search_barcodes(self, term):
+        sql = """select  cast(ak.ag_login_id as varchar(100)) as ag_login_id
+                 from    ag_kit ak
+                 inner join ag_kit_barcodes akb
+                 on ak.ag_kit_id = akb.ag_kit_id
+                 where   barcode like %s or lower(participant_name) like
+                 %s or lower(notes) like %s"""
+        liketerm = '%%' + term.lower() + '%%'
+        results = self._con.execute_fetchall(sql, [liketerm, liketerm, liketerm])
+        return [x[0] for x in results]
+
+    def get_kit_info_by_login(self, ag_login_id):
+        sql = """select  cast(ag_kit_id as varchar(100)) as ag_kit_id,
+                        cast(ag_login_id as varchar(100)) as ag_login_id,
+                        supplied_kit_id, kit_password, swabs_per_kit,
+                        kit_verification_code, kit_verified
+                from    ag_kit
+                where   ag_login_id = %s"""
+        self._con.execute_fetchdict(sql, [ag_login_id])
+        return []
+
+    def search_handout_kits(self, term):
+        sql = """SELECT kit_id, password, barcode, verification_code
+                 FROM ag_handout_kits
+                 JOIN (SELECT kit_id, barcode, sample_barcode_file
+                    FROM ag.ag_handout_barcodes
+                    GROUP BY kit_id, barcode) AS hb USING (kit_id)
+                 WHERE kit_id LIKE %s or barcode LIKE %s"""
+        liketerm = '%%' + term + '%%'
+        results = self._con.execute_fetchall(sql, [liketerm, liketerm])
+        return [x[0] for x in results]
+
+    def get_login_by_email(self, email):
+        sql = """select name, address, city, state, zip, country, ag_login_id
+                 from ag_login where email = %s"""
+        row = self._con.execute_fetchone(sql, [email])
+
+        login = {}
+        if row:
+            login = dict(row)
+            login['email'] = email
+
+        return login
+
+    def getAGKitsByLogin(self):
+        sql = """SELECT  lower(al.email) as email, supplied_kit_id,
+                cast(ag_kit_id as varchar(100)) as ag_kit_id
+                FROM ag_login al
+                INNER JOIN ag_kit USING (ag_login_id)
+                ORDER BY lower(email), supplied_kit_id"""
+        rows = self._con.execute_fetchall(sql)
+        return [dict(row) for row in rows]
+
+    def ag_new_survey_exists(self, barcode):
+        """
+        Returns metadata for an american gut barcode in the new database
+        tables
+        """
+        sql = "SELECT EXISTS(SELECT * from ag_kit_barcodes WHERE barcode = %s)"
+        return self._con.execute_fetchone(sql, [barcode])[0]
+
+    def get_plate_for_barcode(self, barcode):
+        """
+        Gets the sequencing plates a barcode is on
+        """
+        sql = """select  p.plate, p.sequence_date
+                 from    plate p inner join plate_barcode pb on
+                 pb.plate_id = p.plate_id \
+                where   pb.barcode = %s"""
+
+        return [dict(row) for row in self._con.execute_fetchall(sql, [barcode])]
+
+    def getBarcodeProjType(self, barcode):
+        """ Get the project type of the barcode.
+            Return a tuple of project and project type.
+        """
+        sql = """SELECT project from barcodes.project
+                 JOIN barcodes.project_barcode USING (project_id)
+                 where barcode = %s"""
+        results = [x[0] for x in self._con.execute_fetchall(sql, [barcode])]
+        if 'American Gut Project' in results:
+            proj_type = 'American Gut'
+            results.remove('American Gut Project')
+            proj = ', '.join(results)
+        else:
+            proj = ', '.join(results)
+            proj_type = proj
+        return (proj, proj_type)
+
+    def setBarcodeProjType(self, project, barcode):
+        """sets the project type of the barcodel
+
+            project is the project name from the project table
+            barcode is the barcode
+        """
+        sql = """update project_barcode set project_id =
+                (select project_id from project where project = %s)
+                where barcode = %s"""
+        self._con.execute(sql, [project, barcode])
+
+    def getProjectNames(self):
+        """Returns a list of project names
+        """
+        sql = """SELECT project FROM project"""
+        return [x[0] for x in self._con.execute_fetchall(sql)]

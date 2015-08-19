@@ -5,6 +5,7 @@ from urllib import unquote
 
 
 from amgut.connections import ag_data
+from knimin import db
 
 
 class AGSearchHandler(BaseHandler):
@@ -18,18 +19,18 @@ class AGSearchHandler(BaseHandler):
         term = self.get_argument('search_term')
         results = {}
         # search participant info
-        logins = ag_data.search_participant_info(term)
+        logins = db.search_participant_info(term)
         results = set(logins)
         # search kit info and add to resluts
-        logins = ag_data.search_kits(term)
+        logins = db.search_kits(term)
         results = results | set(logins)
         #  search barcode and add to results
-        logins = ag_data.search_barcodes(term)
+        logins = db.search_barcodes(term)
         results = results | set(logins)
         # search handout kits
-        handouts = ag_data.search_handout_kits(term)
+        handouts = db.search_handout_kits(term)
 
-        #now take the ag_login_ids and collect the information to display
+        # now take the ag_login_ids and collect the information to display
         display_results = []  # list of dictionatries
         for login in results:
             login_display = {}
@@ -38,18 +39,18 @@ class AGSearchHandler(BaseHandler):
                 login)
             login_display['animals'] = ag_data.getAnimalParticipants(
                 login)
-            login_display['kit'] = ag_data.get_kit_info_by_login(login)
+            login_display['kit'] = db.get_kit_info_by_login(login)
             for kit in login_display['kit']:
                 barcode_info = {}
-                ag_barcodes = ag_data.get_barcode_info_by_kit_id(
+                ag_barcodes = db.get_barcode_info_by_kit_id(
                     kit['ag_kit_id'])
                 barcode_info = {}
                 for ag_barcode in ag_barcodes:
                     barcode_info[ag_barcode['barcode']] = {}
                     barcode_info[ag_barcode['barcode']]['ag_info'] = ag_barcode
-                    lab_barcode_info = ag_data.get_barcode_details(
+                    lab_barcode_info = db.get_barcode_details(
                         ag_barcode['barcode'])
-                    plate = ag_data.get_plate_for_barcode(
+                    plate = db.get_plate_for_barcode(
                         ag_barcode['barcode'])
                     barcode_info[ag_barcode['barcode']]['barcode_info'] = \
                         lab_barcode_info
