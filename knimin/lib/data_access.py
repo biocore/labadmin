@@ -3,6 +3,7 @@ from collections import defaultdict, namedtuple
 from re import sub
 from hashlib import md5
 from datetime import datetime
+import json
 
 from bcrypt import hashpw, gensalt
 
@@ -1194,7 +1195,7 @@ class KniminAccess(object):
         sql = """INSERT INTO ag.zipcodes (zipcode, latitude, longitude, elevation,
                                         city, state, cannot_geocode)
                  VALUES (%s,%s,%s,%s,%s,%s,%s)"""
-        self._con.execute(sql, info[:-1].append(cannot_geocode))
+        self._con.execute(sql, info[:-1] + (cannot_geocode, ))
         return info
 
     def addGeocodingInfo(self, limit=None, retry=False):
