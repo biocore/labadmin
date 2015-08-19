@@ -1,0 +1,28 @@
+{% extends logged_in_index.html %}
+{% block head %}
+{% from json import dumps %}
+<script type="text/javascript">
+    $(document).ready(function() {
+        $(".chosen-select").chosen({'width': '100%'});
+    });
+</script>
+{% end %}
+
+{% block content %}
+<form method="post" action="/ag_add_barcode_kit/" name="barcode-form" id="barcode-form">
+<h3>Add barcode to existing AG kit</h3>
+	<p>Kit id: 
+	<select name="kit_id" class="chosen-select">
+		{% for kid in kit_ids %}
+			<option value='{{kid}}'>{{kid}}</option>
+		{% end%}
+	</select></p>
+	<p>Number of Barcodes: 
+	<select name="num_barcodes">
+		{% for i in range(1, 11) %}
+			<option value='{{i}}'>{{i}}</option>
+		{% end%}
+	</select></p>
+<input type="submit">
+</form>
+{% end %}

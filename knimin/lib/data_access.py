@@ -848,6 +848,52 @@ class KniminAccess(object):
 
         return False
 
+    def getAGKitDetails(self, supplied_kit_id):
+        sql = """SELECT
+                 cast(ag_kit_id AS varchar(100)), supplied_kit_id,
+                 kit_password, swabs_per_kit, kit_verification_code,
+                 kit_verified, verification_email_sent
+                 FROM ag_kit
+                 WHERE supplied_kit_id = %s"""
+        res = self._con.execute_fetchone(sql, [supplied_kit_id])
+        if res is not None:
+            return dict(res)
+        else:
+            return {}
+
+    def add_barcodes_to_kit(self, ag_kit_id, num_barcodes=1):
+        """Attaches barcodes to an existing american gut kit
+
+        Parameters
+        ----------
+        ag_kit_id : str
+            Kit ID to attach barcodes to
+        num_barcodes : int, optional
+            Number of barcodes to attach. Default 1
+        """
+        barcodes = self.get_unassigned_barcodes(num_barcodes)
+        # assign barcodes to projects for the kit
+        sql = """SELECT DISTINCT project_id FROM barcodes.project_barcode
+                 JOIN ag.ag_kit_barcodes USING (barcode)
+                 WHERE ag_kit_id = %s"""
+        proj_ids = [x[0] for x in self._con.execute_fetchall(sql, [ag_kit_id])]
+        barcode_project_insert = """INSERT INTO project_barcode
+                                    (barcode, project_id)
+                                    VALUES (%s, %s)"""
+        project_inserts = []
+        for barcode in barcodes:
+            for project in proj_ids:
+                project_inserts.append((barcode, project))
+        self._con.executemany(barcode_project_insert, project_inserts)
+
+        # Add barcodes to the kit
+        sql = """INSERT  INTO ag_kit_barcodes
+                (ag_kit_id, barcode, sample_barcode_file)
+                VALUES (%s, %s, %s || '.jpg')"""
+        barcode_info = [(ag_kit_id, b, b) for b in barcodes]
+        for info in barcode_info:
+            self._con.execute(sql, info)
+
     def create_ag_kits(self, swabs_kits, tag=None, projects=None):
         """ Creates american gut handout kits on the database
 
