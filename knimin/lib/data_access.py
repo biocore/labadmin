@@ -1129,7 +1129,7 @@ class KniminAccess(object):
         If the tuple contains nothing but the zipcode and None for all other
         fields, no geocode was found so zipcode was not added.
         """
-        sql = "SELECT EXISTS(SELECT * from ag.zipcode WHERE zipcode = %s)"
+        sql = "SELECT EXISTS(SELECT * from ag.zipcodes WHERE zipcode = %s)"
         if self._con.execute_fetchone(sql, [zipcode])[0]:
             raise ValueError("Zipcode %s already in table!" % zipcode)
 
@@ -1137,7 +1137,7 @@ class KniminAccess(object):
         cannot_geocode = False
         if not info.lat:
             cannot_geocode = True
-        sql = """INSERT INTO ag.zipcode(zipcode, latitude, longitude, elevation,
+        sql = """INSERT INTO ag.zipcodes (zipcode, latitude, longitude, elevation,
                                         city, state, cannot_geocode)
                  VALUES (%s,%s,%s,%s,%s,%s,%s)"""
         self._con.execute(sql, info[:-1].append(cannot_geocode))
