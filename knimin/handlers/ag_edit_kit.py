@@ -2,7 +2,7 @@
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
 
-from amgut.connections import ag_data
+from knimin import db
 
 
 class AGEditKitHandler(BaseHandler):
@@ -10,8 +10,8 @@ class AGEditKitHandler(BaseHandler):
     def get(self):
         kitid = self.get_argument('kitid', None)
         if kitid is not None:
-            kitdetails = ag_data.getAGKitDetails(kitid)
-            email = ag_data.get_user_info(kitid)['email']
+            kitdetails = db.getAGKitDetails(kitid)
+            email = db.get_user_info(kitid)['email']
             self.render("ag_edit_kit.html", response=None, email=email,
                         kitinfo=kitdetails, currentuser=self.current_user)
 
@@ -23,7 +23,7 @@ class AGEditKitHandler(BaseHandler):
         swabs_per_kit = self.get_argument('swabs_per_kit')
         vercode = self.get_argument('kit_verification_code')
         try:
-            ag_data.updateAGKit(ag_kit_id, kit_id, passwd,
+            db.updateAGKit(ag_kit_id, kit_id, passwd,
                                        swabs_per_kit, vercode)
             self.render("ag_edit_kit.html", response='Good', email=None,
                         kitinfo=None, currentuser=self.current_user)

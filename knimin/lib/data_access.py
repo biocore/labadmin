@@ -247,9 +247,47 @@ class SQLHandler(object):
 
 
 class KniminAccess(object):
+    # arbitrary, unique ID and value
+    human_sites = ['Stool',
+                   'Mouth',
+                   'Right hand',
+                   'Left hand',
+                   'Forehead',
+                   'Nares',
+                   'Hair',
+                   'Tears',
+                   'Nasal mucus',
+                   'Ear wax',
+                   'Vaginal mucus']
+
+    animal_sites = ['Stool',
+                    'Mouth',
+                    'Nares',
+                    'Ears',
+                    'Skin',
+                    'Fur']
+
+    general_sites = ['Animal Habitat',
+                     'Biofilm',
+                     'Dust',
+                     'Food',
+                     'Fermented Food',
+                     'Indoor Surface',
+                     'Outdoor Surface',
+                     'Plant habitat',
+                     'Soil',
+                     'Sole of shoe',
+                     'Water']
+
     def __init__(self, config):
         self._con = SQLHandler(config)
         self._con.execute('set search_path to ag, barcodes, public')
+
+    def _get_col_names_from_cursor(self, cur):
+        if cur.description:
+            return [x[0] for x in cur.description]
+        else:
+            return []
 
     def get_barcode_details(self, barcode):
         """
@@ -1197,6 +1235,19 @@ class KniminAccess(object):
                 for s, a in self._con.execute_fetchall(
                     sql.format(format_str), sql_args)}
 
+    def addAGLogin(self, email, name, address, city, state, zip_, country):
+        clean_email = email.strip().lower()
+        sql = "select ag_login_id from ag_login WHERE LOWER(email) = %s"
+        ag_login_id = self._con.execute_fetchone(sql, [clean_email])
+        if not ag_login_id:
+            # create the login
+            sql = ("INSERT INTO ag_login (email, name, address, city, state, "
+                   "zip, country) VALUES (%s, %s, %s, %s, %s, %s, %s) "
+                   "RETURNING ag_login_id")
+            ag_login_id = self._con.execute_fetchone(
+                sql, [clean_email, name, address, city, state, zip_, country])
+        return ag_login_id[0]
+
     def updateAGLogin(self, ag_login_id, email, name, address, city, state,
                       zipcode, country):
         sql = """UPDATE  ag_login
@@ -1465,12 +1516,26 @@ class KniminAccess(object):
         """ Update ag_kit_barcodes table.
         """
         sql = """UPDATE  ag_kit_barcodes
-                 SET moldy = %s, overloaded = %s, other = %s, other_text = %s,
-                     date_of_last_email = %s
+                 SET moldy = %s, overloaded = %s, other = %s,
+                     other_text = %s, date_of_last_email = %s
                  WHERE barcode = %s"""
-        r = self._con.execute(sql, [moldy, overloaded, other, other_text,
-                                    date_of_last_email, barcode])
-        r.close()
+        self._con.execute(sql, [moldy, overloaded, other,
+                          other_text, date_of_last_email, barcode])
+
+    def updateBarcodeStatus(self, status, postmark, scan_date, barcode,
+                            biomass_remaining, sequencing_status, obsolete):
+        """ Updates a barcode's status
+        """
+        sql = """update  barcode
+        set     status = %s,
+            sample_postmark_date = %s,
+            scan_date = %s,
+            biomass_remaining = %s,
+            sequencing_status = %s,
+            obsolete = %s
+        where   barcode = %s"""
+        self._con.execute(sql, [status, postmark, scan_date, biomass_remaining,
+                                sequencing_status, obsolete, barcode])
 
     def search_participant_info(self, term):
         sql = """select   cast(ag_login_id as varchar(100)) as ag_login_id
@@ -1535,6 +1600,41 @@ class KniminAccess(object):
 
         return login
 
+    def get_login_info(self, ag_login_id):
+        sql = """SELECT  ag_login_id, email, name, address, city, state, zip,
+                         country
+                 FROM    ag_login
+                 WHERE   ag_login_id = %s"""
+        return [dict(row) for row in self._con.execute_fetchall(sql, [ag_login_id])]
+
+    def getAGBarcodeDetails(self, barcode):
+        sql = """SELECT  email, cast(ag_kit_barcode_id as varchar(100)),
+                    cast(ag_kit_id as varchar(100)), barcode,  site_sampled,
+                    environment_sampled, sample_date, sample_time,
+                    participant_name, notes, refunded, withdrawn, moldy, other,
+                    other_text, date_of_last_email ,overloaded, name, status
+                 FROM ag_kit_barcodes akb
+                 JOIN ag_kit USING(ag_kit_id)
+                 JOIN ag_login USING (ag_login_id)
+                 JOIN barcode USING(barcode)
+                 WHERE barcode = %s"""
+
+        results = self._con.execute_fetchone(sql, [barcode])
+        if not results:
+            return {}
+        else:
+            return dict(results)
+
+    def getHumanParticipants(self, ag_login_id):
+        # get people from new survey setup
+        sql = """SELECT participant_name from ag.ag_login_surveys
+                 JOIN ag.survey_answers USING (survey_id)
+                 JOIN ag.group_questions gq USING (survey_question_id)
+                 JOIN ag.surveys ags USING (survey_group)
+                 WHERE ag_login_id = %s AND ags.survey_id = %s"""
+        results = self._con.execute_fetchall(sql, [ag_login_id, 1])
+        return [row[0] for row in results]
+
     def getAGKitsByLogin(self):
         sql = """SELECT  lower(al.email) as email, supplied_kit_id,
                 cast(ag_kit_id as varchar(100)) as ag_kit_id
@@ -1543,6 +1643,15 @@ class KniminAccess(object):
                 ORDER BY lower(email), supplied_kit_id"""
         rows = self._con.execute_fetchall(sql)
         return [dict(row) for row in rows]
+
+    def getAnimalParticipants(self, ag_login_id):
+        sql = """SELECT participant_name from ag.ag_login_surveys
+                 JOIN ag.survey_answers USING (survey_id)
+                 JOIN ag.group_questions gq USING (survey_question_id)
+                 JOIN ag.surveys ags USING (survey_group)
+                 WHERE ag_login_id = %s AND ags.survey_id = %s"""
+        return [row[0] for row in self._con.execute_fetchall(
+                    sql, [ag_login_id, 2])]
 
     def ag_new_survey_exists(self, barcode):
         """
@@ -1586,7 +1695,8 @@ class KniminAccess(object):
             project is the project name from the project table
             barcode is the barcode
         """
-        sql = """update project_barcode set project_id =
+        sql = """UPDATE project_barcode
+                 SET project_id =
                 (select project_id from project where project = %s)
                 where barcode = %s"""
         self._con.execute(sql, [project, barcode])

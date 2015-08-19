@@ -8,7 +8,6 @@ __email__ = "adam.robbinspianka@colorado.edu"
 __status__ = "Development"
 
 from random import choice
-from amgut.connections import ag_data
 
 # character sets for kit id, passwords and verification codes
 KIT_ALPHA = "abcdefghjkmnpqrstuvwxyz"  # removed l and o for clarity

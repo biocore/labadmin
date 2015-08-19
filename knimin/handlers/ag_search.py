@@ -1,10 +1,8 @@
-#!/usr/bin/env pythonget_barcode_info_by_kit_id
+#!/usr/bin/env python
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
 from urllib import unquote
 
-
-from amgut.connections import ag_data
 from knimin import db
 
 
@@ -34,10 +32,10 @@ class AGSearchHandler(BaseHandler):
         display_results = []  # list of dictionatries
         for login in results:
             login_display = {}
-            login_display['login_info'] = ag_data.get_login_info(login)
-            login_display['humans'] = ag_data.getHumanParticipants(
+            login_display['login_info'] = db.get_login_info(login)
+            login_display['humans'] = db.getHumanParticipants(
                 login)
-            login_display['animals'] = ag_data.getAnimalParticipants(
+            login_display['animals'] = db.getAnimalParticipants(
                 login)
             login_display['kit'] = db.get_kit_info_by_login(login)
             for kit in login_display['kit']:
