@@ -12,7 +12,7 @@ from psycopg2.extras import DictCursor
 
 from util import make_valid_kit_ids, make_verification_code, make_passwd
 from constants import country_lookup, md_lookup, month_lookup
-from geocoder import geocode, GoogleAPILimitExceeded
+from geocoder import geocode, Location, GoogleAPILimitExceeded
 
 
 class IncorrectEmailError(Exception):
@@ -541,7 +541,7 @@ class KniminAccess(object):
             # GENDER to SEX
             sex = md[1][barcode]['GENDER']
             del md[1][barcode]['GENDER']
-            if type(sex) == str:
+            if sex is not None:
                 sex = sex.lower()
             md[1][barcode]['SEX'] = sex
 
@@ -576,7 +576,7 @@ class KniminAccess(object):
                     zip_lookup[md[1][barcode]['ZIP_CODE']][2]
             except KeyError:
                 # geocode unknown zip and add to zipcode table & lookup dict
-                info = self.add_zipcode(md[1][barcode]['ZIP_CODE'])
+                info = self.get_geocode_zipcode(md[1][barcode]['ZIP_CODE'])
                 zip_lookup[info.input] = [info.lat, info.long, info.elev]
                 md[1][barcode]['LATITUDE'] = info.lat if info.lat is not None else ''
                 md[1][barcode]['LONGITUDE'] = info.elev if info.long is not None else ''
@@ -639,7 +639,7 @@ class KniminAccess(object):
         metadata = {}
         for survey, bc_responses in all_results.items():
             headers = sorted(bc_responses.values()[0])
-            survey_md = [''.join(['SAMPLE_NAME\t', '\t'.join(headers)])]
+            survey_md = [''.join(['sample_name\t', '\t'.join(headers)])]
             for barcode, shortnames_answers in sorted(bc_responses.items()):
                 barcodes_seen.add(barcode)
                 ordered_answers = [shortnames_answers[h] for h in headers]
@@ -1157,8 +1157,8 @@ class KniminAccess(object):
 
         return [dict(row) for row in rows]
 
-    def add_zipcode(self, zipcode, country=None):
-        """Adds zipcode information to zipcode table
+    def get_geocode_zipcode(self, zipcode, country=None):
+        """Adds geocode information to zipcode table if needed and return info
 
         Parameters
         ----------
@@ -1174,28 +1174,26 @@ class KniminAccess(object):
             Location namedtuple in form
             Location('zip', 'lat', 'long', 'elev', 'city', 'state', 'country')
 
-        Raises
-        ------
-        ValueError
-            Zipcode already exists in table
-
         Notes
         -----
         If the tuple contains nothing but the zipcode and None for all other
         fields, no geocode was found so zipcode was not added.
         """
-        sql = "SELECT EXISTS(SELECT * from ag.zipcodes WHERE zipcode = %s)"
-        if self._con.execute_fetchone(sql, [zipcode])[0]:
-            raise ValueError("Zipcode %s already in table!" % zipcode)
         if country is None:
             country = ""
+
+        sql = """SELECT SELECT latitude, longitude, elevation, city, state
+                 FROM ag.zipcodes WHERE zipcode = %s)"""
+        zip_info = self._con.execute_fetchone(sql, [zipcode])
+        if zip_info is not None:
+            return Location([zipcode] + zip_info + [country])
 
         info = geocode('%s %s' % (zipcode, country))
         cannot_geocode = False
         if not info.lat:
             cannot_geocode = True
-        sql = """INSERT INTO ag.zipcodes (zipcode, latitude, longitude, elevation,
-                                        city, state, cannot_geocode)
+        sql = """INSERT INTO ag.zipcodes
+                     (zipcode, latitude, longitude, elevation, city, state, cannot_geocode)
                  VALUES (%s,%s,%s,%s,%s,%s,%s)"""
         self._con.execute(sql, [zipcode, info.lat, info.long, info.elev,
                                 info.city, info.state, cannot_geocode])
@@ -1240,6 +1238,7 @@ class KniminAccess(object):
             address = '{0} {1} {2} {3}'.format(city, state, zipcode, country)
             try:
                 info = geocode(address)
+                # empty string to indicate geocode was successful
                 sql_args.append([info.lat, info.long, info.elev, '', ag_login_id])
             except GoogleAPILimitExceeded:
                 # limit exceeded so no use trying to keep geocoding

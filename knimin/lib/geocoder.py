@@ -60,7 +60,7 @@ def geocode(address):
     lng = geo['geometry']['location']['lng']
 
     # loop over the pulled out data
-    ctry = ""
+    country = ""
     city = ""
     state = ""
     for geo_dict in geo['address_components']:
@@ -70,8 +70,8 @@ def geocode(address):
         elif geotype == 'administrative_area_level_1':
             state = geo_dict['short_name']
         elif geotype == "country":
-            ctry = geo_dict['long_name']
+            country = geo_dict['long_name']
     geo2 = _call_wrapper(elev_url % "%s,%s" % (lat, lng))
     elev = geo2[0]['elevation']
 
-    return Location(address, lat, lng, elev, city, state, ctry)
+    return Location(address, lat, lng, elev, city, state, country)
