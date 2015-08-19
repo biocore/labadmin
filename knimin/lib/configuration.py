@@ -63,6 +63,7 @@ class KniminConfig(object):
     def _get_main(self, config):
         """Get the configuration of the main section"""
         self.debug = config.getboolean('main', 'debug')
+        self.help_email = config.get('main', 'help_email')
 
     def _get_postgres(self, config):
         """Get the configuration of the postgres section"""
@@ -75,3 +76,10 @@ class KniminConfig(object):
     def _get_tornado(self, config):
         """Get tornado config bits"""
         self.http_port = config.getint('tornado', 'port')
+
+    def _get_email(self, config):
+        self.smtp_host = config.get('email', 'HOST')
+        self.smtp_ssl = config.getboolean('email', 'SSL')
+        self.smtp_port = config.getint('email', 'PORT')
+        self.smtp_user = config.get('email', 'USERNAME')
+        self.smtp_password = config.get('email', 'PASSWORD')
