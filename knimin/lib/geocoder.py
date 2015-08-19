@@ -14,12 +14,12 @@ def geocode(zipcode, country=None):
 
     req = requests.get(geo_url % "%s %s" % (zipcode, country))
     if req.status_code != 200:
-        raise RuntimeError('Error on geocode request')
+        raise IOError('Error on geocode request')
 
     geo = loads(req.content)
     if geo['status'] == "ZERO_RESULTS":
         # Couldn't be geocoded, so return empty namedtuple
-        return Location
+        return Location(zipcode, None, None,  None,  None, None, None)
     # Get the actual lat and long readings
     geo = geo['results'][0]
     lat = geo['geometry']['location']['lat']
@@ -40,7 +40,7 @@ def geocode(zipcode, country=None):
 
     req2 = requests.get(elev_url % "%s,%s" % (lat, lng))
     if req2.status_code != 200:
-        raise RuntimeError('Error on elevation request')
+        raise IOError('Error on elevation request')
     elev = loads(req2.content)['results'][0]['elevation']
 
     return Location(zipcode, lat, lng, elev, city, state, ctry)

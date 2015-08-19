@@ -14,7 +14,7 @@ from psycopg2.extras import DictCursor
 
 from util import make_valid_kit_ids, make_verification_code, make_passwd
 from constants import country_lookup, md_lookup, month_lookup
-
+from geocoder import geocode
 
 class IncorrectEmailError(Exception):
     pass
@@ -580,10 +580,10 @@ class KniminAccess(object):
                 md[1][barcode]['ELEVATION'] = \
                     zip_lookup[md[1][barcode]['ZIP_CODE']][2]
             except KeyError:
-                #zipcode is unknown, so leave as blank
-                md[1][barcode]['LATITUDE'] = ''
-                md[1][barcode]['LONGITUDE'] = ''
-                md[1][barcode]['ELEVATION'] = ''
+                info = add_zipcode(md[1][barcode]['ZIP_CODE'])
+                md[1][barcode]['LATITUDE'] = info['lat'] if info.lat is not None else ''
+                md[1][barcode]['LONGITUDE'] = info['long'] if info.long is not None else ''
+                md[1][barcode]['ELEVATION'] = info['elev'] if info.elev is not None else ''
 
             md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode]
             try:
@@ -1106,25 +1106,46 @@ class KniminAccess(object):
 
         return [dict(row) for row in rows]
 
-    def add_zipcode(self, zipcode):
+    def add_zipcode(self, zipcode, country=None):
         """Adds zipcode information to zipcode table
 
         Parameters
         ----------
         zipcode : str
             Zipcode to geocode
+        country : str, optional
+            Country zipcode belongs in. Default infer from zipcode. Useful
+            for countries with zipcode formated like USA
+
+        Returns
+        -------
+        info : NamedTuple
+            Location namedtuple in form
+            Location('zip', 'lat', 'long', 'elev', 'city', 'state', 'country')
 
         Raises
         ------
         ValueError
             Zipcode already exists in table
+
+        Notes
+        -----
+        If the tuple contains nothing but the zipcode and None for all other
+        fields, no geocode was found so zipcode was not added.
         """
         sql = "SELECT EXISTS(SELECT * from ag.zipcode WHERE zipcode = %s)"
         if self._con.execute_fetchone(sql, [zipcode])[0]:
             raise ValueError("Zipcode %s already in table!" % zipcode)
 
-        info = 1
-
+        info = geocode(zipcode, country)
+        if not info.lat:
+            # could not geocode so just return empty
+            return info
+        sql = """INSERT INTO ag.zipcode(zipcode, latitude, longitude, elevation,
+                                        city, state, cannot_geocode)
+                 VALUES (%s,%s,%s,%s,%s,%s,%s)"""
+        self._con.execute(sql, info[:-1] + [False])
+        return info
 
     def addGeocodingInfo(self, limit=None, retry=False):
         """Adds latitude, longitude, and elevation to ag_login_table
