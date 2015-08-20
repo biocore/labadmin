@@ -56,8 +56,6 @@ class AGSearchHandler(BaseHandler):
                 kit['barcode_info'] = barcode_info
             display_results.append(login_display)
 
-        print display_results
-
         #now render the page
         self.render("ag_search.html", results=display_results,
                     handouts=handouts, currentuser=self.current_user)
