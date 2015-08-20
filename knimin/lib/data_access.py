@@ -294,7 +294,8 @@ class KniminAccess(object):
                   biomass_remaining, sequencing_status, obsolete
                   FROM    barcode
                   WHERE barcode = %s"""
-        return dict(self._con.execute_fetchone(sql, [barcode]))
+        res = self._con.execute_fetchone(sql, [barcode])
+        return dict(res) if res else {}
 
     def get_ag_barcode_details(self, barcodes):
         """Retrieve sample, kit, and login details by barcode
