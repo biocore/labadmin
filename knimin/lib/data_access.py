@@ -1141,22 +1141,6 @@ class KniminAccess(object):
                                 sample_date, sample_time, participant_name,
                                 notes, refunded, withdrawn, barcode])
 
-    def AGGetBarcodeMetadata(self, barcode):
-        results = self._con.execute_proc_return_cursor(
-            'ag_get_barcode_metadata', [barcode])
-        rows = results.fetchall()
-        results.close()
-
-        return [dict(row) for row in rows]
-
-    def AGGetBarcodeMetadataAnimal(self, barcode):
-        results = self._con.execute_proc_return_cursor(
-            'ag_get_barcode_md_animal', [barcode])
-        rows = results.fetchall()
-        results.close()
-
-        return [dict(row) for row in rows]
-
     def get_geocode_zipcode(self, zipcode, country=None):
         """Adds geocode information to zipcode table if needed and return info
 
@@ -1303,6 +1287,16 @@ class KniminAccess(object):
         where   barcode = %s"""
         self._con.execute(sql, [status, postmark, scan_date, biomass_remaining,
                                 sequencing_status, obsolete, barcode])
+
+    def get_barcode_survey(self, barcode):
+        """Return survey ID attached to barcode"""
+        sql = """SELECT DISTINCT ags.survey_id FROM ag.ag_kit_barcodes
+                 JOIN ag.survey_answers USING (survey_id)
+                 JOIN ag.group_questions gq USING (survey_question_id)
+                 JOIN ag.surveys ags USING (survey_group)
+                 WHERE barcode = %s"""
+        res = self._con.execute_fetchone(sql, [barcode])
+        return res[0] if res else None
 
     def search_participant_info(self, term):
         sql = """select   cast(ag_login_id as varchar(100)) as ag_login_id
