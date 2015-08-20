@@ -1352,8 +1352,7 @@ class KniminAccess(object):
                     GROUP BY kit_id, barcode) AS hb USING (kit_id)
                  WHERE kit_id LIKE %s or barcode LIKE %s"""
         liketerm = '%%' + term + '%%'
-        results = self._con.execute_fetchall(sql, [liketerm, liketerm])
-        return [dict(row) for row in results]
+        return self._con.execute_fetchdict(sql, [liketerm, liketerm])
 
     def get_login_by_email(self, email):
         sql = """select name, address, city, state, zip, country, ag_login_id
@@ -1372,7 +1371,7 @@ class KniminAccess(object):
                          country
                  FROM    ag_login
                  WHERE   ag_login_id = %s"""
-        return [dict(row) for row in self._con.execute_fetchall(sql, [ag_login_id])]
+        return self._con.execute_fetchdict(sql, [ag_login_id])
 
     def getAGBarcodeDetails(self, barcode):
         sql = """SELECT  email, cast(ag_kit_barcode_id as varchar(100)),
