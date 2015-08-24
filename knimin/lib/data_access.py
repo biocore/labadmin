@@ -490,10 +490,11 @@ class KniminAccess(object):
 
         # Human survey (id 1)
         # tuples are latitude, longitude, elevation
-        zipcode_sql = """SELECT zipcode, latitude, longitude, elevation
+        zipcode_sql = """SELECT zipcode, country, latitude, longitude, elevation
                          FROM zipcodes"""
-        zip_lookup = {row[0]: tuple(row[1:])
-                      for row in self._con.execute_fetchall(zipcode_sql)}
+        zip_lookup = defaultdict(dict)
+        for row in self._con.execute_fetchall(zipcode_sql):
+            zip_lookup[row[0]].update({row[1]: tuple(row[2:])})
 
         survey_sql = "SELECT barcode, survey_id FROM ag.ag_kit_barcodes"
         survey_lookup = dict(self._con.execute_fetchall(survey_sql))
@@ -543,11 +544,7 @@ class KniminAccess(object):
             del md[1][barcode]['GENDER']
             if sex is not None:
                 sex = sex.lower()
-            md[1][barcode]['SEX'] = sex
-
-            # get COUNTRY from barcode_info
-            md[1][barcode]['COUNTRY'] = country_lookup[
-                barcode_info[barcode]['country'].lower()]
+            md[1][barcode]['SEX'] = sex            
 
             # Add MiMARKS TOT_MASS and HEIGHT_OR_LENGTH columns
             md[1][barcode]['TOT_MASS'] = md[1][barcode]['WEIGHT_KG']
@@ -569,18 +566,20 @@ class KniminAccess(object):
             # Sample-dependent information
             try:
                 md[1][barcode]['LATITUDE'] = \
-                    zip_lookup[md[1][barcode]['ZIP_CODE']][0]
+                    zip_lookup[md[1][barcode]['ZIP_CODE']][barcode_info[barcode]['country']][0]
                 md[1][barcode]['LONGITUDE'] = \
-                    zip_lookup[md[1][barcode]['ZIP_CODE']][1]
+                    zip_lookup[md[1][barcode]['ZIP_CODE']][barcode_info[barcode]['country']][1]
                 md[1][barcode]['ELEVATION'] = \
-                    zip_lookup[md[1][barcode]['ZIP_CODE']][2]
+                    zip_lookup[md[1][barcode]['ZIP_CODE']][barcode_info[barcode]['country']][2]
+                md[1][barcode]['COUNTRY'] = country_lookup[barcode_info[barcode]['country'].lower()]
             except KeyError:
-                # geocode unknown zip and add to zipcode table & lookup dict
-                info = self.get_geocode_zipcode(md[1][barcode]['ZIP_CODE'])
-                zip_lookup[info.input] = [info.lat, info.long, info.elev]
+                # geocode unknown zip/country combo and add to zipcode table & lookup dict
+                info = self.get_geocode_zipcode(md[1][barcode]['ZIP_CODE'], barcode_info[barcode]['country'])
+                zip_lookup[info.input][barcode_info[barcode]['country']] = (info.lat, info.long, info.elev)
                 md[1][barcode]['LATITUDE'] = info.lat if info.lat is not None else ''
                 md[1][barcode]['LONGITUDE'] = info.elev if info.long is not None else ''
                 md[1][barcode]['ELEVATION'] = info.elev if info.elev is not None else ''
+                md[1][barcode]['COUNTRY'] = info.country if info.country is not None else ''
 
             md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode]
             try:
@@ -1157,7 +1156,7 @@ class KniminAccess(object):
 
         return [dict(row) for row in rows]
 
-    def get_geocode_zipcode(self, zipcode, country=None):
+    def get_geocode_zipcode(self, zipcode, country):
         """Adds geocode information to zipcode table if needed and return info
 
         Parameters
@@ -1177,11 +1176,9 @@ class KniminAccess(object):
         Notes
         -----
         If the tuple contains nothing but the zipcode and None for all other
-        fields, no geocode was found so zipcode was not added.
+        fields, no geocode was found. Zipcode/country combination added as
+        'cannot_geocode'
         """
-        if country is None:
-            country = ""
-
         sql = """SELECT SELECT latitude, longitude, elevation, city, state
                  FROM ag.zipcodes WHERE zipcode = %s)"""
         zip_info = self._con.execute_fetchone(sql, [zipcode])
@@ -1192,8 +1189,13 @@ class KniminAccess(object):
         cannot_geocode = False
         if not info.lat:
             cannot_geocode = True
+        elif info.country != country:
+            # countries dont match, so blank out info
+            info = Location(zipcode, None, None, None, None, None, country)
+            cannot_geocode = True
         sql = """INSERT INTO ag.zipcodes
-                     (zipcode, latitude, longitude, elevation, city, state, cannot_geocode)
+                    (zipcode, latitude, longitude, elevation, city,
+                     state, cannot_geocode)
                  VALUES (%s,%s,%s,%s,%s,%s,%s)"""
         self._con.execute(sql, [zipcode, info.lat, info.long, info.elev,
                                 info.city, info.state, cannot_geocode])
