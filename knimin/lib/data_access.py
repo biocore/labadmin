@@ -1274,12 +1274,12 @@ class KniminAccess(object):
         # site_sampled, sample_date, sample_time, participant_name,
         # environment_sampled, notes
         stats_list = [
-            ('Total registered kits', 'SELECT count(*) FROM ag.ag_kit'),
-            ('Total registered swabs', 'SELECT count(*) FROM ag.ag_kit_barcodes'),
-            ('Total consented participants', 'SELECT count(*) FROM ag.ag_consent'),
             ('Total handout kits', 'SELECT count(*) FROM ag.ag_handout_kits'),
             ('Total handout barcodes', 'SELECT count(*) FROM ag.ag_handout_barcodes'),
-            ('Total swabs with results', "SELECT count(*) FROM ag.ag_kit_barcodes WHERE results_ready = 'Y'"),
+            ('Total consented participants', 'SELECT count(*) FROM ag.ag_consent'),
+            ('Total registered kits', 'SELECT count(*) FROM ag.ag_kit'),
+            ('Total registered barcodes', 'SELECT count(*) FROM ag.ag_kit_barcodes'),
+            ('Total barcodes with results', "SELECT count(*) FROM ag.ag_kit_barcodes WHERE results_ready = 'Y'"),
             ('Average age of participants', """SELECT AVG(AGE((yr.response || '-' ||
                                                 CASE mo.response
                                                     WHEN 'January' THEN '1'
