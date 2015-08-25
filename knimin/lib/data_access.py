@@ -294,7 +294,8 @@ class KniminAccess(object):
                   biomass_remaining, sequencing_status, obsolete
                   FROM    barcode
                   WHERE barcode = %s"""
-        return dict(self._con.execute_fetchone(sql, [barcode]))
+        res = self._con.execute_fetchdict(sql, [barcode])
+        return res[0] if res else {}
 
     def get_ag_barcode_details(self, barcodes):
         """Retrieve sample, kit, and login details by barcode
@@ -1335,25 +1336,24 @@ class KniminAccess(object):
         return [x[0] for x in results]
 
     def get_kit_info_by_login(self, ag_login_id):
-        sql = """select  cast(ag_kit_id as varchar(100)) as ag_kit_id,
+        sql = """SELECT  cast(ag_kit_id as varchar(100)) as ag_kit_id,
                         cast(ag_login_id as varchar(100)) as ag_login_id,
                         supplied_kit_id, kit_password, swabs_per_kit,
                         kit_verification_code, kit_verified
-                from    ag_kit
-                where   ag_login_id = %s"""
-        self._con.execute_fetchdict(sql, [ag_login_id])
-        return []
+                FROM    ag_kit
+                WHERE   ag_login_id = %s"""
+        info = self._con.execute_fetchdict(sql, [ag_login_id])
+        return info if info else []
 
     def search_handout_kits(self, term):
         sql = """SELECT kit_id, password, barcode, verification_code
-                 FROM ag_handout_kits
+                 FROM ag.ag_handout_kits
                  JOIN (SELECT kit_id, barcode, sample_barcode_file
                     FROM ag.ag_handout_barcodes
                     GROUP BY kit_id, barcode) AS hb USING (kit_id)
                  WHERE kit_id LIKE %s or barcode LIKE %s"""
         liketerm = '%%' + term + '%%'
-        results = self._con.execute_fetchall(sql, [liketerm, liketerm])
-        return [x[0] for x in results]
+        return self._con.execute_fetchdict(sql, [liketerm, liketerm])
 
     def get_login_by_email(self, email):
         sql = """select name, address, city, state, zip, country, ag_login_id
@@ -1372,7 +1372,7 @@ class KniminAccess(object):
                          country
                  FROM    ag_login
                  WHERE   ag_login_id = %s"""
-        return [dict(row) for row in self._con.execute_fetchall(sql, [ag_login_id])]
+        return self._con.execute_fetchdict(sql, [ag_login_id])
 
     def getAGBarcodeDetails(self, barcode):
         sql = """SELECT  email, cast(ag_kit_barcode_id as varchar(100)),
@@ -1392,9 +1392,21 @@ class KniminAccess(object):
         else:
             return dict(results)
 
+    def get_barcode_info_by_kit_id(self, ag_kit_id):
+        sql = """SELECT  cast(ag_kit_barcode_id as varchar(100)) as
+                  ag_kit_barcode_id, cast(ag_kit_id as varchar(100)) as
+                  ag_kit_id, barcode, sample_date, sample_time, site_sampled,
+                  participant_name, environment_sampled, notes, results_ready,
+                  withdrawn, refunded
+                FROM    ag_kit_barcodes
+                WHERE   ag_kit_id = %s"""
+
+        results = [dict(row) for row in self._con.execute_fetchall(sql, [ag_kit_id])]
+        return results
+
     def getHumanParticipants(self, ag_login_id):
         # get people from new survey setup
-        sql = """SELECT participant_name from ag.ag_login_surveys
+        sql = """SELECT DISTINCT participant_name from ag.ag_login_surveys
                  JOIN ag.survey_answers USING (survey_id)
                  JOIN ag.group_questions gq USING (survey_question_id)
                  JOIN ag.surveys ags USING (survey_group)
@@ -1412,7 +1424,7 @@ class KniminAccess(object):
         return [dict(row) for row in rows]
 
     def getAnimalParticipants(self, ag_login_id):
-        sql = """SELECT participant_name from ag.ag_login_surveys
+        sql = """SELECT DISTINCT participant_name from ag.ag_login_surveys
                  JOIN ag.survey_answers USING (survey_id)
                  JOIN ag.group_questions gq USING (survey_question_id)
                  JOIN ag.surveys ags USING (survey_group)
