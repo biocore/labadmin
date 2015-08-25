@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from collections import defaultdict, namedtuple
 from re import sub
 from hashlib import md5
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 
 from bcrypt import hashpw, gensalt
@@ -1273,10 +1273,43 @@ class KniminAccess(object):
         # returned tuple consists of:
         # site_sampled, sample_date, sample_time, participant_name,
         # environment_sampled, notes
-        results = self._con.execute_proc_return_cursor('ag_stats', [])
-        ag_stats = results.fetchall()
-        results.close()
-        return ag_stats
+        stats_list = [
+            ('Total registered kits', 'SELECT count(*) FROM ag.ag_kit'),
+            ('Total registered swabs', 'SELECT count(*) FROM ag.ag_kit_barcodes'),
+            ('Total consented participants', 'SELECT count(*) FROM ag.ag_consent'),
+            ('Total handout kits', 'SELECT count(*) FROM ag.ag_handout_kits'),
+            ('Total handout barcodes', 'SELECT count(*) FROM ag.ag_handout_barcodes'),
+            ('Total swabs with results', "SELECT count(*) FROM ag.ag_kit_barcodes WHERE results_ready = 'Y'"),
+            ('Average age of participants', """SELECT AVG(AGE((yr.response || '-' ||
+                                                CASE mo.response
+                                                    WHEN 'January' THEN '1'
+                                                    WHEN 'February' THEN '2'
+                                                    WHEN 'March' THEN '3'
+                                                    WHEN 'April' THEN '4'
+                                                    WHEN 'May' THEN '5'
+                                                    WHEN 'June' THEN '6'
+                                                    WHEN 'July' THEN '7'
+                                                    WHEN 'August' THEN '8'
+                                                    WHEN 'September' THEN '9'
+                                                    WHEN 'October' THEN '10'
+                                                    WHEN 'November' THEN '11'
+                                                    WHEN 'December' THEN '12'
+                                                  END || '-1')::date
+                                                )) FROM
+                                              (SELECT response, survey_id FROM ag.survey_answers WHERE survey_question_id = 112) AS yr
+                                              JOIN
+                                              (SELECT response, survey_id FROM ag.survey_answers WHERE survey_question_id = 111) AS mo USING (survey_id)
+                                              WHERE yr.response != 'Unspecified' AND mo.response != 'Unspecified'"""),
+            ('Total male participants', "SELECT count(*) FROM ag.survey_answers WHERE survey_question_id = 107 AND response = 'Male'"),
+            ('Total female participants', "SELECT count(*) FROM ag.survey_answers WHERE survey_question_id = 107 AND response = 'Female'")
+            ]
+        stats = []
+        for label, sql in stats_list:
+            res = self._con.execute_fetchone(sql)[0]
+            if type(res) == timedelta:
+                res = str(res.days/365) + " years"
+            stats.append((label, res))
+        return stats
 
     def updateAKB(self, barcode, moldy, overloaded, other, other_text,
                   date_of_last_email):
