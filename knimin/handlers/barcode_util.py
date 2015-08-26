@@ -156,6 +156,7 @@ class BarcodeUtilHandler(BaseHandler):
                 ag_details['other_checked'] = ''
 
             survey_id = db.get_barcode_survey(barcode)
+            _, failures = db.pulldown([barcode])
             if not (ag_details['sample_date'] ==
                     ag_details['site_sampled'] ==
                     ag_details['sample_time'] == ''):
@@ -165,6 +166,10 @@ class BarcodeUtilHandler(BaseHandler):
                     div_id = "not_assigned"
                     message = "Missing info"
                     ag_details['email_type'] = "0"
+                elif barcode in failures:
+                    div_id = "no_metadata"
+                    message = "Cannot retrieve metadata"
+                    ag_details['email_type'] = "-1"
                 elif survey_type[survey_id] == 'Human':
                     # and we can successfully retrieve sample
                     # metadata
@@ -183,7 +188,7 @@ class BarcodeUtilHandler(BaseHandler):
                     div_id = "md_pulldown_error"
                     message = ("This barcode has multiple entries "
                                "in the database, which should "
-                               "never happeen. Please notify "
+                               "never happen. Please notify "
                                "someone on the database crew.")
                     ag_details['email_type'] = "-1"
         else:
