@@ -577,7 +577,10 @@ class KniminAccess(object):
                     zip_lookup[md[1][barcode]['ZIP_CODE']][2]
             except KeyError:
                 # geocode unknown zip and add to zipcode table & lookup dict
-                info = self.get_geocode_zipcode(md[1][barcode]['ZIP_CODE'])
+                if md[1][barcode]['ZIP_CODE']:
+                    info = self.get_geocode_zipcode(md[1][barcode]['ZIP_CODE'])
+                else:
+                    info = Location(None, None, None, None, None, None, None)
                 zip_lookup[info.input] = [info.lat, info.long, info.elev]
                 md[1][barcode]['LATITUDE'] = info.lat if info.lat is not None else ''
                 md[1][barcode]['LONGITUDE'] = info.elev if info.long is not None else ''
@@ -639,6 +642,8 @@ class KniminAccess(object):
 
         metadata = {}
         for survey, bc_responses in all_results.items():
+            if not bc_responses:
+                continue
             headers = sorted(bc_responses.values()[0])
             survey_md = [''.join(['sample_name\t', '\t'.join(headers)])]
             for barcode, shortnames_answers in sorted(bc_responses.items()):
@@ -1455,7 +1460,6 @@ class KniminAccess(object):
         results = [x[0] for x in self._con.execute_fetchall(sql, [barcode])]
         if 'American Gut Project' in results:
             proj_type = 'American Gut'
-            results.remove('American Gut Project')
             proj = ', '.join(results)
         else:
             proj = ', '.join(results)

@@ -191,6 +191,11 @@ class BarcodeUtilHandler(BaseHandler):
                                "never happen. Please notify "
                                "someone on the database crew.")
                     ag_details['email_type'] = "-1"
+            else:
+                div_id = "not_assigned"
+                message = ("In American Gut project group but No "
+                           "American Gut info for barcode")
+                ag_details['email_type'] = "-1"
         else:
             div_id = "not_assigned"
             message = ("In American Gut project group but No "
