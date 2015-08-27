@@ -494,7 +494,7 @@ class KniminAccess(object):
                          FROM zipcodes"""
         zip_lookup = defaultdict(dict)
         for row in self._con.execute_fetchall(zipcode_sql):
-            zip_lookup[row[0]].update({row[1]: tuple(row[2:])})
+            zip_lookup[row[0]][row[1]] = tuple(row[2:])
 
         survey_sql = "SELECT barcode, survey_id FROM ag.ag_kit_barcodes"
         survey_lookup = dict(self._con.execute_fetchall(survey_sql))
@@ -564,23 +564,25 @@ class KniminAccess(object):
             md[1][barcode]['DEPTH'] = 0
 
             # Sample-dependent information
+            zipcode = md[1][barcode]['ZIP_CODE']
+            country = barcode_info[barcode]['country']
             try:
                 md[1][barcode]['LATITUDE'] = \
-                    zip_lookup[md[1][barcode]['ZIP_CODE']][barcode_info[barcode]['country']][0]
+                    zip_lookup[zipcode][country][0]
                 md[1][barcode]['LONGITUDE'] = \
-                    zip_lookup[md[1][barcode]['ZIP_CODE']][barcode_info[barcode]['country']][1]
+                    zip_lookup[zipcode][country][1]
                 md[1][barcode]['ELEVATION'] = \
-                    zip_lookup[md[1][barcode]['ZIP_CODE']][barcode_info[barcode]['country']][2]
-                md[1][barcode]['COUNTRY'] = country_lookup[barcode_info[barcode]['country'].lower()]
+                    zip_lookup[zipcode][country][2]
+                md[1][barcode]['COUNTRY'] = country_lookup[country.lower()]
             except KeyError:
                 # geocode unknown zip/country combo and add to zipcode table & lookup dict
-                if md[1][barcode]['ZIP_CODE'] and barcode_info[barcode]['country']:
-                    info = self.get_geocode_zipcode(md[1][barcode]['ZIP_CODE'], barcode_info[barcode]['country'])
-                    zip_lookup[md[1][barcode]['ZIP_CODE']][barcode_info[barcode]['country']] = (info.lat, info.long, info.elev)
+                if zipcode and country:
+                    info = self.get_geocode_zipcode(zipcode, country)
+                    zip_lookup[zipcode][country] = (info.lat, info.long, info.elev)
                 else:
                     info = Location(None, None, None, None, None, None, None)
                 md[1][barcode]['LATITUDE'] = info.lat if info.lat is not None else ''
-                md[1][barcode]['LONGITUDE'] = info.elev if info.long is not None else ''
+                md[1][barcode]['LONGITUDE'] = info.long if info.long is not None else ''
                 md[1][barcode]['ELEVATION'] = info.elev if info.elev is not None else ''
                 md[1][barcode]['COUNTRY'] = info.country if info.country is not None else ''
 
