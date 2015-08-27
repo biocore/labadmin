@@ -490,7 +490,9 @@ class KniminAccess(object):
 
         # Human survey (id 1)
         # tuples are latitude, longitude, elevation
-        zipcode_sql = """SELECT zipcode, country, latitude, longitude, elevation
+        zipcode_sql = """SELECT zipcode, country, ifnull(latitude, 'Unspecified'),
+                             ifnull(longitude, 'Unspecified'), ifnull(elevation, 'Unspecified'),
+                             ifnull(city, 'Unspecified'), ifnull(state, 'Unspecified')
                          FROM zipcodes"""
         zip_lookup = defaultdict(dict)
         for row in self._con.execute_fetchall(zipcode_sql):
@@ -573,18 +575,24 @@ class KniminAccess(object):
                     zip_lookup[zipcode][country][1]
                 md[1][barcode]['ELEVATION'] = \
                     zip_lookup[zipcode][country][2]
+                md[1][barcode]['CITY'] = \
+                    zip_lookup[zipcode][country][3]
+                md[1][barcode]['STATE'] = \
+                    zip_lookup[zipcode][country][4]
                 md[1][barcode]['COUNTRY'] = country_lookup[country.lower()]
             except KeyError:
                 # geocode unknown zip/country combo and add to zipcode table & lookup dict
                 if zipcode and country:
                     info = self.get_geocode_zipcode(zipcode, country)
-                    zip_lookup[zipcode][country] = (info.lat, info.long, info.elev)
+                    zip_lookup[zipcode][country] = (info.lat, info.long, info.elev, info.city, info.state)
                 else:
                     info = Location(None, None, None, None, None, None, None)
-                md[1][barcode]['LATITUDE'] = info.lat if info.lat is not None else ''
-                md[1][barcode]['LONGITUDE'] = info.long if info.long is not None else ''
-                md[1][barcode]['ELEVATION'] = info.elev if info.elev is not None else ''
-                md[1][barcode]['COUNTRY'] = info.country if info.country is not None else ''
+                md[1][barcode]['LATITUDE'] = info.lat if info.lat is not None else 'Unspecified'
+                md[1][barcode]['LONGITUDE'] = info.long if info.long is not None else 'Unspecified'
+                md[1][barcode]['ELEVATION'] = info.elev if info.elev is not None else 'Unspecified'
+                md[1][barcode]['CITY'] = info.city if info.city is not None else 'Unspecified'
+                md[1][barcode]['STATE'] = info.state if info.state is not None else 'Unspecified'
+                md[1][barcode]['COUNTRY'] = info.country if info.country is not None else 'Unspecified'
 
             md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode]
             try:
