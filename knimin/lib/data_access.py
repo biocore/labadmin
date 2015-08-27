@@ -574,8 +574,11 @@ class KniminAccess(object):
                 md[1][barcode]['COUNTRY'] = country_lookup[barcode_info[barcode]['country'].lower()]
             except KeyError:
                 # geocode unknown zip/country combo and add to zipcode table & lookup dict
-                info = self.get_geocode_zipcode(md[1][barcode]['ZIP_CODE'], barcode_info[barcode]['country'])
-                zip_lookup[info.input][barcode_info[barcode]['country']] = (info.lat, info.long, info.elev)
+                if md[1][barcode]['ZIP_CODE'] and barcode_info[barcode]['country']:
+                    info = self.get_geocode_zipcode(md[1][barcode]['ZIP_CODE'], barcode_info[barcode]['country'])
+                    zip_lookup[md[1][barcode]['ZIP_CODE']][barcode_info[barcode]['country']] = (info.lat, info.long, info.elev)
+                else:
+                    info = Location(None, None, None, None, None, None, None)
                 md[1][barcode]['LATITUDE'] = info.lat if info.lat is not None else ''
                 md[1][barcode]['LONGITUDE'] = info.elev if info.long is not None else ''
                 md[1][barcode]['ELEVATION'] = info.elev if info.elev is not None else ''
