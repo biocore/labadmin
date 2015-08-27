@@ -1179,11 +1179,11 @@ class KniminAccess(object):
         fields, no geocode was found. Zipcode/country combination added as
         'cannot_geocode'
         """
-        sql = """SELECT latitude, longitude, elevation, city, state
-                 FROM ag.zipcodes WHERE zipcode = %s)"""
-        zip_info = self._con.execute_fetchone(sql, [zipcode])
+        sql = """SELECT latitude, longitude, elevation, city, state, country
+                 FROM ag.zipcodes WHERE zipcode = %s and country = %s)"""
+        zip_info = self._con.execute_fetchone(sql, [zipcode, country])
         if zip_info:
-            return Location([zipcode] + zip_info + [country])
+            return Location([zipcode] + zip_info)
 
         info = geocode('%s %s' % (zipcode, country))
         cannot_geocode = False
@@ -1195,10 +1195,10 @@ class KniminAccess(object):
             cannot_geocode = True
         sql = """INSERT INTO ag.zipcodes
                     (zipcode, latitude, longitude, elevation, city,
-                     state, cannot_geocode)
-                 VALUES (%s,%s,%s,%s,%s,%s,%s)"""
+                     state, country, cannot_geocode)
+                 VALUES (%s,%s,%s,%s,%s,%s,%s, %s)"""
         self._con.execute(sql, [zipcode, info.lat, info.long, info.elev,
-                                info.city, info.state, cannot_geocode])
+                                info.city, info.state, country, cannot_geocode])
         return info
 
     def addGeocodingInfo(self, limit=None, retry=False):
