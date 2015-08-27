@@ -11,7 +11,7 @@ from psycopg2 import connect, Error as PostgresError
 from psycopg2.extras import DictCursor
 
 from util import make_valid_kit_ids, make_verification_code, make_passwd
-from constants import country_lookup, md_lookup, month_lookup
+from constants import md_lookup, month_lookup
 from geocoder import geocode, Location, GoogleAPILimitExceeded
 
 
@@ -490,7 +490,7 @@ class KniminAccess(object):
         barcode_info = self.get_ag_barcode_details(all_barcodes)
 
         # Human survey (id 1)
-        # tuples are latitude, longitude, elevation
+        # tuples are latitude, longitude, elevation, city, state
         zipcode_sql = """SELECT zipcode, country, ifnull(latitude, 'Unspecified'),
                              ifnull(longitude, 'Unspecified'), ifnull(elevation, 'Unspecified'),
                              ifnull(city, 'Unspecified'), ifnull(state, 'Unspecified')
@@ -498,6 +498,9 @@ class KniminAccess(object):
         zip_lookup = defaultdict(dict)
         for row in self._con.execute_fetchall(zipcode_sql):
             zip_lookup[row[0]][row[1]] = tuple(row[2:])
+
+        country_sql = "SELECT country, EBI from ag.iso_country_lookup"
+        country_lookup = dict(self._con.execute_fetchall(country_sql))
 
         survey_sql = "SELECT barcode, survey_id FROM ag.ag_kit_barcodes"
         survey_lookup = dict(self._con.execute_fetchall(survey_sql))
@@ -580,7 +583,7 @@ class KniminAccess(object):
                     zip_lookup[zipcode][country][3]
                 md[1][barcode]['STATE'] = \
                     zip_lookup[zipcode][country][4]
-                md[1][barcode]['COUNTRY'] = country_lookup[country.lower()]
+                md[1][barcode]['COUNTRY'] = country_lookup[country]
             except KeyError:
                 # geocode unknown zip/country combo and add to zipcode table & lookup dict
                 if zipcode and country:
@@ -593,7 +596,7 @@ class KniminAccess(object):
                 md[1][barcode]['ELEVATION'] = info.elev if info.elev is not None else 'Unspecified'
                 md[1][barcode]['CITY'] = info.city if info.city is not None else 'Unspecified'
                 md[1][barcode]['STATE'] = info.state if info.state is not None else 'Unspecified'
-                md[1][barcode]['COUNTRY'] = info.country if info.country is not None else 'Unspecified'
+                md[1][barcode]['COUNTRY'] = country_lookup[info.country] if info.country is not None else 'Unspecified'
 
             md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode]
             try:
