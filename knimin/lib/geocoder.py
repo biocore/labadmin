@@ -16,7 +16,7 @@ class GoogleAPIInvalidRequest(Exception):
     pass
 
 Location = namedtuple('Location', ['input', 'lat', 'long', 'elev', 'city',
-                      'state', 'country'])
+                      'state', 'postcode', 'country'])
 
 
 def _call_wrapper(url):
@@ -53,25 +53,30 @@ def geocode(address):
 
     geo = _call_wrapper(geo_url % address)
     if not geo:
-        return Location(address, None, None, None, None, None, None)
+        return Location(address, None, None, None, None, None, None, None)
     # Get the actual lat and long readings
     geo = geo[0]
     lat = geo['geometry']['location']['lat']
     lng = geo['geometry']['location']['lng']
 
     # loop over the pulled out data
-    country = ""
-    city = ""
-    state = ""
+    country = None
+    city = None
+    state = None
+    postcode = None
     for geo_dict in geo['address_components']:
+        if not geo_dict['types']:
+            continue
         geotype = geo_dict['types'][0]
-        if geotype == 'locality':
+        if geotype == 'locality' or geotype == "postal_town":
             city = geo_dict['long_name']
         elif geotype == 'administrative_area_level_1':
             state = geo_dict['short_name']
         elif geotype == "country":
             country = geo_dict['long_name']
+        elif geotype == "postal_code" or geotype == "postal_code_prefix":
+            postcode = geo_dict['long_name']
     geo2 = _call_wrapper(elev_url % "%s,%s" % (lat, lng))
     elev = geo2[0]['elevation']
 
-    return Location(address, lat, lng, elev, city, state, country)
+    return Location(address, lat, lng, elev, city, state, postcode, country)
