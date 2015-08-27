@@ -1179,10 +1179,10 @@ class KniminAccess(object):
         fields, no geocode was found. Zipcode/country combination added as
         'cannot_geocode'
         """
-        sql = """SELECT SELECT latitude, longitude, elevation, city, state
+        sql = """SELECT latitude, longitude, elevation, city, state
                  FROM ag.zipcodes WHERE zipcode = %s)"""
         zip_info = self._con.execute_fetchone(sql, [zipcode])
-        if zip_info is not None:
+        if zip_info:
             return Location([zipcode] + zip_info + [country])
 
         info = geocode('%s %s' % (zipcode, country))
