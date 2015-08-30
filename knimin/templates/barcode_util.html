@@ -1,4 +1,21 @@
 {% extends logged_in_index.html %}
+{% block head %}
+<script src="/static/vendor/js/chosen.jquery.min.js"></script>
+<link rel="stylesheet" type="text/css" href="/static/vendor/css/chosen.css">
+<script type="text/javascript">
+  $(function() {
+    $(".chosen-select").chosen();
+    $(".date-picker").datepicker({
+      changeMonth: true,
+      maxDate: '+0m',
+      onSelect: function(dateText, inst) {
+          $(this).focus();
+      }
+    });
+  });
+</script>
+{% end %}
+
 {% block content %}
 {% from datetime import date %}
 
@@ -30,7 +47,7 @@
            <div class="verification_text_wrapper">
               <br />
                 <h2 class="verification_text">
-                 Project type: {{proj}} <br><br>
+                 Project type: {{parent_project}} <br><br>
                  Barcode: {{div_and_msg[2]}}<br><br>
                 {{div_and_msg[1]}}</h2>
             </div>
@@ -43,43 +60,21 @@
          onsubmit="return confirm('Are you sure you want to submit and update database?')"
          onreset="return confirm('Are you sure you want to reset?')">
           <input type="hidden" name="barcode" value="{{barcode}}" />
-          <input type="hidden" name="proj_group" id="proj_group" value="{{proj_group}}"/>
+          <input type="hidden" name="parent_project" id="parent_project" value="{{parent_project}}"/>
           <ul>
           <table cellspacing="40"><tr><td>
           <h2> General Barcode Details </h2>
             <li>
                Sample postmark date (current: {{barcode_info['sample_postmark_date']}}) : <br />
                   <input type="text" name="postmark_date" id="postmark_date" value="{{barcode_info['sample_postmark_date']}}"
-                   onclick="this.select()" /> <br />
-                        <script>
-                          $(function() {
-                            $( "#postmark_date" ).datepicker({
-                                    changeMonth: true,
-                                    maxDate: '+0m',
-                                    onSelect: function(dateText, inst) {
-                                        $(this).focus();
-                                    }
-                            });
-                          });
-                        </script>
+                   onclick="this.select()" class="date-picker"/> <br />
                   (please follow the format mm/dd/yyyy. Example: 12/25/2012)
              </li>
              <li>
                Scan date (current: {{barcode_info['scan_date']}}): <br />
                {% set scandate = barcode_info['scan_date'] %}
-               {% if scandate == 'NA' %} {% set scandate = date.today().strftime('%m/%d/%Y') %} {% end %}
-               <input type="text" name="scan_date" id="scan_date" value="{{scandate}}" onclick="this.select()"/> <br />
-                        <script>
-                          $(function() {
-                            $( "#scan_date" ).datepicker({
-                                    changeMonth: true,
-                                    maxDate: '+0m',
-                                    onSelect: function(dateText, inst) {
-                                        $(this).focus();
-                                    }
-                            });
-                          });
-                        </script>
+               {% if scandate == None %} {% set scandate = date.today().strftime('%m/%d/%Y') %} {% end %}
+               <input type="text" name="scan_date" id="scan_date" value="{{scandate}}" class="date-picker" onclick="this.select()"/> <br />
                   (please follow the format mm/dd/yyyy. Example: 12/25/2012)
              </li>
              <li>
@@ -121,8 +116,20 @@
           <option value="Y" selected>Yes</option>
         {% end %}
 
-             </select></td><td>
-        {% if proj_group == 'American Gut' and len(proj_barcode_info) > 1 %}
+             </select></li>
+             <li>
+             Project <br /><select name="project" id="project" class="chosen-select" multiple>
+        {% for project in project_names %}
+            {% if project in barcode_projects %}
+                <option value="{{project}}" selected>{{project}}</option>
+            {% else %}
+                <option value="{{project}}">{{project}}</option>
+            {% end %}
+        {% end %}
+
+        </select>
+        </li></td><td>
+        {% if parent_project == 'American Gut' and len(proj_barcode_info) > 1 %}
           <input type="hidden" name="sent_date" value="{{proj_barcode_info['date_of_last_email']}}" />
           <input type="hidden" name="login_user"  value="{{proj_barcode_info['login_user']}}" />
           <input type="hidden" name="login_email" value="{{proj_barcode_info['email']}}" />
@@ -130,7 +137,7 @@
           <input type="hidden" name="sample_date" id="sample_date" value="{{proj_barcode_info['sample_date']}}"/>
           <input type="hidden" name="sample_time" id="sample_time" value="{{proj_barcode_info['sample_time']}}"/>
           <input type="hidden" name="sample_site" id="sample_site" value="{{proj_barcode_info['site_sampled']}}"/>
-            <h2>{{proj_group}} Details</h2>
+            <h2>{{parent_project}} Details</h2>
              <li>
              Sample details: <br/>
              <table>
@@ -144,7 +151,7 @@
                   <input class="checkbox" type="checkbox" name="sample_issue" id="moldy" value="moldy" {{proj_barcode_info['moldy_checked']}}/> 
                     <label for="moldy"> moldy (current: {{proj_barcode_info['moldy']}}) </label> <br />
                   <input class="checkbox" type="checkbox" name="sample_issue" id="overloaded" value="overloaded" {{proj_barcode_info['overloaded_checked']}}}/>
-                    <label for="overloaded"> overloaded (current: {{proj_barcode_info['overloaded']}}}) </label> <br />
+                    <label for="overloaded"> overloaded (current: {{proj_barcode_info['overloaded']}}) </label> <br />
                   <input class="checkbox" type="checkbox" name="sample_issue" id="other" value="other" {{proj_barcode_info['other_checked']}}/>
                     <label for="other"> other (current: {{proj_barcode_info['other']}}) </label> <br />
              </li>
@@ -152,7 +159,6 @@
                Other notes: <br />
                   <textarea name="other_text" onclick="this.select()">{{proj_barcode_info['other_text']}}</textarea>
              </li>
-            
              <li>
                Send an email notification (previously sent: {{proj_barcode_info['date_of_last_email']}}): <br />
 
