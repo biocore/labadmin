@@ -711,7 +711,7 @@ class KniminAccess(object):
 
     def getAGKitDetails(self, supplied_kit_id):
         sql = """SELECT
-                 cast(ag_kit_id AS varchar(100)), supplied_kit_id,
+                 cast(ag_kit_id AS varchar(100)) AS ag_kit_id, supplied_kit_id,
                  kit_password, swabs_per_kit, kit_verification_code,
                  kit_verified, verification_email_sent
                  FROM ag_kit
@@ -731,6 +731,11 @@ class KniminAccess(object):
             Kit ID to attach barcodes to
         num_barcodes : int, optional
             Number of barcodes to attach. Default 1
+
+        Returns
+        -------
+        barcodes : list of str
+            Barcodes attached to the kit
         """
         barcodes = self.get_unassigned_barcodes(num_barcodes)
         # assign barcodes to projects for the kit
@@ -751,9 +756,9 @@ class KniminAccess(object):
         sql = """INSERT  INTO ag_kit_barcodes
                 (ag_kit_id, barcode, sample_barcode_file)
                 VALUES (%s, %s, %s || '.jpg')"""
-        barcode_info = [(ag_kit_id, b, b) for b in barcodes]
-        for info in barcode_info:
-            self._con.execute(sql, info)
+        barcode_info = [[ag_kit_id, b, b] for b in barcodes]
+        self._con.executemany(sql, barcode_info)
+        return barcodes
 
     def create_ag_kits(self, swabs_kits, tag=None, projects=None):
         """ Creates american gut handout kits on the database
