@@ -93,9 +93,9 @@ class BarcodeUtilHandler(BaseHandler):
                                                    sequencing_status,
                                                    obsolete_status)
                 msg1 = "Barcode %s general details updated" % barcode
-            except Exception as e:
+            except:
                 msg1 = "Barcode %s general details failed" % barcode
-                raise e
+
             msg2 = msg3 = msg4 = None
             exisiting_proj, parent_project = db.getBarcodeProjType(
                 barcode)
@@ -106,9 +106,9 @@ class BarcodeUtilHandler(BaseHandler):
                     rem_projects = exisiting_proj.difference(projects)
                     db.setBarcodeProjects(barcode, add_projects, rem_projects)
                     msg4 = "Project successfully changed"
-                except Exception as e:
+                except:
                     msg4 = "Error changing project"
-                    raise e
+
                 new_proj, parent_project = db.getBarcodeProjType(barcode)
             if parent_project == 'American Gut':
                 msg2, msg3 = self.update_ag_barcode(barcode)
@@ -288,7 +288,7 @@ Thank you for your participation!
                                      self.get_argument('other_text', None),
                                      sent_date)
             msg3 = ("Barcode %s AG info was sucessfully updated" % barcode)
-        except Exception as e:
+        except:
             msg3 = ("Barcode %s AG update failed!!!" % barcode)
-            raise e
+
         return msg2, msg3
