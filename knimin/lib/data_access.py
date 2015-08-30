@@ -1452,19 +1452,19 @@ class KniminAccess(object):
 
     def getBarcodeProjType(self, barcode):
         """ Get the project type of the barcode.
-            Return a tuple of project and project type.
+            Return a tuple of projects and parent project.
         """
         sql = """SELECT project from barcodes.project
                  JOIN barcodes.project_barcode USING (project_id)
                  where barcode = %s"""
         results = [x[0] for x in self._con.execute_fetchall(sql, [barcode])]
         if 'American Gut Project' in results:
-            proj_type = 'American Gut'
-            proj = ', '.join(results)
+            parent_project = 'American Gut'
+            projects = ', '.join(results)
         else:
-            proj = ', '.join(results)
-            proj_type = proj
-        return (proj, proj_type)
+            projects = ', '.join(results)
+            parent_project = projects
+        return (projects, parent_project)
 
     def setBarcodeProjects(self, barcode, add_projects=None, rem_projects=None):
         """Sets the projects barcode is associated with

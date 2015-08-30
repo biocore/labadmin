@@ -35,7 +35,7 @@ class BarcodeUtilHandler(BaseHandler):
             barcode_details = db.get_barcode_details(barcode)
             if len(barcode_details) == 0:
                 div_id = "invalid_barcode"
-                message = ("Barcode %s does not exisit in the database" %
+                message = ("Barcode %s does not exist in the database" %
                            barcode)
                 self.render("barcode_util.html",
                             div_and_msg=(div_id, message, barcode),
@@ -48,6 +48,7 @@ class BarcodeUtilHandler(BaseHandler):
                 barcode_projects, parent_project = db.getBarcodeProjType(
                     barcode)
                 project_names = db.getProjectNames()
+
                 # barcode exists get general info
                 if barcode_details['status'] is None:
                     barcode_details['status'] = 'Received'
@@ -80,6 +81,11 @@ class BarcodeUtilHandler(BaseHandler):
         else:
             #now we collect data and update based on forms
             #first update general barcode info
+            #Set to non to make sure no conflicts with new date typing in DB
+            if not postmark_date:
+                postmark_date = None
+            if not scan_date:
+                scan_date = None
             try:
                 db.updateBarcodeStatus('Received', postmark_date,
                                                    scan_date, barcode,
@@ -87,8 +93,9 @@ class BarcodeUtilHandler(BaseHandler):
                                                    sequencing_status,
                                                    obsolete_status)
                 msg1 = "Barcode %s general details updated" % barcode
-            except:
+            except Exception as e:
                 msg1 = "Barcode %s general details failed" % barcode
+                raise e
             msg2 = msg3 = msg4 = None
             exisiting_proj, parent_project = db.getBarcodeProjType(
                 barcode)
@@ -99,10 +106,10 @@ class BarcodeUtilHandler(BaseHandler):
                     rem_projects = exisiting_proj.difference(projects)
                     db.setBarcodeProjects(barcode, add_projects, rem_projects)
                     msg4 = "Project successfully changed"
-                except:
+                except Exception as e:
                     msg4 = "Error changing project"
-                new_proj, parent_project = db.getBarcodeProjType(
-                    barcode)
+                    raise e
+                new_proj, parent_project = db.getBarcodeProjType(barcode)
             if parent_project == 'American Gut':
                 msg2, msg3 = self.update_ag_barcode(barcode)
             self.render("barcode_util.html", div_and_msg=None, barcode_projects=[],
@@ -122,8 +129,7 @@ class BarcodeUtilHandler(BaseHandler):
             ag_details['other_checked'] = ''
             ag_details['overloaded_checked'] = ''
             ag_details['moldy_checked'] = ''
-            if ag_details['name'] is None:
-                ag_details['login_user'] = ag_details['name']
+            ag_details['login_user'] = ag_details['name']
             if ag_details['moldy'] == 'Y':
                 ag_details['moldy_checked'] = 'checked'
             if ag_details['overloaded'] == 'Y':
@@ -263,7 +269,7 @@ Thank you for your participation!
             if login_email != "" or login_email is not None:
                 try:
                     send_email(body_message, subject, login_email)
-                    sent_date = time.strftime("%d/%m/%Y")
+                    sent_date = time.strftime("%Y-%m-%d")
                     msg2 = ("Sent email successfully to kit owner %s"
                             % login_email)
                 except:
@@ -282,6 +288,7 @@ Thank you for your participation!
                                      self.get_argument('other_text', None),
                                      sent_date)
             msg3 = ("Barcode %s AG info was sucessfully updated" % barcode)
-        except:
+        except Exception as e:
             msg3 = ("Barcode %s AG update failed!!!" % barcode)
+            raise e
         return msg2, msg3

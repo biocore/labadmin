@@ -66,7 +66,7 @@
           <h2> General Barcode Details </h2>
             <li>
                Sample postmark date (current: {{barcode_info['sample_postmark_date']}}) : <br />
-                  <input type="text" name="postmark_date" id="postmark_date" value="{{barcode_info['sample_postmark_date']}}"
+                  <input type="text" name="postmark_date" id="postmark_date" value="{% raw barcode_info['sample_postmark_date'] if barcode_info['sample_postmark_date'] is not None else '' %}"
                    onclick="this.select()" class="date-picker"/> <br />
                   (please follow the format mm/dd/yyyy. Example: 12/25/2012)
              </li>
