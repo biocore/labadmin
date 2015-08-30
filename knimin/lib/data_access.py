@@ -1172,7 +1172,7 @@ class KniminAccess(object):
         if country is None:
             country = ""
 
-        sql = """SELECT SELECT latitude, longitude, elevation, city, state
+        sql = """SELECT latitude, longitude, elevation, city, state
                  FROM ag.zipcodes WHERE zipcode = %s)"""
         zip_info = self._con.execute_fetchone(sql, [zipcode])
         if zip_info is not None:
