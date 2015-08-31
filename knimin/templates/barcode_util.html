@@ -121,20 +121,7 @@
           <option value="Y" selected>Yes</option>
         {% end %}
 
-             </select></li>
-             <li>
-             Project <br /><select name="project" id="project" >
-
-        {% for project in project_names %}
-            {% if project == proj %}
-                <option value="{{project}}" selected>{{project}}</option>
-            {% else %}
-                <option value="{{project}}">{{project}}</option>
-            {% end %}
-        {% end %}
-
-        </select>
-        </li></td><td>
+             </select></td><td>
         {% if proj_group == 'American Gut' and len(proj_barcode_info) > 1 %}
           <input type="hidden" name="sent_date" value="{{proj_barcode_info['date_of_last_email']}}" />
           <input type="hidden" name="login_user"  value="{{proj_barcode_info['login_user']}}" />

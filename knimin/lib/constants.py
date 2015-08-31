@@ -1,5 +1,10 @@
 from collections import defaultdict
 
+survey_type = {
+    1: "Human",
+    2: "Animal"
+}
+
 # standard fields that are set based on sampling site
 md_lookup = {
     'Hair':

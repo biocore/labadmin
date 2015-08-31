@@ -577,7 +577,10 @@ class KniminAccess(object):
                     zip_lookup[md[1][barcode]['ZIP_CODE']][2]
             except KeyError:
                 # geocode unknown zip and add to zipcode table & lookup dict
-                info = self.get_geocode_zipcode(md[1][barcode]['ZIP_CODE'])
+                if md[1][barcode]['ZIP_CODE']:
+                    info = self.get_geocode_zipcode(md[1][barcode]['ZIP_CODE'])
+                else:
+                    info = Location(None, None, None, None, None, None, None)
                 zip_lookup[info.input] = [info.lat, info.long, info.elev]
                 md[1][barcode]['LATITUDE'] = info.lat if info.lat is not None else ''
                 md[1][barcode]['LONGITUDE'] = info.elev if info.long is not None else ''
@@ -639,6 +642,8 @@ class KniminAccess(object):
 
         metadata = {}
         for survey, bc_responses in all_results.items():
+            if not bc_responses:
+                continue
             headers = sorted(bc_responses.values()[0])
             survey_md = [''.join(['sample_name\t', '\t'.join(headers)])]
             for barcode, shortnames_answers in sorted(bc_responses.items()):
@@ -1147,22 +1152,6 @@ class KniminAccess(object):
                                 sample_date, sample_time, participant_name,
                                 notes, refunded, withdrawn, barcode])
 
-    def AGGetBarcodeMetadata(self, barcode):
-        results = self._con.execute_proc_return_cursor(
-            'ag_get_barcode_metadata', [barcode])
-        rows = results.fetchall()
-        results.close()
-
-        return [dict(row) for row in rows]
-
-    def AGGetBarcodeMetadataAnimal(self, barcode):
-        results = self._con.execute_proc_return_cursor(
-            'ag_get_barcode_md_animal', [barcode])
-        rows = results.fetchall()
-        results.close()
-
-        return [dict(row) for row in rows]
-
     def get_geocode_zipcode(self, zipcode, country=None):
         """Adds geocode information to zipcode table if needed and return info
 
@@ -1188,7 +1177,7 @@ class KniminAccess(object):
         if country is None:
             country = ""
 
-        sql = """SELECT SELECT latitude, longitude, elevation, city, state
+        sql = """SELECT latitude, longitude, elevation, city, state
                  FROM ag.zipcodes WHERE zipcode = %s)"""
         zip_info = self._con.execute_fetchone(sql, [zipcode])
         if zip_info is not None:
@@ -1309,6 +1298,16 @@ class KniminAccess(object):
         where   barcode = %s"""
         self._con.execute(sql, [status, postmark, scan_date, biomass_remaining,
                                 sequencing_status, obsolete, barcode])
+
+    def get_barcode_survey(self, barcode):
+        """Return survey ID attached to barcode"""
+        sql = """SELECT DISTINCT ags.survey_id FROM ag.ag_kit_barcodes
+                 JOIN ag.survey_answers USING (survey_id)
+                 JOIN ag.group_questions gq USING (survey_question_id)
+                 JOIN ag.surveys ags USING (survey_group)
+                 WHERE barcode = %s"""
+        res = self._con.execute_fetchone(sql, [barcode])
+        return res[0] if res else None
 
     def search_participant_info(self, term):
         sql = """select   cast(ag_login_id as varchar(100)) as ag_login_id
@@ -1466,7 +1465,6 @@ class KniminAccess(object):
         results = [x[0] for x in self._con.execute_fetchall(sql, [barcode])]
         if 'American Gut Project' in results:
             proj_type = 'American Gut'
-            results.remove('American Gut Project')
             proj = ', '.join(results)
         else:
             proj = ', '.join(results)
