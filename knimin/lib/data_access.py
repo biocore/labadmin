@@ -1164,7 +1164,6 @@ class KniminAccess(object):
                                 sample_date, sample_time, participant_name,
                                 notes, refunded, withdrawn, barcode])
 
-<<<<<<< HEAD
     def AGGetBarcodeMetadata(self, barcode):
         results = self._con.execute_proc_return_cursor(
             'ag_get_barcode_metadata', [barcode])
