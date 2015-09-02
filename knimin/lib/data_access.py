@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from collections import defaultdict, namedtuple
 from re import sub
 from hashlib import md5
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 
 from bcrypt import hashpw, gensalt
@@ -654,6 +654,8 @@ class KniminAccess(object):
 
         metadata = {}
         for survey, bc_responses in all_results.items():
+            if not bc_responses:
+                continue
             headers = sorted(bc_responses.values()[0])
             survey_md = [''.join(['sample_name\t', '\t'.join(headers)])]
             for barcode, shortnames_answers in sorted(bc_responses.items()):
@@ -726,7 +728,7 @@ class KniminAccess(object):
 
     def getAGKitDetails(self, supplied_kit_id):
         sql = """SELECT
-                 cast(ag_kit_id AS varchar(100)), supplied_kit_id,
+                 cast(ag_kit_id AS varchar(100)) AS ag_kit_id, supplied_kit_id,
                  kit_password, swabs_per_kit, kit_verification_code,
                  kit_verified, verification_email_sent
                  FROM ag_kit
@@ -746,6 +748,11 @@ class KniminAccess(object):
             Kit ID to attach barcodes to
         num_barcodes : int, optional
             Number of barcodes to attach. Default 1
+
+        Returns
+        -------
+        barcodes : list of str
+            Barcodes attached to the kit
         """
         barcodes = self.get_unassigned_barcodes(num_barcodes)
         # assign barcodes to projects for the kit
@@ -766,9 +773,9 @@ class KniminAccess(object):
         sql = """INSERT  INTO ag_kit_barcodes
                 (ag_kit_id, barcode, sample_barcode_file)
                 VALUES (%s, %s, %s || '.jpg')"""
-        barcode_info = [(ag_kit_id, b, b) for b in barcodes]
-        for info in barcode_info:
-            self._con.execute(sql, info)
+        barcode_info = [[ag_kit_id, b, b] for b in barcodes]
+        self._con.executemany(sql, barcode_info)
+        return barcodes
 
     def create_ag_kits(self, swabs_kits, tag=None, projects=None):
         """ Creates american gut handout kits on the database
@@ -1157,6 +1164,7 @@ class KniminAccess(object):
                                 sample_date, sample_time, participant_name,
                                 notes, refunded, withdrawn, barcode])
 
+<<<<<<< HEAD
     def AGGetBarcodeMetadata(self, barcode):
         results = self._con.execute_proc_return_cursor(
             'ag_get_barcode_metadata', [barcode])
@@ -1202,7 +1210,6 @@ class KniminAccess(object):
         zip_info = self._con.execute_fetchone(sql, [zipcode, country])
         if zip_info:
             return Location([zipcode] + zip_info)
-
         info = geocode('%s %s' % (zipcode, country))
         cannot_geocode = False
         if not info.lat:
@@ -1293,10 +1300,43 @@ class KniminAccess(object):
         # returned tuple consists of:
         # site_sampled, sample_date, sample_time, participant_name,
         # environment_sampled, notes
-        results = self._con.execute_proc_return_cursor('ag_stats', [])
-        ag_stats = results.fetchall()
-        results.close()
-        return ag_stats
+        stats_list = [
+            ('Total handout kits', 'SELECT count(*) FROM ag.ag_handout_kits'),
+            ('Total handout barcodes', 'SELECT count(*) FROM ag.ag_handout_barcodes'),
+            ('Total consented participants', 'SELECT count(*) FROM ag.ag_consent'),
+            ('Total registered kits', 'SELECT count(*) FROM ag.ag_kit'),
+            ('Total registered barcodes', 'SELECT count(*) FROM ag.ag_kit_barcodes'),
+            ('Total barcodes with results', "SELECT count(*) FROM ag.ag_kit_barcodes WHERE results_ready = 'Y'"),
+            ('Average age of participants', """SELECT AVG(AGE((yr.response || '-' ||
+                                                CASE mo.response
+                                                    WHEN 'January' THEN '1'
+                                                    WHEN 'February' THEN '2'
+                                                    WHEN 'March' THEN '3'
+                                                    WHEN 'April' THEN '4'
+                                                    WHEN 'May' THEN '5'
+                                                    WHEN 'June' THEN '6'
+                                                    WHEN 'July' THEN '7'
+                                                    WHEN 'August' THEN '8'
+                                                    WHEN 'September' THEN '9'
+                                                    WHEN 'October' THEN '10'
+                                                    WHEN 'November' THEN '11'
+                                                    WHEN 'December' THEN '12'
+                                                  END || '-1')::date
+                                                )) FROM
+                                              (SELECT response, survey_id FROM ag.survey_answers WHERE survey_question_id = 112) AS yr
+                                              JOIN
+                                              (SELECT response, survey_id FROM ag.survey_answers WHERE survey_question_id = 111) AS mo USING (survey_id)
+                                              WHERE yr.response != 'Unspecified' AND mo.response != 'Unspecified'"""),
+            ('Total male participants', "SELECT count(*) FROM ag.survey_answers WHERE survey_question_id = 107 AND response = 'Male'"),
+            ('Total female participants', "SELECT count(*) FROM ag.survey_answers WHERE survey_question_id = 107 AND response = 'Female'")
+            ]
+        stats = []
+        for label, sql in stats_list:
+            res = self._con.execute_fetchone(sql)[0]
+            if type(res) == timedelta:
+                res = str(res.days/365) + " years"
+            stats.append((label, res))
+        return stats
 
     def updateAKB(self, barcode, moldy, overloaded, other, other_text,
                   date_of_last_email):
@@ -1323,6 +1363,16 @@ class KniminAccess(object):
         where   barcode = %s"""
         self._con.execute(sql, [status, postmark, scan_date, biomass_remaining,
                                 sequencing_status, obsolete, barcode])
+
+    def get_barcode_survey(self, barcode):
+        """Return survey ID attached to barcode"""
+        sql = """SELECT DISTINCT ags.survey_id FROM ag.ag_kit_barcodes
+                 JOIN ag.survey_answers USING (survey_id)
+                 JOIN ag.group_questions gq USING (survey_question_id)
+                 JOIN ag.surveys ags USING (survey_group)
+                 WHERE barcode = %s"""
+        res = self._con.execute_fetchone(sql, [barcode])
+        return res[0] if res else None
 
     def search_participant_info(self, term):
         sql = """select   cast(ag_login_id as varchar(100)) as ag_login_id
@@ -1472,32 +1522,43 @@ class KniminAccess(object):
 
     def getBarcodeProjType(self, barcode):
         """ Get the project type of the barcode.
-            Return a tuple of project and project type.
+            Return a tuple of projects and parent project.
         """
         sql = """SELECT project from barcodes.project
                  JOIN barcodes.project_barcode USING (project_id)
                  where barcode = %s"""
         results = [x[0] for x in self._con.execute_fetchall(sql, [barcode])]
         if 'American Gut Project' in results:
-            proj_type = 'American Gut'
-            results.remove('American Gut Project')
-            proj = ', '.join(results)
+            parent_project = 'American Gut'
+            projects = ', '.join(results)
         else:
-            proj = ', '.join(results)
-            proj_type = proj
-        return (proj, proj_type)
+            projects = ', '.join(results)
+            parent_project = projects
+        return (projects, parent_project)
 
-    def setBarcodeProjType(self, project, barcode):
-        """sets the project type of the barcodel
+    def setBarcodeProjects(self, barcode, add_projects=None, rem_projects=None):
+        """Sets the projects barcode is associated with
 
-            project is the project name from the project table
-            barcode is the barcode
+        Parameters
+        ----------
+        barcode : str
+            Barcode to update
+        add_projects : list of str, optional
+            List of projects from projects table to add project to
+        rem_projects : list of str, optional
+            List of projects from projects table to remove barcode from
         """
-        sql = """UPDATE project_barcode
-                 SET project_id =
-                (select project_id from project where project = %s)
-                where barcode = %s"""
-        self._con.execute(sql, [project, barcode])
+        if add_projects:
+            sql = """INSERT INTO barcodes.project_barcode
+                      SELECT project_id, %s FROM (
+                        SELECT project_id from barcodes.project WHERE project in %s)"""
+
+            self._con.execute(sql, [barcode, tuple(add_projects)])
+        if rem_projects:
+            sql = """DELETE FROM barcodes.project_barcode
+                     WHERE barcode = %s AND project_id IN (
+                       SELECT project_id FROM barcodes.project WHERE project IN %s"""
+            self._con.execute(sql, [barcode, tuple(rem_projects)])
 
     def getProjectNames(self):
         """Returns a list of project names
