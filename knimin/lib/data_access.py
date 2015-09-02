@@ -1457,31 +1457,43 @@ class KniminAccess(object):
 
     def getBarcodeProjType(self, barcode):
         """ Get the project type of the barcode.
-            Return a tuple of project and project type.
+            Return a tuple of projects and parent project.
         """
         sql = """SELECT project from barcodes.project
                  JOIN barcodes.project_barcode USING (project_id)
                  where barcode = %s"""
         results = [x[0] for x in self._con.execute_fetchall(sql, [barcode])]
         if 'American Gut Project' in results:
-            proj_type = 'American Gut'
-            proj = ', '.join(results)
+            parent_project = 'American Gut'
+            projects = ', '.join(results)
         else:
-            proj = ', '.join(results)
-            proj_type = proj
-        return (proj, proj_type)
+            projects = ', '.join(results)
+            parent_project = projects
+        return (projects, parent_project)
 
-    def setBarcodeProjType(self, project, barcode):
-        """sets the project type of the barcodel
+    def setBarcodeProjects(self, barcode, add_projects=None, rem_projects=None):
+        """Sets the projects barcode is associated with
 
-            project is the project name from the project table
-            barcode is the barcode
+        Parameters
+        ----------
+        barcode : str
+            Barcode to update
+        add_projects : list of str, optional
+            List of projects from projects table to add project to
+        rem_projects : list of str, optional
+            List of projects from projects table to remove barcode from
         """
-        sql = """UPDATE project_barcode
-                 SET project_id =
-                (select project_id from project where project = %s)
-                where barcode = %s"""
-        self._con.execute(sql, [project, barcode])
+        if add_projects:
+            sql = """INSERT INTO barcodes.project_barcode
+                      SELECT project_id, %s FROM (
+                        SELECT project_id from barcodes.project WHERE project in %s)"""
+
+            self._con.execute(sql, [barcode, tuple(add_projects)])
+        if rem_projects:
+            sql = """DELETE FROM barcodes.project_barcode
+                     WHERE barcode = %s AND project_id IN (
+                       SELECT project_id FROM barcodes.project WHERE project IN %s"""
+            self._con.execute(sql, [barcode, tuple(rem_projects)])
 
     def getProjectNames(self):
         """Returns a list of project names
