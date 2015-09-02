@@ -1342,12 +1342,18 @@ class KniminAccess(object):
                   date_of_last_email):
         """ Update ag_kit_barcodes table.
         """
+        sql_args = [moldy, overloaded, other, other_text]
+        update_date = ''
+        if date_of_last_email:
+            update_date = ', date_of_last_email = %s'
+            sql_args.append(date_of_last_email)
+        sql_args.append(barcode)
+
         sql = """UPDATE  ag_kit_barcodes
                  SET moldy = %s, overloaded = %s, other = %s,
-                     other_text = %s, date_of_last_email = %s
-                 WHERE barcode = %s"""
-        self._con.execute(sql, [moldy, overloaded, other,
-                          other_text, date_of_last_email, barcode])
+                     other_text = %s{}
+                 WHERE barcode = %s""".format(update_date)
+        self._con.execute(sql, sql_args)
 
     def updateBarcodeStatus(self, status, postmark, scan_date, barcode,
                             biomass_remaining, sequencing_status, obsolete):
@@ -1551,13 +1557,15 @@ class KniminAccess(object):
         if add_projects:
             sql = """INSERT INTO barcodes.project_barcode
                       SELECT project_id, %s FROM (
-                        SELECT project_id from barcodes.project WHERE project in %s)"""
+                        SELECT project_id from barcodes.project
+                        WHERE project in %s)
+                     AS P"""
 
             self._con.execute(sql, [barcode, tuple(add_projects)])
         if rem_projects:
             sql = """DELETE FROM barcodes.project_barcode
                      WHERE barcode = %s AND project_id IN (
-                       SELECT project_id FROM barcodes.project WHERE project IN %s"""
+                       SELECT project_id FROM barcodes.project WHERE project IN %s)"""
             self._con.execute(sql, [barcode, tuple(rem_projects)])
 
     def getProjectNames(self):
