@@ -1,5 +1,3 @@
-from collections import defaultdict
-
 survey_type = {
     1: "Human",
     2: "Animal"
@@ -121,41 +119,3 @@ month_lookup = {'January': 1, 'February': 2, 'March': 3,
                 'April': 4, 'May': 5, 'June': 6,
                 'July': 7, 'August': 8, 'September': 9,
                 'October': 10, 'November': 11, 'December': 12}
-
-country_lookup = defaultdict(lambda: 'unknown')
-country_lookup.update({
-    'united states': 'GAZ:United States of America',
-    'united states of america': 'GAZ:United States of America',
-    'us': 'GAZ:United States of America',
-    'usa': 'GAZ:United States of America',
-    'u.s.a': 'GAZ:United States of America',
-    'u.s.': 'GAZ:United States of America',
-    'canada': 'GAZ:Canada',
-    'canadian': 'GAZ:Canada',
-    'ca': 'GAZ:Canada',
-    'australia': 'GAZ:Australia',
-    'au': 'GAZ:Australia',
-    'united kingdom': 'GAZ:United Kingdom',
-    'belgium': 'GAZ:Belgium',
-    'gb': 'GAZ:Great Britain',
-    'korea, republic of': 'GAZ:South Korea',
-    'nl': 'GAZ:Netherlands',
-    'netherlands': 'GAZ:Netherlands',
-    'spain': 'GAZ:Spain',
-    'es': 'GAZ:Spain',
-    'norway': 'GAZ:Norway',
-    'germany': 'GAZ:Germany',
-    'de': 'GAZ:Germany',
-    'china': 'GAZ:China',
-    'singapore': 'GAZ:Singapore',
-    'new zealand': 'GAZ:New Zealand',
-    'france': 'GAZ:France',
-    'fr': 'GAZ:France',
-    'ch': 'GAZ:Switzerland',
-    'switzerland': 'GAZ:Switzerland',
-    'denmark': 'GAZ:Denmark',
-    'scotland': 'GAZ:Scotland',
-    'united arab emirates': 'GAZ:United Arab Emirates',
-    'ireland': 'GAZ:Ireland',
-    'thailand': 'GAZ:Thailand',
-    'poland': 'GAZ:Poland'})

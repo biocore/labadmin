@@ -27,7 +27,7 @@ class BarcodeUtilHandler(BaseHandler):
                                                     None)
         sequencing_status = self.get_argument('sequencing_status', None)
         obsolete_status = self.get_argument('obsolete_status', None)
-        projects = set(self.get_argument('project', []))
+        projects = set(self.get_arguments('project'))
         barcode_projects = 'Unknown'
         ag_details = {}
         if bstatus is None:
@@ -99,11 +99,15 @@ class BarcodeUtilHandler(BaseHandler):
             msg2 = msg3 = msg4 = None
             exisiting_proj, parent_project = db.getBarcodeProjType(
                 barcode)
-            exisiting_proj = set(exisiting_proj)
+            exisiting_proj = set(exisiting_proj.split(','))
             if exisiting_proj != projects:
                 try:
                     add_projects = projects.difference(exisiting_proj)
                     rem_projects = exisiting_proj.difference(projects)
+                    print exisiting_proj
+                    print projects
+                    print add_projects
+                    print rem_projects
                     db.setBarcodeProjects(barcode, add_projects, rem_projects)
                     msg4 = "Project successfully changed"
                 except:
@@ -269,7 +273,7 @@ Thank you for your participation!
             if login_email != "" or login_email is not None:
                 try:
                     send_email(body_message, subject, login_email)
-                    sent_date = time.strftime("%Y-%m-%d")
+                    sent_date = time.now()
                     msg2 = ("Sent email successfully to kit owner %s"
                             % login_email)
                 except:

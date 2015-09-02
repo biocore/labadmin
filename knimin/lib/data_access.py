@@ -11,7 +11,7 @@ from psycopg2 import connect, Error as PostgresError
 from psycopg2.extras import DictCursor
 
 from util import make_valid_kit_ids, make_verification_code, make_passwd
-from constants import country_lookup, md_lookup, month_lookup
+from constants import md_lookup, month_lookup
 from geocoder import geocode, Location, GoogleAPILimitExceeded
 
 
@@ -490,11 +490,17 @@ class KniminAccess(object):
         barcode_info = self.get_ag_barcode_details(all_barcodes)
 
         # Human survey (id 1)
-        # tuples are latitude, longitude, elevation
-        zipcode_sql = """SELECT zipcode, latitude, longitude, elevation
+        # tuples are latitude, longitude, elevation, city, state
+        zipcode_sql = """SELECT zipcode, country, latitude, longitude, elevation,
+                             city, state
                          FROM zipcodes"""
-        zip_lookup = {row[0]: tuple(row[1:])
-                      for row in self._con.execute_fetchall(zipcode_sql)}
+        zip_lookup = defaultdict(dict)
+        for row in self._con.execute_fetchall(zipcode_sql):
+            zip_lookup[row[0]][row[1]] = map(
+                lambda x: x if x is not None else 'Unspecified', row[2:])
+
+        country_sql = "SELECT country, EBI from ag.iso_country_lookup"
+        country_lookup = dict(self._con.execute_fetchall(country_sql))
 
         survey_sql = "SELECT barcode, survey_id FROM ag.ag_kit_barcodes"
         survey_lookup = dict(self._con.execute_fetchall(survey_sql))
@@ -544,11 +550,7 @@ class KniminAccess(object):
             del md[1][barcode]['GENDER']
             if sex is not None:
                 sex = sex.lower()
-            md[1][barcode]['SEX'] = sex
-
-            # get COUNTRY from barcode_info
-            md[1][barcode]['COUNTRY'] = country_lookup[
-                barcode_info[barcode]['country'].lower()]
+            md[1][barcode]['SEX'] = sex            
 
             # Add MiMARKS TOT_MASS and HEIGHT_OR_LENGTH columns
             md[1][barcode]['TOT_MASS'] = md[1][barcode]['WEIGHT_KG']
@@ -568,23 +570,33 @@ class KniminAccess(object):
             md[1][barcode]['DEPTH'] = 0
 
             # Sample-dependent information
+            zipcode = md[1][barcode]['ZIP_CODE']
+            country = barcode_info[barcode]['country']
             try:
                 md[1][barcode]['LATITUDE'] = \
-                    zip_lookup[md[1][barcode]['ZIP_CODE']][0]
+                    zip_lookup[zipcode][country][0]
                 md[1][barcode]['LONGITUDE'] = \
-                    zip_lookup[md[1][barcode]['ZIP_CODE']][1]
+                    zip_lookup[zipcode][country][1]
                 md[1][barcode]['ELEVATION'] = \
-                    zip_lookup[md[1][barcode]['ZIP_CODE']][2]
+                    zip_lookup[zipcode][country][2]
+                md[1][barcode]['CITY'] = \
+                    zip_lookup[zipcode][country][3]
+                md[1][barcode]['STATE'] = \
+                    zip_lookup[zipcode][country][4]
+                md[1][barcode]['COUNTRY'] = country_lookup[country]
             except KeyError:
-                # geocode unknown zip and add to zipcode table & lookup dict
-                if md[1][barcode]['ZIP_CODE']:
-                    info = self.get_geocode_zipcode(md[1][barcode]['ZIP_CODE'])
+                # geocode unknown zip/country combo and add to zipcode table & lookup dict
+                if zipcode and country:
+                    info = self.get_geocode_zipcode(zipcode, country)
+                    zip_lookup[zipcode][country] = (info.lat, info.long, info.elev, info.city, info.state)
                 else:
                     info = Location(None, None, None, None, None, None, None)
-                zip_lookup[info.input] = [info.lat, info.long, info.elev]
-                md[1][barcode]['LATITUDE'] = info.lat if info.lat is not None else ''
-                md[1][barcode]['LONGITUDE'] = info.elev if info.long is not None else ''
-                md[1][barcode]['ELEVATION'] = info.elev if info.elev is not None else ''
+                md[1][barcode]['LATITUDE'] = info.lat if info.lat else 'Unspecified'
+                md[1][barcode]['LONGITUDE'] = info.long if info.long else 'Unspecified'
+                md[1][barcode]['ELEVATION'] = info.elev if info.elev else 'Unspecified'
+                md[1][barcode]['CITY'] = info.city if info.city else 'Unspecified'
+                md[1][barcode]['STATE'] = info.state if info.state else 'Unspecified'
+                md[1][barcode]['COUNTRY'] = country_lookup[info.country] if info.country else 'Unspecified'
 
             md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode]
             try:
@@ -1152,7 +1164,24 @@ class KniminAccess(object):
                                 sample_date, sample_time, participant_name,
                                 notes, refunded, withdrawn, barcode])
 
-    def get_geocode_zipcode(self, zipcode, country=None):
+<<<<<<< HEAD
+    def AGGetBarcodeMetadata(self, barcode):
+        results = self._con.execute_proc_return_cursor(
+            'ag_get_barcode_metadata', [barcode])
+        rows = results.fetchall()
+        results.close()
+
+        return [dict(row) for row in rows]
+
+    def AGGetBarcodeMetadataAnimal(self, barcode):
+        results = self._con.execute_proc_return_cursor(
+            'ag_get_barcode_md_animal', [barcode])
+        rows = results.fetchall()
+        results.close()
+
+        return [dict(row) for row in rows]
+
+    def get_geocode_zipcode(self, zipcode, country):
         """Adds geocode information to zipcode table if needed and return info
 
         Parameters
@@ -1172,26 +1201,29 @@ class KniminAccess(object):
         Notes
         -----
         If the tuple contains nothing but the zipcode and None for all other
-        fields, no geocode was found so zipcode was not added.
+        fields, no geocode was found. Zipcode/country combination added as
+        'cannot_geocode'
         """
-        if country is None:
-            country = ""
-
-        sql = """SELECT latitude, longitude, elevation, city, state
-                 FROM ag.zipcodes WHERE zipcode = %s)"""
-        zip_info = self._con.execute_fetchone(sql, [zipcode])
-        if zip_info is not None:
-            return Location([zipcode] + zip_info + [country])
-
+        sql = """SELECT latitude, longitude, elevation, city, state, zipcode, country
+                 FROM ag.zipcodes
+                 WHERE zipcode = %s and country = %s"""
+        zip_info = self._con.execute_fetchone(sql, [zipcode, country])
+        if zip_info:
+            return Location([zipcode] + zip_info)
         info = geocode('%s %s' % (zipcode, country))
         cannot_geocode = False
         if not info.lat:
             cannot_geocode = True
+        elif info.country != country or info.postcode != zipcode:
+            # countries and zipcodes dont match, so blank out info
+            info = Location(zipcode, None, None, None, None, None, None, country)
+            cannot_geocode = True
         sql = """INSERT INTO ag.zipcodes
-                     (zipcode, latitude, longitude, elevation, city, state, cannot_geocode)
-                 VALUES (%s,%s,%s,%s,%s,%s,%s)"""
+                    (zipcode, latitude, longitude, elevation, city,
+                     state, country, cannot_geocode)
+                 VALUES (%s,%s,%s,%s,%s,%s,%s, %s)"""
         self._con.execute(sql, [zipcode, info.lat, info.long, info.elev,
-                                info.city, info.state, cannot_geocode])
+                                info.city, info.state, country, cannot_geocode])
         return info
 
     def addGeocodingInfo(self, limit=None, retry=False):
@@ -1310,12 +1342,18 @@ class KniminAccess(object):
                   date_of_last_email):
         """ Update ag_kit_barcodes table.
         """
+        sql_args = [moldy, overloaded, other, other_text]
+        update_date = ''
+        if date_of_last_email:
+            update_date = ', date_of_last_email = %s'
+            sql_args.append(date_of_last_email)
+        sql_args.append(barcode)
+
         sql = """UPDATE  ag_kit_barcodes
                  SET moldy = %s, overloaded = %s, other = %s,
-                     other_text = %s, date_of_last_email = %s
-                 WHERE barcode = %s"""
-        self._con.execute(sql, [moldy, overloaded, other,
-                          other_text, date_of_last_email, barcode])
+                     other_text = %s{}
+                 WHERE barcode = %s""".format(update_date)
+        self._con.execute(sql, sql_args)
 
     def updateBarcodeStatus(self, status, postmark, scan_date, barcode,
                             biomass_remaining, sequencing_status, obsolete):
@@ -1519,13 +1557,15 @@ class KniminAccess(object):
         if add_projects:
             sql = """INSERT INTO barcodes.project_barcode
                       SELECT project_id, %s FROM (
-                        SELECT project_id from barcodes.project WHERE project in %s)"""
+                        SELECT project_id from barcodes.project
+                        WHERE project in %s)
+                     AS P"""
 
             self._con.execute(sql, [barcode, tuple(add_projects)])
         if rem_projects:
             sql = """DELETE FROM barcodes.project_barcode
                      WHERE barcode = %s AND project_id IN (
-                       SELECT project_id FROM barcodes.project WHERE project IN %s"""
+                       SELECT project_id FROM barcodes.project WHERE project IN %s)"""
             self._con.execute(sql, [barcode, tuple(rem_projects)])
 
     def getProjectNames(self):
