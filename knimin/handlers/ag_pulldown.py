@@ -13,6 +13,9 @@ class AGPulldownHandler(BaseHandler):
                     barcodes=[])
 
     def post(self):
+        # Do nothing if no file given
+        if 'filearg' not in self.request.files:
+            return
         # Get file information, ignoring commented out lines
         fileinfo = self.request.files['filearg'][0]['body']
         lines = fileinfo.splitlines()
