@@ -661,7 +661,7 @@ class KniminAccess(object):
             for barcode, shortnames_answers in sorted(bc_responses.items()):
                 barcodes_seen.add(barcode)
                 ordered_answers = [shortnames_answers[h] for h in headers]
-                ordered_answers = '\t'.join([str(x) for x in ordered_answers])
+                ordered_answers = '\t'.join([unicode(x, encoding='utf-8') for x in ordered_answers])
                 survey_md.append('\t'.join([barcode, ordered_answers]))
             metadata[survey] = '\n'.join(survey_md)
 
