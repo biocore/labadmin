@@ -1207,17 +1207,28 @@ class KniminAccess(object):
         fields, no geocode was found. Zipcode/country combination added as
         'cannot_geocode'
         """
+        # Catch sending None or empty string for these
+        if not zipcode or not country:
+            return Location(zipcode, None, None, None, None, None, None, country)
+
         sql = """SELECT latitude, longitude, elevation, city, state, zipcode, country
                  FROM ag.zipcodes
                  WHERE zipcode = %s and country = %s"""
         zip_info = self._con.execute_fetchone(sql, [zipcode, country])
         if zip_info:
             return Location([zipcode] + zip_info)
+
         info = geocode('%s %s' % (zipcode, country))
         cannot_geocode = False
+        # Clean the zipcode so it is same case and setup, since international
+        # people can enter lowercased zipcodes or missing spaces, and google
+        # does not give back 9 digit zipcodes for USA, only 6.
+        clean_postcode = str(info.postcode).lower().replace(' ', '')
+        clean_zipcode = str(zipcode).lower().replace(' ', '').split('-')[0]
         if not info.lat:
             cannot_geocode = True
-        elif info.country != country or info.postcode != zipcode:
+        # Use startswith because UK zipcodes can be 2, 3, or 6 characters
+        elif info.country != country or not clean_postcode.startswith(clean_zipcode):
             # countries and zipcodes dont match, so blank out info
             info = Location(zipcode, None, None, None, None, None, None, country)
             cannot_geocode = True
