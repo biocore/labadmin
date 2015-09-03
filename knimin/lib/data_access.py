@@ -607,7 +607,12 @@ class KniminAccess(object):
 
             md[1][barcode]['COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
             md[1][barcode]['COLLECTION_DATE'] = \
-                barcode_info[barcode]['sample_date']
+                barcode_info[barcode]['sample_date'].strftime('%m/%d/%Y')
+            md[1][barcode]['COLLECTION_TIME'] = \
+                barcode_info[barcode]['sample_time'].strftime('%H:%M')
+            md[1][barcode]['COLLECTION_TIMESTAMP'] = \
+                datetime.combine(barcode_info[barcode]['sample_date'],
+                                 barcode_info[barcode]['sample_time']).strftime('%m/%d/%Y %H:%M')
             md[1][barcode]['ENV_MATTER'] = md_lookup[site]['ENV_MATTER']
             md[1][barcode]['SCIENTIFIC_NAME'] = md_lookup[site]['SCIENTIFIC_NAME']
             md[1][barcode]['SAMPLE_TYPE'] = md_lookup[site]['SAMPLE_TYPE']
