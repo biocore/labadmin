@@ -2,28 +2,39 @@
 {% block head %}
 {% from json import dumps %}
 <script type="text/javascript" src="/static/js/labmin.js"></script>
+<script type="text/javascript" src="/static/vendor/js/jquery.validate.min.js"></script>
 <style>
 p {
-	font-weight: bold;
+  font-weight: bold;
 }
 </style>
-	{% if barcodes %}
 <script type="text/javascript">
     $(document).ready(function() {
+      $('#agForm').validate({
+        rules: {
+          filearg: {
+            required: true
+          }
+        }
+      });
+  {% if barcodes %}
       var dummy = new iframeform('/ag_pulldown/download/');
-			dummy.addParameter('barcodes', '{{barcodes}}');
+      dummy.addParameter('barcodes', '{{barcodes}}');
       dummy.send();
+  {% end %}
     });
 </script>
-  {% end %}
 
 {% end %}
 
 {% block content %}
+{% if barcodes %}
+<h3 style="color:red">Pulldown Processing, please wait for file download. It may take a while with many barcodes.</h3>
+{% end %}
 <h3>Metadata Pulldown</h3>
 <p>Upload qiime mapping file, or other file with first line header and one barcode per line</p>
 <form enctype="multipart/form-data" action="/ag_pulldown/" name="agForm" id="agForm" method="post">
-<p>File: <input type="file" name="filearg" /></p>
-<p><input type="submit"></p>
+<p>File: <input type="file" name="filearg" id="filearg"/></p>
+<p><input type="submit" {%if barcodes%}disabled{% end %}></p>
 </form>
 {% end %}
