@@ -590,7 +590,7 @@ class KniminAccess(object):
                     info = self.get_geocode_zipcode(zipcode, country)
                     zip_lookup[zipcode][country] = (info.lat, info.long, info.elev, info.city, info.state)
                 else:
-                    info = Location(None, None, None, None, None, None, None)
+                    info = Location(None, None, None, None, None, None, None, None)
                 md[1][barcode]['LATITUDE'] = info.lat if info.lat else 'Unspecified'
                 md[1][barcode]['LONGITUDE'] = info.long if info.long else 'Unspecified'
                 md[1][barcode]['ELEVATION'] = info.elev if info.elev else 'Unspecified'
