@@ -550,7 +550,7 @@ class KniminAccess(object):
             del md[1][barcode]['GENDER']
             if sex is not None:
                 sex = sex.lower()
-            md[1][barcode]['SEX'] = sex            
+            md[1][barcode]['SEX'] = sex
 
             # Add MiMARKS TOT_MASS and HEIGHT_OR_LENGTH columns
             md[1][barcode]['TOT_MASS'] = md[1][barcode]['WEIGHT_KG']
@@ -630,6 +630,19 @@ class KniminAccess(object):
             md[1][barcode]['PUBLIC'] = 'Yes'
 
         return md
+
+    def participant_names(self):
+        """Retrieve the participant names for the given barcodes
+
+        Returns
+        -------
+        list of tuple
+            (barcode, participant name)
+        """
+        sql = """SELECT barcode, participant_name
+                 FROM ag.ag_kit_barcodes
+                 WHERE participant_name IS NOT NULL"""
+        return self._con.execute_fetchall(sql)
 
     def pulldown(self, barcodes):
         """Pulls down AG metadata for given barcodes

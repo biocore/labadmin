@@ -12,6 +12,7 @@ class AGPulldownHandler(BaseHandler):
         self.render("ag_pulldown.html", currentuser=self.current_user,
                     barcodes=[])
 
+    @authenticated
     def post(self):
         # Do nothing if no file given
         if 'filearg' not in self.request.files:
@@ -29,6 +30,7 @@ class AGPulldownHandler(BaseHandler):
 
 
 class AGPulldownDLHandler(BaseHandler):
+    @authenticated
     def post(self):
         barcodes = self.get_argument('barcodes').split(',')
         # Get metadata and create zip file
