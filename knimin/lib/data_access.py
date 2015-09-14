@@ -491,7 +491,9 @@ class KniminAccess(object):
 
         # Human survey (id 1)
         # tuples are latitude, longitude, elevation, city, state
-        zipcode_sql = """SELECT zipcode, country, latitude, longitude, elevation, state
+        zipcode_sql = """SELECT zipcode, country, round(latitude::numeric, 1),
+                             round(longitude::numeric,1),
+                             round(elevation::numeric, 1), state
                          FROM zipcodes"""
         zip_lookup = defaultdict(dict)
         for row in self._con.execute_fetchall(zipcode_sql):
@@ -500,6 +502,8 @@ class KniminAccess(object):
 
         country_sql = "SELECT country, EBI from ag.iso_country_lookup"
         country_lookup = dict(self._con.execute_fetchall(country_sql))
+        # Add for scrubbed testing database
+        country_lookup['REMOVED'] = 'REMOVED'
 
         survey_sql = "SELECT barcode, survey_id FROM ag.ag_kit_barcodes"
         survey_lookup = dict(self._con.execute_fetchall(survey_sql))
@@ -570,13 +574,14 @@ class KniminAccess(object):
             # Sample-dependent information
             zipcode = md[1][barcode]['ZIP_CODE']
             country = barcode_info[barcode]['country']
+            del md[1][barcode]['ZIP_CODE']
             try:
                 md[1][barcode]['LATITUDE'] = \
-                    '%.1f' % zip_lookup[zipcode][country][0]
+                    zip_lookup[zipcode][country][0]
                 md[1][barcode]['LONGITUDE'] = \
-                    '%.1f' % zip_lookup[zipcode][country][1]
+                    zip_lookup[zipcode][country][1]
                 md[1][barcode]['ELEVATION'] = \
-                    '%.1f' % zip_lookup[zipcode][country][2]
+                    zip_lookup[zipcode][country][2]
                 md[1][barcode]['STATE'] = \
                     zip_lookup[zipcode][country][3]
                 md[1][barcode]['COUNTRY'] = country_lookup[country]
@@ -1206,12 +1211,14 @@ class KniminAccess(object):
         if not zipcode or not country:
             return Location(zipcode, None, None, None, None, None, None, country)
 
-        sql = """SELECT latitude, longitude, elevation, city, state, zipcode, country
+        sql = """SELECT round(latitude::numeric, 1), round(longitude::numeric, 1),
+                    round(elevation::numeric, 1), city, state, zipcode, country
                  FROM ag.zipcodes
                  WHERE zipcode = %s and country = %s"""
         zip_info = self._con.execute_fetchone(sql, [zipcode, country])
         if zip_info:
-            return Location([zipcode] + zip_info)
+            zip_info = [zipcode] + zip_info
+            return Location(*zip_info)
 
         info = geocode('%s %s' % (zipcode, country))
         cannot_geocode = False
