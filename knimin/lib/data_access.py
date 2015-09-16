@@ -490,7 +490,7 @@ class KniminAccess(object):
         barcode_info = self.get_ag_barcode_details(all_barcodes)
 
         # Human survey (id 1)
-        # tuples are latitude, longitude, elevation, city, state
+        # tuples are latitude, longitude, elevation, state
         zipcode_sql = """SELECT zipcode, country, round(latitude::numeric, 1),
                              round(longitude::numeric,1),
                              round(elevation::numeric, 1), state
