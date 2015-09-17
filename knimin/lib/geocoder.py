@@ -56,8 +56,8 @@ def geocode(address):
         return Location(address, None, None, None, None, None, None, None)
     # Get the actual lat and long readings
     geo = geo[0]
-    lat = geo['geometry']['location']['lat']
-    lng = geo['geometry']['location']['lng']
+    lat = float(geo['geometry']['location']['lat'])
+    lng = float(geo['geometry']['location']['lng'])
 
     # loop over the pulled out data
     country = None
@@ -77,6 +77,6 @@ def geocode(address):
         elif geotype == "postal_code" or geotype == "postal_code_prefix":
             postcode = geo_dict['long_name']
     geo2 = _call_wrapper(elev_url % "%s,%s" % (lat, lng))
-    elev = geo2[0]['elevation']
+    elev = float(geo2[0]['elevation'])
 
     return Location(address, lat, lng, elev, city, state, postcode, country)
