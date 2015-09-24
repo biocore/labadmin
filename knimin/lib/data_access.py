@@ -509,9 +509,6 @@ class KniminAccess(object):
         survey_lookup = dict(self._con.execute_fetchall(survey_sql))
 
         for barcode, responses in md[1].items():
-            # Get rid of ABOUT_YOURSELF_TEXT
-            del md[1][barcode]['ABOUT_YOURSELF_TEXT']
-
             # convert numeric fields
             for field in ('HEIGHT_CM', 'WEIGHT_KG'):
                 md[1][barcode][field] = sub('[^0-9.]',
@@ -546,18 +543,12 @@ class KniminAccess(object):
                     birthdate, now) / 12.0)
             else:
                 md[1][barcode]['AGE_YEARS'] = 'Unspecified'
-            del responses['BIRTH_MONTH']
 
             # GENDER to SEX
             sex = md[1][barcode]['GENDER']
-            del md[1][barcode]['GENDER']
             if sex is not None:
                 sex = sex.lower()
             md[1][barcode]['SEX'] = sex
-
-            # Add MiMARKS TOT_MASS and HEIGHT_OR_LENGTH columns
-            md[1][barcode]['TOT_MASS'] = md[1][barcode]['WEIGHT_KG']
-            md[1][barcode]['HEIGHT_OR_LENGTH'] = md[1][barcode]['HEIGHT_CM']
 
             # convenience variable
             site = barcode_info[barcode]['site_sampled']
@@ -575,7 +566,6 @@ class KniminAccess(object):
             # Sample-dependent information
             zipcode = md[1][barcode]['ZIP_CODE']
             country = barcode_info[barcode]['country']
-            del md[1][barcode]['ZIP_CODE']
             try:
                 md[1][barcode]['LATITUDE'] = \
                     zip_lookup[zipcode][country][0]
@@ -621,6 +611,7 @@ class KniminAccess(object):
             md[1][barcode]['BODY_HABITAT'] = md_lookup[site]['BODY_HABITAT']
             md[1][barcode]['BODY_SITE'] = md_lookup[site]['BODY_SITE']
             md[1][barcode]['BODY_PRODUCT'] = md_lookup[site]['BODY_PRODUCT']
+            md[1][barcode]['HOST_COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
             md[1][barcode]['HOST_SUBJECT_ID'] = md5(
                 barcode_info[barcode]['ag_login_id'] +
                 barcode_info[barcode]['participant_name']).hexdigest()
@@ -638,8 +629,19 @@ class KniminAccess(object):
                 md[1][barcode]['HEIGHT_CM'] = int(md[1][barcode]['HEIGHT_CM'])
             if md[1][barcode]['BMI']:
                 md[1][barcode]['BMI'] = int(md[1][barcode]['BMI'])
-            if md[1][barcode]['HEIGHT_OR_LENGTH']:
-                md[1][barcode]['HEIGHT_OR_LENGTH'] = int(md[1][barcode]['HEIGHT_OR_LENGTH'])
+
+            # Get rid of columns not wanted for pulldown
+            del responses['BIRTH_MONTH']
+            del md[1][barcode]['ABOUT_YOURSELF_TEXT']
+            del md[1][barcode]['GENDER']
+            del md[1][barcode]['ZIP_CODE']
+            del md[1][barcode]['ANTIBIOTIC_MED']
+            del md[1][barcode]['ANTIBIOTIC_CONDITION']
+            del md[1][barcode]['CONDITIONS_MEDICATION']
+            del md[1][barcode]['MEDICATION_LIST']
+            del md[1][barcode]['SUPPLEMENTS']
+            del md[1][barcode]['SPECIAL_RESTRICTIONS']
+            del md[1][barcode]['WILLING_TO_BE_CONTACTED']
 
         return md
 
