@@ -388,7 +388,8 @@ class KniminAccess(object):
 
         # Formats a question and response for a MULTIPLE question into a header
         def _translate_multiple_response_to_header(question, response):
-            response = sub('\W', '_', response)
+            response = response.replace(" ", "_")
+            response = sub('\W', '', response)
             header = '_'.join([question, response])
             return header.upper()
 
