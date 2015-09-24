@@ -532,8 +532,9 @@ class KniminAccess(object):
                 md[1][barcode]['WEIGHT_KG'] = \
                     md[1][barcode]['WEIGHT_KG']/2.20462
             md[1][barcode]['WEIGHT_UNITS'] = 'kilograms'
+            
 
-            # Get age in months (int) and age in years (float)
+            # Get age in years (int) and remove birth month
             if responses['BIRTH_MONTH'] != 'Unspecified' and \
                     responses['BIRTH_YEAR'] != 'Unspecified':
                 birthdate = datetime(
@@ -629,6 +630,16 @@ class KniminAccess(object):
             else:
                 md[1][barcode]['BMI'] = ''
             md[1][barcode]['PUBLIC'] = 'Yes'
+
+            #make sure conversions for integer are done
+            if md[1][barcode]['WEIGHT_KG']:
+                md[1][barcode]['WEIGHT_KG'] = int(md[1][barcode]['WEIGHT_KG'])
+            if md[1][barcode]['HEIGHT_CM']:
+                md[1][barcode]['HEIGHT_CM'] = int(md[1][barcode]['HEIGHT_CM'])
+            if md[1][barcode]['BMI']:
+                md[1][barcode]['BMI'] = int(md[1][barcode]['BMI'])
+            if md[1][barcode]['HEIGHT_OR_LENGTH']:
+                md[1][barcode]['HEIGHT_OR_LENGTH'] = int(md[1][barcode]['HEIGHT_OR_LENGTH'])
 
         return md
 
