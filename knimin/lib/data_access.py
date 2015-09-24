@@ -667,12 +667,11 @@ class KniminAccess(object):
             for barcode, shortnames_answers in sorted(bc_responses.items()):
                 barcodes_seen.add(barcode)
                 ordered_answers = [shortnames_answers[h] for h in headers]
-                oa_hold = []
+                oa_hold = [barcode]
                 for x in ordered_answers:
                     converted = str(x) if type(x) not in {str, unicode} else x
                     oa_hold.append(converted)
-                ordered_answers = '\t'.join(oa_hold)
-                survey_md.append('\t'.join([barcode, ordered_answers]))
+                survey_md.append('\t'.join(oa_hold))
             metadata[survey] = '\n'.join(survey_md)
 
         failures = sorted(set(barcodes) - barcodes_seen)
