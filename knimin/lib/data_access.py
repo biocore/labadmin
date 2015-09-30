@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from collections import defaultdict, namedtuple
 from re import sub
 from hashlib import md5
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 import json
 
 from bcrypt import hashpw, gensalt
@@ -599,8 +599,15 @@ class KniminAccess(object):
             md[1][barcode]['COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
             md[1][barcode]['COLLECTION_DATE'] = \
                 barcode_info[barcode]['sample_date'].strftime('%m/%d/%Y')
-            md[1][barcode]['COLLECTION_TIME'] = \
-                barcode_info[barcode]['sample_time'].strftime('%H:%M')
+
+            if barcode_info[barcode]['sample_time']:
+                md[1][barcode]['COLLECTION_TIME'] = \
+                    barcode_info[barcode]['sample_time'].strftime('%H:%M')
+            else:
+                # If no time data, show unspecified and default to midnight
+                md[1][barcode]['COLLECTION_TIME'] = 'Unspecified'
+                barcode_info[barcode]['sample_time'] = time(0, 0)
+
             md[1][barcode]['COLLECTION_TIMESTAMP'] = datetime.combine(
                 barcode_info[barcode]['sample_date'],
                 barcode_info[barcode]['sample_time']).strftime('%m/%d/%Y %H:%M')
