@@ -530,7 +530,6 @@ class KniminAccess(object):
                 md[1][barcode]['WEIGHT_KG'] = \
                     md[1][barcode]['WEIGHT_KG']/2.20462
             md[1][barcode]['WEIGHT_UNITS'] = 'kilograms'
-            
 
             # Get age in years (int) and remove birth month
             if responses['BIRTH_MONTH'] != 'Unspecified' and \
@@ -623,13 +622,13 @@ class KniminAccess(object):
                 md[1][barcode]['BMI'] = ''
             md[1][barcode]['PUBLIC'] = 'Yes'
 
-            #make sure conversions for integer are done
+            #make sure conversions are done
             if md[1][barcode]['WEIGHT_KG']:
                 md[1][barcode]['WEIGHT_KG'] = int(md[1][barcode]['WEIGHT_KG'])
             if md[1][barcode]['HEIGHT_CM']:
                 md[1][barcode]['HEIGHT_CM'] = int(md[1][barcode]['HEIGHT_CM'])
             if md[1][barcode]['BMI']:
-                md[1][barcode]['BMI'] = int(md[1][barcode]['BMI'])
+                md[1][barcode]['BMI'] = '%.2f' % md[1][barcode]['BMI']
 
             # Get rid of columns not wanted for pulldown
             del responses['BIRTH_MONTH']
