@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from collections import defaultdict, namedtuple
 from re import sub
 from hashlib import md5
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 import json
 
 from bcrypt import hashpw, gensalt
@@ -530,7 +530,6 @@ class KniminAccess(object):
                 md[1][barcode]['WEIGHT_KG'] = \
                     md[1][barcode]['WEIGHT_KG']/2.20462
             md[1][barcode]['WEIGHT_UNITS'] = 'kilograms'
-            
 
             # Get age in years (int) and remove birth month
             if responses['BIRTH_MONTH'] != 'Unspecified' and \
@@ -600,8 +599,15 @@ class KniminAccess(object):
             md[1][barcode]['COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
             md[1][barcode]['COLLECTION_DATE'] = \
                 barcode_info[barcode]['sample_date'].strftime('%m/%d/%Y')
-            md[1][barcode]['COLLECTION_TIME'] = \
-                barcode_info[barcode]['sample_time'].strftime('%H:%M')
+
+            if barcode_info[barcode]['sample_time']:
+                md[1][barcode]['COLLECTION_TIME'] = \
+                    barcode_info[barcode]['sample_time'].strftime('%H:%M')
+            else:
+                # If no time data, show unspecified and default to midnight
+                md[1][barcode]['COLLECTION_TIME'] = 'Unspecified'
+                barcode_info[barcode]['sample_time'] = time(0, 0)
+
             md[1][barcode]['COLLECTION_TIMESTAMP'] = datetime.combine(
                 barcode_info[barcode]['sample_date'],
                 barcode_info[barcode]['sample_time']).strftime('%m/%d/%Y %H:%M')
@@ -623,13 +629,13 @@ class KniminAccess(object):
                 md[1][barcode]['BMI'] = ''
             md[1][barcode]['PUBLIC'] = 'Yes'
 
-            #make sure conversions for integer are done
+            #make sure conversions are done
             if md[1][barcode]['WEIGHT_KG']:
                 md[1][barcode]['WEIGHT_KG'] = int(md[1][barcode]['WEIGHT_KG'])
             if md[1][barcode]['HEIGHT_CM']:
                 md[1][barcode]['HEIGHT_CM'] = int(md[1][barcode]['HEIGHT_CM'])
             if md[1][barcode]['BMI']:
-                md[1][barcode]['BMI'] = int(md[1][barcode]['BMI'])
+                md[1][barcode]['BMI'] = '%.2f' % md[1][barcode]['BMI']
 
             # Get rid of columns not wanted for pulldown
             del responses['BIRTH_MONTH']
