@@ -315,9 +315,8 @@ class KniminAccess(object):
                  JOIN ag_kit USING (ag_kit_id)
                  JOIN ag_login USING (ag_login_id)
                  WHERE barcode in %s"""
-        results = {row[0]: dict(row)
-                   for row in self._con.execute_fetchall(sql, [tuple(barcodes)])}
-        return results
+        res = self._con.execute_fetchall(sql, [tuple(b[:9] for b in barcodes)])
+        return {row[0]: dict(row) for row in res}
 
     def get_surveys(self, barcodes):
         """Retrieve surveys for specific barcodes
@@ -402,13 +401,20 @@ class KniminAccess(object):
             multiples_headers[question][response] = \
                 _translate_multiple_response_to_header(question, response)
 
+        # find special case barcodes with appended info and store them
+        special_bc = sorted(b for b in barcodes if len(b) > 9)
+        # Strip off any appending from barcodes before getting data
+        bc = tuple(set(b[:9] for b in barcodes))
         # this function reduces code duplication by generalizing as much
         # as possible how questions and responses are fetched from the db
-        bc = tuple(barcodes)
-
         def _format_responses_as_dict(sql, json=False, multiple=False):
             ret_dict = defaultdict(lambda: defaultdict(dict))
             for survey, barcode, q, a in self._con.execute_fetchall(sql, [bc]):
+                # Get special barcodes that match, if applicable
+                match = [x for x in special_bc if barcode in x]
+                if not match:
+                    match = [barcode]
+
                 if json:
                     # Taking this slice here since all json are single-element
                     # lists
@@ -418,10 +424,12 @@ class KniminAccess(object):
                     a = sub('[^0-9a-zA-Z.,;/_() -]', '_', a)
                 if multiple:
                     for response, header in multiples_headers[q].items():
-                        ret_dict[survey][barcode][header] = \
-                            'Yes' if response in a else 'No'
+                        for bcs in match:
+                            ret_dict[survey][bcs][header] = \
+                                'Yes' if response in a else 'No'
                 else:
-                    ret_dict[survey][barcode][q] = a
+                    for bcs in match:
+                        ret_dict[survey][bcs][q] = a
             return ret_dict
 
         single_results = _format_responses_as_dict(single_sql)
@@ -510,6 +518,7 @@ class KniminAccess(object):
         survey_lookup = dict(self._con.execute_fetchall(survey_sql))
 
         for barcode, responses in md[1].items():
+            specific_info = barcode_info[barcode[:9]]
             # convert numeric fields
             for field in ('HEIGHT_CM', 'WEIGHT_KG'):
                 md[1][barcode][field] = sub('[^0-9.]',
@@ -551,7 +560,7 @@ class KniminAccess(object):
             md[1][barcode]['SEX'] = sex
 
             # convenience variable
-            site = barcode_info[barcode]['site_sampled']
+            site = specific_info['site_sampled']
 
             # Invariant information
             md[1][barcode]['ANONYMIZED_NAME'] = barcode
@@ -565,7 +574,7 @@ class KniminAccess(object):
 
             # Sample-dependent information
             zipcode = md[1][barcode]['ZIP_CODE']
-            country = barcode_info[barcode]['country']
+            country = specific_info['country']
             try:
                 md[1][barcode]['LATITUDE'] = \
                     zip_lookup[zipcode][country][0]
@@ -589,7 +598,7 @@ class KniminAccess(object):
                 md[1][barcode]['STATE'] = info.state if info.state else 'Unspecified'
                 md[1][barcode]['COUNTRY'] = country_lookup[info.country] if info.country else 'Unspecified'
 
-            md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode]
+            md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode[:9]]
             try:
                 md[1][barcode]['TAXON_ID'] = md_lookup[site]['TAXON_ID']
             except Exception as e:
@@ -598,19 +607,19 @@ class KniminAccess(object):
 
             md[1][barcode]['COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
             md[1][barcode]['COLLECTION_DATE'] = \
-                barcode_info[barcode]['sample_date'].strftime('%m/%d/%Y')
+                specific_info['sample_date'].strftime('%m/%d/%Y')
 
-            if barcode_info[barcode]['sample_time']:
+            if specific_info['sample_time']:
                 md[1][barcode]['COLLECTION_TIME'] = \
-                    barcode_info[barcode]['sample_time'].strftime('%H:%M')
+                    specific_info['sample_time'].strftime('%H:%M')
             else:
                 # If no time data, show unspecified and default to midnight
                 md[1][barcode]['COLLECTION_TIME'] = 'Unspecified'
-                barcode_info[barcode]['sample_time'] = time(0, 0)
+                specific_info['sample_time'] = time(0, 0)
 
             md[1][barcode]['COLLECTION_TIMESTAMP'] = datetime.combine(
-                barcode_info[barcode]['sample_date'],
-                barcode_info[barcode]['sample_time']).strftime('%m/%d/%Y %H:%M')
+                specific_info['sample_date'],
+                specific_info['sample_time']).strftime('%m/%d/%Y %H:%M')
 
             md[1][barcode]['ENV_MATTER'] = md_lookup[site]['ENV_MATTER']
             md[1][barcode]['SCIENTIFIC_NAME'] = md_lookup[site]['SCIENTIFIC_NAME']
@@ -620,8 +629,8 @@ class KniminAccess(object):
             md[1][barcode]['BODY_PRODUCT'] = md_lookup[site]['BODY_PRODUCT']
             md[1][barcode]['HOST_COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
             md[1][barcode]['HOST_SUBJECT_ID'] = md5(
-                barcode_info[barcode]['ag_login_id'] +
-                barcode_info[barcode]['participant_name']).hexdigest()
+                specific_info['ag_login_id'] +
+                specific_info['participant_name']).hexdigest()
             if md[1][barcode]['WEIGHT_KG'] and md[1][barcode]['HEIGHT_CM']:
                 md[1][barcode]['BMI'] = md[1][barcode]['WEIGHT_KG'] / \
                     (md[1][barcode]['HEIGHT_CM']/100)**2
