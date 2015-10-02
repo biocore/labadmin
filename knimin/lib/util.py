@@ -205,6 +205,7 @@ def categorize_etoh(x):
     else:
         return 'Unspecified'
 
+
 def categorize_bmi(x):
     if x < 18.5:
         return "Underweight"
@@ -216,5 +217,3 @@ def categorize_bmi(x):
         return "Obese"
     else:
         return 'Unspecified'
-
-
