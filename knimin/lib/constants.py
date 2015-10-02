@@ -13,6 +13,7 @@ md_lookup = {
          'TAXON_ID': '539655',
          'BODY_HABITAT': 'UBERON:hair',
          'ENV_MATTER': 'ENVO:sebum',
+         'DESCRIPTION': 'American Gut Project Hair sample',
          'BODY_SITE': 'UBERON:hair'},
     'Nares': {
         'BODY_PRODUCT': 'UBERON:mucus',
@@ -22,6 +23,7 @@ md_lookup = {
         'TAXON_ID': '1131769',
         'BODY_HABITAT': 'UBERON:nose',
         'ENV_MATTER': 'ENVO:mucus',
+        'DESCRIPTION': 'American Gut Project Nares sample',
         'BODY_SITE': 'UBERON:nostril'},
     'Vaginal mucus': {
         'BODY_PRODUCT': 'UBERON:mucus',
@@ -31,6 +33,7 @@ md_lookup = {
         'TAXON_ID': '1549736',
         'BODY_HABITAT': 'UBERON:vagina',
         'ENV_MATTER': 'ENVO:mucus',
+        'DESCRIPTION': 'American Gut Project Vaginal mucus sample',
         'BODY_SITE': 'UBERON:vaginal introitus'},
     'Sole of foot': {
         'BODY_PRODUCT': 'UBERON:sebum',
@@ -40,6 +43,7 @@ md_lookup = {
         'TAXON_ID': '539655',
         'BODY_HABITAT': 'UBERON:skin',
         'ENV_MATTER': 'ENVO:sebum',
+        'DESCRIPTION': 'American Gut Project Sole of foot sample',
         'BODY_SITE': 'UBERON:skin of foot'},
     'Nasal mucus': {
         'BODY_PRODUCT': 'UBERON:mucus',
@@ -49,6 +53,7 @@ md_lookup = {
         'TAXON_ID': '1131769',
         'BODY_HABITAT': 'UBERON:nose',
         'ENV_MATTER': 'ENVO:mucus',
+        'DESCRIPTION': 'American Gut Project Nasal mucus sample',
         'BODY_SITE': 'UBERON:nostril'},
     'Stool': {
         'BODY_PRODUCT': 'UBERON:feces',
@@ -58,6 +63,7 @@ md_lookup = {
         'TAXON_ID': '408170',
         'BODY_HABITAT': 'UBERON:feces',
         'ENV_MATTER': 'ENVO:feces',
+        'DESCRIPTION': 'American Gut Project Stool sample',
         'BODY_SITE': 'UBERON:feces'},
     'Forehead': {
         'BODY_PRODUCT': 'UBERON:sebum',
@@ -67,6 +73,7 @@ md_lookup = {
         'TAXON_ID': '539655',
         'BODY_HABITAT': 'UBERON:skin',
         'ENV_MATTER': 'ENVO:sebum',
+        'DESCRIPTION': 'American Gut Project Forehead sample',
         'BODY_SITE': 'UBERON:skin of head'},
     'Tears': {
         'BODY_PRODUCT': 'UBERON:tears',
@@ -76,6 +83,7 @@ md_lookup = {
         'TAXON_ID': '646099',
         'BODY_HABITAT': 'UBERON:eye',
         'ENV_MATTER': 'ENVO:tears',
+        'DESCRIPTION': 'American Gut Project Tears sample',
         'BODY_SITE': 'UBERON:eye'},
     'Right hand': {
         'BODY_PRODUCT': 'UBERON:sebum',
@@ -85,6 +93,7 @@ md_lookup = {
         'TAXON_ID': '539655',
         'BODY_HABITAT': 'UBERON:skin',
         'ENV_MATTER': 'ENVO:sebum',
+        'DESCRIPTION': 'American Gut Project Right Hand sample',
         'BODY_SITE': 'UBERON:skin of hand'},
     'Mouth': {
         'BODY_PRODUCT': 'UBERON:saliva',
@@ -94,6 +103,7 @@ md_lookup = {
         'TAXON_ID': '447426',
         'BODY_HABITAT': 'UBERON:oral cavity',
         'ENV_MATTER': 'ENVO:saliva',
+        'DESCRIPTION': 'American Gut Project Mouth sample',
         'BODY_SITE': 'UBERON:tongue'},
     'Left hand': {
         'BODY_PRODUCT': 'UBERON:sebum',
@@ -103,6 +113,7 @@ md_lookup = {
         'TAXON_ID': '539655',
         'BODY_HABITAT': 'UBERON:skin',
         'ENV_MATTER': 'ENVO:sebum',
+        'DESCRIPTION': 'American Gut Project Left Hand sample',
         'BODY_SITE': 'UBERON:skin of hand'},
     'Ear wax': {
         'BODY_PRODUCT': 'UBERON:ear wax',
@@ -112,6 +123,7 @@ md_lookup = {
         'TAXON_ID': '646099',
         'BODY_HABITAT': 'UBERON:ear',
         'ENV_MATTER': 'ENVO:ear wax',
+        'DESCRIPTION': 'American Gut Project Ear wax sample',
         'BODY_SITE': 'UBERON:external auditory meatus'}
 }
 

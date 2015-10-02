@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 from contextlib import contextmanager
 from collections import defaultdict, namedtuple
 from re import sub
@@ -498,7 +499,6 @@ class KniminAccess(object):
         all_barcodes = set().union(*[set(md[s]) for s in md])
         barcode_info = self.get_ag_barcode_details(all_barcodes)
 
-        # Human survey (id 1)
         # tuples are latitude, longitude, elevation, state
         zipcode_sql = """SELECT zipcode, country, round(latitude::numeric, 1),
                              round(longitude::numeric,1),
@@ -517,6 +517,20 @@ class KniminAccess(object):
         survey_sql = "SELECT barcode, survey_id FROM ag.ag_kit_barcodes"
         survey_lookup = dict(self._con.execute_fetchall(survey_sql))
 
+        # Pet survey (id 2)
+        for barcode, responses in md[2].items():
+            # Invariant information
+            md[2][barcode]['ANONYMIZED_NAME'] = barcode
+            # md[2][barcode]['HOST_TAXID'] = ????
+            md[2][barcode]['TITLE'] = 'American Gut Project'
+            md[2][barcode]['ALTITUDE'] = 0
+            md[2][barcode]['ASSIGNED_FROM_GEO'] = 'Yes'
+            md[2][barcode]['ENV_BIOME'] = 'ENVO:dense settlement biome'
+            md[2][barcode]['ENV_FEATURE'] = 'ENVO:animal-associated habitat'
+            md[2][barcode]['DEPTH'] = 0
+            md[2][barcode]['DESCRIPTION'] = 'American Gut Project Animal sample'
+
+        # Human survey (id 1)
         for barcode, responses in md[1].items():
             specific_info = barcode_info[barcode[:9]]
             # convert numeric fields
@@ -627,6 +641,7 @@ class KniminAccess(object):
             md[1][barcode]['BODY_HABITAT'] = md_lookup[site]['BODY_HABITAT']
             md[1][barcode]['BODY_SITE'] = md_lookup[site]['BODY_SITE']
             md[1][barcode]['BODY_PRODUCT'] = md_lookup[site]['BODY_PRODUCT']
+            md[1][barcode]['DESCRIPTION'] = md_lookup[site]['DESCRIPTION']
             md[1][barcode]['HOST_COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
             md[1][barcode]['HOST_SUBJECT_ID'] = md5(
                 specific_info['ag_login_id'] +
