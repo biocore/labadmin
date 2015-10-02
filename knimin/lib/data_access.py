@@ -11,8 +11,9 @@ from bcrypt import hashpw, gensalt
 from psycopg2 import connect, Error as PostgresError
 from psycopg2.extras import DictCursor
 
-from util import make_valid_kit_ids, make_verification_code, make_passwd
-from constants import md_lookup, month_lookup
+from util import (make_valid_kit_ids, make_verification_code, make_passwd,
+                  categorize_age, categorize_etoh, categorize_bmi)
+from constants import md_lookup, month_lookup, season_lookup, regions_by_state
 from geocoder import geocode, Location, GoogleAPILimitExceeded
 
 
@@ -571,6 +572,8 @@ class KniminAccess(object):
                     birthdate, now) / 12.0)
             else:
                 md[1][barcode]['AGE_YEARS'] = 'Unspecified'
+            md[1][barcode]['AGE_CAT'] = categorize_age(
+                md[1][barcode]['AGE_YEARS'])
 
             # GENDER to SEX
             sex = md[1][barcode]['GENDER']
@@ -662,6 +665,21 @@ class KniminAccess(object):
             else:
                 md[1][barcode]['BMI'] = ''
             md[1][barcode]['PUBLIC'] = 'Yes'
+
+            # Add categorization columns
+            md[1][barcode]['ALCOHOL_CONSUMPTION'] = categorize_etoh(
+                md[1][barcode]['ALCOHOL_FREQUENCY'])
+            md[1][barcode]['BMI_CAT'] = categorize_bmi(
+                md[1][barcode]['BMI'])
+            md[1][barcode]['COLLECTION_SEASON'] = season_lookup[
+                specific_info['sample_date'].month]
+            state = md[1][barcode]['STATE']
+            try:
+                md[1][barcode]['CENSUS_REGION'] = regions_by_state[state]['Census_1']
+                md[1][barcode]['ECONOMIC_REGION'] = regions_by_state[state]['Economic']
+            except KeyError:
+                md[1][barcode]['CENSUS_REGION'] = 'Unspecified'
+                md[1][barcode]['ECONOMIC_REGION'] = 'Unspecified'
 
             #make sure conversions are done
             if md[1][barcode]['WEIGHT_KG']:
