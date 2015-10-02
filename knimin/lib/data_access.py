@@ -680,8 +680,26 @@ class KniminAccess(object):
             except KeyError:
                 md[1][barcode]['CENSUS_REGION'] = 'Unspecified'
                 md[1][barcode]['ECONOMIC_REGION'] = 'Unspecified'
+            md[1][barcode]['SUBSET_AGE'] = \
+                19 < md[1][barcode]['AGE_YEARS'] < 70 and \
+                not md[1][barcode]['AGE_YEARS'] == 'Unspecified'
+            md[1][barcode]['SUBSET_DIABETES'] = \
+                md[1][barcode]['DIABETES'] == 'I do not have this condition'
+            md[1][barcode]['SUBSET_IBD'] = \
+                md[1][barcode]['IBD'] == 'I do not have this condition'
+            md[1][barcode]['SUBSET_ANTIBIOTIC_HISTORY'] = \
+            md[1][barcode]['ANTIBIOTIC_HISTORY'] == 'I have not taken antibiotics in the past year.'
+            md[1][barcode]['SUBSET_BMI'] = \
+                18.5 <= md[1][barcode]['BMI'] < 30 and \
+                not md[1][barcode]['BMI'] == 'Unspecified'
+            md[1][barcode]['SUBSET_HEALTHY'] = all([
+                md[1][barcode]['SUBSET_AGE'],
+                md[1][barcode]['SUBSET_DIABETES'],
+                md[1][barcode]['SUBSET_IBD'],
+                md[1][barcode]['SUBSET_ANTIBIOTIC_HISTORY'],
+                md[1][barcode]['SUBSET_BMI']])
 
-            #make sure conversions are done
+            # make sure conversions are done
             if md[1][barcode]['WEIGHT_KG']:
                 md[1][barcode]['WEIGHT_KG'] = int(md[1][barcode]['WEIGHT_KG'])
             if md[1][barcode]['HEIGHT_CM']:
