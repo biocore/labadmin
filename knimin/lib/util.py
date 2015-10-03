@@ -173,7 +173,9 @@ def make_verification_code(vercode_length=5):
 
 
 def categorize_age(x):
-    if x < 3:
+    if x < 0:
+        return 'Unspecified'
+    elif x < 3:
         return "baby"
     elif x < 13:
         return "child"
@@ -189,7 +191,7 @@ def categorize_age(x):
         return "50s"
     elif x < 70:
         return "60s"
-    elif x < 7000:
+    elif x < 123:
         return "70+"
     else:
         return 'Unspecified'
@@ -203,17 +205,19 @@ def categorize_etoh(x):
     elif isinstance(x, str):
         return "Yes"
     else:
-        return 'Unspecified'
+        raise TypeError('Must pass string, passed %s' % type(x))
 
 
 def categorize_bmi(x):
-    if x < 18.5:
+    if x < 0:
+        return 'Unspecified'
+    elif x < 18.5:
         return "Underweight"
     elif x < 25:
         return "Normal"
     elif x < 30:
         return "Overweight"
-    elif x < 100000000:
+    elif x < 210:
         return "Obese"
     else:
         return 'Unspecified'

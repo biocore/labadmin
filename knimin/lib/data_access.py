@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 from contextlib import contextmanager
 from collections import defaultdict, namedtuple
 from re import sub
-from hashlib import md5
+from hashlib import sha512
 from datetime import datetime, time, timedelta
 import json
 
@@ -656,9 +656,10 @@ class KniminAccess(object):
             md[1][barcode]['BODY_PRODUCT'] = md_lookup[site]['BODY_PRODUCT']
             md[1][barcode]['DESCRIPTION'] = md_lookup[site]['DESCRIPTION']
             md[1][barcode]['HOST_COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
-            md[1][barcode]['HOST_SUBJECT_ID'] = md5(
+            md[1][barcode]['HOST_SUBJECT_ID'] = sha512(
                 specific_info['ag_login_id'] +
                 specific_info['participant_name']).hexdigest()
+
             if md[1][barcode]['WEIGHT_KG'] and md[1][barcode]['HEIGHT_CM']:
                 md[1][barcode]['BMI'] = md[1][barcode]['WEIGHT_KG'] / \
                     (md[1][barcode]['HEIGHT_CM']/100)**2
