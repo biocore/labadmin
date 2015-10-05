@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from collections import defaultdict, namedtuple
 from re import sub
 from hashlib import md5
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 import json
 
 from bcrypt import hashpw, gensalt
@@ -388,7 +388,8 @@ class KniminAccess(object):
 
         # Formats a question and response for a MULTIPLE question into a header
         def _translate_multiple_response_to_header(question, response):
-            response = sub('\W', '_', response)
+            response = response.replace(" ", "_")
+            response = sub('\W', '', response)
             header = '_'.join([question, response])
             return header.upper()
 
@@ -490,9 +491,10 @@ class KniminAccess(object):
         barcode_info = self.get_ag_barcode_details(all_barcodes)
 
         # Human survey (id 1)
-        # tuples are latitude, longitude, elevation, city, state
-        zipcode_sql = """SELECT zipcode, country, latitude, longitude, elevation,
-                             city, state
+        # tuples are latitude, longitude, elevation, state
+        zipcode_sql = """SELECT zipcode, country, round(latitude::numeric, 1),
+                             round(longitude::numeric,1),
+                             round(elevation::numeric, 1), state
                          FROM zipcodes"""
         zip_lookup = defaultdict(dict)
         for row in self._con.execute_fetchall(zipcode_sql):
@@ -501,14 +503,13 @@ class KniminAccess(object):
 
         country_sql = "SELECT country, EBI from ag.iso_country_lookup"
         country_lookup = dict(self._con.execute_fetchall(country_sql))
+        # Add for scrubbed testing database
+        country_lookup['REMOVED'] = 'REMOVED'
 
         survey_sql = "SELECT barcode, survey_id FROM ag.ag_kit_barcodes"
         survey_lookup = dict(self._con.execute_fetchall(survey_sql))
 
         for barcode, responses in md[1].items():
-            # Get rid of ABOUT_YOURSELF_TEXT
-            del md[1][barcode]['ABOUT_YOURSELF_TEXT']
-
             # convert numeric fields
             for field in ('HEIGHT_CM', 'WEIGHT_KG'):
                 md[1][barcode][field] = sub('[^0-9.]',
@@ -530,7 +531,7 @@ class KniminAccess(object):
                     md[1][barcode]['WEIGHT_KG']/2.20462
             md[1][barcode]['WEIGHT_UNITS'] = 'kilograms'
 
-            # Get age in months (int) and age in years (float)
+            # Get age in years (int) and remove birth month
             if responses['BIRTH_MONTH'] != 'Unspecified' and \
                     responses['BIRTH_YEAR'] != 'Unspecified':
                 birthdate = datetime(
@@ -538,23 +539,16 @@ class KniminAccess(object):
                     int(month_lookup[responses['BIRTH_MONTH']]),
                     1)
                 now = datetime.now()
-                md[1][barcode]['AGE_MONTHS'] = self._months_between_dates(
-                    birthdate, now)
-                md[1][barcode]['AGE_YEARS'] = responses['AGE_MONTHS'] / 12.0
+                md[1][barcode]['AGE_YEARS'] = int(self._months_between_dates(
+                    birthdate, now) / 12.0)
             else:
-                md[1][barcode]['AGE_MONTHS'] = 'Unspecified'
                 md[1][barcode]['AGE_YEARS'] = 'Unspecified'
 
             # GENDER to SEX
             sex = md[1][barcode]['GENDER']
-            del md[1][barcode]['GENDER']
             if sex is not None:
                 sex = sex.lower()
             md[1][barcode]['SEX'] = sex
-
-            # Add MiMARKS TOT_MASS and HEIGHT_OR_LENGTH columns
-            md[1][barcode]['TOT_MASS'] = md[1][barcode]['WEIGHT_KG']
-            md[1][barcode]['HEIGHT_OR_LENGTH'] = md[1][barcode]['HEIGHT_CM']
 
             # convenience variable
             site = barcode_info[barcode]['site_sampled']
@@ -579,10 +573,8 @@ class KniminAccess(object):
                     zip_lookup[zipcode][country][1]
                 md[1][barcode]['ELEVATION'] = \
                     zip_lookup[zipcode][country][2]
-                md[1][barcode]['CITY'] = \
-                    zip_lookup[zipcode][country][3]
                 md[1][barcode]['STATE'] = \
-                    zip_lookup[zipcode][country][4]
+                    zip_lookup[zipcode][country][3]
                 md[1][barcode]['COUNTRY'] = country_lookup[country]
             except KeyError:
                 # geocode unknown zip/country combo and add to zipcode table & lookup dict
@@ -591,10 +583,9 @@ class KniminAccess(object):
                     zip_lookup[zipcode][country] = (info.lat, info.long, info.elev, info.city, info.state)
                 else:
                     info = Location(None, None, None, None, None, None, None, None)
-                md[1][barcode]['LATITUDE'] = info.lat if info.lat else 'Unspecified'
-                md[1][barcode]['LONGITUDE'] = info.long if info.long else 'Unspecified'
-                md[1][barcode]['ELEVATION'] = info.elev if info.elev else 'Unspecified'
-                md[1][barcode]['CITY'] = info.city if info.city else 'Unspecified'
+                md[1][barcode]['LATITUDE'] = '%.1f' % info.lat if info.lat else 'Unspecified'
+                md[1][barcode]['LONGITUDE'] = '%.1f' % info.long if info.long else 'Unspecified'
+                md[1][barcode]['ELEVATION'] = '%.1f' % info.elev if info.elev else 'Unspecified'
                 md[1][barcode]['STATE'] = info.state if info.state else 'Unspecified'
                 md[1][barcode]['COUNTRY'] = country_lookup[info.country] if info.country else 'Unspecified'
 
@@ -608,17 +599,26 @@ class KniminAccess(object):
             md[1][barcode]['COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
             md[1][barcode]['COLLECTION_DATE'] = \
                 barcode_info[barcode]['sample_date'].strftime('%m/%d/%Y')
-            md[1][barcode]['COLLECTION_TIME'] = \
-                barcode_info[barcode]['sample_time'].strftime('%H:%M')
-            md[1][barcode]['COLLECTION_TIMESTAMP'] = \
-                datetime.combine(barcode_info[barcode]['sample_date'],
-                                 barcode_info[barcode]['sample_time'])
+
+            if barcode_info[barcode]['sample_time']:
+                md[1][barcode]['COLLECTION_TIME'] = \
+                    barcode_info[barcode]['sample_time'].strftime('%H:%M')
+            else:
+                # If no time data, show unspecified and default to midnight
+                md[1][barcode]['COLLECTION_TIME'] = 'Unspecified'
+                barcode_info[barcode]['sample_time'] = time(0, 0)
+
+            md[1][barcode]['COLLECTION_TIMESTAMP'] = datetime.combine(
+                barcode_info[barcode]['sample_date'],
+                barcode_info[barcode]['sample_time']).strftime('%m/%d/%Y %H:%M')
+
             md[1][barcode]['ENV_MATTER'] = md_lookup[site]['ENV_MATTER']
             md[1][barcode]['SCIENTIFIC_NAME'] = md_lookup[site]['SCIENTIFIC_NAME']
             md[1][barcode]['SAMPLE_TYPE'] = md_lookup[site]['SAMPLE_TYPE']
             md[1][barcode]['BODY_HABITAT'] = md_lookup[site]['BODY_HABITAT']
             md[1][barcode]['BODY_SITE'] = md_lookup[site]['BODY_SITE']
             md[1][barcode]['BODY_PRODUCT'] = md_lookup[site]['BODY_PRODUCT']
+            md[1][barcode]['HOST_COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
             md[1][barcode]['HOST_SUBJECT_ID'] = md5(
                 barcode_info[barcode]['ag_login_id'] +
                 barcode_info[barcode]['participant_name']).hexdigest()
@@ -628,6 +628,27 @@ class KniminAccess(object):
             else:
                 md[1][barcode]['BMI'] = ''
             md[1][barcode]['PUBLIC'] = 'Yes'
+
+            #make sure conversions are done
+            if md[1][barcode]['WEIGHT_KG']:
+                md[1][barcode]['WEIGHT_KG'] = int(md[1][barcode]['WEIGHT_KG'])
+            if md[1][barcode]['HEIGHT_CM']:
+                md[1][barcode]['HEIGHT_CM'] = int(md[1][barcode]['HEIGHT_CM'])
+            if md[1][barcode]['BMI']:
+                md[1][barcode]['BMI'] = '%.2f' % md[1][barcode]['BMI']
+
+            # Get rid of columns not wanted for pulldown
+            del responses['BIRTH_MONTH']
+            del md[1][barcode]['ABOUT_YOURSELF_TEXT']
+            del md[1][barcode]['GENDER']
+            del md[1][barcode]['ZIP_CODE']
+            del md[1][barcode]['ANTIBIOTIC_MED']
+            del md[1][barcode]['ANTIBIOTIC_CONDITION']
+            del md[1][barcode]['CONDITIONS_MEDICATION']
+            del md[1][barcode]['MEDICATION_LIST']
+            del md[1][barcode]['SUPPLEMENTS']
+            del md[1][barcode]['SPECIAL_RESTRICTIONS']
+            del md[1][barcode]['WILLING_TO_BE_CONTACTED']
 
         return md
 
@@ -679,12 +700,11 @@ class KniminAccess(object):
             for barcode, shortnames_answers in sorted(bc_responses.items()):
                 barcodes_seen.add(barcode)
                 ordered_answers = [shortnames_answers[h] for h in headers]
-                oa_hold = []
+                oa_hold = [barcode]
                 for x in ordered_answers:
                     converted = str(x) if type(x) not in {str, unicode} else x
                     oa_hold.append(converted)
-                ordered_answers = '\t'.join(oa_hold)
-                survey_md.append('\t'.join([barcode, ordered_answers]))
+                survey_md.append('\t'.join(oa_hold))
             metadata[survey] = '\n'.join(survey_md)
 
         failures = sorted(set(barcodes) - barcodes_seen)
@@ -1229,12 +1249,14 @@ class KniminAccess(object):
         if not zipcode or not country:
             return Location(zipcode, None, None, None, None, None, None, country)
 
-        sql = """SELECT latitude, longitude, elevation, city, state, zipcode, country
+        sql = """SELECT round(latitude::numeric, 1), round(longitude::numeric, 1),
+                    round(elevation::numeric, 1), city, state, zipcode, country
                  FROM ag.zipcodes
                  WHERE zipcode = %s and country = %s"""
         zip_info = self._con.execute_fetchone(sql, [zipcode, country])
         if zip_info:
-            return Location([zipcode] + zip_info)
+            zip_info = [zipcode] + zip_info
+            return Location(*zip_info)
 
         info = geocode('%s %s' % (zipcode, country))
         cannot_geocode = False
