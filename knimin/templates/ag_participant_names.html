@@ -1,0 +1,19 @@
+{% extends logged_in_index.html %}
+{% block head %}
+{% from json import dumps %}
+<script type="text/javascript" src="/static/js/labmin.js"></script>
+<script type="text/javascript" src="/static/vendor/js/jquery.validate.min.js"></script>
+<style>
+p {
+  font-weight: bold;
+}
+</style>
+{% end %}
+
+{% block content %}
+<h3 style="color:red">Retrieve barcode to participant name associations.</h3>
+<h3>Participant name pulldown</h3>
+<form enctype="multipart/form-data" action="/ag_participant_names/download/" name="agForm" id="agForm" method="post">
+<p><input type="submit"</p>
+</form>
+{% end %}

@@ -24,7 +24,8 @@ from knimin.handlers.ag_edit_barcode import AGEditBarcodeHandler
 from knimin.handlers.ag_update_geocode import AGUpdateGeocodeHandler
 from knimin.handlers.ag_pulldown import AGPulldownHandler, AGPulldownDLHandler
 from knimin.handlers.ag_add_barcode_kit import AGAddBarcodeKitHandler
-
+from knimin.handlers.ag_get_participant_names import (AGNamesHandler,
+                                                      AGNamesDLHandler)
 define("port", default=config.http_port, type=int)
 
 
@@ -57,6 +58,8 @@ class WebApplication(Application):
             (r"/ag_edit_barcode/", AGEditBarcodeHandler),
             (r"/ag_pulldown/", AGPulldownHandler),
             (r"/ag_pulldown/download/", AGPulldownDLHandler),
+            (r"/ag_participant_names/", AGNamesHandler),
+            (r"/ag_participant_names/download/", AGNamesDLHandler),
             (r"/ag_new_barcode/download/", AGBarcodePrintoutHandler),
             (r"/ag_new_barcode/assigned/", AGBarcodeAssignedHandler),
             (r".*", NoPageHandler)

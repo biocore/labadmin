@@ -652,6 +652,19 @@ class KniminAccess(object):
 
         return md
 
+    def participant_names(self):
+        """Retrieve the participant names for the given barcodes
+
+        Returns
+        -------
+        list of tuple
+            (barcode, participant name)
+        """
+        sql = """SELECT barcode, participant_name
+                 FROM ag.ag_kit_barcodes
+                 WHERE participant_name IS NOT NULL"""
+        return self._con.execute_fetchall(sql)
+
     def pulldown(self, barcodes):
         """Pulls down AG metadata for given barcodes
 
