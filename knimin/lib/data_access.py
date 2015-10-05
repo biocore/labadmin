@@ -1,7 +1,8 @@
+from __future__ import unicode_literals
 from contextlib import contextmanager
 from collections import defaultdict, namedtuple
 from re import sub
-from hashlib import md5
+from hashlib import sha512
 from datetime import datetime, time, timedelta
 import json
 
@@ -10,8 +11,9 @@ from bcrypt import hashpw, gensalt
 from psycopg2 import connect, Error as PostgresError
 from psycopg2.extras import DictCursor
 
-from util import make_valid_kit_ids, make_verification_code, make_passwd
-from constants import md_lookup, month_lookup
+from util import (make_valid_kit_ids, make_verification_code, make_passwd,
+                  categorize_age, categorize_etoh, categorize_bmi)
+from constants import md_lookup, month_lookup, season_lookup, regions_by_state
 from geocoder import geocode, Location, GoogleAPILimitExceeded
 
 
@@ -315,9 +317,8 @@ class KniminAccess(object):
                  JOIN ag_kit USING (ag_kit_id)
                  JOIN ag_login USING (ag_login_id)
                  WHERE barcode in %s"""
-        results = {row[0]: dict(row)
-                   for row in self._con.execute_fetchall(sql, [tuple(barcodes)])}
-        return results
+        res = self._con.execute_fetchall(sql, [tuple(b[:9] for b in barcodes)])
+        return {row[0]: dict(row) for row in res}
 
     def get_surveys(self, barcodes):
         """Retrieve surveys for specific barcodes
@@ -402,13 +403,20 @@ class KniminAccess(object):
             multiples_headers[question][response] = \
                 _translate_multiple_response_to_header(question, response)
 
+        # find special case barcodes with appended info and store them
+        special_bc = sorted(b for b in barcodes if len(b) > 9)
+        # Strip off any appending from barcodes before getting data
+        bc = tuple(set(b[:9] for b in barcodes))
         # this function reduces code duplication by generalizing as much
         # as possible how questions and responses are fetched from the db
-        bc = tuple(barcodes)
-
         def _format_responses_as_dict(sql, json=False, multiple=False):
             ret_dict = defaultdict(lambda: defaultdict(dict))
             for survey, barcode, q, a in self._con.execute_fetchall(sql, [bc]):
+                # Get special barcodes that match, if applicable
+                match = [x for x in special_bc if barcode in x]
+                if not match:
+                    match = [barcode]
+
                 if json:
                     # Taking this slice here since all json are single-element
                     # lists
@@ -418,10 +426,12 @@ class KniminAccess(object):
                     a = sub('[^0-9a-zA-Z.,;/_() -]', '_', a)
                 if multiple:
                     for response, header in multiples_headers[q].items():
-                        ret_dict[survey][barcode][header] = \
-                            'Yes' if response in a else 'No'
+                        for bcs in match:
+                            ret_dict[survey][bcs][header] = \
+                                'Yes' if response in a else 'No'
                 else:
-                    ret_dict[survey][barcode][q] = a
+                    for bcs in match:
+                        ret_dict[survey][bcs][q] = a
             return ret_dict
 
         single_results = _format_responses_as_dict(single_sql)
@@ -490,7 +500,6 @@ class KniminAccess(object):
         all_barcodes = set().union(*[set(md[s]) for s in md])
         barcode_info = self.get_ag_barcode_details(all_barcodes)
 
-        # Human survey (id 1)
         # tuples are latitude, longitude, elevation, state
         zipcode_sql = """SELECT zipcode, country, round(latitude::numeric, 1),
                              round(longitude::numeric,1),
@@ -509,7 +518,27 @@ class KniminAccess(object):
         survey_sql = "SELECT barcode, survey_id FROM ag.ag_kit_barcodes"
         survey_lookup = dict(self._con.execute_fetchall(survey_sql))
 
+        # Pet survey (id 2)
+        for barcode, responses in md[2].items():
+            # Invariant information
+            md[2][barcode]['ANONYMIZED_NAME'] = barcode
+            # md[2][barcode]['HOST_TAXID'] = ????
+            md[2][barcode]['TITLE'] = 'American Gut Project'
+            md[2][barcode]['ALTITUDE'] = 0
+            md[2][barcode]['ASSIGNED_FROM_GEO'] = 'Yes'
+            md[2][barcode]['ENV_BIOME'] = 'ENVO:dense settlement biome'
+            md[2][barcode]['ENV_FEATURE'] = 'ENVO:animal-associated habitat'
+            md[2][barcode]['DEPTH'] = 0
+            md[2][barcode]['DESCRIPTION'] = 'American Gut Project Animal sample'
+            md[2][barcode]['DNA_EXTRACTED'] = 'true'
+            md[2][barcode]['HAS_PHYSICAL_SPECIMEN'] = 'true'
+            md[2][barcode]['PHYSICAL_SPECIMEN_REMAINING'] = 'true'
+            md[2][barcode]['PHYSICAL_SPECIMEN_LOCATION'] = 'UCSDMI'
+            md[2][barcode]['REQUIRED_SAMPLE_INFO_STATUS'] = 'completed'
+
+        # Human survey (id 1)
         for barcode, responses in md[1].items():
+            specific_info = barcode_info[barcode[:9]]
             # convert numeric fields
             for field in ('HEIGHT_CM', 'WEIGHT_KG'):
                 md[1][barcode][field] = sub('[^0-9.]',
@@ -543,6 +572,8 @@ class KniminAccess(object):
                     birthdate, now) / 12.0)
             else:
                 md[1][barcode]['AGE_YEARS'] = 'Unspecified'
+            md[1][barcode]['AGE_CAT'] = categorize_age(
+                md[1][barcode]['AGE_YEARS'])
 
             # GENDER to SEX
             sex = md[1][barcode]['GENDER']
@@ -551,7 +582,7 @@ class KniminAccess(object):
             md[1][barcode]['SEX'] = sex
 
             # convenience variable
-            site = barcode_info[barcode]['site_sampled']
+            site = specific_info['site_sampled']
 
             # Invariant information
             md[1][barcode]['ANONYMIZED_NAME'] = barcode
@@ -562,10 +593,15 @@ class KniminAccess(object):
             md[1][barcode]['ENV_BIOME'] = 'ENVO:dense settlement biome'
             md[1][barcode]['ENV_FEATURE'] = 'ENVO:human-associated habitat'
             md[1][barcode]['DEPTH'] = 0
+            md[1][barcode]['DNA_EXTRACTED'] = 'true'
+            md[1][barcode]['HAS_PHYSICAL_SPECIMEN'] = 'true'
+            md[1][barcode]['PHYSICAL_SPECIMEN_REMAINING'] = 'true'
+            md[1][barcode]['PHYSICAL_SPECIMEN_LOCATION'] = 'UCSDMI'
+            md[1][barcode]['REQUIRED_SAMPLE_INFO_STATUS'] = 'completed'
 
             # Sample-dependent information
             zipcode = md[1][barcode]['ZIP_CODE']
-            country = barcode_info[barcode]['country']
+            country = specific_info['country']
             try:
                 md[1][barcode]['LATITUDE'] = \
                     zip_lookup[zipcode][country][0]
@@ -589,7 +625,7 @@ class KniminAccess(object):
                 md[1][barcode]['STATE'] = info.state if info.state else 'Unspecified'
                 md[1][barcode]['COUNTRY'] = country_lookup[info.country] if info.country else 'Unspecified'
 
-            md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode]
+            md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode[:9]]
             try:
                 md[1][barcode]['TAXON_ID'] = md_lookup[site]['TAXON_ID']
             except Exception as e:
@@ -598,19 +634,19 @@ class KniminAccess(object):
 
             md[1][barcode]['COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
             md[1][barcode]['COLLECTION_DATE'] = \
-                barcode_info[barcode]['sample_date'].strftime('%m/%d/%Y')
+                specific_info['sample_date'].strftime('%m/%d/%Y')
 
-            if barcode_info[barcode]['sample_time']:
+            if specific_info['sample_time']:
                 md[1][barcode]['COLLECTION_TIME'] = \
-                    barcode_info[barcode]['sample_time'].strftime('%H:%M')
+                    specific_info['sample_time'].strftime('%H:%M')
             else:
                 # If no time data, show unspecified and default to midnight
                 md[1][barcode]['COLLECTION_TIME'] = 'Unspecified'
-                barcode_info[barcode]['sample_time'] = time(0, 0)
+                specific_info['sample_time'] = time(0, 0)
 
             md[1][barcode]['COLLECTION_TIMESTAMP'] = datetime.combine(
-                barcode_info[barcode]['sample_date'],
-                barcode_info[barcode]['sample_time']).strftime('%m/%d/%Y %H:%M')
+                specific_info['sample_date'],
+                specific_info['sample_time']).strftime('%m/%d/%Y %H:%M')
 
             md[1][barcode]['ENV_MATTER'] = md_lookup[site]['ENV_MATTER']
             md[1][barcode]['SCIENTIFIC_NAME'] = md_lookup[site]['SCIENTIFIC_NAME']
@@ -618,10 +654,12 @@ class KniminAccess(object):
             md[1][barcode]['BODY_HABITAT'] = md_lookup[site]['BODY_HABITAT']
             md[1][barcode]['BODY_SITE'] = md_lookup[site]['BODY_SITE']
             md[1][barcode]['BODY_PRODUCT'] = md_lookup[site]['BODY_PRODUCT']
+            md[1][barcode]['DESCRIPTION'] = md_lookup[site]['DESCRIPTION']
             md[1][barcode]['HOST_COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
-            md[1][barcode]['HOST_SUBJECT_ID'] = md5(
-                barcode_info[barcode]['ag_login_id'] +
-                barcode_info[barcode]['participant_name']).hexdigest()
+            md[1][barcode]['HOST_SUBJECT_ID'] = sha512(
+                specific_info['ag_login_id'] +
+                specific_info['participant_name']).hexdigest()
+
             if md[1][barcode]['WEIGHT_KG'] and md[1][barcode]['HEIGHT_CM']:
                 md[1][barcode]['BMI'] = md[1][barcode]['WEIGHT_KG'] / \
                     (md[1][barcode]['HEIGHT_CM']/100)**2
@@ -629,7 +667,40 @@ class KniminAccess(object):
                 md[1][barcode]['BMI'] = ''
             md[1][barcode]['PUBLIC'] = 'Yes'
 
-            #make sure conversions are done
+            # Add categorization columns
+            md[1][barcode]['ALCOHOL_CONSUMPTION'] = categorize_etoh(
+                md[1][barcode]['ALCOHOL_FREQUENCY'])
+            md[1][barcode]['BMI_CAT'] = categorize_bmi(
+                md[1][barcode]['BMI'])
+            md[1][barcode]['COLLECTION_SEASON'] = season_lookup[
+                specific_info['sample_date'].month]
+            state = md[1][barcode]['STATE']
+            try:
+                md[1][barcode]['CENSUS_REGION'] = regions_by_state[state]['Census_1']
+                md[1][barcode]['ECONOMIC_REGION'] = regions_by_state[state]['Economic']
+            except KeyError:
+                md[1][barcode]['CENSUS_REGION'] = 'Unspecified'
+                md[1][barcode]['ECONOMIC_REGION'] = 'Unspecified'
+            md[1][barcode]['SUBSET_AGE'] = \
+                19 < md[1][barcode]['AGE_YEARS'] < 70 and \
+                not md[1][barcode]['AGE_YEARS'] == 'Unspecified'
+            md[1][barcode]['SUBSET_DIABETES'] = \
+                md[1][barcode]['DIABETES'] == 'I do not have this condition'
+            md[1][barcode]['SUBSET_IBD'] = \
+                md[1][barcode]['IBD'] == 'I do not have this condition'
+            md[1][barcode]['SUBSET_ANTIBIOTIC_HISTORY'] = \
+            md[1][barcode]['ANTIBIOTIC_HISTORY'] == 'I have not taken antibiotics in the past year.'
+            md[1][barcode]['SUBSET_BMI'] = \
+                18.5 <= md[1][barcode]['BMI'] < 30 and \
+                not md[1][barcode]['BMI'] == 'Unspecified'
+            md[1][barcode]['SUBSET_HEALTHY'] = all([
+                md[1][barcode]['SUBSET_AGE'],
+                md[1][barcode]['SUBSET_DIABETES'],
+                md[1][barcode]['SUBSET_IBD'],
+                md[1][barcode]['SUBSET_ANTIBIOTIC_HISTORY'],
+                md[1][barcode]['SUBSET_BMI']])
+
+            # make sure conversions are done
             if md[1][barcode]['WEIGHT_KG']:
                 md[1][barcode]['WEIGHT_KG'] = int(md[1][barcode]['WEIGHT_KG'])
             if md[1][barcode]['HEIGHT_CM']:

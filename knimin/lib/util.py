@@ -170,3 +170,54 @@ def make_verification_code(vercode_length=5):
     """
     x = ''.join([choice(KIT_VERCODE) for i in range(vercode_length-1)])
     return choice(KIT_VERCODE_NOZEROS) + x
+
+
+def categorize_age(x):
+    if x < 0:
+        return 'Unspecified'
+    elif x < 3:
+        return "baby"
+    elif x < 13:
+        return "child"
+    elif x < 20:
+        return "teen"
+    elif x < 30:
+        return "20s"
+    elif x < 40:
+        return "30s"
+    elif x < 50:
+        return "40s"
+    elif x < 60:
+        return "50s"
+    elif x < 70:
+        return "60s"
+    elif x < 123:
+        return "70+"
+    else:
+        return 'Unspecified'
+
+
+def categorize_etoh(x):
+    if x == 'Never':
+        return 'No'
+    elif x == 'Unspecified':
+        return x
+    elif isinstance(x, str):
+        return "Yes"
+    else:
+        raise TypeError('Must pass string, passed %s' % type(x))
+
+
+def categorize_bmi(x):
+    if x < 0:
+        return 'Unspecified'
+    elif x < 18.5:
+        return "Underweight"
+    elif x < 25:
+        return "Normal"
+    elif x < 30:
+        return "Overweight"
+    elif x < 210:
+        return "Obese"
+    else:
+        return 'Unspecified'
