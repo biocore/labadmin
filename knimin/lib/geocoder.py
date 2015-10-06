@@ -25,7 +25,8 @@ def _call_wrapper(url):
     for retry in range(4):
         req = requests.get(url)
         if req.status_code != 200:
-            raise IOError('Error on request: %s' % url)
+            raise IOError('Error %d on request: %s\n%s' %
+                          (req.status_code, url, req.content))
 
         geo = loads(req.content)
         if geo['status'] == "OK":
@@ -43,7 +44,7 @@ def _call_wrapper(url):
     if geo['status'] == "OVER_QUERY_LIMIT":
         raise GoogleAPILimitExceeded("Exceeded max calls per day")
     if geo['status'] == "UNKNOWN_ERROR":
-        raise IOError("Unknown server error in Google API")
+        raise IOError("Unknown server error in Google API: %s" % req.content)
     return geo['results']
 
 
