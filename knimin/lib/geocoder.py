@@ -22,11 +22,15 @@ Location = namedtuple('Location', ['input', 'lat', 'long', 'elev', 'city',
 def _call_wrapper(url):
     """Encapsulate all checks for API calls"""
     # allow 4 retries do we sleep longer than a second if all loops happen
+    stat_err_count = 0
     for retry in range(4):
         req = requests.get(url)
         if req.status_code != 200:
-            raise IOError('Error %d on request: %s\n%s' %
-                          (req.status_code, url, req.content))
+            stat_err_count += 1
+            if stat_err_count == 3:
+                # 3 errors seen so not a fluke, raise error
+                raise IOError('Error %d on request: %s\n%s' %
+                              (req.status_code, url, req.content))
 
         geo = loads(req.content)
         if geo['status'] == "OK":
