@@ -773,10 +773,15 @@ class KniminAccess(object):
                 ordered_answers = [shortnames_answers[h] for h in headers]
                 oa_hold = [barcode]
                 for x in ordered_answers:
-                    converted = str(x) if type(x) not in {str, unicode} else x
+                    if isinstance(x, unicode):
+                        converted = x
+                    elif isinstance(x, str):
+                        converted = unicode(x, 'utf-8')
+                    else:
+                        converted = unicode(str(x), 'utf-8')
                     oa_hold.append(converted)
                 survey_md.append('\t'.join(oa_hold))
-            metadata[survey] = '\n'.join(survey_md)
+            metadata[survey] = '\n'.join(survey_md).encode('utf-8')
 
         failures = sorted(set(barcodes) - barcodes_seen)
 
