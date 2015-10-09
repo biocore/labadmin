@@ -1,3 +1,4 @@
+from collections import defaultdict
 survey_type = {
     1: "Human",
     2: "Animal"
@@ -313,3 +314,32 @@ regions_by_state = {None: {'Census_1': 'Unspecified',
                     'WY': {'Census_1': 'West',
                            'Census_2': 'Mountain',
                            'Economic': 'Rocky Mountain'}}
+
+
+def default_blank():
+    return 'Unspecified'
+
+blanks_values = defaultdict(default_blank,
+                            ALTITUDE='0',
+                            ASSIGNED_FROM_GEO="No",
+                            COMMON_NAME="unclassified metagenome",
+                            COUNTRY="USA",
+                            ELEVATION='193.0',
+                            ENV_BIOME="ENVO:aquatic biome",
+                            ENV_FEATURE="ENVO:water",
+                            ENV_MATTER="ENVO:sterile water",
+                            TAXON_ID='408169',
+                            HOST_TAXID='408169',
+                            LATITUDE='32.8',
+                            LONGITUDE='-117.2',
+                            PUBLIC='Yes',
+                            SAMPLE_TYPE='control blank',
+                            SCIENTIFIC_NAME='unclassified metagenome',
+                            STATE='CA',
+                            TITLE='American Gut Project',
+                            DNA_EXTRACTED='true',
+                            HAS_PHYSICAL_SPECIMEN='true',
+                            PHYSICAL_SPECIMEN_LOCATION='UCSDMI',
+                            PHYSICAL_SPECIMEN_REMAINING='true',
+                            REQUIRED_SAMPLE_INFO_STATUS='completed',
+                            DESCRIPTION='American Gut control')
