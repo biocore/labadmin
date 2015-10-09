@@ -15,8 +15,7 @@ class AGPulldownHandler(BaseHandler):
     @authenticated
     def post(self):
         # Do nothing if no file given
-        if 'barcodes' not in self.request.files or \
-                'blanks' not in self.request.files:
+        if 'barcodes' not in self.request.files:
             self.render("ag_pulldown.html", currentuser=self.current_user,
                         barcodes='', blanks='')
             return
@@ -24,14 +23,11 @@ class AGPulldownHandler(BaseHandler):
         fileinfo = self.request.files['barcodes'][0]['body']
         lines = fileinfo.splitlines()
         # barcodes must be in first column, stripping in case extra spaces
-        barcodes = [l.split('\t')[0].strip() for l in lines
-                    if not l.startswith('#')]
+        samples = [l.split('\t')[0].strip() for l in lines
+                   if not l.startswith('#')]
+        barcodes = [b for b in samples if not 'BLANK' in b.upper()]
+        blanks = [b for b in samples if b.upper().startswith('BLANK')]
 
-        fileinfo = self.request.files['blanks'][0]['body']
-        lines = fileinfo.splitlines()
-        # blanks must be in first column, stripping in case extra spaces
-        blanks = [l.split('\t')[0].strip() for l in lines
-                  if not l.startswith('#')]
 
         self.render("ag_pulldown.html", currentuser=self.current_user,
                     barcodes=",".join(barcodes), blanks=",".join(blanks))

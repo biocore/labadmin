@@ -81,7 +81,7 @@ def geocode(address):
             country = geo_dict['long_name']
         elif geotype == "postal_code" or geotype == "postal_code_prefix":
             postcode = geo_dict['long_name']
-    geo2 = _call_wrapper(elev_url % "%s,%s" % (lat, lng))
+    geo2 = _call_wrapper(elev_url % "%f,%f" % (lat, lng))
     elev = float(geo2[0]['elevation'])
 
     return Location(address, lat, lng, elev, city, state, postcode, country)

@@ -6,6 +6,7 @@ from re import sub
 from hashlib import sha512
 from datetime import datetime, time, timedelta
 import json
+from decimal import Decimal
 
 from bcrypt import hashpw, gensalt
 
@@ -616,16 +617,27 @@ class KniminAccess(object):
                 md[1][barcode]['COUNTRY'] = country_lookup[country]
             except KeyError:
                 # geocode unknown zip/country combo and add to zipcode table & lookup dict
-                if zipcode and country:
-                    info = self.get_geocode_zipcode(zipcode, country)
-                    zip_lookup[zipcode][country] = (info.lat, info.long, info.elev, info.city, info.state)
+                info = self.get_geocode_zipcode(zipcode, country)
+                if info.lat is not None:
+                    md[1][barcode]['LATITUDE'] = "%.1f" % info.lat
+                    md[1][barcode]['LONGITUDE'] = "%.1f" % info.long
+                    md[1][barcode]['ELEVATION'] = "%.1f" % info.elev
+                    md[1][barcode]['STATE'] = info.state
+                    md[1][barcode]['COUNTRY'] = country_lookup[info.country]
+                    # Store in dict so we don't geocode again
+                    zip_lookup[zipcode][country] = (
+                        round(info.lat, 1), round(info.long, 1),
+                        round(info.elev, 1), info.state)
                 else:
-                    info = Location(None, None, None, None, None, None, None, None)
-                md[1][barcode]['LATITUDE'] = '%.1f' % info.lat if info.lat else 'Unspecified'
-                md[1][barcode]['LONGITUDE'] = '%.1f' % info.long if info.long else 'Unspecified'
-                md[1][barcode]['ELEVATION'] = '%.1f' % info.elev if info.elev else 'Unspecified'
-                md[1][barcode]['STATE'] = info.state if info.state else 'Unspecified'
-                md[1][barcode]['COUNTRY'] = country_lookup[info.country] if info.country else 'Unspecified'
+                    md[1][barcode]['LATITUDE'] = 'Unspecified'
+                    md[1][barcode]['LONGITUDE'] = 'Unspecified'
+                    md[1][barcode]['ELEVATION'] = 'Unspecified'
+                    md[1][barcode]['STATE'] = 'Unspecified'
+                    md[1][barcode]['COUNTRY'] = 'Unspecified'
+                    # Store in dict so we don't geocode again
+                    zip_lookup[zipcode][country] = (
+                        'Unspecified', 'Unspecified', 'Unspecified',
+                        'Unspecified')
 
             md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode[:9]]
             try:
@@ -1336,15 +1348,6 @@ class KniminAccess(object):
         # Catch sending None or empty string for these
         if not zipcode or not country:
             return Location(zipcode, None, None, None, None, None, None, country)
-
-        sql = """SELECT round(latitude::numeric, 1), round(longitude::numeric, 1),
-                    round(elevation::numeric, 1), city, state, zipcode, country
-                 FROM ag.zipcodes
-                 WHERE zipcode = %s and country = %s"""
-        zip_info = self._con.execute_fetchone(sql, [zipcode, country])
-        if zip_info:
-            zip_info = [zipcode] + zip_info
-            return Location(*zip_info)
 
         info = geocode('%s %s' % (zipcode, country))
         cannot_geocode = False

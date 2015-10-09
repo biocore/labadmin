@@ -36,8 +36,6 @@ p {
 <form enctype="multipart/form-data" action="/ag_pulldown/" name="agForm" id="agForm" method="post">
 <p>Upload qiime mapping file, or other file with first line header and one barcode per line</p>
 <p>Barcodes File <input type="file" name="barcodes" id="barcodes"/></p>
-<p>Upload list of blanks names, one per line</p>
-<p>Blanks File <input type="file" name="blanks" id="blanks"/></p>
 <p><input type="submit" {%if barcodes%}disabled{% end %}></p>
 </form>
 {% end %}
