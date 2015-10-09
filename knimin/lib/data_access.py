@@ -13,7 +13,8 @@ from psycopg2.extras import DictCursor
 
 from util import (make_valid_kit_ids, make_verification_code, make_passwd,
                   categorize_age, categorize_etoh, categorize_bmi)
-from constants import md_lookup, month_lookup, season_lookup, regions_by_state
+from constants import (md_lookup, month_lookup, season_lookup,
+                       regions_by_state, blanks_values)
 from geocoder import geocode, Location, GoogleAPILimitExceeded
 
 
@@ -736,13 +737,15 @@ class KniminAccess(object):
                  WHERE participant_name IS NOT NULL"""
         return self._con.execute_fetchall(sql)
 
-    def pulldown(self, barcodes):
+    def pulldown(self, barcodes, blanks):
         """Pulls down AG metadata for given barcodes
 
         Parameters
         ----------
         barcodes : list of str
             Barcodes to pull metadata down for
+        blanks : list of str
+            Names for the blanks to add. Blanks added to survey 1
 
         Returns
         -------
@@ -781,6 +784,13 @@ class KniminAccess(object):
                         converted = unicode(str(x), 'utf-8')
                     oa_hold.append(converted)
                 survey_md.append('\t'.join(oa_hold))
+            if survey == 1:
+                # only add blanks to human survey sample data
+                for blank in blanks:
+                    blanks_values['ANONYMIZED_NAME'] = blank
+                    blanks_values['HOST_SUBJECT_ID'] = blank
+                    survey_md.append('\t'.join([blank] +
+                        [blanks_values[h] for h in headers]))
             metadata[survey] = '\n'.join(survey_md).encode('utf-8')
 
         failures = sorted(set(barcodes) - barcodes_seen)
