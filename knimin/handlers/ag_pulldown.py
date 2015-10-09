@@ -25,7 +25,7 @@ class AGPulldownHandler(BaseHandler):
         # barcodes must be in first column, stripping in case extra spaces
         samples = [l.split('\t')[0].strip() for l in lines
                    if not l.startswith('#')]
-        barcodes = [b for b in samples if not 'BLANK' in b.upper()]
+        barcodes = [b for b in samples if not b.upper().startswith('BLANK')]
         blanks = [b for b in samples if b.upper().startswith('BLANK')]
 
 
