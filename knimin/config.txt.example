@@ -1,0 +1,20 @@
+[main]
+debug = True
+help_email =
+
+[postgres]
+USER =
+PASSWORD =
+DATABASE =
+HOST = localhost
+PORT = 5432
+
+[tornado]
+PORT = 7777
+
+[email]
+HOST = localhost
+PORT = 465
+SSL = False
+USERNAME =
+PASSWORD =
