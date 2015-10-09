@@ -6,13 +6,11 @@ requires GPL Ghostscript 9.05
 """
 
 from PIL import Image
-from sys import argv, exit
-from os import listdir, path, system, mkdir, rmdir
+from os import path, mkdir
 from os.path import join, dirname, realpath
 from math import ceil
 from random import choice
 from shutil import rmtree
-from StringIO import StringIO
 from subprocess import Popen, PIPE
 from shlex import split as cmd_split
 

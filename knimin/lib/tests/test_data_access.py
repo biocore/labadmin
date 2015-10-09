@@ -64,7 +64,6 @@ class DataAccessTests(TestCase):
         with self.assertRaises(ValueError):
             db.create_ag_kits([(1, 9999999999)])
         db.create_barcodes(15)
-        kits = db.create_ag_kits([(1, 2), (5, 2)])
 
         obs = db._con.execute_fetchall("SELECT * from ag.ag_handout_kits")
         self.assertEqual(len(obs), 5)

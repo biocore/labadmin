@@ -68,7 +68,6 @@ The American Gut Project
 """
     kit_id = 0
     password = 1
-    ver_code = 2
     bcs = 3
 
     text = []

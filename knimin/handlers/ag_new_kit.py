@@ -5,7 +5,6 @@ from knimin.handlers.base import BaseHandler
 from knimin import db
 from knimin.lib.mem_zip import InMemoryZip
 from knimin.lib.util import get_printout_data
-from knimin import db
 
 
 class AGNewKitDLHandler(BaseHandler):

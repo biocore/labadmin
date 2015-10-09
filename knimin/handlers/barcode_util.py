@@ -59,7 +59,7 @@ class BarcodeUtilHandler(BaseHandler):
                     barcode_details['sequencing_status']
                 if barcode_details['obsolete'] is None:
                     barcode_details['obsolete'] = 'N'
-                div_id = message = email_type = ""
+                div_id = message = ""
                 ag_details = []
                 if (barcode_details['obsolete'] == "Y"):
                         # the barcode is obsolete
