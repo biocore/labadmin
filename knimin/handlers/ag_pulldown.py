@@ -15,26 +15,35 @@ class AGPulldownHandler(BaseHandler):
     @authenticated
     def post(self):
         # Do nothing if no file given
-        if 'filearg' not in self.request.files:
+        if 'barcodes' not in self.request.files or \
+                'blanks' not in self.request.files:
             self.render("ag_pulldown.html", currentuser=self.current_user,
-                    barcodes=[])
+                        barcodes='', blanks='')
             return
         # Get file information, ignoring commented out lines
-        fileinfo = self.request.files['filearg'][0]['body']
+        fileinfo = self.request.files['barcodes'][0]['body']
         lines = fileinfo.splitlines()
         # barcodes must be in first column, stripping in case extra spaces
         barcodes = [l.split('\t')[0].strip() for l in lines
                     if not l.startswith('#')]
+
+        fileinfo = self.request.files['blanks'][0]['body']
+        lines = fileinfo.splitlines()
+        # blanks must be in first column, stripping in case extra spaces
+        blanks = [l.split('\t')[0].strip() for l in lines
+                  if not l.startswith('#')]
+
         self.render("ag_pulldown.html", currentuser=self.current_user,
-                    barcodes=",".join(barcodes))
+                    barcodes=",".join(barcodes), blanks=",".join(blanks))
 
 
 class AGPulldownDLHandler(BaseHandler):
     @authenticated
     def post(self):
         barcodes = self.get_argument('barcodes').split(',')
+        blanks = self.get_argument('blanks').split(',')
         # Get metadata and create zip file
-        metadata, failures = db.pulldown(barcodes)
+        metadata, failures = db.pulldown(barcodes, blanks)
 
         meta_zip = InMemoryZip()
         failtext = ("The following barcodes were not retrieved for any "
