@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 from contextlib import contextmanager
 from collections import defaultdict, namedtuple
+from copy import copy
 from re import sub
 from hashlib import sha512
 from datetime import datetime, time, timedelta
@@ -787,10 +788,11 @@ class KniminAccess(object):
             if survey == 1:
                 # only add blanks to human survey sample data
                 for blank in blanks:
-                    blanks_values['ANONYMIZED_NAME'] = blank
-                    blanks_values['HOST_SUBJECT_ID'] = blank
+                    blanks_copy = copy(blanks_values)
+                    blanks_copy['ANONYMIZED_NAME'] = blank
+                    blanks_copy['HOST_SUBJECT_ID'] = blank
                     survey_md.append('\t'.join([blank] +
-                        [blanks_values[h] for h in headers]))
+                        [blanks_copy[h] for h in headers]))
             metadata[survey] = '\n'.join(survey_md).encode('utf-8')
 
         failures = sorted(set(barcodes) - barcodes_seen)
