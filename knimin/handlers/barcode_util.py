@@ -39,7 +39,8 @@ class BarcodeUtilHandler(BaseHandler):
                            barcode)
                 self.render("barcode_util.html",
                             div_and_msg=(div_id, message, barcode),
-                            barcode_projects=[], parent_project=None, project_names=[],
+                            barcode_projects=[], parent_project=None,
+                            project_names=[],
                             barcode=barcode, email_type=None,
                             barcode_info=None, proj_barcode_info=None,
                             msgs=None, currentuser=self.current_user)
@@ -61,10 +62,10 @@ class BarcodeUtilHandler(BaseHandler):
                 div_id = message = email_type = ""
                 ag_details = []
                 if (barcode_details['obsolete'] == "Y"):
-                        #the barcode is obsolete
+                        # the barcode is obsolete
                         div_id = "obsolete"
                         message = "Barcode is Obsolete"
-                #get project info for div
+                # get project info for div
                 if parent_project == 'American Gut':
                     div_id, message, ag_details = self.get_ag_details(barcode)
                 else:
@@ -72,26 +73,28 @@ class BarcodeUtilHandler(BaseHandler):
                     message = "Barcode Info is correct"
             div_and_msg = (div_id, message, barcode)
             self.render("barcode_util.html", div_and_msg=div_and_msg,
-                        barcode_projects=barcode_projects, parent_project=parent_project,
+                        barcode_projects=barcode_projects,
+                        parent_project=parent_project,
                         project_names=project_names,
                         barcode=barcode, email_type=None,
                         barcode_info=barcode_details,
                         proj_barcode_info=ag_details, msgs=None,
                         currentuser=self.current_user)
         else:
-            #now we collect data and update based on forms
-            #first update general barcode info
-            #Set to non to make sure no conflicts with new date typing in DB
+            # now we collect data and update based on forms
+            # first update general barcode info
+            # Set to non to make sure no conflicts with new date typing in DB
             if not postmark_date:
                 postmark_date = None
             if not scan_date:
                 scan_date = None
             try:
-                db.updateBarcodeStatus('Received', postmark_date,
-                                                   scan_date, barcode,
-                                                   biomass_remaining_value,
-                                                   sequencing_status,
-                                                   obsolete_status)
+                db.updateBarcodeStatus('Received',
+                                       postmark_date,
+                                       scan_date, barcode,
+                                       biomass_remaining_value,
+                                       sequencing_status,
+                                       obsolete_status)
                 msg1 = "Barcode %s general details updated" % barcode
             except:
                 msg1 = "Barcode %s general details failed" % barcode
@@ -116,13 +119,14 @@ class BarcodeUtilHandler(BaseHandler):
                 new_proj, parent_project = db.getBarcodeProjType(barcode)
             if parent_project == 'American Gut':
                 msg2, msg3 = self.update_ag_barcode(barcode)
-            self.render("barcode_util.html", div_and_msg=None, barcode_projects=[],
+            self.render("barcode_util.html", div_and_msg=None,
+                        barcode_projects=[],
                         parent_project=None,
-                        project_names=[], barcode=None, email_type=None,
+                        project_names=[], barcode=None,
+                        email_type=None,
                         barcode_info=None, proj_barcode_info=None,
                         msgs=(msg1, msg2, msg3, msg4),
                         currentuser=self.current_user)
-
 
     def get_ag_details(self, barcode):
         ag_details = db.getAGBarcodeDetails(barcode)
@@ -289,8 +293,8 @@ Thank you for your participation!
             other = 'Y'
         try:
             db.updateAKB(barcode, moldy, overloaded, other,
-                                     self.get_argument('other_text', None),
-                                     sent_date)
+                         self.get_argument('other_text', None),
+                         sent_date)
             msg3 = ("Barcode %s AG info was sucessfully updated" % barcode)
         except:
             msg3 = ("Barcode %s AG update failed!!!" % barcode)

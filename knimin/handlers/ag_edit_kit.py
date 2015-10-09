@@ -24,7 +24,7 @@ class AGEditKitHandler(BaseHandler):
         vercode = self.get_argument('kit_verification_code')
         try:
             db.updateAGKit(ag_kit_id, kit_id, passwd,
-                                       swabs_per_kit, vercode)
+                           swabs_per_kit, vercode)
             self.render("ag_edit_kit.html", response='Good', email=None,
                         kitinfo=None, currentuser=self.current_user)
         except:

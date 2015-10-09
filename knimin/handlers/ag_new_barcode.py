@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from tornado.web import authenticated, HTTPError
-from knimin.handlers.base import BaseHandler
+5from knimin.handlers.base import BaseHandler
 
 from knimin.lib.squash_barcodes import build_barcodes_pdf
 from knimin import db
@@ -15,7 +15,8 @@ class AGBarcodePrintoutHandler(BaseHandler):
         self.add_header('Content-Transfer-Encoding', 'binary')
         self.add_header('Accept-Ranges', 'bytes')
         self.add_header('Content-Encoding', 'none')
-        self.add_header('Content-Disposition', 'attachment; filename=barcodes.pdf')
+        self.add_header('Content-Disposition',
+                        'attachment; filename=barcodes.pdf')
         self.write(pdf)
         self.flush()
         self.finish()
@@ -31,7 +32,8 @@ class AGBarcodeAssignedHandler(BaseHandler):
         self.add_header('Content-Transfer-Encoding', 'binary')
         self.add_header('Accept-Ranges', 'bytes')
         self.add_header('Content-Encoding', 'none')
-        self.add_header('Content-Disposition', 'attachment; filename=barcodes_assigned.txt')
+        self.add_header('Content-Disposition',
+                        'attachment; filename=barcodes_assigned.txt')
         self.write(text)
         self.flush()
         self.finish()
@@ -72,7 +74,8 @@ class AGNewBarcodeHandler(BaseHandler):
             except ValueError as e:
                 msg = "ERROR! %s" % str(e)
             else:
-                msg = "%d barcodes assigned to %s, please wait for download." % (
+                tmp = "%d barcodes assigned to %s, please wait for download."
+                msg = tmp % (
                     num_barcodes, ", ".join(projects))
 
         else:

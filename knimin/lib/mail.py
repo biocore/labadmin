@@ -6,6 +6,7 @@ from email.mime.text import MIMEText
 
 from knimin import config
 
+
 def send_email(message, subject, recipient='americangut@gmail.com',
                sender=config.help_email, html=False):
     """Send an email from your local host"""

@@ -23,7 +23,8 @@ class AGNewKitDLHandler(BaseHandler):
         self.add_header('Content-Transfer-Encoding', 'binary')
         self.add_header('Accept-Ranges', 'bytes')
         self.add_header('Content-Encoding', 'none')
-        self.add_header('Content-Disposition', 'attachment; filename=kitinfo.zip')
+        self.add_header('Content-Disposition',
+                        'attachment; filename=kitinfo.zip')
         self.write(kit_zip.write_to_buffer())
         self.flush()
         self.finish()

@@ -47,7 +47,6 @@ class DataAccessTests(TestCase):
         obs = db.get_unassigned_barcodes(1)
         self.assertEqual(obs, [barcodes[0]])
 
-
     def test_create_barcodes(self):
         con = db._con
         sql_bc = "SELECT barcode FROM barcode"

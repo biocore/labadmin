@@ -5,6 +5,7 @@ import tempfile
 
 from knimin.lib.configuration import KniminConfig
 
+
 class ConfigurationTests(TestCase):
     def setUp(self):
         self.config = tempfile.NamedTemporaryFile()

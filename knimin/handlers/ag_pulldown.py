@@ -28,7 +28,6 @@ class AGPulldownHandler(BaseHandler):
         barcodes = [b for b in samples if not b.upper().startswith('BLANK')]
         blanks = [b for b in samples if b.upper().startswith('BLANK')]
 
-
         self.render("ag_pulldown.html", currentuser=self.current_user,
                     barcodes=",".join(barcodes), blanks=",".join(blanks))
 
@@ -53,7 +52,8 @@ class AGPulldownDLHandler(BaseHandler):
         self.add_header('Content-Transfer-Encoding', 'binary')
         self.add_header('Accept-Ranges', 'bytes')
         self.add_header('Content-Encoding', 'none')
-        self.add_header('Content-Disposition', 'attachment; filename=metadata.zip')
+        self.add_header('Content-Disposition',
+                        'attachment; filename=metadata.zip')
         self.write(meta_zip.write_to_buffer())
         self.flush()
         self.finish()
