@@ -15,7 +15,7 @@ install:
 script:
   - cp ~/build/biocore/labadmin/knimin/config.txt.example ~/build/biocore/labadmin/knimin/config.txt
   - git clone https://github.com/biocore/american-gut-web.git
-  - pwd
+  - ./home/travis/build/biocore/labadmin/american-gut-web/scripts/ag make test
   - nosetests --with-doctest --with-coverage
   - flake8 knimin setup.py scripts
 after_success:
