@@ -14,11 +14,9 @@ install:
   - travis_retry pip install .
 script:
   - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
-  - cd /home/travis/build/biocore/american-gut-web/
-  - ls
-  - cd scripts
-  - ls
-  - ./home/travis/build/biocore/american-gut-web/scripts/ag make test
+  - cd /home/travis/build/biocore/american-gut-web
+  - ./scripts/ag make test
+  - cd ~/build/biocore/labadmin/knimin/
   - cp ~/build/biocore/labadmin/knimin/config.txt.example ~/build/biocore/labadmin/knimin/config.txt
   - nosetests --with-doctest --with-coverage
   - flake8 knimin setup.py scripts
