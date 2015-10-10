@@ -184,9 +184,9 @@ class SQLHandler(object):
         Notes
         -----
         from psycopg2 documentation, only variable values should be bound
-            via sql_args, it shouldn't be used to set table or field names.
-            For those elements, ordinary string formatting should be used
-            before running execute.
+        via sql_args, it shouldn't be used to set table or field names.
+        For those elements, ordinary string formatting should be used
+        before running execute.
         """
         with self._sql_executor(sql, sql_args) as pgcursor:
             result = [dict(row) for row in pgcursor.fetchall()]
