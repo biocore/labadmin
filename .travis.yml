@@ -13,10 +13,10 @@ install:
   - pip install mock nose>=0.10.1 pep8 flake8 coveralls
   - travis_retry pip install .
 script:
+  - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/
+  - ./home/travis/build/biocore/american-gut-web/scripts/ag make test
   - cp ~/build/biocore/labadmin/knimin/config.txt.example ~/build/biocore/labadmin/knimin/config.txt
   - nosetests --with-doctest --with-coverage
-  - git clone https://github.com/biocore/american-gut-web.git
-  - ./home/travis/build/biocore/american-gut-web/scripts/ag make test
   - flake8 knimin setup.py scripts
 after_success:
   - coveralls
