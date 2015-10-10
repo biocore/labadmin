@@ -15,10 +15,11 @@ install:
 script:
   - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
   - cd /home/travis/build/biocore/american-gut-web
-  - export $PYTHONPATH=/home/travis/build/biocore/american-gut-web:$PYTHONPATH
+  - export PYTHONPATH=/home/travis/build/biocore/american-gut-web:$PYTHONPATH
   - $PYTHONPATH
   - ./scripts/ag make test
   - export PYTHONPATH=
+  - $PYTHONPATH
   - cd ~/build/biocore/labadmin/knimin/
   - cp ~/build/biocore/labadmin/knimin/config.txt.example ~/build/biocore/labadmin/knimin/config.txt
   - nosetests --with-doctest --with-coverage
