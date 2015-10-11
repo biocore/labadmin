@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
 import os
-from os.path import join, dirname, abspath, exists
+from os.path import join, dirname, abspath
 from future import standard_library
 with standard_library.hooks():
-    from configparser import (ConfigParser, NoOptionError,
-                              MissingSectionHeaderError)
+    from configparser import ConfigParser
 
 
 DEFAULT_CONFIG_FP = join(dirname(abspath(__file__)), '../config.txt')

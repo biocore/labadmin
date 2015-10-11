@@ -6,7 +6,6 @@ from re import sub
 from hashlib import sha512
 from datetime import datetime, time, timedelta
 import json
-from decimal import Decimal
 
 from bcrypt import hashpw, gensalt
 
@@ -179,14 +178,15 @@ class SQLHandler(object):
         Returns
         -------
         list of dict
-            The results of the query as [{colname: val, colname: val, ...}, ...]
+            The results of the query as
+            [{colname: val, colname: val, ...}, ...]
 
         Notes
         -----
         from psycopg2 documentation, only variable values should be bound
-            via sql_args, it shouldn't be used to set table or field names. For
-            those elements, ordinary string formatting should be used before
-            running execute.
+        via sql_args, it shouldn't be used to set table or field names.
+        For those elements, ordinary string formatting should be used
+        before running execute.
         """
         with self._sql_executor(sql, sql_args) as pgcursor:
             result = [dict(row) for row in pgcursor.fetchall()]
@@ -412,6 +412,7 @@ class KniminAccess(object):
         bc = tuple(set(b[:9] for b in barcodes))
         # this function reduces code duplication by generalizing as much
         # as possible how questions and responses are fetched from the db
+
         def _format_responses_as_dict(sql, json=False, multiple=False):
             ret_dict = defaultdict(lambda: defaultdict(dict))
             for survey, barcode, q, a in self._con.execute_fetchall(sql, [bc]):
@@ -532,7 +533,8 @@ class KniminAccess(object):
             md[2][barcode]['ENV_BIOME'] = 'ENVO:dense settlement biome'
             md[2][barcode]['ENV_FEATURE'] = 'ENVO:animal-associated habitat'
             md[2][barcode]['DEPTH'] = 0
-            md[2][barcode]['DESCRIPTION'] = 'American Gut Project Animal sample'
+            md[2][barcode]['DESCRIPTION'] = 'American Gut Project' + \
+                ' Animal sample'
             md[2][barcode]['DNA_EXTRACTED'] = 'true'
             md[2][barcode]['HAS_PHYSICAL_SPECIMEN'] = 'true'
             md[2][barcode]['PHYSICAL_SPECIMEN_REMAINING'] = 'true'
@@ -616,7 +618,8 @@ class KniminAccess(object):
                     zip_lookup[zipcode][country][3]
                 md[1][barcode]['COUNTRY'] = country_lookup[country]
             except KeyError:
-                # geocode unknown zip/country combo and add to zipcode table & lookup dict
+                # geocode unknown zip/country combo and add to
+                # zipcode table & lookup dict
                 info = self.get_geocode_zipcode(zipcode, country)
                 if info.lat is not None:
                     md[1][barcode]['LATITUDE'] = "%.1f" % info.lat
@@ -661,9 +664,9 @@ class KniminAccess(object):
             md[1][barcode]['COLLECTION_TIMESTAMP'] = datetime.combine(
                 specific_info['sample_date'],
                 specific_info['sample_time']).strftime('%m/%d/%Y %H:%M')
-
             md[1][barcode]['ENV_MATTER'] = md_lookup[site]['ENV_MATTER']
-            md[1][barcode]['SCIENTIFIC_NAME'] = md_lookup[site]['SCIENTIFIC_NAME']
+            md[1][barcode]['SCIENTIFIC_NAME'] = \
+                md_lookup[site]['SCIENTIFIC_NAME']
             md[1][barcode]['SAMPLE_TYPE'] = md_lookup[site]['SAMPLE_TYPE']
             md[1][barcode]['BODY_HABITAT'] = md_lookup[site]['BODY_HABITAT']
             md[1][barcode]['BODY_SITE'] = md_lookup[site]['BODY_SITE']
@@ -690,8 +693,10 @@ class KniminAccess(object):
                 specific_info['sample_date'].month]
             state = md[1][barcode]['STATE']
             try:
-                md[1][barcode]['CENSUS_REGION'] = regions_by_state[state]['Census_1']
-                md[1][barcode]['ECONOMIC_REGION'] = regions_by_state[state]['Economic']
+                md[1][barcode]['CENSUS_REGION'] = \
+                    regions_by_state[state]['Census_1']
+                md[1][barcode]['ECONOMIC_REGION'] = \
+                    regions_by_state[state]['Economic']
             except KeyError:
                 md[1][barcode]['CENSUS_REGION'] = 'Unspecified'
                 md[1][barcode]['ECONOMIC_REGION'] = 'Unspecified'
@@ -699,11 +704,12 @@ class KniminAccess(object):
                 19 < md[1][barcode]['AGE_YEARS'] < 70 and \
                 not md[1][barcode]['AGE_YEARS'] == 'Unspecified'
             md[1][barcode]['SUBSET_DIABETES'] = \
-                md[1][barcode]['DIABETES'] == 'I do not have this condition'
+                (md[1][barcode]['DIABETES'] == 'I do not have this condition')
             md[1][barcode]['SUBSET_IBD'] = \
                 md[1][barcode]['IBD'] == 'I do not have this condition'
             md[1][barcode]['SUBSET_ANTIBIOTIC_HISTORY'] = \
-            md[1][barcode]['ANTIBIOTIC_HISTORY'] == 'I have not taken antibiotics in the past year.'
+                (md[1][barcode]['ANTIBIOTIC_HISTORY'] ==
+                 'I have not taken antibiotics in the past year.')
             md[1][barcode]['SUBSET_BMI'] = \
                 18.5 <= md[1][barcode]['BMI'] < 30 and \
                 not md[1][barcode]['BMI'] == 'Unspecified'
@@ -803,8 +809,9 @@ class KniminAccess(object):
                     blanks_copy = copy(blanks_values)
                     blanks_copy['ANONYMIZED_NAME'] = blank
                     blanks_copy['HOST_SUBJECT_ID'] = blank
-                    survey_md.append('\t'.join([blank] +
-                        [blanks_copy[h] for h in headers]))
+                    survey_md.append(
+                        '\t'.join([blank] + [blanks_copy[h]
+                                             for h in headers]))
             metadata[survey] = '\n'.join(survey_md).encode('utf-8')
 
         failures = sorted(set(barcodes) - barcodes_seen)
@@ -1211,7 +1218,8 @@ class KniminAccess(object):
                 hold = {h: v.strip() for h, v in zip(header, line.split('\t'))}
                 sid = hold[survey_id_col]
                 del hold[survey_id_col]
-                inserts.append([sid, external_id, pulldown_date, json.dumps(hold)])
+                inserts.append([sid, external_id, pulldown_date,
+                                json.dumps(hold)])
 
         # insert into the database
         sql = """INSERT INTO ag.external_survey_answers
@@ -1298,9 +1306,15 @@ class KniminAccess(object):
                         environment_sampled, sample_date, sample_time,
                         participant_name, notes, refunded, withdrawn):
         sql = """UPDATE  ag_kit_barcodes
-                 SET ag_kit_id = %s, site_sampled = %s, environment_sampled = %s,
-                     sample_date = %s, sample_time = %s, participant_name = %s,
-                     notes = %s, refunded = %s, withdrawn = %s
+                 SET ag_kit_id = %s,
+                     site_sampled = %s,
+                     environment_sampled = %s,
+                     sample_date = %s,
+                     sample_time = %s,
+                     participant_name = %s,
+                     notes = %s,
+                     refunded = %s,
+                     withdrawn = %s
                  WHERE barcode = %s"""
         self._con.execute(sql, [ag_kit_id, site_sampled, environment_sampled,
                                 sample_date, sample_time, participant_name,
@@ -1347,7 +1361,8 @@ class KniminAccess(object):
         """
         # Catch sending None or empty string for these
         if not zipcode or not country:
-            return Location(zipcode, None, None, None, None, None, None, country)
+            return Location(zipcode, None, None, None,
+                            None, None, None, country)
 
         info = geocode('%s %s' % (zipcode, country))
         cannot_geocode = False
@@ -1359,16 +1374,19 @@ class KniminAccess(object):
         if not info.lat:
             cannot_geocode = True
         # Use startswith because UK zipcodes can be 2, 3, or 6 characters
-        elif info.country != country or not clean_postcode.startswith(clean_zipcode):
+        elif (info.country != country or
+              not clean_postcode.startswith(clean_zipcode)):
             # countries and zipcodes dont match, so blank out info
-            info = Location(zipcode, None, None, None, None, None, None, country)
+            info = Location(zipcode, None, None, None,
+                            None, None, None, country)
             cannot_geocode = True
         sql = """INSERT INTO ag.zipcodes
                     (zipcode, latitude, longitude, elevation, city,
                      state, country, cannot_geocode)
                  VALUES (%s,%s,%s,%s,%s,%s,%s, %s)"""
         self._con.execute(sql, [zipcode, info.lat, info.long, info.elev,
-                                info.city, info.state, country, cannot_geocode])
+                                info.city, info.state, country,
+                                cannot_geocode])
         return info
 
     def addGeocodingInfo(self, limit=None, retry=False):
@@ -1386,7 +1404,10 @@ class KniminAccess(object):
         # clear previous geocoding attempts if retry is True
         if retry:
             sql = """UPDATE  ag_login
-                     SET latitude = %s, longitude = %s, elevation = %s, cannot_geocode = %s
+                     SET latitude = %s,
+                         longitude = %s,
+                         elevation = %s,
+                         cannot_geocode = %s
                      WHERE ag_login_id IN (
                         SELECT ag_login_id FROM ag_login
                         WHERE cannot_geocode = 'y')"""
@@ -1394,9 +1415,9 @@ class KniminAccess(object):
 
         # get logins that have not been geocoded yet
         sql = """SELECT city, state, zip, country,
-                     cast(ag_login_id as varchar(100))
-                FROM ag_login
-                WHERE elevation is NULL AND cannot_geocode is NULL"""
+                        cast(ag_login_id as varchar(100))
+                 FROM ag_login
+                 WHERE elevation is NULL AND cannot_geocode is NULL"""
         logins = self._con.execute_fetchall(sql)
 
         row_counter = 0
@@ -1411,7 +1432,8 @@ class KniminAccess(object):
             try:
                 info = geocode(address)
                 # empty string to indicate geocode was successful
-                sql_args.append([info.lat, info.long, info.elev, '', ag_login_id])
+                sql_args.append([info.lat, info.long, info.elev,
+                                 '', ag_login_id])
             except GoogleAPILimitExceeded:
                 # limit exceeded so no use trying to keep geocoding
                 break
@@ -1420,7 +1442,10 @@ class KniminAccess(object):
                 sql_args.append([None, None, None, 'y', ag_login_id])
 
         sql = """UPDATE  ag_login
-                 SET latitude = %s, longitude = %s, elevation = %s, cannot_geocode = %s
+                 SET latitude = %s,
+                     longitude = %s,
+                     elevation = %s,
+                 cannot_geocode = %s
                  WHERE ag_login_id = %s"""
         self._con.executemany(sql, sql_args)
 
@@ -1446,34 +1471,52 @@ class KniminAccess(object):
         # site_sampled, sample_date, sample_time, participant_name,
         # environment_sampled, notes
         stats_list = [
-            ('Total handout kits', 'SELECT count(*) FROM ag.ag_handout_kits'),
-            ('Total handout barcodes', 'SELECT count(*) FROM ag.ag_handout_barcodes'),
-            ('Total consented participants', 'SELECT count(*) FROM ag.ag_consent'),
-            ('Total registered kits', 'SELECT count(*) FROM ag.ag_kit'),
-            ('Total registered barcodes', 'SELECT count(*) FROM ag.ag_kit_barcodes'),
-            ('Total barcodes with results', "SELECT count(*) FROM ag.ag_kit_barcodes WHERE results_ready = 'Y'"),
-            ('Average age of participants', """SELECT AVG(AGE((yr.response || '-' ||
-                                                CASE mo.response
-                                                    WHEN 'January' THEN '1'
-                                                    WHEN 'February' THEN '2'
-                                                    WHEN 'March' THEN '3'
-                                                    WHEN 'April' THEN '4'
-                                                    WHEN 'May' THEN '5'
-                                                    WHEN 'June' THEN '6'
-                                                    WHEN 'July' THEN '7'
-                                                    WHEN 'August' THEN '8'
-                                                    WHEN 'September' THEN '9'
-                                                    WHEN 'October' THEN '10'
-                                                    WHEN 'November' THEN '11'
-                                                    WHEN 'December' THEN '12'
-                                                  END || '-1')::date
-                                                )) FROM
-                                              (SELECT response, survey_id FROM ag.survey_answers WHERE survey_question_id = 112) AS yr
-                                              JOIN
-                                              (SELECT response, survey_id FROM ag.survey_answers WHERE survey_question_id = 111) AS mo USING (survey_id)
-                                              WHERE yr.response != 'Unspecified' AND mo.response != 'Unspecified'"""),
-            ('Total male participants', "SELECT count(*) FROM ag.survey_answers WHERE survey_question_id = 107 AND response = 'Male'"),
-            ('Total female participants', "SELECT count(*) FROM ag.survey_answers WHERE survey_question_id = 107 AND response = 'Female'")
+            ('Total handout kits',
+             'SELECT count(*) FROM ag.ag_handout_kits'),
+            ('Total handout barcodes',
+             'SELECT count(*) FROM ag.ag_handout_barcodes'),
+            ('Total consented participants',
+             'SELECT count(*) FROM ag.ag_consent'),
+            ('Total registered kits',
+             'SELECT count(*) FROM ag.ag_kit'),
+            ('Total registered barcodes',
+             'SELECT count(*) FROM ag.ag_kit_barcodes'),
+            ('Total barcodes with results',
+             """SELECT count(*) FROM ag.ag_kit_barcodes
+             WHERE results_ready='Y'"""),
+            ('Average age of participants',
+             """SELECT AVG(AGE((yr.response || '-' ||
+                CASE mo.response
+                WHEN 'January' THEN '1'
+                WHEN 'February' THEN '2'
+                WHEN 'March' THEN '3'
+                WHEN 'April' THEN '4'
+                WHEN 'May' THEN '5'
+                WHEN 'June' THEN '6'
+                WHEN 'July' THEN '7'
+                WHEN 'August' THEN '8'
+                WHEN 'September' THEN '9'
+                WHEN 'October' THEN '10'
+                WHEN 'November' THEN '11'
+                WHEN 'December' THEN '12'
+                END || '-1')::date
+                )) FROM
+                (SELECT response,
+                        survey_id FROM ag.survey_answers
+                 WHERE survey_question_id=112) AS yr
+                 JOIN (SELECT response,
+                              survey_id
+                       FROM ag.survey_answers
+                       WHERE survey_question_id=111)
+                 AS mo USING (survey_id)
+                 WHERE response.yr!='Unspecified'
+                 AND mo.response!='Unspecified'"""),
+            ('Total male participants',
+             """SELECT count(*) FROM ag.survey_answers
+                WHERE survey_question_id=107 AND response='Male'"""),
+            ('Total female participants',
+             """SELECT count(*) FROM ag.survey_answers
+                WHERE survey_question_id=107 AND response='Female'""")
             ]
         stats = []
         for label, sql in stats_list:
@@ -1504,14 +1547,14 @@ class KniminAccess(object):
                             biomass_remaining, sequencing_status, obsolete):
         """ Updates a barcode's status
         """
-        sql = """update  barcode
-        set     status = %s,
-            sample_postmark_date = %s,
-            scan_date = %s,
-            biomass_remaining = %s,
-            sequencing_status = %s,
-            obsolete = %s
-        where   barcode = %s"""
+        sql = """UPDATE  barcode
+                 SET status = %s,
+                     sample_postmark_date = %s,
+                     scan_date = %s,
+                     biomass_remaining = %s,
+                     sequencing_status = %s,
+                     obsolete = %s
+                 WHERE barcode = %s"""
         self._con.execute(sql, [status, postmark, scan_date, biomass_remaining,
                                 sequencing_status, obsolete, barcode])
 
@@ -1526,42 +1569,45 @@ class KniminAccess(object):
         return res[0] if res else None
 
     def search_participant_info(self, term):
-        sql = """select   cast(ag_login_id as varchar(100)) as ag_login_id
-                 from    ag_login al
-                 where   lower(email) like %s or lower(name) like
+        sql = """SELECT cast(ag_login_id as varchar(100)) as ag_login_id
+                 FROM ag_login al
+                 WHERE lower(email) like %s or lower(name) like
                  %s or lower(address) like %s"""
         liketerm = '%%' + term.lower() + '%%'
-        results = self._con.execute_fetchall(sql, [liketerm, liketerm, liketerm])
+        results = self._con.execute_fetchall(sql,
+                                             [liketerm, liketerm, liketerm])
         return [x[0] for x in results]
 
     def search_kits(self, term):
-        sql = """ select  cast(ag_login_id as varchar(100)) as ag_login_id
-                 from    ag_kit
-                 where   lower(supplied_kit_id) like %s or
+        sql = """SELECT cast(ag_login_id as varchar(100)) as ag_login_id
+                 FROM ag_kit
+                 WHERE lower(supplied_kit_id) like %s or
                  lower(kit_password) like %s or
                  lower(kit_verification_code) = %s"""
         liketerm = '%%' + term.lower() + '%%'
-        results = self._con.execute_fetchall(sql, [liketerm, liketerm, liketerm])
+        results = self._con.execute_fetchall(sql,
+                                             [liketerm, liketerm, liketerm])
         return [x[0] for x in results]
 
     def search_barcodes(self, term):
-        sql = """select  cast(ak.ag_login_id as varchar(100)) as ag_login_id
-                 from    ag_kit ak
-                 inner join ag_kit_barcodes akb
-                 on ak.ag_kit_id = akb.ag_kit_id
-                 where   barcode like %s or lower(participant_name) like
+        sql = """SELECT cast(ak.ag_login_id as varchar(100)) as ag_login_id
+                 FROM ag_kit ak
+                 INNER JOIN ag_kit_barcodes akb
+                 ON ak.ag_kit_id = akb.ag_kit_id
+                 WHERE   barcode like %s or lower(participant_name) like
                  %s or lower(notes) like %s"""
         liketerm = '%%' + term.lower() + '%%'
-        results = self._con.execute_fetchall(sql, [liketerm, liketerm, liketerm])
+        results = self._con.execute_fetchall(sql,
+                                             [liketerm, liketerm, liketerm])
         return [x[0] for x in results]
 
     def get_kit_info_by_login(self, ag_login_id):
-        sql = """SELECT  cast(ag_kit_id as varchar(100)) as ag_kit_id,
+        sql = """SELECT cast(ag_kit_id as varchar(100)) as ag_kit_id,
                         cast(ag_login_id as varchar(100)) as ag_login_id,
                         supplied_kit_id, kit_password, swabs_per_kit,
                         kit_verification_code, kit_verified
-                FROM    ag_kit
-                WHERE   ag_login_id = %s"""
+                 FROM ag_kit
+                 WHERE ag_login_id = %s"""
         info = self._con.execute_fetchdict(sql, [ag_login_id])
         return info if info else []
 
@@ -1576,8 +1622,8 @@ class KniminAccess(object):
         return self._con.execute_fetchdict(sql, [liketerm, liketerm])
 
     def get_login_by_email(self, email):
-        sql = """select name, address, city, state, zip, country, ag_login_id
-                 from ag_login where email = %s"""
+        sql = """SELECT name, address, city, state, zip, country, ag_login_id
+                 FROM ag_login WHERE email = %s"""
         row = self._con.execute_fetchone(sql, [email])
 
         login = {}
@@ -1614,14 +1660,15 @@ class KniminAccess(object):
 
     def get_barcode_info_by_kit_id(self, ag_kit_id):
         sql = """SELECT  cast(ag_kit_barcode_id as varchar(100)) as
-                  ag_kit_barcode_id, cast(ag_kit_id as varchar(100)) as
-                  ag_kit_id, barcode, sample_date, sample_time, site_sampled,
-                  participant_name, environment_sampled, notes, results_ready,
-                  withdrawn, refunded
-                FROM    ag_kit_barcodes
-                WHERE   ag_kit_id = %s"""
+                         ag_kit_barcode_id, cast(ag_kit_id as varchar(100)) as
+                         ag_kit_id, barcode, sample_date, sample_time,
+                         site_sampled, participant_name, environment_sampled,
+                         notes, results_ready, withdrawn, refunded
+                 FROM    ag_kit_barcodes
+                 WHERE   ag_kit_id = %s"""
 
-        results = [dict(row) for row in self._con.execute_fetchall(sql, [ag_kit_id])]
+        results = [dict(row) for row in
+                   self._con.execute_fetchall(sql, [ag_kit_id])]
         return results
 
     def getHumanParticipants(self, ag_login_id):
@@ -1636,10 +1683,10 @@ class KniminAccess(object):
 
     def getAGKitsByLogin(self):
         sql = """SELECT  lower(al.email) as email, supplied_kit_id,
-                cast(ag_kit_id as varchar(100)) as ag_kit_id
-                FROM ag_login al
-                INNER JOIN ag_kit USING (ag_login_id)
-                ORDER BY lower(email), supplied_kit_id"""
+                 cast(ag_kit_id as varchar(100)) as ag_kit_id
+                 FROM ag_login al
+                 INNER JOIN ag_kit USING (ag_login_id)
+                 ORDER BY lower(email), supplied_kit_id"""
         rows = self._con.execute_fetchall(sql)
         return [dict(row) for row in rows]
 
@@ -1650,7 +1697,7 @@ class KniminAccess(object):
                  JOIN ag.surveys ags USING (survey_group)
                  WHERE ag_login_id = %s AND ags.survey_id = %s"""
         return [row[0] for row in self._con.execute_fetchall(
-                    sql, [ag_login_id, 2])]
+            sql, [ag_login_id, 2])]
 
     def ag_new_survey_exists(self, barcode):
         """
@@ -1664,12 +1711,14 @@ class KniminAccess(object):
         """
         Gets the sequencing plates a barcode is on
         """
-        sql = """select  p.plate, p.sequence_date
-                 from    plate p inner join plate_barcode pb on
-                 pb.plate_id = p.plate_id \
-                where   pb.barcode = %s"""
+        sql = """SELECT p.plate, p.sequence_date
+                 FROM plate p
+                 INNER JOIN plate_barcode pb
+                 ON pb.plate_id = p.plate_id \
+                 WHERE pb.barcode = %s"""
 
-        return [dict(row) for row in self._con.execute_fetchall(sql, [barcode])]
+        return [dict(row) for row in
+                self._con.execute_fetchall(sql, [barcode])]
 
     def getBarcodeProjType(self, barcode):
         """ Get the project type of the barcode.
@@ -1687,7 +1736,9 @@ class KniminAccess(object):
             parent_project = projects
         return (projects, parent_project)
 
-    def setBarcodeProjects(self, barcode, add_projects=None, rem_projects=None):
+    def setBarcodeProjects(self, barcode,
+                           add_projects=None,
+                           rem_projects=None):
         """Sets the projects barcode is associated with
 
         Parameters
@@ -1710,7 +1761,8 @@ class KniminAccess(object):
         if rem_projects:
             sql = """DELETE FROM barcodes.project_barcode
                      WHERE barcode = %s AND project_id IN (
-                       SELECT project_id FROM barcodes.project WHERE project IN %s)"""
+                       SELECT project_id
+                       FROM barcodes.project WHERE project IN %s)"""
             self._con.execute(sql, [barcode, tuple(rem_projects)])
 
     def getProjectNames(self):

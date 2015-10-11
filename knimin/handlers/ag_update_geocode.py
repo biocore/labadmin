@@ -4,6 +4,7 @@ from knimin.handlers.base import BaseHandler
 
 from knimin import db
 
+
 class AGUpdateGeocodeHandler(BaseHandler):
     @authenticated
     def get(self):

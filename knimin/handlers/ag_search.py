@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
-from urllib import unquote
 
 from knimin import db
 
@@ -56,6 +55,6 @@ class AGSearchHandler(BaseHandler):
                 kit['barcode_info'] = barcode_info
             display_results.append(login_display)
 
-        #now render the page
+        # now render the page
         self.render("ag_search.html", results=display_results,
                     handouts=handouts, currentuser=self.current_user)

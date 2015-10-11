@@ -6,13 +6,11 @@ requires GPL Ghostscript 9.05
 """
 
 from PIL import Image
-from sys import argv, exit
-from os import listdir, path, system, mkdir, rmdir
+from os import path, mkdir
 from os.path import join, dirname, realpath
 from math import ceil
 from random import choice
 from shutil import rmtree
-from StringIO import StringIO
 from subprocess import Popen, PIPE
 from shlex import split as cmd_split
 
@@ -70,11 +68,12 @@ def build_barcodes_pdf(barcodes):
         if i.size == (202, 100):
             SHIFT_RIGHT = 49
             SHIFT_DOWN = 25
-        elif i.size == (300,150):
+        elif i.size == (300, 150):
             SHIFT_RIGHT = 0
             SHIFT_DOWN = 0
         else:
-            raise AttributeError, "image %s is an unsupported size" % i.shape
+            tmp = "image %s is an unsupported size"
+            raise AttributeError(tmp % i.shape)
 
         # shift to new row
         if cur_left + width > PAGE_WIDTH:
@@ -90,19 +89,23 @@ def build_barcodes_pdf(barcodes):
         idx += 1
 
     # write out each page
-    tmpdir = "tmp_%s" % ''.join([choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") for i in range(5)])
+    tmpdir = "tmp_%s" % ''.join([choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+                                 for i in range(5)])
     while path.exists(tmpdir):
-        tmpdir = "tmp_%s" % ''.join([choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") for i in range(5)])
+        tmpdir = "tmp_%s" % ''.join([choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+                                     for i in range(5)])
     mkdir(tmpdir)
 
     temp_pages = "squash_barcode_page_%d.pdf"
     for page, blank in enumerate(blanks):
         blank.save(path.join(tmpdir, temp_pages % page), quality=100)
 
-    match_pages = ' '.join([path.join(tmpdir, "squash_barcode_page_%d.pdf" % i) for i in range(len(blanks))])
+    match_pages = ' '.join([path.join(tmpdir, "squash_barcode_page_%d.pdf" % i)
+                            for i in range(len(blanks))])
 
     # magically squash all the pages
-    cmd = cmd_split('gs -r150 -q -sPAPERSIZE=a4 -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -sOutputFile=- %s' % match_pages)
+    cmd = cmd_split('gs -r150 -q -sPAPERSIZE=a4 -dNOPAUSE -dBATCH' +
+                    ' -sDEVICE=pdfwrite -sOutputFile=- %s' % match_pages)
     p = Popen(cmd, stdout=PIPE)
     output, _ = p.communicate()
     rmtree(tmpdir)

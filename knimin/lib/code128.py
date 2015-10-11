@@ -128,8 +128,8 @@ CODE128_CHART = """
 106     2331112 Stop    Stop    Stop
 """.split()
 
-VALUES   = [int(value) for value in CODE128_CHART[0::5]]
-WEIGHTS  = dict(zip(VALUES, CODE128_CHART[1::5]))
+VALUES = [int(value) for value in CODE128_CHART[0::5]]
+WEIGHTS = dict(zip(VALUES, CODE128_CHART[1::5]))
 CODE128A = dict(zip(CODE128_CHART[2::5], VALUES))
 CODE128B = dict(zip(CODE128_CHART[3::5], VALUES))
 CODE128C = dict(zip(CODE128_CHART[4::5], VALUES))
@@ -137,21 +137,22 @@ CODE128C = dict(zip(CODE128_CHART[4::5], VALUES))
 for charset in (CODE128A, CODE128B):
     charset[' '] = charset.pop('space')
 
+
 def code128_format(data):
     """
     Generate an optimal barcode from ASCII text
     """
-    text     = str(data)
-    pos      = 0
-    length   = len(text)
+    text = str(data)
+    pos = 0
+    length = len(text)
 
     # Start Code
     if text[:2].isdigit() and length > 1:
         charset = CODE128C
-        codes   = [charset['StartC']]
+        codes = [charset['StartC']]
     else:
         charset = CODE128B
-        codes   = [charset['StartB']]
+        codes = [charset['StartB']]
 
     # Data
     while pos < length:
@@ -201,8 +202,8 @@ def code128_image(text, height=100, width=None, thickness=3, quiet_zone=True,
 
     if width is not None:
         if barcode_width > width:
-            raise ValueError("Calculated width %d smaller than provided width %d" %
-                             (barcode_width, width))
+            tmp = "Calculated width %d smaller than provided width %d"
+            raise ValueError(tmp % (barcode_width, width))
         else:
             x = (width - barcode_width)/2
 

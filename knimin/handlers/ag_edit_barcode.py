@@ -33,9 +33,9 @@ class AGEditBarcodeHandler(BaseHandler):
         withdrawn = self.get_argument('withdrawn')
         try:
             db.updateAGBarcode(barcode, ag_kit_id, site_sampled,
-                                           environment_sampled, sample_date,
-                                           sample_time, participant_name,
-                                           notes, refunded, withdrawn)
+                               environment_sampled, sample_date,
+                               sample_time, participant_name,
+                               notes, refunded, withdrawn)
             self.render("ag_edit_barcode.html", response='Good', barcode=None,
                         sites_sampled=None, details=None,
                         environments_sampled=None,

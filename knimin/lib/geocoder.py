@@ -53,8 +53,10 @@ def _call_wrapper(url):
 
 
 def geocode(address):
-    geo_url = 'https://maps.googleapis.com/maps/api/geocode/json?address=%s'
-    elev_url = 'https://maps.googleapis.com/maps/api/elevation/json?locations=%s'
+    geo_url = 'https://maps.googleapis.com' + \
+        '/maps/api/geocode/json?address=%s'
+    elev_url = 'https://maps.googleapis.com' + \
+        '/maps/api/elevation/json?locations=%s'
 
     geo = _call_wrapper(geo_url % address)
     if not geo:

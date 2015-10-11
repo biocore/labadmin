@@ -1,3 +1,5 @@
+from random import choice
+
 __author__ = "Adam Robbins-Pianka"
 __copyright__ = "Copyright 2009-2015, QIIME Web Analysis"
 __credits__ = ["Adam Robbins-Pianka"]
@@ -6,8 +8,6 @@ __version__ = "1.0.0"
 __maintainer__ = ["Adam Robbins-Pianka"]
 __email__ = "adam.robbinspianka@colorado.edu"
 __status__ = "Development"
-
-from random import choice
 
 # character sets for kit id, passwords and verification codes
 KIT_ALPHA = "abcdefghjkmnpqrstuvwxyz"  # removed l and o for clarity
@@ -68,7 +68,6 @@ The American Gut Project
 """
     kit_id = 0
     password = 1
-    ver_code = 2
     bcs = 3
 
     text = []
