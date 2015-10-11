@@ -533,8 +533,8 @@ class KniminAccess(object):
             md[2][barcode]['ENV_BIOME'] = 'ENVO:dense settlement biome'
             md[2][barcode]['ENV_FEATURE'] = 'ENVO:animal-associated habitat'
             md[2][barcode]['DEPTH'] = 0
-            description = 'American Gut Project Animal sample'
-            md[2][barcode]['DESCRIPTION'] = description
+            md[2][barcode]['DESCRIPTION'] = 'American Gut Project' + \
+                ' Animal sample'
             md[2][barcode]['DNA_EXTRACTED'] = 'true'
             md[2][barcode]['HAS_PHYSICAL_SPECIMEN'] = 'true'
             md[2][barcode]['PHYSICAL_SPECIMEN_REMAINING'] = 'true'
@@ -704,12 +704,12 @@ class KniminAccess(object):
                 19 < md[1][barcode]['AGE_YEARS'] < 70 and \
                 not md[1][barcode]['AGE_YEARS'] == 'Unspecified'
             md[1][barcode]['SUBSET_DIABETES'] = \
-                md[1][barcode]['DIABETES'] == 'I do not have this condition'
+                (md[1][barcode]['DIABETES'] == 'I do not have this condition')
             md[1][barcode]['SUBSET_IBD'] = \
                 md[1][barcode]['IBD'] == 'I do not have this condition'
             md[1][barcode]['SUBSET_ANTIBIOTIC_HISTORY'] = \
-                md[1][barcode]['ANTIBIOTIC_HISTORY'] == \
-                'I have not taken antibiotics in the past year.'
+                (md[1][barcode]['ANTIBIOTIC_HISTORY'] ==
+                 'I have not taken antibiotics in the past year.')
             md[1][barcode]['SUBSET_BMI'] = \
                 18.5 <= md[1][barcode]['BMI'] < 30 and \
                 not md[1][barcode]['BMI'] == 'Unspecified'
@@ -809,9 +809,9 @@ class KniminAccess(object):
                     blanks_copy = copy(blanks_values)
                     blanks_copy['ANONYMIZED_NAME'] = blank
                     blanks_copy['HOST_SUBJECT_ID'] = blank
-                    survey_md.append('\t'.join([blank] +
-                                               [blanks_copy[h]
-                                                for h in headers]))
+                    survey_md.append(
+                        '\t'.join([blank] + [blanks_copy[h]
+                                             for h in headers]))
             metadata[survey] = '\n'.join(survey_md).encode('utf-8')
 
         failures = sorted(set(barcodes) - barcodes_seen)
@@ -1407,7 +1407,7 @@ class KniminAccess(object):
                      SET latitude = %s,
                          longitude = %s,
                          elevation = %s,
-                     cannot_geocode = %s
+                         cannot_geocode = %s
                      WHERE ag_login_id IN (
                         SELECT ag_login_id FROM ag_login
                         WHERE cannot_geocode = 'y')"""
@@ -1712,9 +1712,10 @@ class KniminAccess(object):
         Gets the sequencing plates a barcode is on
         """
         sql = """SELECT p.plate, p.sequence_date
-                 FROM plate p INNER JOIN plate_barcode pb ON
-                 pb.plate_id = p.plate_id \
-                where   pb.barcode = %s"""
+                 FROM plate p
+                 INNER JOIN plate_barcode pb
+                 ON pb.plate_id = p.plate_id \
+                 WHERE pb.barcode = %s"""
 
         return [dict(row) for row in
                 self._con.execute_fetchall(sql, [barcode])]
