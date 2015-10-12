@@ -20,7 +20,7 @@ script:
   - ./scripts/ag make test
   - export PYTHONPATH=
   - $PYTHONPATH
-  - cd ~/build/biocore/labadmin/knimin/
+  - cd $TRAVIS_BUILD_DIR
   - cp ~/build/biocore/labadmin/knimin/config.txt.example ~/build/biocore/labadmin/knimin/config.txt
   - nosetests --with-doctest --with-coverage
   - flake8 knimin setup.py scripts
