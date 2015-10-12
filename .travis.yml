@@ -21,7 +21,7 @@ script:
   - export PYTHONPATH=
   - $PYTHONPATH
   - cd $TRAVIS_BUILD_DIR
-  - cp ~/build/biocore/labadmin/knimin/config.txt.example ~/build/biocore/labadmin/knimin/config.txt
+  - cp $TRAVIS_BUILD_DIR/knimin/config.txt.example $TRAVIS_BUILD_DIR/knimin/config.txt
   - nosetests --with-doctest --with-coverage
   - flake8 knimin setup.py scripts
 after_success:
