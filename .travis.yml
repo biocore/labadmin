@@ -10,10 +10,18 @@ before_install:
   - redis-server --version
 install:
   - pip install --upgrade pip
-  - pip install mock nose>=0.10.1 pep8 flake8 coveralls
+  - pip install mock nose>=0.10.1 pep8 flake8 coveralls click natsort
   - travis_retry pip install .
 script:
-  - cp ~/build/biocore/labadmin/knimin/config.txt.example ~/build/biocore/labadmin/knimin/config.txt
+  - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
+  - cd /home/travis/build/biocore/american-gut-web
+  - export AG_CONFIG=`pwd`/ag_config.txt.example
+  - export PYTHONPATH=/home/travis/build/biocore/american-gut-web:$PYTHONPATH
+  - ./scripts/ag make test
+  - export PYTHONPATH=
+  - $PYTHONPATH
+  - cd $TRAVIS_BUILD_DIR
+  - cp $TRAVIS_BUILD_DIR/knimin/config.txt.example $TRAVIS_BUILD_DIR/knimin/config.txt
   - nosetests --with-doctest --with-coverage
   - flake8 knimin setup.py scripts
 after_success:

@@ -3,9 +3,9 @@ debug = True
 help_email =
 
 [postgres]
-USER =
+USER = postgres
 PASSWORD =
-DATABASE =
+DATABASE = ag_test
 HOST = localhost
 PORT = 5432
 
