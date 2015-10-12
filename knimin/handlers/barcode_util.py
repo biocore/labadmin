@@ -146,7 +146,7 @@ class BarcodeUtilHandler(BaseHandler):
                 ag_details['other_checked'] = 'checked'
 
             survey_id = db.get_barcode_survey(barcode)
-            _, failures = db.pulldown([barcode])
+            _, failures = db.pulldown([barcode], [])
             if not (ag_details['sample_date'] ==
                     ag_details['site_sampled'] ==
                     ag_details['sample_time'] == ''):
