@@ -645,9 +645,11 @@ class KniminAccess(object):
             md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode[:9]]
             try:
                 md[1][barcode]['TAXON_ID'] = md_lookup[site]['TAXON_ID']
-            except Exception as e:
-                print("BARCODE:", barcode, "  SITE:", site)
-                raise e
+            except KeyError:
+                raise KeyError("Unknown body site for barcode %s: %s" %
+                               (barcode, site))
+            except:
+                raise
 
             md[1][barcode]['COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
             md[1][barcode]['COLLECTION_DATE'] = \
