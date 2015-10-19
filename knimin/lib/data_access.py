@@ -355,7 +355,9 @@ class KniminAccess(object):
                JOIN ag.survey_question_response_type USING (survey_question_id)
                JOIN ag.group_questions GQ USING (survey_question_id)
                JOIN ag.surveys S USING (survey_group)
-               WHERE survey_response_type='SINGLE' AND barcode in %s"""
+               WHERE survey_response_type='SINGLE'
+                   AND (withdrawn IS NULL OR withdrawn != 'Y')
+                   AND barcode in %s"""
 
         # MULTIPLE answers SQL
         multiple_sql = \
@@ -367,7 +369,9 @@ class KniminAccess(object):
                JOIN ag.survey_question_response_type USING (survey_question_id)
                JOIN ag.group_questions USING (survey_question_id)
                JOIN ag.surveys S USING (survey_group)
-               WHERE survey_response_type='MULTIPLE' AND barcode in %s
+               WHERE survey_response_type='MULTIPLE'
+                   AND (withdrawn IS NULL OR withdrawn != 'Y')
+                   AND barcode in %s
                GROUP BY S.survey_id, barcode, question_shortname"""
 
         # Also need to get the possible responses for multiples
@@ -387,8 +391,9 @@ class KniminAccess(object):
                JOIN ag.survey_question_response_type USING (survey_question_id)
                JOIN ag.group_questions GQ USING (survey_question_id)
                JOIN ag.surveys S USING (survey_group)
-               WHERE survey_response_type in ('STRING', 'TEXT')
-               AND barcode in %s"""
+               WHERE survey_response_type IN ('STRING', 'TEXT')
+                   AND (withdrawn IS NULL OR withdrawn != 'Y')
+                   AND barcode in %s"""
 
         # Formats a question and response for a MULTIPLE question into a header
         def _translate_multiple_response_to_header(question, response):
