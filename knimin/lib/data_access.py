@@ -802,17 +802,14 @@ class KniminAccess(object):
                 oa_hold = [barcode]
                 for h in headers:
                     # Take care of retired questions not having an answer
-                    try:
-                        x = shortnames_answers[h]
-                    except KeyError:
-                        x = 'Unspecified'
+                    answer = shortnames_answers.get(h, 'Unspecified')
                     # Convert everything to utf-8 unicode for standardization
-                    if isinstance(x, unicode):
-                        converted = x
-                    elif isinstance(x, str):
-                        converted = unicode(x, 'utf-8')
+                    if isinstance(answer, unicode):
+                        converted = answer
+                    elif isinstance(answer, str):
+                        converted = unicode(answer, 'utf-8')
                     else:
-                        converted = unicode(str(x), 'utf-8')
+                        converted = unicode(str(answer), 'utf-8')
                     oa_hold.append(converted)
                 survey_md.append('\t'.join(oa_hold))
             if survey == 1:
