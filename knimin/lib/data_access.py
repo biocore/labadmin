@@ -827,6 +827,104 @@ class KniminAccess(object):
 
         return metadata, failures
 
+    def explain_pulldown_failures(self, barcodes):
+        """Builds failure reason list for barcodes passed
+
+        Parameters
+        ----------
+        barcodes : list of str
+            Barcodes to explain failure for
+
+        Returns: list of tuples of str
+            list in the form [(barcode, reason), (barcode, reason), ...]
+        """
+        def update_failure(sql, all_bc, reason):
+            hold = [x[0] for x in
+                    self._con.execute_fetchall(sql, [tuple(all_bc)])]
+            remaining_bc = all_bc.difference(hold)
+            return [(bc, reason) for bc in hold], remaining_bc
+
+        failure_info = []
+        current_barcodes = set(barcodes)
+
+        # TEST ORDER HERE MATTERS!
+        # not an AG barcode
+        sql = """SELECT barcode
+                FROM ag.ag_kit_barcodes
+                WHERE barcode IN %s
+                UNION
+                SELECT barcode
+                FROM ag.ag_handout_barcodes
+                WHERE barcode IN %s"""
+        hold = {x[0] for x in
+                self._con.execute_fetchall(sql, [tuple(current_barcodes)] * 2)}
+        failure_info.extend((bc, 'Not an AG barcode') for bc in
+                            current_barcodes.difference(current_barcodes))
+        current_barcodes = hold
+        # No more unexplained, so done
+        if len(current_barcodes) == 0:
+            return failure_info
+
+        # handout barcode
+        sql = """SELECT barcode
+                 FROM ag.ag_handout_barcodes
+                 WHERE barcode IN %s"""
+        failures, current_barcodes = update_failure(
+            sql, current_barcodes, 'Withdrawn sample')
+        failure_info.extend(failures)
+        # No more unexplained, so done
+        if len(current_barcodes) == 0:
+            return failure_info
+
+        # withdrawn
+        sql = """SELECT barcode
+                 FROM ag.ag_kit_barcodes
+                 WHERE withdrawn = 'Y' AND barcode in %s"""
+        failures, current_barcodes = update_failure(
+            sql, current_barcodes, 'Withdrawn sample')
+        failure_info.extend(failures)
+        # No more unexplained, so done
+        if len(current_barcodes) == 0:
+            return failure_info
+
+        # sample not logged
+        sql = """SELECT barcode
+                 FROM ag.ag_kit_barcodes
+                 WHERE sample_date IS NULL AND barcode in %s"""
+        failures, current_barcodes = update_failure(
+            sql, current_barcodes, 'Sample not logged')
+        failure_info.extend(failures)
+        # No more unexplained, so done
+        if len(current_barcodes) == 0:
+            return failure_info
+
+        # environmental sample
+        sql = """SELECT barcode
+                 FROM ag.ag_kit_barcodes
+                 WHERE environment_sampled IS NOT NULL AND barcode in %s"""
+        failures, current_barcodes = update_failure(
+            sql, current_barcodes, 'Environmental sample')
+        failure_info.extend(failures)
+        # No more unexplained, so done
+        if len(current_barcodes) == 0:
+            return failure_info
+
+        # Sample not consented
+        sql = """SELECT barcode
+                 FROM ag.ag_kit_barcodes
+                 WHERE survey_id IS NULL AND barcode in %s"""
+        failures, current_barcodes = update_failure(
+            sql, current_barcodes, 'Sample logged without survey')
+        failure_info.extend(failures)
+        # No more unexplained, so done
+        if len(current_barcodes) == 0:
+            return failure_info
+
+        # other
+        failure_info.extend([(bc, 'Unknown reason') for bc in
+                             current_barcodes])
+        return failure_info
+
     def _hash_password(self, password, hashedpw=None):
         """Hashes password
 
