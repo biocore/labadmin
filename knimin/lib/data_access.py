@@ -778,14 +778,14 @@ class KniminAccess(object):
         metadata : dict of str
             Tab delimited qiita sample template, keyed to survey ID it came
             from
-        failures : list of str
-            Barcodes unable to pull metadata down for
+        failures : list of tuple of str
+            Barcodes unable to pull metadata down, in the form
+            [(barcode, reason), (barcode, reason), ...]
         """
         all_survey_info = self.get_surveys(barcodes)
         if len(all_survey_info) == 0:
             # No barcodes given match any survey
-            failures = set(barcodes)
-            return {}, failures
+            return {}, self._explain_pulldown_failures(barcodes)
         all_results = self.format_survey_data(all_survey_info)
 
         # keep track of which barcodes were seen so we know which weren't
@@ -855,16 +855,16 @@ class KniminAccess(object):
         # curent_barcodes by previous checks
         # not an AG barcode
         sql = """SELECT barcode
-                FROM ag.ag_kit_barcodes
-                WHERE barcode IN %s
-                UNION
-                SELECT barcode
-                FROM ag.ag_handout_barcodes
-                WHERE barcode IN %s"""
+                 FROM ag.ag_kit_barcodes
+                 WHERE barcode IN %s
+                 UNION
+                 SELECT barcode
+                 FROM ag.ag_handout_barcodes
+                 WHERE barcode IN %s"""
         hold = {x[0] for x in
                 self._con.execute_fetchall(sql, [tuple(current_barcodes)] * 2)}
-        failure_info.extend((bc, 'Not an AG barcode') for bc in
-                            current_barcodes.difference(current_barcodes))
+        failure_info.extend([(bc, 'Not an AG barcode') for bc in
+                            current_barcodes.difference(current_barcodes)])
         current_barcodes = hold
         # No more unexplained, so done
         if len(current_barcodes) == 0:
