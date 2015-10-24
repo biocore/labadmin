@@ -156,7 +156,7 @@ class BarcodeUtilHandler(BaseHandler):
                     div_id = "not_assigned"
                     message = "Missing info"
                     ag_details['email_type'] = "0"
-                elif barcode in failures:
+                elif failures:
                     div_id = "no_metadata"
                     message = "Cannot retrieve metadata"
                     ag_details['email_type'] = "-1"

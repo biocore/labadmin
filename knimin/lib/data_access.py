@@ -823,11 +823,11 @@ class KniminAccess(object):
                                              for h in headers]))
             metadata[survey] = '\n'.join(survey_md).encode('utf-8')
 
-        failures = sorted(set(barcodes) - barcodes_seen)
+        failures = set(barcodes) - barcodes_seen
 
-        return metadata, failures
+        return metadata, self._explain_pulldown_failures(failures)
 
-    def explain_pulldown_failures(self, barcodes):
+    def _explain_pulldown_failures(self, barcodes):
         """Builds failure reason list for barcodes passed
 
         Parameters
@@ -838,6 +838,10 @@ class KniminAccess(object):
         Returns: list of tuples of str
             list in the form [(barcode, reason), (barcode, reason), ...]
         """
+        # if empty list passed, don't touch database
+        if len(barcodes) == 0:
+            return []
+
         def update_failure(sql, all_bc, reason):
             hold = [x[0] for x in
                     self._con.execute_fetchall(sql, [tuple(all_bc)])]
@@ -847,7 +851,8 @@ class KniminAccess(object):
         failure_info = []
         current_barcodes = set(barcodes)
 
-        # TEST ORDER HERE MATTERS!
+        # TEST ORDER HERE MATTERS! Assumptions made based on filtering of
+        # curent_barcodes by previous checks
         # not an AG barcode
         sql = """SELECT barcode
                 FROM ag.ag_kit_barcodes
@@ -870,7 +875,7 @@ class KniminAccess(object):
                  FROM ag.ag_handout_barcodes
                  WHERE barcode IN %s"""
         failures, current_barcodes = update_failure(
-            sql, current_barcodes, 'Withdrawn sample')
+            sql, current_barcodes, 'Unassigned handout kit barcode')
         failure_info.extend(failures)
         # No more unexplained, so done
         if len(current_barcodes) == 0:
