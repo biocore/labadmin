@@ -1,5 +1,5 @@
 from unittest import TestCase, main
-from json import loads 
+from json import loads
 import requests_mock
 from knimin.lib.geocoder import (
     GoogleAPIInvalidRequest, GoogleAPILimitExceeded, GoogleAPIRequestDenied,
@@ -65,6 +65,21 @@ class TestCallWrapper(TestCase):
 
             with self.assertRaises(IOError):
                 _call_wrapper(full_url)
+
+
+class TestGeocode(TestCase):
+    def test_geocode_nonmock(self):
+        obs = geocode('9500 Gilman Dr, La Jolla, CA')
+        exp = Location('9500 Gilman Dr, La Jolla, CA', 32.8794081,
+                       -117.2368167, 115.2523956298828, 'San Diego', 'CA',
+                       '92093', 'United States')
+        self.assertEqual(obs, exp)
+
+    def test_geocode_bad_address(self):
+        obs = geocode('SomeRandomPlace')
+        exp = Location('SomeRandomPlace', None, None, None, None, None, None,
+                       None)
+        self.assertEqual(obs, exp)
 
 # Results copied from Google API responses on 2015-10-25
 ok = '''{
