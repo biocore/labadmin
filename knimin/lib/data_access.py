@@ -906,10 +906,8 @@ class KniminAccess(object):
         sql = """SELECT barcode
                  FROM ag.ag_kit_barcodes
                  WHERE environment_sampled IS NOT NULL AND barcode in %s"""
-        print len(remaining), len(fail_reason)
         remaining = update_reason_and_remaining(
             sql, 'Environmental sample', fail_reason, remaining)
-        print len(remaining), len(fail_reason)
         # No more unexplained, so done
         if len(remaining) == 0:
             return fail_reason
