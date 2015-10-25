@@ -31,6 +31,7 @@ def _call_wrapper(url):
                 # 3 errors seen so not a fluke, raise error
                 raise IOError('Error %d on request: %s\n%s' %
                               (req.status_code, url, req.content))
+            continue
 
         geo = loads(req.content)
         if geo['status'] == "OK":

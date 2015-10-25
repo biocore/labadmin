@@ -1,6 +1,6 @@
 from unittest import TestCase, main
-from json import loads
-import httpretty
+from json import loads 
+import requests_mock
 from knimin.lib.geocoder import (
     GoogleAPIInvalidRequest, GoogleAPILimitExceeded, GoogleAPIRequestDenied,
     Location, _call_wrapper, geocode)
@@ -8,68 +8,63 @@ from knimin.lib.geocoder import (
 
 class TestCallWrapper(TestCase):
     def setUp(self):
-        httpretty.enable()
         self.url = 'mock://maps.googleapis.com/%s'
-
-    def tearDown(self):
-        httpretty.disable()
-        httpretty.reset()
 
     def test_call_wrapper_ok(self):
         full_url = self.url % 'ok'
-        httpretty.register_uri(httpretty.GET, full_url, body=ok,
-                               content_type='text/json')
-
-        obs = _call_wrapper(full_url)
+        with requests_mock.mock() as m:
+            m.get(full_url, text=ok)
+            obs = _call_wrapper(full_url)
         exp = loads(ok)['results']
         self.assertEqual(obs, exp)
 
     def test_call_wrapper_exceeded_limit(self):
         full_url = self.url % 'exceeded'
-        httpretty.register_uri(httpretty.GET, full_url, body=over_query_limit,
-                               content_type='text/json')
+        with requests_mock.mock() as m:
+            m.get(full_url, text=over_query_limit)
 
-        with self.assertRaises(GoogleAPILimitExceeded):
-            _call_wrapper(full_url)
+            with self.assertRaises(GoogleAPILimitExceeded):
+                _call_wrapper(full_url)
 
     def test_call_wrapper_zero_results(self):
         full_url = self.url % 'zero'
-        httpretty.register_uri(httpretty.GET, full_url, body=zero_results,
-                               content_type='text/json')
+        with requests_mock.mock() as m:
+            m.get(full_url, text=zero_results)
 
-        obs = _call_wrapper(full_url)
-        self.assertEqual(obs, {})
+            obs = _call_wrapper(full_url)
+            self.assertEqual(obs, {})
 
     def test_call_wrapper_request_denied(self):
         full_url = self.url % 'denied'
-        httpretty.register_uri(httpretty.GET, full_url, body=request_denied,
-                               content_type='text/json')
+        with requests_mock.mock() as m:
+            m.get(full_url, text=request_denied)
 
-        with self.assertRaises(GoogleAPIRequestDenied):
-            _call_wrapper(full_url)
+            with self.assertRaises(GoogleAPIRequestDenied):
+                _call_wrapper(full_url)
 
     def test_call_wrapper_invalid_request(self):
         full_url = self.url % 'invalid'
-        httpretty.register_uri(httpretty.GET, full_url, body=invalid_request,
-                               content_type='text/json')
+        with requests_mock.mock() as m:
+            m.get(full_url, text=invalid_request)
 
-        with self.assertRaises(GoogleAPIInvalidRequest):
-            _call_wrapper(full_url)
+            with self.assertRaises(GoogleAPIInvalidRequest):
+                _call_wrapper(full_url)
 
     def test_call_wrapper_unknown_error(self):
         full_url = self.url % 'unknown'
-        httpretty.register_uri(httpretty.GET, full_url, body=unknown_error,
-                               content_type='text/json')
+        with requests_mock.mock() as m:
+            m.get(full_url, text=unknown_error)
 
-        with self.assertRaises(IOError):
-            _call_wrapper(full_url)
+            with self.assertRaises(IOError):
+                _call_wrapper(full_url)
 
     def test_call_wrapper_404(self):
         full_url = self.url % '404'
-        httpretty.register_uri(httpretty.GET, full_url, body='', status=404)
+        with requests_mock.mock() as m:
+            m.get(full_url, text='', status_code=404)
 
-        with self.assertRaises(IOError):
-            _call_wrapper(full_url)
+            with self.assertRaises(IOError):
+                _call_wrapper(full_url)
 
 # Results copied from Google API responses on 2015-10-25
 ok = '''{
