@@ -19,7 +19,7 @@ Location = namedtuple('Location', ['input', 'lat', 'long', 'elev', 'city',
                       'state', 'postcode', 'country'])
 
 
-def _call_wrapper(url):
+def _call_wrapper(url):  # noqa
     """Encapsulate all checks for API calls"""
     # allow 4 retries do we sleep longer than a second if all loops happen
     stat_err_count = 0
@@ -45,12 +45,12 @@ def _call_wrapper(url):
             raise GoogleAPIRequestDenied()
         elif geo['status'] == "INVALID_REQUEST":
             raise GoogleAPIInvalidRequest(url)
-        elif geo['status'] == "UNKNOWN_ERROR":
-            raise IOError("Unknown server error in Google API: %s" %
-                          req.content)
 
     if geo['status'] == "OVER_QUERY_LIMIT":
         raise GoogleAPILimitExceeded("Exceeded max calls per day")
+    if geo['status'] == "UNKNOWN_ERROR":
+            raise IOError("Unknown server error in Google API: %s" %
+                          req.content)
     return geo['results']
 
 
