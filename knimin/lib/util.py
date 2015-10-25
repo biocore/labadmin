@@ -171,29 +171,31 @@ def make_verification_code(vercode_length=5):
     return choice(KIT_VERCODE_NOZEROS) + x
 
 
-def categorize_age(x):
+def categorize_age(x):  # noqa
     if x < 0:
-        return 'Unspecified'
+        age_cat = 'Unspecified'
     elif x < 3:
-        return "baby"
+        age_cat = "baby"
     elif x < 13:
-        return "child"
+        age_cat = "child"
     elif x < 20:
-        return "teen"
+        age_cat = "teen"
     elif x < 30:
-        return "20s"
+        age_cat = "20s"
     elif x < 40:
-        return "30s"
+        age_cat = "30s"
     elif x < 50:
-        return "40s"
+        age_cat = "40s"
     elif x < 60:
-        return "50s"
+        age_cat = "50s"
     elif x < 70:
-        return "60s"
+        age_cat = "60s"
     elif x < 123:
-        return "70+"
+        age_cat = "70+"
     else:
-        return 'Unspecified'
+        age_cat = 'Unspecified'
+
+    return age_cat
 
 
 def categorize_etoh(x):
