@@ -75,6 +75,11 @@ class TestGeocode(TestCase):
                        '92093', 'United States')
         self.assertEqual(obs, exp)
 
+        obs = geocode('12 Erlangen')
+        exp = Location('12 Erlangen', 59.36121550000001, 16.4908829,
+                       38.21769714355469, 'Eskilstuna',
+                       u'S\xf6dermanlands l\xe4n', '632 30', 'Sweden')
+
     def test_geocode_bad_address(self):
         obs = geocode('SomeRandomPlace')
         exp = Location('SomeRandomPlace', None, None, None, None, None, None,
