@@ -842,7 +842,7 @@ class KniminAccess(object):
         """
         # if empty list passed, don't touch database
         if len(barcodes) == 0:
-            return []
+            return {}
 
         def update_reason_and_remaining(sql, reason, failures, remaining):
             failures.update(
