@@ -778,14 +778,14 @@ class KniminAccess(object):
         metadata : dict of str
             Tab delimited qiita sample template, keyed to survey ID it came
             from
-        failures : list of str
-            Barcodes unable to pull metadata down for
+        failures : dict
+            Barcodes unable to pull metadata down, in the form
+            {barcode: reason, ...}
         """
         all_survey_info = self.get_surveys(barcodes)
         if len(all_survey_info) == 0:
             # No barcodes given match any survey
-            failures = set(barcodes)
-            return {}, failures
+            return {}, self._explain_pulldown_failures(barcodes)
         all_results = self.format_survey_data(all_survey_info)
 
         # keep track of which barcodes were seen so we know which weren't
@@ -823,9 +823,108 @@ class KniminAccess(object):
                                              for h in headers]))
             metadata[survey] = '\n'.join(survey_md).encode('utf-8')
 
-        failures = sorted(set(barcodes) - barcodes_seen)
+        failures = set(barcodes) - barcodes_seen
 
-        return metadata, failures
+        return metadata, self._explain_pulldown_failures(failures)
+
+    def _explain_pulldown_failures(self, barcodes):
+        """Builds failure reason list for barcodes passed
+
+        Parameters
+        ----------
+        barcodes : list of str
+            Barcodes to explain failure for
+
+        Returns
+        -------
+        dict
+            failure reasons in the form {barcode: reason, ...}
+        """
+        # if empty list passed, don't touch database
+        if len(barcodes) == 0:
+            return {}
+
+        def update_reason_and_remaining(sql, reason, failures, remaining):
+            failures.update(
+                {bc[0]: reason for bc in
+                 self._con.execute_fetchall(sql, [tuple(remaining)])})
+            return remaining.difference(failures)
+
+        fail_reason = {}
+        remaining = set(barcodes)
+        # TEST ORDER HERE MATTERS! Assumptions made based on filtering of
+        # curent_barcodes by previous checks
+        # not an AG barcode
+        sql = """SELECT barcode
+                 FROM ag.ag_kit_barcodes
+                 WHERE barcode IN %s
+                 UNION
+                 SELECT barcode
+                 FROM ag.ag_handout_barcodes
+                 WHERE barcode IN %s"""
+        hold = {x[0] for x in
+                self._con.execute_fetchall(
+                    sql, [tuple(remaining)] * 2)}
+        fail_reason.update({bc: 'Not an AG barcode' for bc in
+                            remaining.difference(hold)})
+        remaining = hold
+        # No more unexplained, so done
+        if len(remaining) == 0:
+            return fail_reason
+
+        # handout barcode
+        sql = """SELECT barcode
+                 FROM ag.ag_handout_barcodes
+                 WHERE barcode IN %s"""
+        remaining = update_reason_and_remaining(
+            sql, 'Unassigned handout kit barcode', fail_reason, remaining)
+        # No more unexplained, so done
+        if len(remaining) == 0:
+            return fail_reason
+
+        # withdrawn
+        sql = """SELECT barcode
+                 FROM ag.ag_kit_barcodes
+                 WHERE withdrawn = 'Y' AND barcode in %s"""
+        remaining = update_reason_and_remaining(
+            sql, 'Withdrawn sample', fail_reason, remaining)
+        # No more unexplained, so done
+        if len(remaining) == 0:
+            return fail_reason
+
+        # sample not logged
+        sql = """SELECT barcode
+                 FROM ag.ag_kit_barcodes
+                 WHERE sample_date IS NULL AND barcode in %s"""
+        remaining = update_reason_and_remaining(
+            sql, 'Sample not logged', fail_reason, remaining)
+        # No more unexplained, so done
+        if len(remaining) == 0:
+            return fail_reason
+
+        # environmental sample
+        sql = """SELECT barcode
+                 FROM ag.ag_kit_barcodes
+                 WHERE environment_sampled IS NOT NULL AND barcode in %s"""
+        remaining = update_reason_and_remaining(
+            sql, 'Environmental sample', fail_reason, remaining)
+        # No more unexplained, so done
+        if len(remaining) == 0:
+            return fail_reason
+
+        # Sample not consented
+        sql = """SELECT barcode
+                 FROM ag.ag_kit_barcodes
+                 WHERE survey_id IS NULL AND barcode in %s"""
+        remaining = update_reason_and_remaining(
+            sql, 'Sample logged without survey', fail_reason, remaining)
+        # No more unexplained, so done
+        if len(remaining) == 0:
+            return fail_reason
+
+        # other
+        fail_reason.update({bc: 'Unknown reason' for bc in remaining})
+        return fail_reason
 
     def _hash_password(self, password, hashedpw=None):
         """Hashes password

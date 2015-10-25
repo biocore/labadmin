@@ -147,44 +147,33 @@ class BarcodeUtilHandler(BaseHandler):
 
             survey_id = db.get_barcode_survey(barcode)
             _, failures = db.pulldown([barcode], [])
-            if not (ag_details['sample_date'] ==
-                    ag_details['site_sampled'] ==
-                    ag_details['sample_time'] == ''):
-                # it has all sample details
-                # (sample time, date, site)
-                if survey_id is None:
-                    div_id = "not_assigned"
-                    message = "Missing info"
-                    ag_details['email_type'] = "0"
-                elif barcode in failures:
-                    div_id = "no_metadata"
-                    message = "Cannot retrieve metadata"
-                    ag_details['email_type'] = "-1"
-                elif survey_type[survey_id] == 'Human':
-                    # and we can successfully retrieve sample
-                    # metadata
-                    div_id = "verified"
-                    message = "All good"
-                    ag_details['email_type'] = "1"
-                elif survey_type[survey_id] == 'Animal':
-                    div_id = "verified_animal"
-                    message = "All good"
-                    ag_details['email_type'] = "1"
-                else:
-                    # should never get here (this would happen
-                    # if the metadata
-                    # pulldown returned more than one row for a
-                    # single barcode)
-                    div_id = "md_pulldown_error"
-                    message = ("This barcode has multiple entries "
-                               "in the database, which should "
-                               "never happen. Please notify "
-                               "someone on the database crew.")
-                    ag_details['email_type'] = "-1"
+
+            # it has all sample details
+            # (sample time, date, site)
+            if failures:
+                div_id = "no_metadata"
+                message = "Cannot retrieve metadata: %s" % failures[barcode]
+                ag_details['email_type'] = "-1"
+            elif survey_type[survey_id] == 'Human':
+                # and we can successfully retrieve sample
+                # metadata
+                div_id = "verified"
+                message = "All good"
+                ag_details['email_type'] = "1"
+            elif survey_type[survey_id] == 'Animal':
+                div_id = "verified_animal"
+                message = "All good"
+                ag_details['email_type'] = "1"
             else:
-                div_id = "not_assigned"
-                message = ("In American Gut project group but No "
-                           "American Gut info for barcode")
+                # should never get here (this would happen
+                # if the metadata
+                # pulldown returned more than one row for a
+                # single barcode)
+                div_id = "md_pulldown_error"
+                message = ("This barcode has multiple entries "
+                           "in the database, which should "
+                           "never happen. Please notify "
+                           "someone on the database crew.")
                 ag_details['email_type'] = "-1"
         else:
             div_id = "not_assigned"

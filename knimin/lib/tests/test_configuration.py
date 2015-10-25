@@ -40,6 +40,7 @@ class ConfigurationTests(TestCase):
 
 test_config = """[main]
 debug = True
+help_email = help@email.com
 
 [postgres]
 user = test
@@ -50,6 +51,13 @@ port = 5432
 
 [tornado]
 port = 8888
+
+[email]
+HOST = localhost
+PORT = 465
+SSL = False
+USERNAME =
+PASSWORD =
 """
 
 
