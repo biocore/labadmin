@@ -778,9 +778,9 @@ class KniminAccess(object):
         metadata : dict of str
             Tab delimited qiita sample template, keyed to survey ID it came
             from
-        failures : list of tuple of str
+        failures : dict
             Barcodes unable to pull metadata down, in the form
-            [(barcode, reason), (barcode, reason), ...]
+            {barcode: reason, ...}
         """
         all_survey_info = self.get_surveys(barcodes)
         if len(all_survey_info) == 0:
@@ -837,22 +837,21 @@ class KniminAccess(object):
 
         Returns
         -------
-        list of tuples of str
-            list in the form [(barcode, reason), (barcode, reason), ...]
+        dict
+            failure reasons in the form {barcode: reason, ...}
         """
         # if empty list passed, don't touch database
         if len(barcodes) == 0:
             return []
 
-        def update_failure(sql, all_bc, reason):
-            hold = [x[0] for x in
-                    self._con.execute_fetchall(sql, [tuple(all_bc)])]
-            remaining_bc = all_bc.difference(hold)
-            return [(bc, reason) for bc in hold], remaining_bc
+        def update_reason_and_remaining(sql, reason, failures, remaining):
+            failures.update(
+                {bc[0]: reason for bc in
+                 self._con.execute_fetchall(sql, [tuple(remaining)])})
+            return remaining.difference(failures)
 
-        failure_info = []
-        current_barcodes = set(barcodes)
-
+        fail_reason = {}
+        remaining = set(barcodes)
         # TEST ORDER HERE MATTERS! Assumptions made based on filtering of
         # curent_barcodes by previous checks
         # not an AG barcode
@@ -864,73 +863,70 @@ class KniminAccess(object):
                  FROM ag.ag_handout_barcodes
                  WHERE barcode IN %s"""
         hold = {x[0] for x in
-                self._con.execute_fetchall(sql, [tuple(current_barcodes)] * 2)}
-        failure_info.extend([(bc, 'Not an AG barcode') for bc in
-                            current_barcodes.difference(current_barcodes)])
-        current_barcodes = hold
+                self._con.execute_fetchall(
+                    sql, [tuple(remaining)] * 2)}
+        fail_reason.update({bc: 'Not an AG barcode' for bc in
+                            remaining.difference(hold)})
+        remaining = hold
         # No more unexplained, so done
-        if len(current_barcodes) == 0:
-            return failure_info
+        if len(remaining) == 0:
+            return fail_reason
 
         # handout barcode
         sql = """SELECT barcode
                  FROM ag.ag_handout_barcodes
                  WHERE barcode IN %s"""
-        failures, current_barcodes = update_failure(
-            sql, current_barcodes, 'Unassigned handout kit barcode')
-        failure_info.extend(failures)
+        remaining = update_reason_and_remaining(
+            sql, 'Unassigned handout kit barcode', fail_reason, remaining)
         # No more unexplained, so done
-        if len(current_barcodes) == 0:
-            return failure_info
+        if len(remaining) == 0:
+            return fail_reason
 
         # withdrawn
         sql = """SELECT barcode
                  FROM ag.ag_kit_barcodes
                  WHERE withdrawn = 'Y' AND barcode in %s"""
-        failures, current_barcodes = update_failure(
-            sql, current_barcodes, 'Withdrawn sample')
-        failure_info.extend(failures)
+        remaining = update_reason_and_remaining(
+            sql, 'Withdrawn sample', fail_reason, remaining)
         # No more unexplained, so done
-        if len(current_barcodes) == 0:
-            return failure_info
+        if len(remaining) == 0:
+            return fail_reason
 
         # sample not logged
         sql = """SELECT barcode
                  FROM ag.ag_kit_barcodes
                  WHERE sample_date IS NULL AND barcode in %s"""
-        failures, current_barcodes = update_failure(
-            sql, current_barcodes, 'Sample not logged')
-        failure_info.extend(failures)
+        remaining = update_reason_and_remaining(
+            sql, 'Sample not logged', fail_reason, remaining)
         # No more unexplained, so done
-        if len(current_barcodes) == 0:
-            return failure_info
+        if len(remaining) == 0:
+            return fail_reason
 
         # environmental sample
         sql = """SELECT barcode
                  FROM ag.ag_kit_barcodes
                  WHERE environment_sampled IS NOT NULL AND barcode in %s"""
-        failures, current_barcodes = update_failure(
-            sql, current_barcodes, 'Environmental sample')
-        failure_info.extend(failures)
+        print len(remaining), len(fail_reason)
+        remaining = update_reason_and_remaining(
+            sql, 'Environmental sample', fail_reason, remaining)
+        print len(remaining), len(fail_reason)
         # No more unexplained, so done
-        if len(current_barcodes) == 0:
-            return failure_info
+        if len(remaining) == 0:
+            return fail_reason
 
         # Sample not consented
         sql = """SELECT barcode
                  FROM ag.ag_kit_barcodes
                  WHERE survey_id IS NULL AND barcode in %s"""
-        failures, current_barcodes = update_failure(
-            sql, current_barcodes, 'Sample logged without survey')
-        failure_info.extend(failures)
+        remaining = update_reason_and_remaining(
+            sql, 'Sample logged without survey', fail_reason, remaining)
         # No more unexplained, so done
-        if len(current_barcodes) == 0:
-            return failure_info
+        if len(remaining) == 0:
+            return fail_reason
 
         # other
-        failure_info.extend([(bc, 'Unknown reason') for bc in
-                             current_barcodes])
-        return failure_info
+        fail_reason.update({bc: 'Unknown reason' for bc in remaining})
+        return fail_reason
 
     def _hash_password(self, password, hashedpw=None):
         """Hashes password

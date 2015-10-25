@@ -152,7 +152,7 @@ class BarcodeUtilHandler(BaseHandler):
             # (sample time, date, site)
             if failures:
                 div_id = "no_metadata"
-                message = "Cannot retrieve metadata: %s" % failures[0][1]
+                message = "Cannot retrieve metadata: %s" % failures[barcode]
                 ag_details['email_type'] = "-1"
             elif survey_type[survey_id] == 'Human':
                 # and we can successfully retrieve sample

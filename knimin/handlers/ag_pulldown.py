@@ -41,7 +41,7 @@ class AGPulldownDLHandler(BaseHandler):
         metadata, failures = db.pulldown(barcodes, blanks)
 
         meta_zip = InMemoryZip()
-        failed = '\n'.join(['\t'.join(x) for x in failures])
+        failed = '\n'.join(['\t'.join(bc) for bc in viewitems(failures)])
         failtext = ("The following barcodes were not retrieved "
                     "for any survey:\n%s" % failed)
         meta_zip.append("failures.txt", failtext)
