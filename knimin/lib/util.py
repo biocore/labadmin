@@ -200,25 +200,29 @@ def categorize_age(x):  # noqa
 
 def categorize_etoh(x):
     if x == 'Never':
-        return 'No'
+        etoh_cat = 'No'
     elif x == 'Unspecified':
-        return x
+        etoh_cat = x
     elif isinstance(x, str):
-        return "Yes"
+        etoh_cat = "Yes"
     else:
         raise TypeError('Must pass string, passed %s' % type(x))
+
+    return etoh_cat
 
 
 def categorize_bmi(x):
     if x < 0:
-        return 'Unspecified'
+        bmi_cat = 'Unspecified'
     elif x < 18.5:
-        return "Underweight"
+        bmi_cat = "Underweight"
     elif x < 25:
-        return "Normal"
+        bmi_cat = "Normal"
     elif x < 30:
-        return "Overweight"
+        bmi_cat = "Overweight"
     elif x < 210:
-        return "Obese"
+        bmi_cat = "Obese"
     else:
-        return 'Unspecified'
+        bmi_cat = 'Unspecified'
+
+    return bmi_cat
