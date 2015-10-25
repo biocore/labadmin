@@ -835,7 +835,9 @@ class KniminAccess(object):
         barcodes : list of str
             Barcodes to explain failure for
 
-        Returns: list of tuples of str
+        Returns
+        -------
+        list of tuples of str
             list in the form [(barcode, reason), (barcode, reason), ...]
         """
         # if empty list passed, don't touch database
