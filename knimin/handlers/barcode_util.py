@@ -68,15 +68,15 @@ class BarcodeUtilHelper(object):
                           other_text):
         email_msg = ag_update_msg = None
         if all([send_mail is not None, login_email is not None,
-               login_email != '']):
+                login_email != '']):
             subject, body_message = self._build_email(
                 login_user, barcode, email_type, sample_date, sample_time)
             if body_message != '':
+                sent_date = time.now()
+                email_msg = ("Sent email successfully to kit owner %s" %
+                             login_email)
                 try:
                     send_email(body_message, subject, login_email)
-                    sent_date = time.now()
-                    email_msg = ("Sent email successfully to kit owner %s" %
-                                 login_email)
                 except:
                     email_msg = ("Email sending to (%s) failed (barcode: %s)!"
                                  "<br/>" % (login_email, barcode))
@@ -88,11 +88,11 @@ class BarcodeUtilHelper(object):
             overloaded = 'Y'
         if 'other' in sample_issue:
             other = 'Y'
+        ag_update_msg = ("Barcode %s AG info was sucessfully updated" %
+                         barcode)
         try:
             db.updateAKB(barcode, moldy, overloaded, other, other_text,
                          sent_date)
-            ag_update_msg = ("Barcode %s AG info was sucessfully updated" %
-                             barcode)
         except:
             ag_update_msg = ("Barcode %s AG update failed!!!" % barcode)
 
