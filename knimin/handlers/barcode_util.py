@@ -183,25 +183,54 @@ class BarcodeUtilHandler(BaseHandler):
     def update_ag_barcode(self, barcode):
         msg2 = msg3 = None
         sent_date = self.get_argument('sent_date', None)
-        general_name = "American Gut participant"
-        login_user = self.get_argument('login_user', None)  # kit owner name
-        if login_user == "None":
-            login_user = general_name
+        login_user = self.get_argument('login_user',
+                                       'American Gut participant')
         send_mail = self.get_argument('send_mail', None)
         if send_mail is not None:
-            email_type = self.get_argument('email_type', None)
-            subject = body_message = ""
-            sample_time = self.get_argument('sample_time', None)
-            sample_date = self.get_argument('sample_date', None)
-            if email_type == '0':
-                subject = ('Follow up on Your American Gut Sample with '
-                           'Barcode %s' % barcode)
-                body_message = """
+            subject, body_message = self._build_email(login_user, barcode)
+            login_email = self.get_argument('login_email', '')
+            if login_email != '' and body_message != '':
+                try:
+                    send_email(body_message, subject, login_email)
+                    sent_date = time.now()
+                    msg2 = ("Sent email successfully to kit owner %s"
+                            % login_email)
+                except:
+                    msg2 = ("Email sending to (%s) failed failed "
+                            "(barcode: %s)!!!<br/>" % (login_email, barcode))
+        sample_issue = self.get_argument('sample_issue', [])
+        moldy = overloaded = other = 'N'
+        if 'moldy' in sample_issue:
+            moldy = 'Y'
+        if 'overloaded' in sample_issue:
+            overloaded = 'Y'
+        if 'other' in sample_issue:
+            other = 'Y'
+        try:
+            db.updateAKB(barcode, moldy, overloaded, other,
+                         self.get_argument('other_text', None),
+                         sent_date)
+            msg3 = ("Barcode %s AG info was sucessfully updated" % barcode)
+        except:
+            msg3 = ("Barcode %s AG update failed!!!" % barcode)
+
+        return msg2, msg3
+
+    def _build_email(self, login_user, barcode):
+        email_type = self.get_argument('email_type', None)
+        sample_time = self.get_argument('sample_time', None)
+        sample_date = self.get_argument('sample_date', None)
+        subject = body_message = ""
+
+        if email_type == '0':
+            subject = ('Follow up on Your American Gut Sample with '
+                       'Barcode %s' % barcode)
+            body_message = """
 Dear {name},
 
 We have recently received your sample barcode: {barcode}, but we cannot process
 your sample until the following steps have been completed online. Please ensure
- that you have completed both steps outlined below:
+that you have completed both steps outlined below:
 
 1). Submit consent form & survey
 For human samples, the consent form is mandatory. Please note that the consent
@@ -237,14 +266,14 @@ American Gut Team
 
 """
 
-                body_message = body_message.format(name=login_user,
-                                                   barcode=barcode,
-                                                   sample_date=sample_date,
-                                                   sample_time=sample_time)
-            elif email_type == '1':
-                subject = ('American Gut Sample with Barcode %s is Received.'
-                           % barcode)
-                body_message = """
+            body_message = body_message.format(name=login_user,
+                                               barcode=barcode,
+                                               sample_date=sample_date,
+                                               sample_time=sample_time)
+        elif email_type == '1':
+            subject = ('American Gut Sample with Barcode %s is Received.'
+                       % barcode)
+            body_message = """
 Dear {name},
 
 We have recently received your sample with barcode {barcode} dated
@@ -256,34 +285,9 @@ Thank you for your participation!
 
 --American Gut Team--
 """
-                body_message = body_message.format(name=login_user,
-                                                   barcode=barcode,
-                                                   sample_date=sample_date,
-                                                   sample_time=sample_time)
-            login_email = self.get_argument('login_email', None)
-            if login_email != "" or login_email is not None:
-                try:
-                    send_email(body_message, subject, login_email)
-                    sent_date = time.now()
-                    msg2 = ("Sent email successfully to kit owner %s"
-                            % login_email)
-                except:
-                    msg2 = ("Email sending to (%s) failed failed "
-                            "(barcode: %s)!!!<br/>" % (login_email, barcode))
-        sample_issue = self.get_argument('sample_issue', [])
-        moldy = overloaded = other = 'N'
-        if 'moldy' in sample_issue:
-            moldy = 'Y'
-        if 'overloaded' in sample_issue:
-            overloaded = 'Y'
-        if 'other' in sample_issue:
-            other = 'Y'
-        try:
-            db.updateAKB(barcode, moldy, overloaded, other,
-                         self.get_argument('other_text', None),
-                         sent_date)
-            msg3 = ("Barcode %s AG info was sucessfully updated" % barcode)
-        except:
-            msg3 = ("Barcode %s AG update failed!!!" % barcode)
+            body_message = body_message.format(name=login_user,
+                                               barcode=barcode,
+                                               sample_date=sample_date,
+                                               sample_time=sample_time)
 
-        return msg2, msg3
+        return subject, body_message
