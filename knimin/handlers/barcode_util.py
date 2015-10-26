@@ -63,11 +63,13 @@ class BarcodeUtilHelper(object):
             ag_details['email_type'] = "-1"
         return div_id, message, ag_details
 
-    def update_ag_barcode(self, barcode, login_user, login_email, sent_date,
-                          send_mail, other_text):
+    def update_ag_barcode(self, barcode, login_user, login_email, email_type,
+                          sent_date, send_mail, sample_date, sample_time,
+                          other_text):
         msg2 = msg3 = None
         if send_mail is not None:
-            subject, body_message = self._build_email(login_user, barcode)
+            subject, body_message = self._build_email(
+                login_user, barcode, email_type, sample_date, sample_time)
             if login_email != '' and body_message != '':
                 try:
                     send_email(body_message, subject, login_email)
@@ -283,8 +285,8 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
             new_proj, parent_project = db.getBarcodeProjType(barcode)
         if parent_project == 'American Gut':
             msg2, msg3 = self.update_ag_barcode(
-                barcode, login_user, login_email, sent_date, send_mail,
-                other_text)
+                barcode, login_user, login_email, email_type, sent_date,
+                send_mail, sample_date, sample_time, other_text)
         self.render("barcode_util.html", div_and_msg=None,
                     barcode_projects=[],
                     parent_project=None,
