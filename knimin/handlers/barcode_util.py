@@ -67,8 +67,8 @@ class BarcodeUtilHelper(object):
                           sent_date, send_mail, sample_date, sample_time,
                           other_text):
         email_msg = ag_update_msg = None
-        if all(send_mail is not None, login_email is not None,
-               login_email != ''):
+        if all([send_mail is not None, login_email is not None,
+               login_email != '']):
             subject, body_message = self._build_email(
                 login_user, barcode, email_type, sample_date, sample_time)
             if body_message != '':
