@@ -12,6 +12,26 @@ class TestBarcodeUtil(TestHandlerBase):
         self.ag_handout = '000022146'
         self.ag_unlogged = '000022640'
         self.not_ag = '000006155'
+
+        self.data = {
+            'barcode': self.ag_good,
+            'login_email': 'REMOVED',
+            'email_type': '1',
+            'sample_site': 'Stool',
+            'login_user': 'REMOVED',
+            'other_text': 'REMOVED',
+            'sample_date': '2013-04-18',
+            'sample_time': '06:50:00',
+            'postmark_date': '',
+            'scan_date': '10/25/2015',
+            'sent_date': '',
+            'sequencing_status': 'SUCCESS',
+            'bstatus': 'Recieved',
+            'project': 'American Gut Project',
+            'obsolete_status': 'N',
+            'parent_project': 'American Gut',
+            'biomass_remaining': 'Unknown',
+        }
         super(TestBarcodeUtil, self).setUp()
 
     def test_get_not_authed(self):
@@ -121,27 +141,9 @@ class TestBarcodeUtil(TestHandlerBase):
 
     def test_post_update_ag(self):
         notes = ''.join([choice(ascii_letters) for x in range(40)])
-        data = {
-            'barcode': self.ag_good,
-            'login_email': 'REMOVED',
-            'email_type': '1',
-            'sample_site': 'Stool',
-            'login_user': 'REMOVED',
-            'other_text': notes,
-            'sample_date': '2013-04-18',
-            'sample_time': '06:50:00',
-            'postmark_date': '',
-            'scan_date': '10/25/2015',
-            'sent_date': '',
-            'sequencing_status': 'SUCCESS',
-            'bstatus': 'Recieved',
-            'project': 'American Gut Project',
-            'obsolete_status': 'N',
-            'parent_project': 'American Gut',
-            'biomass_remaining': 'Unknown',
-        }
+        self.data['other_text'] = notes
         self.mock_login()
-        response = self.post('/barcode_util/', data=data)
+        response = self.post('/barcode_util/', data=self.data)
         self.assertEqual(response.code, 200)
         self.assertIn('Barcode %s general details updated' % self.ag_good,
                       response.body)
@@ -149,6 +151,23 @@ class TestBarcodeUtil(TestHandlerBase):
                       self.ag_good, response.body)
         obs = db.getAGBarcodeDetails(self.ag_good)
         self.assertEqual(obs['other_text'], notes)
+
+    def test_post_update_ag_project_change(self):
+        self.data['project'] = 'UNKNOWN'
+        self.mock_login()
+        response = self.post('/barcode_util/', data=self.data)
+        self.assertEqual(response.code, 200)
+        self.assertIn('Barcode %s general details updated' % self.ag_good,
+                      response.body)
+        self.assertIn('Project successfully changed', response.body)
+        barcode_projects, parent_project = db.getBarcodeProjType(self.ag_good)
+        self.assertEqual(barcode_projects, 'UNKNOWN')
+
+        # reset back
+        db.setBarcodeProjects(self.ag_good, ['American Gut Project'],
+                              ['UNKNOWN'])
+        barcode_projects, parent_project = db.getBarcodeProjType(self.ag_good)
+        self.assertEqual(barcode_projects, 'American Gut Project')
 
 
 if __name__ == '__main__':
