@@ -2,6 +2,7 @@
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
 import time
+from psycopg2 import Error as PostgresError
 
 from knimin import db
 from knimin.lib.constants import survey_type
@@ -66,18 +67,19 @@ class BarcodeUtilHelper(object):
     def update_ag_barcode(self, barcode, login_user, login_email, email_type,
                           sent_date, send_mail, sample_date, sample_time,
                           other_text):
-        msg2 = msg3 = None
-        if send_mail is not None:
+        email_msg = ag_update_msg = None
+        if all(send_mail is not None, login_email is not None,
+               login_email != ''):
             subject, body_message = self._build_email(
                 login_user, barcode, email_type, sample_date, sample_time)
-            if login_email != '' and body_message != '':
+            if  body_message != '':
                 try:
                     send_email(body_message, subject, login_email)
                     sent_date = time.now()
-                    msg2 = ("Sent email successfully to kit owner %s"
+                    email_msg = ("Sent email successfully to kit owner %s"
                             % login_email)
                 except:
-                    msg2 = ("Email sending to (%s) failed failed "
+                    email_msg = ("Email sending to (%s) failed failed "
                             "(barcode: %s)!!!<br/>" % (login_email, barcode))
         sample_issue = self.get_argument('sample_issue', [])
         moldy = overloaded = other = 'N'
@@ -90,11 +92,12 @@ class BarcodeUtilHelper(object):
         try:
             db.updateAKB(barcode, moldy, overloaded, other, other_text,
                          sent_date)
-            msg3 = ("Barcode %s AG info was sucessfully updated" % barcode)
+            ag_update_msg = ("Barcode %s AG info was sucessfully updated" %
+                             barcode)
         except:
-            msg3 = ("Barcode %s AG update failed!!!" % barcode)
+            ag_update_msg = ("Barcode %s AG update failed!!!" % barcode)
 
-        return msg2, msg3
+        return email_msg, ag_update_msg
 
     def _build_email(self, login_user, barcode, email_type,
                      sample_date, sample_time):
@@ -211,12 +214,12 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
         if barcode_details['obsolete'] is None:
             barcode_details['obsolete'] = 'N'
         div_id = message = ""
-        ag_details = []
         if (barcode_details['obsolete'] == "Y"):
                 # the barcode is obsolete
                 div_id = "obsolete"
                 message = "Barcode is Obsolete"
         # get project info for div
+        ag_details = []
         if parent_project == 'American Gut':
             div_id, message, ag_details = self.get_ag_details(barcode)
         else:
@@ -246,7 +249,7 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
         login_user = self.get_argument('login_user',
                                        'American Gut participant')
         send_mail = self.get_argument('send_mail', None)
-        login_email = self.get_argument('login_email', '')
+        login_email = self.get_argument('login_email', None)
         other_text = self.get_argument('other_text', None)
         email_type = self.get_argument('email_type', None)
         sample_time = self.get_argument('sample_time', None)
@@ -265,11 +268,11 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
                                    biomass_remaining_value,
                                    sequencing_status,
                                    obsolete_status)
-            msg1 = "Barcode %s general details updated" % barcode
+            gen_update_msg = "Barcode %s general details updated" % barcode
         except:
-            msg1 = "Barcode %s general details failed" % barcode
+            gen_update_msg = "Barcode %s general details failed" % barcode
 
-        msg2 = msg3 = msg4 = None
+        email_msg = ag_update_msg = project_msg = None
         exisiting_proj, parent_project = db.getBarcodeProjType(
             barcode)
         exisiting_proj = set(exisiting_proj.split(','))
@@ -278,13 +281,13 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
                 add_projects = projects.difference(exisiting_proj)
                 rem_projects = exisiting_proj.difference(projects)
                 db.setBarcodeProjects(barcode, add_projects, rem_projects)
-                msg4 = "Project successfully changed"
+                project_msg = "Project successfully changed"
             except:
-                msg4 = "Error changing project"
+                project_msg = "Error changing project"
 
             new_proj, parent_project = db.getBarcodeProjType(barcode)
         if parent_project == 'American Gut':
-            msg2, msg3 = self.update_ag_barcode(
+            email_msg, ag_update_msg = self.update_ag_barcode(
                 barcode, login_user, login_email, email_type, sent_date,
                 send_mail, sample_date, sample_time, other_text)
         self.render("barcode_util.html", div_and_msg=None,
@@ -293,5 +296,6 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
                     project_names=[], barcode=None,
                     email_type=None,
                     barcode_info=None, proj_barcode_info=None,
-                    msgs=(msg1, msg2, msg3, msg4),
+                    msgs=(gen_update_msg, email_msg, ag_update_msg,
+                          project_msg),
                     currentuser=self.current_user)
