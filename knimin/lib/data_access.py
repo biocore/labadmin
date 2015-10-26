@@ -323,7 +323,7 @@ class KniminAccess(object):
         res = self._con.execute_fetchall(sql, [tuple(b[:9] for b in barcodes)])
         return {row[0]: dict(row) for row in res}
 
-    def get_surveys(self, barcodes):
+    def get_surveys(self, barcodes):  # noqa
         """Retrieve surveys for specific barcodes
 
         Parameters
