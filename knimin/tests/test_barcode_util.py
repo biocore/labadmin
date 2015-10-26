@@ -34,9 +34,9 @@ class TestBarcodeUtil(TestHandlerBase):
                          'American Gut Project</option>',
                          response.body)
 
-    def test_post_ag_barcode(self):
+    def test_get_ag_barcode(self):
         self.mock_login()
-        response = self.post('/barcode_util/', {'barcode': self.ag_good})
+        response = self.get('/barcode_util/', {'barcode': self.ag_good})
         self.assertEqual(response.code, 200)
         self.assertIn(
             '<input id="barcode" name="barcode" type="text" '
@@ -50,9 +50,9 @@ class TestBarcodeUtil(TestHandlerBase):
         self.assertIn('Project type: American Gut', response.body)
         self.assertIn('All good', response.body)
 
-    def test_post_enviro_barcode(self):
+    def test_get_enviro_barcode(self):
         self.mock_login()
-        response = self.post('/barcode_util/', {'barcode': self.ag_enviro})
+        response = self.get('/barcode_util/', {'barcode': self.ag_enviro})
         self.assertEqual(response.code, 200)
         self.assertIn(
             '<input id="barcode" name="barcode" type="text" '
@@ -67,9 +67,9 @@ class TestBarcodeUtil(TestHandlerBase):
         self.assertIn('Cannot retrieve metadata: Environmental sample',
                       response.body)
 
-    def test_post_handout_barcode(self):
+    def test_get_handout_barcode(self):
         self.mock_login()
-        response = self.post('/barcode_util/', {'barcode': self.ag_handout})
+        response = self.get('/barcode_util/', {'barcode': self.ag_handout})
         self.assertEqual(response.code, 200)
         self.assertIn(
             '<input id="barcode" name="barcode" type="text" '
@@ -85,9 +85,9 @@ class TestBarcodeUtil(TestHandlerBase):
                       'for barcode',
                       response.body)
 
-    def test_post_unlogged_barcode(self):
+    def test_get_unlogged_barcode(self):
         self.mock_login()
-        response = self.post('/barcode_util/', {'barcode': self.ag_unlogged})
+        response = self.get('/barcode_util/', {'barcode': self.ag_unlogged})
         self.assertEqual(response.code, 200)
         self.assertIn(
             '<input id="barcode" name="barcode" type="text" '
@@ -103,9 +103,9 @@ class TestBarcodeUtil(TestHandlerBase):
                       'for barcode',
                       response.body)
 
-    def test_post_non_ag_barcode(self):
+    def test_get_non_ag_barcode(self):
         self.mock_login()
-        response = self.post('/barcode_util/', {'barcode': self.not_ag})
+        response = self.get('/barcode_util/', {'barcode': self.not_ag})
         self.assertEqual(response.code, 200)
         self.assertIn(
             '<input id="barcode" name="barcode" type="text" '

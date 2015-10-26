@@ -11,16 +11,67 @@ from knimin.lib.mail import send_email
 class BarcodeUtilHandler(BaseHandler):
     @authenticated
     def get(self):
-        self.render("barcode_util.html", div_and_msg=None, barcode_projects=[],
-                    parent_project=None,
-                    project_names=[], barcode=None, email_type=None,
-                    barcode_info=None, proj_barcode_info=None, msgs=None,
+        barcode = self.get_argument('barcode', None)
+        if barcode is None:
+            self.render("barcode_util.html", div_and_msg=None,
+                        barcode_projects=[], parent_project=None,
+                        project_names=[], barcode=None, email_type=None,
+                        barcode_info=None, proj_barcode_info=None, msgs=None,
+                        currentuser=self.current_user)
+            return
+        # gather info to display
+        barcode_details = db.get_barcode_details(barcode)
+        if len(barcode_details) == 0:
+            div_id = "invalid_barcode"
+            message = ("Barcode %s does not exist in the database" %
+                       barcode)
+            self.render("barcode_util.html",
+                        div_and_msg=(div_id, message, barcode),
+                        barcode_projects=[], parent_project=None,
+                        project_names=[],
+                        barcode=barcode, email_type=None,
+                        barcode_info=None, proj_barcode_info=None,
+                        msgs=None, currentuser=self.current_user)
+            return
+
+        barcode_projects, parent_project = db.getBarcodeProjType(
+            barcode)
+        project_names = db.getProjectNames()
+
+        # barcode exists get general info
+        if barcode_details['status'] is None:
+            barcode_details['status'] = 'Received'
+        if barcode_details['biomass_remaining'] is None:
+            barcode_details['biomass_remaining'] = 'Unknown'
+        if barcode_details['sequencing_status'] is None:
+            barcode_details['sequencing_status']
+        if barcode_details['obsolete'] is None:
+            barcode_details['obsolete'] = 'N'
+        div_id = message = ""
+        ag_details = []
+        if (barcode_details['obsolete'] == "Y"):
+                # the barcode is obsolete
+                div_id = "obsolete"
+                message = "Barcode is Obsolete"
+        # get project info for div
+        if parent_project == 'American Gut':
+            div_id, message, ag_details = self.get_ag_details(barcode)
+        else:
+            div_id = "verified"
+            message = "Barcode Info is correct"
+        div_and_msg = (div_id, message, barcode)
+        self.render("barcode_util.html", div_and_msg=div_and_msg,
+                    barcode_projects=barcode_projects,
+                    parent_project=parent_project,
+                    project_names=project_names,
+                    barcode=barcode, email_type=None,
+                    barcode_info=barcode_details,
+                    proj_barcode_info=ag_details, msgs=None,
                     currentuser=self.current_user)
 
     @authenticated
     def post(self):
-        barcode = self.get_argument('barcode', None)
-        bstatus = self.get_argument('bstatus', None)
+        barcode = self.get_argument('barcode')
         postmark_date = self.get_argument('postmark_date', None)
         scan_date = self.get_argument('scan_date', None)
         biomass_remaining_value = self.get_argument('biomass_remaining_value',
@@ -28,105 +79,52 @@ class BarcodeUtilHandler(BaseHandler):
         sequencing_status = self.get_argument('sequencing_status', None)
         obsolete_status = self.get_argument('obsolete_status', None)
         projects = set(self.get_arguments('project'))
-        barcode_projects = 'Unknown'
-        ag_details = {}
-        if bstatus is None:
-            # gather info to display
-            barcode_details = db.get_barcode_details(barcode)
-            if len(barcode_details) == 0:
-                div_id = "invalid_barcode"
-                message = ("Barcode %s does not exist in the database" %
-                           barcode)
-                self.render("barcode_util.html",
-                            div_and_msg=(div_id, message, barcode),
-                            barcode_projects=[], parent_project=None,
-                            project_names=[],
-                            barcode=barcode, email_type=None,
-                            barcode_info=None, proj_barcode_info=None,
-                            msgs=None, currentuser=self.current_user)
-                return
-            else:
-                barcode_projects, parent_project = db.getBarcodeProjType(
-                    barcode)
-                project_names = db.getProjectNames()
+        # now we collect data and update based on forms
+        # first update general barcode info
+        # Set to non to make sure no conflicts with new date typing in DB
+        if not postmark_date:
+            postmark_date = None
+        if not scan_date:
+            scan_date = None
+        try:
+            db.updateBarcodeStatus('Received',
+                                   postmark_date,
+                                   scan_date, barcode,
+                                   biomass_remaining_value,
+                                   sequencing_status,
+                                   obsolete_status)
+            msg1 = "Barcode %s general details updated" % barcode
+        except:
+            msg1 = "Barcode %s general details failed" % barcode
 
-                # barcode exists get general info
-                if barcode_details['status'] is None:
-                    barcode_details['status'] = 'Received'
-                if barcode_details['biomass_remaining'] is None:
-                    barcode_details['biomass_remaining'] = 'Unknown'
-                if barcode_details['sequencing_status'] is None:
-                    barcode_details['sequencing_status']
-                if barcode_details['obsolete'] is None:
-                    barcode_details['obsolete'] = 'N'
-                div_id = message = ""
-                ag_details = []
-                if (barcode_details['obsolete'] == "Y"):
-                        # the barcode is obsolete
-                        div_id = "obsolete"
-                        message = "Barcode is Obsolete"
-                # get project info for div
-                if parent_project == 'American Gut':
-                    div_id, message, ag_details = self.get_ag_details(barcode)
-                else:
-                    div_id = "verified"
-                    message = "Barcode Info is correct"
-            div_and_msg = (div_id, message, barcode)
-            self.render("barcode_util.html", div_and_msg=div_and_msg,
-                        barcode_projects=barcode_projects,
-                        parent_project=parent_project,
-                        project_names=project_names,
-                        barcode=barcode, email_type=None,
-                        barcode_info=barcode_details,
-                        proj_barcode_info=ag_details, msgs=None,
-                        currentuser=self.current_user)
-        else:
-            # now we collect data and update based on forms
-            # first update general barcode info
-            # Set to non to make sure no conflicts with new date typing in DB
-            if not postmark_date:
-                postmark_date = None
-            if not scan_date:
-                scan_date = None
+        msg2 = msg3 = msg4 = None
+        exisiting_proj, parent_project = db.getBarcodeProjType(
+            barcode)
+        exisiting_proj = set(exisiting_proj.split(','))
+        if exisiting_proj != projects:
             try:
-                db.updateBarcodeStatus('Received',
-                                       postmark_date,
-                                       scan_date, barcode,
-                                       biomass_remaining_value,
-                                       sequencing_status,
-                                       obsolete_status)
-                msg1 = "Barcode %s general details updated" % barcode
+                add_projects = projects.difference(exisiting_proj)
+                rem_projects = exisiting_proj.difference(projects)
+                print exisiting_proj
+                print projects
+                print add_projects
+                print rem_projects
+                db.setBarcodeProjects(barcode, add_projects, rem_projects)
+                msg4 = "Project successfully changed"
             except:
-                msg1 = "Barcode %s general details failed" % barcode
+                msg4 = "Error changing project"
 
-            msg2 = msg3 = msg4 = None
-            exisiting_proj, parent_project = db.getBarcodeProjType(
-                barcode)
-            exisiting_proj = set(exisiting_proj.split(','))
-            if exisiting_proj != projects:
-                try:
-                    add_projects = projects.difference(exisiting_proj)
-                    rem_projects = exisiting_proj.difference(projects)
-                    print exisiting_proj
-                    print projects
-                    print add_projects
-                    print rem_projects
-                    db.setBarcodeProjects(barcode, add_projects, rem_projects)
-                    msg4 = "Project successfully changed"
-                except:
-                    msg4 = "Error changing project"
-
-                new_proj, parent_project = db.getBarcodeProjType(barcode)
-            if parent_project == 'American Gut':
-                msg2, msg3 = self.update_ag_barcode(barcode)
-            self.render("barcode_util.html", div_and_msg=None,
-                        barcode_projects=[],
-                        parent_project=None,
-                        project_names=[], barcode=None,
-                        email_type=None,
-                        barcode_info=None, proj_barcode_info=None,
-                        msgs=(msg1, msg2, msg3, msg4),
-                        currentuser=self.current_user)
+            new_proj, parent_project = db.getBarcodeProjType(barcode)
+        if parent_project == 'American Gut':
+            msg2, msg3 = self.update_ag_barcode(barcode)
+        self.render("barcode_util.html", div_and_msg=None,
+                    barcode_projects=[],
+                    parent_project=None,
+                    project_names=[], barcode=None,
+                    email_type=None,
+                    barcode_info=None, proj_barcode_info=None,
+                    msgs=(msg1, msg2, msg3, msg4),
+                    currentuser=self.current_user)
 
     def get_ag_details(self, barcode):
         ag_details = db.getAGBarcodeDetails(barcode)
