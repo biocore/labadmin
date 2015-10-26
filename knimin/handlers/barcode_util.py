@@ -88,7 +88,7 @@ class BarcodeUtilHelper(object):
             overloaded = 'Y'
         if 'other' in sample_issue:
             other = 'Y'
-        ag_update_msg = ("Barcode %s AG info was sucessfully updated" %
+        ag_update_msg = ("Barcode %s AG info was successfully updated" %
                          barcode)
         try:
             db.updateAKB(barcode, moldy, overloaded, other, other_text,
