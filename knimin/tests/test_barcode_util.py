@@ -1,4 +1,7 @@
 from unittest import main
+from random import choice
+from string import ascii_letters
+from knimin import db
 from knimin.tests.tornado_test_base import TestHandlerBase
 
 
@@ -34,6 +37,7 @@ class TestBarcodeUtil(TestHandlerBase):
     def test_post_ag_barcode(self):
         self.mock_login()
         response = self.post('/barcode_util/', {'barcode': self.ag_good})
+        self.assertEqual(response.code, 200)
         self.assertIn(
             '<input id="barcode" name="barcode" type="text" '
             'onclick="this.select()" />',
@@ -49,6 +53,7 @@ class TestBarcodeUtil(TestHandlerBase):
     def test_post_enviro_barcode(self):
         self.mock_login()
         response = self.post('/barcode_util/', {'barcode': self.ag_enviro})
+        self.assertEqual(response.code, 200)
         self.assertIn(
             '<input id="barcode" name="barcode" type="text" '
             'onclick="this.select()" />',
@@ -65,6 +70,7 @@ class TestBarcodeUtil(TestHandlerBase):
     def test_post_handout_barcode(self):
         self.mock_login()
         response = self.post('/barcode_util/', {'barcode': self.ag_handout})
+        self.assertEqual(response.code, 200)
         self.assertIn(
             '<input id="barcode" name="barcode" type="text" '
             'onclick="this.select()" />',
@@ -82,6 +88,7 @@ class TestBarcodeUtil(TestHandlerBase):
     def test_post_unlogged_barcode(self):
         self.mock_login()
         response = self.post('/barcode_util/', {'barcode': self.ag_unlogged})
+        self.assertEqual(response.code, 200)
         self.assertIn(
             '<input id="barcode" name="barcode" type="text" '
             'onclick="this.select()" />',
@@ -99,6 +106,7 @@ class TestBarcodeUtil(TestHandlerBase):
     def test_post_non_ag_barcode(self):
         self.mock_login()
         response = self.post('/barcode_util/', {'barcode': self.not_ag})
+        self.assertEqual(response.code, 200)
         self.assertIn(
             '<input id="barcode" name="barcode" type="text" '
             'onclick="this.select()" />',
@@ -110,6 +118,37 @@ class TestBarcodeUtil(TestHandlerBase):
 
         self.assertIn('Project type: UNKNOWN', response.body)
         self.assertIn('Barcode Info is correct', response.body)
+
+    def test_post_update_ag(self):
+        notes = ''.join([choice(ascii_letters) for x in range(40)])
+        data = {
+            'barcode': self.ag_good,
+            'login_email': 'REMOVED',
+            'email_type': '1',
+            'sample_site': 'Stool',
+            'login_user': 'REMOVED',
+            'other_text': notes,
+            'sample_date': '2013-04-18',
+            'sample_time': '06:50:00',
+            'postmark_date': '',
+            'scan_date': '10/25/2015',
+            'sent_date': '',
+            'sequencing_status': 'SUCCESS',
+            'bstatus': 'Recieved',
+            'project': 'American Gut Project',
+            'obsolete_status': 'N',
+            'parent_project': 'American Gut',
+            'biomass_remaining': 'Unknown',
+        }
+        self.mock_login()
+        response = self.post('/barcode_util/', data=data)
+        self.assertEqual(response.code, 200)
+        self.assertIn('Barcode %s general details updated' % self.ag_good,
+                      response.body)
+        self.assertIn('Barcode %s AG info was sucessfully updated' %
+                      self.ag_good, response.body)
+        obs = db.getAGBarcodeDetails(self.ag_good)
+        self.assertEqual(obs['other_text'], notes)
 
 
 if __name__ == '__main__':
