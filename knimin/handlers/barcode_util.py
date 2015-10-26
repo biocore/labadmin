@@ -2,7 +2,6 @@
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
 import time
-from psycopg2 import Error as PostgresError
 
 from knimin import db
 from knimin.lib.constants import survey_type
@@ -72,15 +71,15 @@ class BarcodeUtilHelper(object):
                login_email != ''):
             subject, body_message = self._build_email(
                 login_user, barcode, email_type, sample_date, sample_time)
-            if  body_message != '':
+            if body_message != '':
                 try:
                     send_email(body_message, subject, login_email)
                     sent_date = time.now()
-                    email_msg = ("Sent email successfully to kit owner %s"
-                            % login_email)
+                    email_msg = ("Sent email successfully to kit owner %s" %
+                                 login_email)
                 except:
-                    email_msg = ("Email sending to (%s) failed failed "
-                            "(barcode: %s)!!!<br/>" % (login_email, barcode))
+                    email_msg = ("Email sending to (%s) failed (barcode: %s)!"
+                                 "<br/>" % (login_email, barcode))
         sample_issue = self.get_argument('sample_issue', [])
         moldy = overloaded = other = 'N'
         if 'moldy' in sample_issue:
