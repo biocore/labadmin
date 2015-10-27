@@ -147,7 +147,7 @@ class TestBarcodeUtil(TestHandlerBase):
         self.assertEqual(response.code, 200)
         self.assertIn('Barcode %s general details updated' % self.ag_good,
                       response.body)
-        self.assertIn('Barcode %s AG info was sucessfully updated' %
+        self.assertIn('Barcode %s AG info was successfully updated' %
                       self.ag_good, response.body)
         obs = db.getAGBarcodeDetails(self.ag_good)
         self.assertEqual(obs['other_text'], notes)
