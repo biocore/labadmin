@@ -171,52 +171,58 @@ def make_verification_code(vercode_length=5):
     return choice(KIT_VERCODE_NOZEROS) + x
 
 
-def categorize_age(x):
+def categorize_age(x):  # noqa
     if x < 0:
-        return 'Unspecified'
+        age_cat = 'Unspecified'
     elif x < 3:
-        return "baby"
+        age_cat = "baby"
     elif x < 13:
-        return "child"
+        age_cat = "child"
     elif x < 20:
-        return "teen"
+        age_cat = "teen"
     elif x < 30:
-        return "20s"
+        age_cat = "20s"
     elif x < 40:
-        return "30s"
+        age_cat = "30s"
     elif x < 50:
-        return "40s"
+        age_cat = "40s"
     elif x < 60:
-        return "50s"
+        age_cat = "50s"
     elif x < 70:
-        return "60s"
+        age_cat = "60s"
     elif x < 123:
-        return "70+"
+        age_cat = "70+"
     else:
-        return 'Unspecified'
+        age_cat = 'Unspecified'
+
+    return age_cat
 
 
 def categorize_etoh(x):
     if x == 'Never':
-        return 'No'
+        etoh_cat = 'No'
     elif x == 'Unspecified':
-        return x
+        etoh_cat = x
     elif isinstance(x, str):
-        return "Yes"
+        etoh_cat = "Yes"
     else:
         raise TypeError('Must pass string, passed %s' % type(x))
+
+    return etoh_cat
 
 
 def categorize_bmi(x):
     if x < 0:
-        return 'Unspecified'
+        bmi_cat = 'Unspecified'
     elif x < 18.5:
-        return "Underweight"
+        bmi_cat = "Underweight"
     elif x < 25:
-        return "Normal"
+        bmi_cat = "Normal"
     elif x < 30:
-        return "Overweight"
+        bmi_cat = "Overweight"
     elif x < 210:
-        return "Obese"
+        bmi_cat = "Obese"
     else:
-        return 'Unspecified'
+        bmi_cat = 'Unspecified'
+
+    return bmi_cat

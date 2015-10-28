@@ -323,7 +323,7 @@ class KniminAccess(object):
         res = self._con.execute_fetchall(sql, [tuple(b[:9] for b in barcodes)])
         return {row[0]: dict(row) for row in res}
 
-    def get_surveys(self, barcodes):
+    def get_surveys(self, barcodes):  # noqa
         """Retrieve surveys for specific barcodes
 
         Parameters
@@ -355,7 +355,9 @@ class KniminAccess(object):
                JOIN ag.survey_question_response_type USING (survey_question_id)
                JOIN ag.group_questions GQ USING (survey_question_id)
                JOIN ag.surveys S USING (survey_group)
-               WHERE survey_response_type='SINGLE' AND barcode in %s"""
+               WHERE survey_response_type='SINGLE'
+                   AND (withdrawn IS NULL OR withdrawn != 'Y')
+                   AND barcode in %s"""
 
         # MULTIPLE answers SQL
         multiple_sql = \
@@ -367,7 +369,9 @@ class KniminAccess(object):
                JOIN ag.survey_question_response_type USING (survey_question_id)
                JOIN ag.group_questions USING (survey_question_id)
                JOIN ag.surveys S USING (survey_group)
-               WHERE survey_response_type='MULTIPLE' AND barcode in %s
+               WHERE survey_response_type='MULTIPLE'
+                   AND (withdrawn IS NULL OR withdrawn != 'Y')
+                   AND barcode in %s
                GROUP BY S.survey_id, barcode, question_shortname"""
 
         # Also need to get the possible responses for multiples
@@ -387,8 +391,9 @@ class KniminAccess(object):
                JOIN ag.survey_question_response_type USING (survey_question_id)
                JOIN ag.group_questions GQ USING (survey_question_id)
                JOIN ag.surveys S USING (survey_group)
-               WHERE survey_response_type in ('STRING', 'TEXT')
-               AND barcode in %s"""
+               WHERE survey_response_type IN ('STRING', 'TEXT')
+                   AND (withdrawn IS NULL OR withdrawn != 'Y')
+                   AND barcode in %s"""
 
         # Formats a question and response for a MULTIPLE question into a header
         def _translate_multiple_response_to_header(question, response):
@@ -422,9 +427,8 @@ class KniminAccess(object):
                     match = [barcode]
 
                 if json:
-                    # Taking this slice here since all json are single-element
-                    # lists
-                    a = a[2:-2]
+                    # Clean since all json are single-element lists
+                    a.strip('"[]')
 
                     # replace all non-alphanumerics with underscore
                     a = sub('[^0-9a-zA-Z.,;/_() -]', '_', a)
@@ -481,7 +485,7 @@ class KniminAccess(object):
         # Calculate the number of 12-month periods between the years
         return (d2.year - d1.year) * 12 + (d2.month - d1.month)
 
-    def format_survey_data(self, md):
+    def format_survey_data(self, md):  # noqa
         """Modifies barcode metadata to include all columns and correct units
 
         Specifically, this function:
@@ -645,9 +649,11 @@ class KniminAccess(object):
             md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode[:9]]
             try:
                 md[1][barcode]['TAXON_ID'] = md_lookup[site]['TAXON_ID']
-            except Exception as e:
-                print("BARCODE:", barcode, "  SITE:", site)
-                raise e
+            except KeyError:
+                raise KeyError("Unknown body site for barcode %s: %s" %
+                               (barcode, site))
+            except:
+                raise
 
             md[1][barcode]['COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
             md[1][barcode]['COLLECTION_DATE'] = \
@@ -771,14 +777,14 @@ class KniminAccess(object):
         metadata : dict of str
             Tab delimited qiita sample template, keyed to survey ID it came
             from
-        failures : list of str
-            Barcodes unable to pull metadata down for
+        failures : dict
+            Barcodes unable to pull metadata down, in the form
+            {barcode: reason, ...}
         """
         all_survey_info = self.get_surveys(barcodes)
         if len(all_survey_info) == 0:
             # No barcodes given match any survey
-            failures = set(barcodes)
-            return {}, failures
+            return {}, self._explain_pulldown_failures(barcodes)
         all_results = self.format_survey_data(all_survey_info)
 
         # keep track of which barcodes were seen so we know which weren't
@@ -792,15 +798,17 @@ class KniminAccess(object):
             survey_md = [''.join(['sample_name\t', '\t'.join(headers)])]
             for barcode, shortnames_answers in sorted(bc_responses.items()):
                 barcodes_seen.add(barcode)
-                ordered_answers = [shortnames_answers[h] for h in headers]
                 oa_hold = [barcode]
-                for x in ordered_answers:
-                    if isinstance(x, unicode):
-                        converted = x
-                    elif isinstance(x, str):
-                        converted = unicode(x, 'utf-8')
+                for h in headers:
+                    # Take care of retired questions not having an answer
+                    answer = shortnames_answers.get(h, 'Unspecified')
+                    # Convert everything to utf-8 unicode for standardization
+                    if isinstance(answer, unicode):
+                        converted = answer
+                    elif isinstance(answer, str):
+                        converted = unicode(answer, 'utf-8')
                     else:
-                        converted = unicode(str(x), 'utf-8')
+                        converted = unicode(str(answer), 'utf-8')
                     oa_hold.append(converted)
                 survey_md.append('\t'.join(oa_hold))
             if survey == 1 and blanks:
@@ -814,9 +822,108 @@ class KniminAccess(object):
                                              for h in headers]))
             metadata[survey] = '\n'.join(survey_md).encode('utf-8')
 
-        failures = sorted(set(barcodes) - barcodes_seen)
+        failures = set(barcodes) - barcodes_seen
 
-        return metadata, failures
+        return metadata, self._explain_pulldown_failures(failures)
+
+    def _explain_pulldown_failures(self, barcodes):
+        """Builds failure reason list for barcodes passed
+
+        Parameters
+        ----------
+        barcodes : list of str
+            Barcodes to explain failure for
+
+        Returns
+        -------
+        dict
+            failure reasons in the form {barcode: reason, ...}
+        """
+        # if empty list passed, don't touch database
+        if len(barcodes) == 0:
+            return {}
+
+        def update_reason_and_remaining(sql, reason, failures, remaining):
+            failures.update(
+                {bc[0]: reason for bc in
+                 self._con.execute_fetchall(sql, [tuple(remaining)])})
+            return remaining.difference(failures)
+
+        fail_reason = {}
+        remaining = set(barcodes)
+        # TEST ORDER HERE MATTERS! Assumptions made based on filtering of
+        # curent_barcodes by previous checks
+        # not an AG barcode
+        sql = """SELECT barcode
+                 FROM ag.ag_kit_barcodes
+                 WHERE barcode IN %s
+                 UNION
+                 SELECT barcode
+                 FROM ag.ag_handout_barcodes
+                 WHERE barcode IN %s"""
+        hold = {x[0] for x in
+                self._con.execute_fetchall(
+                    sql, [tuple(remaining)] * 2)}
+        fail_reason.update({bc: 'Not an AG barcode' for bc in
+                            remaining.difference(hold)})
+        remaining = hold
+        # No more unexplained, so done
+        if len(remaining) == 0:
+            return fail_reason
+
+        # handout barcode
+        sql = """SELECT barcode
+                 FROM ag.ag_handout_barcodes
+                 WHERE barcode IN %s"""
+        remaining = update_reason_and_remaining(
+            sql, 'Unassigned handout kit barcode', fail_reason, remaining)
+        # No more unexplained, so done
+        if len(remaining) == 0:
+            return fail_reason
+
+        # withdrawn
+        sql = """SELECT barcode
+                 FROM ag.ag_kit_barcodes
+                 WHERE withdrawn = 'Y' AND barcode in %s"""
+        remaining = update_reason_and_remaining(
+            sql, 'Withdrawn sample', fail_reason, remaining)
+        # No more unexplained, so done
+        if len(remaining) == 0:
+            return fail_reason
+
+        # sample not logged
+        sql = """SELECT barcode
+                 FROM ag.ag_kit_barcodes
+                 WHERE sample_date IS NULL AND barcode in %s"""
+        remaining = update_reason_and_remaining(
+            sql, 'Sample not logged', fail_reason, remaining)
+        # No more unexplained, so done
+        if len(remaining) == 0:
+            return fail_reason
+
+        # environmental sample
+        sql = """SELECT barcode
+                 FROM ag.ag_kit_barcodes
+                 WHERE environment_sampled IS NOT NULL AND barcode in %s"""
+        remaining = update_reason_and_remaining(
+            sql, 'Environmental sample', fail_reason, remaining)
+        # No more unexplained, so done
+        if len(remaining) == 0:
+            return fail_reason
+
+        # Sample not consented
+        sql = """SELECT barcode
+                 FROM ag.ag_kit_barcodes
+                 WHERE survey_id IS NULL AND barcode in %s"""
+        remaining = update_reason_and_remaining(
+            sql, 'Sample logged without survey', fail_reason, remaining)
+        # No more unexplained, so done
+        if len(remaining) == 0:
+            return fail_reason
+
+        # other
+        fail_reason.update({bc: 'Unknown reason' for bc in remaining})
+        return fail_reason
 
     def _hash_password(self, password, hashedpw=None):
         """Hashes password
