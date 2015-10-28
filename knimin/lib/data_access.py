@@ -526,6 +526,12 @@ class KniminAccess(object):
         survey_sql = "SELECT barcode, survey_id FROM ag.ag_kit_barcodes"
         survey_lookup = dict(self._con.execute_fetchall(survey_sql))
 
+        dupes_sql = """SELECT duplicate_survey_id, participant_name
+                       FROM ag.duplicate_consents dc
+                       JOIN ag.ag_login_surveys als USING (ag_login_id)
+                       WHERE  dc.main_survey_id = als.survey_id"""
+        dupes_lookup = dict(self._con.execute_fetchall(dupes_sql))
+
         # Pet survey (id 2)
         for barcode, responses in md[2].items():
             # Invariant information
@@ -679,9 +685,11 @@ class KniminAccess(object):
             md[1][barcode]['BODY_PRODUCT'] = md_lookup[site]['BODY_PRODUCT']
             md[1][barcode]['DESCRIPTION'] = md_lookup[site]['DESCRIPTION']
             md[1][barcode]['HOST_COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
+
+            participant_name = dupes_lookup.get(
+                md[1][barcode]['SURVEY_ID'], specific_info['participant_name'])
             md[1][barcode]['HOST_SUBJECT_ID'] = sha512(
-                specific_info['ag_login_id'] +
-                specific_info['participant_name']).hexdigest()
+                specific_info['ag_login_id'] + participant_name).hexdigest()
 
             if md[1][barcode]['WEIGHT_KG'] and md[1][barcode]['HEIGHT_CM']:
                 md[1][barcode]['BMI'] = md[1][barcode]['WEIGHT_KG'] / \
