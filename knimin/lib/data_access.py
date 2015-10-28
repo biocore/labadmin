@@ -581,13 +581,6 @@ class KniminAccess(object):
             else:
                 md[1][barcode]['AGE_YEARS'] = 'Unspecified'
 
-            md[1][barcode]['AGE_CORRECTED'] = correct_age(
-                md[1][barcode]['AGE_YEARS'], md[1][barcode]['HEIGHT_CM'],
-                md[1][barcode]['WEIGHT_KG'],
-                md[1][barcode]['ALCOHOL_CONSUMPTION'])
-            md[1][barcode]['AGE_CAT'] = categorize_age(
-                md[1][barcode]['AGE_CORRECTED'])
-
             # GENDER to SEX
             sex = md[1][barcode]['GENDER']
             if sex is not None:
@@ -731,6 +724,12 @@ class KniminAccess(object):
                 md[1][barcode]['SUBSET_BMI']])
             md[1][barcode]['COLLECTION_MONTH'] =  \
                 specific_info['sample_date'].month
+            md[1][barcode]['AGE_CORRECTED'] = correct_age(
+                md[1][barcode]['AGE_YEARS'], md[1][barcode]['HEIGHT_CM'],
+                md[1][barcode]['WEIGHT_KG'],
+                md[1][barcode]['ALCOHOL_CONSUMPTION'])
+            md[1][barcode]['AGE_CAT'] = categorize_age(
+                md[1][barcode]['AGE_CORRECTED'])
 
             # make sure conversions are done
             if md[1][barcode]['WEIGHT_KG']:
