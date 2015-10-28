@@ -323,7 +323,7 @@ class KniminAccess(object):
         res = self._con.execute_fetchall(sql, [tuple(b[:9] for b in barcodes)])
         return {row[0]: dict(row) for row in res}
 
-    def get_surveys(self, barcodes):
+    def get_surveys(self, barcodes):  # noqa
         """Retrieve surveys for specific barcodes
 
         Parameters
@@ -427,9 +427,8 @@ class KniminAccess(object):
                     match = [barcode]
 
                 if json:
-                    # Taking this slice here since all json are single-element
-                    # lists
-                    a = a[2:-2]
+                    # Clean since all json are single-element lists
+                    a.strip('"[]')
 
                     # replace all non-alphanumerics with underscore
                     a = sub('[^0-9a-zA-Z.,;/_() -]', '_', a)
@@ -486,7 +485,7 @@ class KniminAccess(object):
         # Calculate the number of 12-month periods between the years
         return (d2.year - d1.year) * 12 + (d2.month - d1.month)
 
-    def format_survey_data(self, md):
+    def format_survey_data(self, md):  # noqa
         """Modifies barcode metadata to include all columns and correct units
 
         Specifically, this function:

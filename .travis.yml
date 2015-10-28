@@ -10,8 +10,8 @@ before_install:
   - redis-server --version
 install:
   - pip install --upgrade pip
-  - pip install mock nose>=0.10.1 pep8 flake8 coveralls click natsort
-  - travis_retry pip install .
+  - pip install click natsort coverage
+  - travis_retry pip install .[test]
 script:
   - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
   - cd /home/travis/build/biocore/american-gut-web

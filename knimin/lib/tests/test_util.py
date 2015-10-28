@@ -1,7 +1,8 @@
 from unittest import TestCase, main
 from StringIO import StringIO
 
-from knimin.lib.util import combine_barcodes
+from knimin.lib.util import (combine_barcodes, categorize_age, categorize_etoh,
+                             categorize_bmi)
 
 
 __author__ = "Adam Robbins-Pianka"
@@ -42,6 +43,50 @@ class UtilTests(TestCase):
         exp = set()
         obs = combine_barcodes()
         self.assertEqual(obs, exp)
+
+    def test_categorize_age(self):
+        self.assertEqual('Unspecified', categorize_age(-2))
+        self.assertEqual('baby', categorize_age(0))
+        self.assertEqual('baby', categorize_age(2.9))
+        self.assertEqual('child', categorize_age(3))
+        self.assertEqual('child', categorize_age(12.9))
+        self.assertEqual('teen', categorize_age(13))
+        self.assertEqual('teen', categorize_age(19.9))
+        self.assertEqual('20s', categorize_age(20))
+        self.assertEqual('20s', categorize_age(29.9))
+        self.assertEqual('30s', categorize_age(30))
+        self.assertEqual('30s', categorize_age(39.9))
+        self.assertEqual('40s', categorize_age(40))
+        self.assertEqual('40s', categorize_age(49.9))
+        self.assertEqual('50s', categorize_age(50))
+        self.assertEqual('50s', categorize_age(59.9))
+        self.assertEqual('60s', categorize_age(60))
+        self.assertEqual('60s', categorize_age(69.9))
+        self.assertEqual('70+', categorize_age(70))
+        self.assertEqual('70+', categorize_age(122))
+        self.assertEqual('Unspecified', categorize_age(123))
+        self.assertEqual('Unspecified', categorize_age(123564))
+
+    def test_categorize_etoh(self):
+        with self.assertRaises(TypeError):
+            categorize_etoh(12)
+
+        self.assertEqual('No', categorize_etoh('Never'))
+        self.assertEqual('Yes', categorize_etoh('Every day'))
+        self.assertEqual('Yes', categorize_etoh('Rarely (once a month)'))
+        self.assertEqual('Unspecified', categorize_etoh('Unspecified'))
+
+    def test_categorize_bmi(self):
+        self.assertEqual('Unspecified', categorize_bmi(-2))
+        self.assertEqual('Underweight', categorize_bmi(1))
+        self.assertEqual('Underweight', categorize_bmi(18.4))
+        self.assertEqual('Normal', categorize_bmi(18.5))
+        self.assertEqual('Normal', categorize_bmi(24.9))
+        self.assertEqual('Overweight', categorize_bmi(25))
+        self.assertEqual('Overweight', categorize_bmi(29.9))
+        self.assertEqual('Obese', categorize_bmi(30))
+        self.assertEqual('Obese', categorize_bmi(200))
+        self.assertEqual('Unspecified', categorize_bmi(210))
 
 
 if __name__ == '__main__':
