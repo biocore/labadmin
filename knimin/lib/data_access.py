@@ -1594,30 +1594,29 @@ class KniminAccess(object):
             ('Average age of participants',
              """SELECT AVG(AGE((yr.response || '-' ||
                 CASE mo.response
-                WHEN 'January' THEN '1'
-                WHEN 'February' THEN '2'
-                WHEN 'March' THEN '3'
-                WHEN 'April' THEN '4'
-                WHEN 'May' THEN '5'
-                WHEN 'June' THEN '6'
-                WHEN 'July' THEN '7'
-                WHEN 'August' THEN '8'
-                WHEN 'September' THEN '9'
-                WHEN 'October' THEN '10'
-                WHEN 'November' THEN '11'
-                WHEN 'December' THEN '12'
-                END || '-1')::date
+                    WHEN 'January' THEN '1'
+                    WHEN 'February' THEN '2'
+                    WHEN 'March' THEN '3'
+                    WHEN 'April' THEN '4'
+                    WHEN 'May' THEN '5'
+                    WHEN 'June' THEN '6'
+                    WHEN 'July' THEN '7'
+                    WHEN 'August' THEN '8'
+                    WHEN 'September' THEN '9'
+                    WHEN 'October' THEN '10'
+                    WHEN 'November' THEN '11'
+                    WHEN 'December' THEN '12'
+                  END || '-1')::date
                 )) FROM
-                (SELECT response,
-                        survey_id FROM ag.survey_answers
-                 WHERE survey_question_id=112) AS yr
-                 JOIN (SELECT response,
-                              survey_id
-                       FROM ag.survey_answers
-                       WHERE survey_question_id=111)
-                 AS mo USING (survey_id)
-                 WHERE response.yr!='Unspecified'
-                 AND mo.response!='Unspecified'"""),
+              (SELECT response, survey_id
+               FROM ag.survey_answers
+               WHERE survey_question_id = 112) AS yr
+              JOIN
+              (SELECT response, survey_id
+               FROM ag.survey_answers
+               WHERE survey_question_id = 111) AS mo USING (survey_id)
+               WHERE yr.response != 'Unspecified'
+               AND mo.response != 'Unspecified'"""),
             ('Total male participants',
              """SELECT count(*) FROM ag.survey_answers
                 WHERE survey_question_id=107 AND response='Male'"""),
