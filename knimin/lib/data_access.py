@@ -1282,6 +1282,18 @@ class KniminAccess(object):
                  RETURNING external_survey_id"""
         return self._con.execute_fetchone(sql, [survey, description, url])[0]
 
+    def list_external_surveys(self):
+        """Returns list of external study info
+
+        Returns
+        -------
+        list of str
+            Third party survey names
+        """
+        sql = """SELECT external_survey_id, external_survey
+                 FROM ag.external_survey_sources"""
+        return self._con.execute_fetchall(sql)
+
     def store_external_survey(self, in_file, survey, pulldown_date=None,
                               separator="\t", survey_id_col="survey_id"):
         """Stores third party survey answers in the database

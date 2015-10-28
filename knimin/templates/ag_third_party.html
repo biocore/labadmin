@@ -1,0 +1,10 @@
+<script type="text/javascript">
+// Check for the various File API support.
+$document.onload(function() {
+  if (window.File && window.FileReader && window.FileList && window.Blob) {
+    
+  } else {
+    alert('The File APIs are not fully supported by your browser. Please use a different one.');
+  }
+})
+</script>
