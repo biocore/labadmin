@@ -13,7 +13,7 @@ from psycopg2 import connect, Error as PostgresError
 from psycopg2.extras import DictCursor
 
 from util import (make_valid_kit_ids, make_verification_code, make_passwd,
-                  categorize_age, categorize_etoh, categorize_bmi)
+                  categorize_age, categorize_etoh, categorize_bmi, correct_age)
 from constants import (md_lookup, month_lookup, season_lookup,
                        regions_by_state, blanks_values)
 from geocoder import geocode, Location, GoogleAPILimitExceeded
@@ -574,15 +574,12 @@ class KniminAccess(object):
                     responses['BIRTH_YEAR'] != 'Unspecified':
                 birthdate = datetime(
                     int(responses['BIRTH_YEAR']),
-                    int(month_lookup[responses['BIRTH_MONTH']]),
-                    1)
+                    int(month_lookup[responses['BIRTH_MONTH']]), 1)
                 now = datetime.now()
                 md[1][barcode]['AGE_YEARS'] = int(self._months_between_dates(
                     birthdate, now) / 12.0)
             else:
                 md[1][barcode]['AGE_YEARS'] = 'Unspecified'
-            md[1][barcode]['AGE_CAT'] = categorize_age(
-                md[1][barcode]['AGE_YEARS'])
 
             # GENDER to SEX
             sex = md[1][barcode]['GENDER']
@@ -725,6 +722,14 @@ class KniminAccess(object):
                 md[1][barcode]['SUBSET_IBD'],
                 md[1][barcode]['SUBSET_ANTIBIOTIC_HISTORY'],
                 md[1][barcode]['SUBSET_BMI']])
+            md[1][barcode]['COLLECTION_MONTH'] =  \
+                specific_info['sample_date'].month
+            md[1][barcode]['AGE_CORRECTED'] = correct_age(
+                md[1][barcode]['AGE_YEARS'], md[1][barcode]['HEIGHT_CM'],
+                md[1][barcode]['WEIGHT_KG'],
+                md[1][barcode]['ALCOHOL_CONSUMPTION'])
+            md[1][barcode]['AGE_CAT'] = categorize_age(
+                md[1][barcode]['AGE_CORRECTED'])
 
             # make sure conversions are done
             if md[1][barcode]['WEIGHT_KG']:
