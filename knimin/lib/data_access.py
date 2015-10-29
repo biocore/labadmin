@@ -687,7 +687,9 @@ class KniminAccess(object):
             md[1][barcode]['HOST_COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
 
             participant_name = dupes_lookup.get(
-                md[1][barcode]['SURVEY_ID'], specific_info['participant_name'])
+                md[1][barcode]['SURVEY_ID'],
+                specific_info['participant_name']).lower()
+
             md[1][barcode]['HOST_SUBJECT_ID'] = sha512(
                 specific_info['ag_login_id'] + participant_name).hexdigest()
 
