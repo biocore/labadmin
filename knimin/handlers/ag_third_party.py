@@ -10,8 +10,8 @@ from knimin import db
 
 class ThirdPartyData(Form):
     required = validators.required
-    survey = SelectField('Third Party survey', coerce=int,
-                         choices=db.list_external_surveys(),
+    survey = SelectField('Third Party survey',
+                         choices=[(x, x) for x in db.list_external_surveys()],
                          validators=[required("Required field")])
     file_in = FileField('Third party survey data',
                         validators=[required("Required field")])
@@ -50,13 +50,13 @@ class AGThirdPartyHandler(BaseHandler):
 
         try:
             db.store_external_survey(
-                form.file_in.data, form.survey.data,
-                separator=form.seperator.data, survey_id_col=StringIO(
-                    form.survey_id.data), trim=form.trim.data)
+                StringIO(form.file_in.data), form.survey.data,
+                separator=form.seperator.data,
+                survey_id_col=form.survey_id.data, trim=form.trim.data)
         except ValueError as e:
             msg = str(e)
         else:
-            msg = "Data added successfully" % form.name.data
+            msg = "Data added to '%s' successfully" % form.survey.data
         self.render("ag_third_party.html", the_form=form,
                     errors=msg)
 
