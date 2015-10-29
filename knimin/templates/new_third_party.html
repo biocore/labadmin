@@ -2,8 +2,8 @@
 
 {% block content %}
 <h3>Add External Survey</h3>
-{{errors}}
-
+<div style='color:red;'>{{errors}}</div>
+<form method="post" id="form" action="/ag_third_party/add/">
 <table>
   {% for form_item in the_form %}
   <tr><td>{% raw form_item.label %}
@@ -13,4 +13,6 @@
   </td><td>{% raw form_item() %}</td></tr>
   {% end %}
 </table>
+<input type='Submit'>
+</form>
 {% end %}

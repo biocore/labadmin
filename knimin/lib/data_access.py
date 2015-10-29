@@ -1274,7 +1274,19 @@ class KniminAccess(object):
             Short description of what the survey is about
         url : str
             URL for the external survey
+
+        Raises
+        ------
+        ValueError
+            survey already exists in DB
         """
+        sql = """SELECT EXISTS(
+                    SELECT external_survey
+                    FROM ag.external_survey_sources
+                    WHERE external_survey = %s)"""
+        if self._con.execute_fetchone(sql, [survey])[0]:
+            raise ValueError("Survey '%s' already exists" % survey)
+
         sql = """INSERT INTO ag.external_survey_sources
                  (external_survey, external_survey_description,
                   external_survey_url)
