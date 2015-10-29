@@ -816,7 +816,7 @@ class KniminAccess(object):
                         converted = unicode(str(answer), 'utf-8')
                     oa_hold.append(converted)
                 survey_md.append('\t'.join(oa_hold))
-            if survey == 1:
+            if survey == 1 and blanks:
                 # only add blanks to human survey sample data
                 for blank in blanks:
                     blanks_copy = copy(blanks_values)
