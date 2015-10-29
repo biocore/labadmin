@@ -11,7 +11,6 @@ from knimin import db
 class ThirdPartyData(Form):
     required = validators.required
     survey = SelectField('Third Party survey',
-                         choices=[(x, x) for x in db.list_external_surveys()],
                          validators=[required("Required field")])
     file_in = FileField('Third party survey data')
     seperator = SelectField('File seperator', choices=[
@@ -33,12 +32,15 @@ class NewThirdParty(Form):
 class AGThirdPartyHandler(BaseHandler):
     @authenticated
     def get(self):
-        self.render("ag_third_party.html", the_form=ThirdPartyData(),
+        form = ThirdPartyData()
+        form.survey.choices = [(x, x) for x in db.list_external_surveys()]
+        self.render("ag_third_party.html", the_form=form,
                     errors='')
 
     @authenticated
     def post(self):
         form = ThirdPartyData()
+        form.survey.choices = [(x, x) for x in db.list_external_surveys()]
         msg = ''
         seperators = {'comma': ',', 'tab': '\t', 'space': ' '}
 
@@ -59,6 +61,8 @@ class AGThirdPartyHandler(BaseHandler):
                 file_body, form.survey.data,
                 separator=seperators[form.seperator.data],
                 survey_id_col=form.survey_id.data, trim=form.trim.data)
+        except KeyError as e:
+            msg = 'Header column not found: %s' % str(e)
         except Exception as e:
             # Print any error that happens to the page
             msg = str(e)

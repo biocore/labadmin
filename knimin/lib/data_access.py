@@ -1353,16 +1353,18 @@ class KniminAccess(object):
         # Load file data into insertable json format
         header = in_file.readline().strip().split(separator)
         ext_survey = ext_survey.replace(' ', '_')
+        full_id_col = '_'.join([ext_survey, survey_id_col])
         inserts = []
         count = 0
         for line in in_file:
             line = line.strip()
-            hold = {'-'.join([ext_survey, h]): v.strip() for h, v in zip(
+            hold = {'_'.join([ext_survey, h]): v.strip() for h, v in zip(
                 header, line.split(separator))}
-            sid = hold[survey_id_col]
+            sid = hold[full_id_col]
+            print sid
             if trim is not None:
                 sid = re.sub(trim, '', sid)
-            del hold[survey_id_col]
+            del hold[full_id_col]
             inserts.append([sid, external_id, pulldown_date,
                             json.dumps(hold)])
             count += 1
