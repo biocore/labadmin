@@ -49,14 +49,15 @@ class AGThirdPartyHandler(BaseHandler):
             return
 
         try:
-            db.store_external_survey(
+            count = db.store_external_survey(
                 StringIO(form.file_in.data), form.survey.data,
                 separator=form.seperator.data,
                 survey_id_col=form.survey_id.data, trim=form.trim.data)
         except ValueError as e:
             msg = str(e)
         else:
-            msg = "Data added to '%s' successfully" % form.survey.data
+            msg = "%d surveys added to '%s' successfully" % \
+                  (count, form.survey.data)
         self.render("ag_third_party.html", the_form=form,
                     errors=msg)
 

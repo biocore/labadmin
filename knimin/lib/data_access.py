@@ -1329,6 +1329,11 @@ class KniminAccess(object):
             Regex to trim the survey id column, using re.sub(trim, '', sid)
             Default None
 
+        Returns
+        -------
+        count : int
+            Number of rows inserted
+
         Raises
         ------
         ValueError
@@ -1348,6 +1353,7 @@ class KniminAccess(object):
         # Load file data into insertable json format
         inserts = []
         header = in_file.readline().strip().split('\t')
+        count = 0
         for line in in_file:
             line = line.strip()
             hold = {h: v.strip() for h, v in zip(header, line.split('\t'))}
@@ -1357,12 +1363,14 @@ class KniminAccess(object):
             del hold[survey_id_col]
             inserts.append([sid, external_id, pulldown_date,
                             json.dumps(hold)])
+            count += 1
 
         # insert into the database
         sql = """INSERT INTO ag.external_survey_answers
                  (survey_id, external_survey_id, pulldown_date, answers)
                  VALUES (%s, %s, %s, %s)"""
         self._con.executemany(sql, inserts)
+        return count
 
     def get_external_survey(self, survey, survey_ids, pulldown_date=None):
         """Get the answers to a survey for given survey IDs
