@@ -4,7 +4,7 @@
 <h3>Add External Survey Data to AG</h3>
 <div style='color:red;'>{{errors}}</div>
 
-<form method="post" id="form" action="/ag_third_party/data/">
+<form enctype="multipart/form-data" method="post" id="form" action="/ag_third_party/data/">
 <table>
   {% for form_item in the_form %}
   <tr><td>{% raw form_item.label %}

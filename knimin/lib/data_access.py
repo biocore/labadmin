@@ -1307,7 +1307,7 @@ class KniminAccess(object):
                  FROM ag.external_survey_sources"""
         return [x[0] for x in self._con.execute_fetchall(sql)]
 
-    def store_external_survey(self, in_file, survey, pulldown_date=None,
+    def store_external_survey(self, in_file, ext_survey, pulldown_date=None,
                               separator="\t", survey_id_col="survey_id",
                               trim=None):
         """Stores third party survey answers in the database
@@ -1315,8 +1315,8 @@ class KniminAccess(object):
         Parameters
         ----------
         in_file : open file or StringIO
-            Filepath to the survey answers spreadsheet
-        survey : str
+            File with survey spreadsheet
+        external_survey_urlsurvey : str
             What third party survey this belongs to
         pulldown_date : datetime object, optional
             When the data was pulled from the external source, default now()
@@ -1343,20 +1343,22 @@ class KniminAccess(object):
         sql = """SELECT external_survey_id
                  FROM external_survey_sources
                  WHERE external_survey = %s"""
-        external_id = self._con.execute_fetchall(sql, [survey])
+        external_id = self._con.execute_fetchone(sql, [ext_survey])
         if not external_id:
-            raise ValueError("Unknown external survey: %s" % survey)
+            raise ValueError("Unknown external survey: %s" % ext_survey)
         external_id = external_id[0]
         if pulldown_date is None:
-            pulldown_date = 'NOW()'
+            pulldown_date = datetime.now()
 
         # Load file data into insertable json format
+        header = in_file.readline().strip().split(separator)
+        ext_survey = ext_survey.replace(' ', '_')
         inserts = []
-        header = in_file.readline().strip().split('\t')
         count = 0
         for line in in_file:
             line = line.strip()
-            hold = {h: v.strip() for h, v in zip(header, line.split('\t'))}
+            hold = {'-'.join([ext_survey, h]): v.strip() for h, v in zip(
+                header, line.split(separator))}
             sid = hold[survey_id_col]
             if trim is not None:
                 sid = re.sub(trim, '', sid)

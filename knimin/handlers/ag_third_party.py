@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from StringIO import StringIO
+from io import StringIO
 from future.utils import viewitems
 from tornado.web import authenticated
 from wtforms import (Form, SelectField, FileField, TextField, validators)
@@ -13,8 +13,7 @@ class ThirdPartyData(Form):
     survey = SelectField('Third Party survey',
                          choices=[(x, x) for x in db.list_external_surveys()],
                          validators=[required("Required field")])
-    file_in = FileField('Third party survey data',
-                        validators=[required("Required field")])
+    file_in = FileField('Third party survey data')
     seperator = SelectField('File seperator', choices=[
         ('comma', 'comma'), ('tab', 'tab'), ('space', 'space')],
         validators=[required("Required field")])
@@ -41,19 +40,27 @@ class AGThirdPartyHandler(BaseHandler):
     def post(self):
         form = ThirdPartyData()
         msg = ''
+        seperators = {'comma': ',', 'tab': '\t', 'space': ' '}
+
         args = {a: v[0] for a, v in viewitems(self.request.arguments)}
         form.process(data=args)
-        if not form.validate():
+        # Validate form and make sure upload happened
+        if not form.validate() or 'file_in' not in self.request.files:
             self.render("ag_third_party.html", the_form=form,
                         errors=msg)
             return
 
+        # Format file for stringIO
+        file_body = self.request.files['file_in'][0]['body'].replace(
+            "\r\n", "\n").replace("\r", "\n")
+        file_body = StringIO(unicode(file_body), newline=None)
         try:
             count = db.store_external_survey(
-                StringIO(form.file_in.data), form.survey.data,
-                separator=form.seperator.data,
+                file_body, form.survey.data,
+                separator=seperators[form.seperator.data],
                 survey_id_col=form.survey_id.data, trim=form.trim.data)
-        except ValueError as e:
+        except Exception as e:
+            # Print any error that happens to the page
             msg = str(e)
         else:
             msg = "%d surveys added to '%s' successfully" % \
@@ -82,7 +89,8 @@ class AGNewThirdPartyHandler(BaseHandler):
         try:
             db.add_external_survey(form.name.data, form.description.data,
                                    form.url.data)
-        except ValueError as e:
+        except Exception as e:
+            # Print any error that happens to the page
             msg = str(e)
         else:
             msg = "Added '%s' successfully" % form.name.data
