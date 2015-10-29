@@ -6,6 +6,7 @@ from re import sub
 from hashlib import sha512
 from datetime import datetime, time, timedelta
 import json
+import re
 
 from bcrypt import hashpw, gensalt
 
@@ -1307,12 +1308,13 @@ class KniminAccess(object):
         return self._con.execute_fetchall(sql)
 
     def store_external_survey(self, in_file, survey, pulldown_date=None,
-                              separator="\t", survey_id_col="survey_id"):
+                              separator="\t", survey_id_col="survey_id",
+                              trim=None):
         """Stores third party survey answers in the database
 
         Parameters
         ----------
-        in_file : str
+        in_file : open file or StringIO
             Filepath to the survey answers spreadsheet
         survey : str
             What third party survey this belongs to
@@ -1323,6 +1325,9 @@ class KniminAccess(object):
         survey_id_col : str
             What column header holds the associated user AG survey id
             Default 'survey_id'
+        trim : str
+            Regex to trim the survey id column, using re.sub(trim, '', sid)
+            Default None
 
         Raises
         ------
@@ -1338,19 +1343,20 @@ class KniminAccess(object):
             raise ValueError("Unknown external survey: %s" % survey)
         external_id = external_id[0]
         if pulldown_date is None:
-            pulldown_date = datetime.now()
+            pulldown_date = 'NOW()'
 
         # Load file data into insertable json format
         inserts = []
-        with open(in_file) as f:
-            header = f.readline().strip().split('\t')
-            for line in f:
-                line = line.strip()
-                hold = {h: v.strip() for h, v in zip(header, line.split('\t'))}
-                sid = hold[survey_id_col]
-                del hold[survey_id_col]
-                inserts.append([sid, external_id, pulldown_date,
-                                json.dumps(hold)])
+        header = in_file.readline().strip().split('\t')
+        for line in in_file:
+            line = line.strip()
+            hold = {h: v.strip() for h, v in zip(header, line.split('\t'))}
+            sid = hold[survey_id_col]
+            if trim is not None:
+                sid = re.sub(trim, '', sid)
+            del hold[survey_id_col]
+            inserts.append([sid, external_id, pulldown_date,
+                            json.dumps(hold)])
 
         # insert into the database
         sql = """INSERT INTO ag.external_survey_answers

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from StringIO import StringIO
 from future.utils import viewitems
 from tornado.web import authenticated
 from wtforms import (Form, SelectField, FileField, TextField, validators)
@@ -9,7 +10,7 @@ from knimin import db
 
 class ThirdPartyData(Form):
     required = validators.required
-    survey = SelectField('Third Party survey',
+    survey = SelectField('Third Party survey', coerce=int,
                          choices=db.list_external_surveys(),
                          validators=[required("Required field")])
     file_in = FileField('Third party survey data',
@@ -19,6 +20,7 @@ class ThirdPartyData(Form):
         validators=[required("Required field")])
     survey_id = TextField('Survey id column name',
                           validators=[required("Required field")])
+    trim = TextField('Regex to trim survey id (leave blank for none)')
 
 
 class NewThirdParty(Form):
@@ -34,6 +36,29 @@ class AGThirdPartyHandler(BaseHandler):
     def get(self):
         self.render("ag_third_party.html", the_form=ThirdPartyData(),
                     errors='')
+
+    @authenticated
+    def post(self):
+        form = ThirdPartyData()
+        msg = ''
+        args = {a: v[0] for a, v in viewitems(self.request.arguments)}
+        form.process(data=args)
+        if not form.validate():
+            self.render("ag_third_party.html", the_form=form,
+                        errors=msg)
+            return
+
+        try:
+            db.store_external_survey(
+                form.file_in.data, form.survey.data,
+                separator=form.seperator.data, survey_id_col=StringIO(
+                    form.survey_id.data), trim=form.trim.data)
+        except ValueError as e:
+            msg = str(e)
+        else:
+            msg = "Data added successfully" % form.name.data
+        self.render("ag_third_party.html", the_form=form,
+                    errors=msg)
 
 
 class AGNewThirdPartyHandler(BaseHandler):
