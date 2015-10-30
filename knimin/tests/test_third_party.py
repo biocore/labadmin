@@ -25,6 +25,7 @@ class TestThirdPartyData(TestHandlerBase):
         response = self.get('/ag_third_party/data/')
         self.assertEqual(response.code, 200)
         self.assertIn('File seperator', response.body)
+        self.assertIn('Vioscreen', response.body)
 
     def test_post_not_authed(self):
         response = self.post('/ag_third_party/data/',
