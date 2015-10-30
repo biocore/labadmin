@@ -428,10 +428,8 @@ class KniminAccess(object):
 
                 if json:
                     # Clean since all json are single-element lists
-                    a = unicode(a, 'utf-8').strip('"[]_ ')
-
-                    # replace all non-alphanumerics with underscore
-                    a = sub('[^0-9a-zA-Z.,;/_() -]', '_', a)
+                    a = unicode(a, 'utf-8').strip()
+                    a = a.strip('"[]_ ')
                 if multiple:
                     for response, header in multiples_headers[q].items():
                         for bcs in match:
