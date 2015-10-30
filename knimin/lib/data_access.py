@@ -1353,13 +1353,18 @@ class KniminAccess(object):
         # Load file data into insertable json format
         header = in_file.readline().strip().split(separator)
         ext_survey = ext_survey.replace(' ', '_')
-        full_id_col = '_'.join([ext_survey, survey_id_col])
+        full_id_col = '_'.join([ext_survey, survey_id_col]).upper()
         inserts = []
         count = 0
         for line in in_file:
             line = line.strip()
-            hold = {'_'.join([ext_survey, h]): v.strip() for h, v in zip(
-                header, line.split(separator))}
+            hold = {'_'.join([ext_survey, h]).upper(): v.strip() for h, v in
+                    zip(header, line.split(separator))}
+            # clean out already existing info from AG main survey
+            for cat in ['SEX', 'GENDER', 'AGE', 'HEIGHT', 'WEIGHT', 'BMI']:
+                full_cat = '_'.join([ext_survey, cat]).upper()
+                if full_cat in hold:
+                    del hold[full_cat]
             sid = hold[full_id_col]
             print sid
             if trim is not None:
