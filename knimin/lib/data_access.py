@@ -430,7 +430,7 @@ class KniminAccess(object):
                     # Clean since all json are single-element lists
                     # and we want no seperators at the beginning or end of data
                     a = unicode(a, 'utf-8')
-                    a = a.strip('"[]_,\t\r\n\\/ ')
+                    a = a.strip('"\'[]_,\t\r\n\\/ ')
                 if multiple:
                     for response, header in multiples_headers[q].items():
                         for bcs in match:
