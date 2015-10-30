@@ -200,8 +200,8 @@ def categorize_age(x):  # noqa
 
 def correct_age(age, height, weight, etoh):
     """Infers incorrect ages and incorrectly classified babies"""
-    # Checks the logic for age
-    if age >= 4 and age < 123:
+    # Checks the logic for age (only check ages 0-2, 'baby' definition)
+    if age >= 3 and age < 123:
         return age
     if age < 0 or age >= 123:
         return 'Unspecified'
