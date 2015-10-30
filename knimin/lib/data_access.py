@@ -428,7 +428,7 @@ class KniminAccess(object):
 
                 if json:
                     # Clean since all json are single-element lists
-                    a.strip('"[]')
+                    unicode(a, 'utf-8').strip('"[]')
 
                     # replace all non-alphanumerics with underscore
                     a = sub('[^0-9a-zA-Z.,;/_() -]', '_', a)
