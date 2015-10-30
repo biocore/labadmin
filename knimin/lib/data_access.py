@@ -1356,14 +1356,15 @@ class KniminAccess(object):
         full_id_col = '_'.join([ext_survey, survey_id_col]).upper()
         inserts = []
         for line in in_file:
-            line = line.strip()
             hold = {'_'.join([ext_survey, h]).upper(): v.strip() for h, v in
                     zip(header, line.split(separator))}
             # clean out already existing info from AG main survey
-            for cat in ['SEX', 'GENDER', 'AGE', 'HEIGHT', 'WEIGHT', 'BMI']:
+            for cat in ['SEX', 'GENDER', 'AGE', 'HEIGHT', 'WEIGHT', 'BMI',
+                        'EMAIL', 'DOB']:
                 full_cat = '_'.join([ext_survey, cat]).upper()
                 if full_cat in hold:
                     del hold[full_cat]
+
             sid = hold[full_id_col]
             if trim is not None:
                 sid = re.sub(trim, '', sid)

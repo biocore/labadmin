@@ -30,18 +30,18 @@ class TestThirdPartyData(TestHandlerBase):
     def test_post_data(self):
         self.mock_login()
         data = {'survey': 'Vioscreen', 'seperator': 'comma',
-                'survey_id': 'Username', 'trim': '-160'}
+                'survey_id': 'SubjectId', 'trim': '-160'}
         files = {'file_in': self.ext_survey_fp}
 
         response = self.multipart_post('/ag_third_party/data/', data, files)
         self.assertEqual(response.code, 200)
-        self.assertIn("10 surveys added to 'Vioscreen' successfully",
+        self.assertIn("3 surveys added to 'Vioscreen' successfully",
                       response.body)
         db._clear_table('external_survey_answers', 'ag')
 
     def test_post_missing_data(self):
         self.mock_login()
-        data = {'seperator': 'comma', 'survey_id': 'Username', 'trim': ''}
+        data = {'seperator': 'comma', 'survey_id': 'SubjectId', 'trim': ''}
         files = {'file_in': self.ext_survey_fp}
 
         response = self.multipart_post('/ag_third_party/data/', data, files)

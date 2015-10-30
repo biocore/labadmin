@@ -152,6 +152,9 @@ class TestBarcodeUtil(TestHandlerBase):
         obs = db.getAGBarcodeDetails(self.ag_good)
         self.assertEqual(obs['other_text'], notes)
 
+        obs = db.get_external_survey('Vioscreen', '3f163a1169aadc45')
+        self.assertTrue(len(obs) == 40)
+
     def test_post_update_ag_project_change(self):
         self.data['project'] = 'UNKNOWN'
         self.mock_login()

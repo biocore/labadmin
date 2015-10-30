@@ -2,7 +2,7 @@
 
 {% block content %}
 <h3>Add External Survey Data to AG</h3>
-<div style='color:red;'>{{errors}}</div>
+<div style='color:red;'>{% raw errors %}</div>
 
 <form enctype="multipart/form-data" method="post" id="form" action="/ag_third_party/data/">
 <table>
