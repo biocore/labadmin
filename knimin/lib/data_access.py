@@ -1355,7 +1355,6 @@ class KniminAccess(object):
         ext_survey = ext_survey.replace(' ', '_')
         full_id_col = '_'.join([ext_survey, survey_id_col]).upper()
         inserts = []
-        count = 0
         for line in in_file:
             line = line.strip()
             hold = {'_'.join([ext_survey, h]).upper(): v.strip() for h, v in
@@ -1366,20 +1365,18 @@ class KniminAccess(object):
                 if full_cat in hold:
                     del hold[full_cat]
             sid = hold[full_id_col]
-            print sid
             if trim is not None:
                 sid = re.sub(trim, '', sid)
             del hold[full_id_col]
             inserts.append([sid, external_id, pulldown_date,
                             json.dumps(hold)])
-            count += 1
 
         # insert into the database
         sql = """INSERT INTO ag.external_survey_answers
                  (survey_id, external_survey_id, pulldown_date, answers)
                  VALUES (%s, %s, %s, %s)"""
         self._con.executemany(sql, inserts)
-        return count
+        return len(inserts)
 
     def get_external_survey(self, survey, survey_ids, pulldown_date=None):
         """Get the answers to a survey for given survey IDs
@@ -1924,3 +1921,7 @@ class KniminAccess(object):
         """
         sql = """SELECT project FROM project"""
         return [x[0] for x in self._con.execute_fetchall(sql)]
+
+    def _clear_table(self, table, schema):
+        """Test helper to wipe out a database table"""
+        self._con.execute('DELETE FROM %s.%s' % (schema, table))
