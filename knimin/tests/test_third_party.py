@@ -14,7 +14,7 @@ class TestThirdPartyData(TestHandlerBase):
     def setUp(self):
         # Make sure vioscreen survey exists in DB
         try:
-            db.add_external_survey('Vioscsreen', 'FFQ', 'http://vioscreen.com')
+            db.add_external_survey('Vioscreen', 'FFQ', 'http://vioscreen.com')
         except ValueError:
             pass
         super(TestThirdPartyData, self).setUp()
@@ -70,7 +70,7 @@ class TestNewThirdParty(TestHandlerBase):
     def setUp(self):
         # Make sure vioscreen survey exists in DB
         try:
-            db.add_external_survey('Vioscsreen', 'FFQ', 'http://vioscreen.com')
+            db.add_external_survey('Vioscreen', 'FFQ', 'http://vioscreen.com')
         except ValueError:
             pass
         super(TestNewThirdParty, self).setUp()
