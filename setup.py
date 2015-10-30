@@ -26,7 +26,7 @@ setup(name='Knight lab UI',
                     'knimin.lib': [],
                     'knimin.handlers': []},
       extras_require={'test': ["nose >= 0.10.1", "pep8", "flake8", "mock",
-                               "requests-mock"]},
+                               "requests-mock", "requests-toolbelt"]},
       install_requires=['psycopg2', 'tornado==3.1.1', 'WTForms==2.0.1',
                         'future', 'bcrypt', 'pillow']
       )

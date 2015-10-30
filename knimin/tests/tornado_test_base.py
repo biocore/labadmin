@@ -1,8 +1,11 @@
 from mock import Mock
+from os.path import basename
 try:
     from urllib import urlencode
 except ImportError:  # py3
     from urllib.parse import urlencode
+
+from requests_toolbelt import MultipartEncoder
 
 from tornado.testing import AsyncHTTPTestCase, LogTrapTestCase
 from knimin.webserver import WebApplication
@@ -33,3 +36,33 @@ class TestHandlerBase(AsyncHTTPTestCase, LogTrapTestCase):
         if isinstance(data, dict):
                 data = urlencode(data)
         return self.fetch(url, method='POST', body=data, headers=headers)
+
+    def multipart_post(self, url, data, files, headers=None):
+        """Handles file upload testing
+
+        Parameters
+        ----------
+        url : str
+            URL path (minus the base URL) to post to
+        data : dict
+            Dictionary of non-file info in the form {name: value, ...}
+        files : dict
+            Dictionary of file info in the form {name: filepath, ...}
+        headers : dict, optional
+            Any headers that need to be added
+
+        Returns
+        -------
+        request object
+            The result of the post command
+        """
+        fields = {f: (basename(fp), open(fp, 'rb'), 'text/plain')
+                  for f, fp in files.items()}
+        fields.update(data)
+        m = MultipartEncoder(fields=fields)
+        if headers is None:
+            headers = {'Content-Type': m.content_type}
+        else:
+            headers.update({'Content-Type': m.content_type})
+
+        return self.fetch(url, data=m, headers=headers)
