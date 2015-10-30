@@ -10,11 +10,14 @@ from knimin.tests.tornado_test_base import TestHandlerBase
 class TestThirdPartyData(TestHandlerBase):
     ext_survey_fp = join(dirname(realpath(__file__)), 'data',
                          'external_survey_data.csv')
-    # Make sure vioscreen survey exists in DB
-    try:
-        db.add_external_survey('Vioscsreen', 'FFQ', 'http://vioscreen.com')
-    except ValueError:
-        pass
+
+    def setUp(self):
+        # Make sure vioscreen survey exists in DB
+        try:
+            db.add_external_survey('Vioscsreen', 'FFQ', 'http://vioscreen.com')
+        except ValueError:
+            pass
+        super(TestThirdPartyData, self).setUp()
 
     def test_get_not_authed(self):
         response = self.get('/ag_third_party/data/')
@@ -64,11 +67,13 @@ class TestThirdPartyData(TestHandlerBase):
 
 
 class TestNewThirdParty(TestHandlerBase):
-    # Make sure vioscreen survey exists in DB
-    try:
-        db.add_external_survey('Vioscsreen', 'FFQ', 'http://vioscreen.com')
-    except ValueError:
-        pass
+    def setUp(self):
+        # Make sure vioscreen survey exists in DB
+        try:
+            db.add_external_survey('Vioscsreen', 'FFQ', 'http://vioscreen.com')
+        except ValueError:
+            pass
+        super(TestNewThirdParty, self).setUp()
 
     def test_get_not_authed(self):
         response = self.get('/ag_third_party/add/')
