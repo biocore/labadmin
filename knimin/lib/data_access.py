@@ -561,20 +561,31 @@ class KniminAccess(object):
                                             '', md[1][barcode][field])
                 if md[1][barcode][field]:
                     md[1][barcode][field] = float(md[1][barcode][field])
+                else:
+                    md[1][barcode][field] = 'Unspecified'
 
             # Correct height units
             if responses['HEIGHT_UNITS'] == 'inches' and \
-                    responses['HEIGHT_CM']:
+                    isinstance(md[1][barcode]['HEIGHT_CM'], float):
                 md[1][barcode]['HEIGHT_CM'] = \
                     2.54*md[1][barcode]['HEIGHT_CM']
             md[1][barcode]['HEIGHT_UNITS'] = 'centimeters'
 
             # Correct weight units
             if responses['WEIGHT_UNITS'] == 'pounds' and \
-                    responses['WEIGHT_KG']:
+                    isinstance(md[1][barcode]['WEIGHT_KG'], float):
                 md[1][barcode]['WEIGHT_KG'] = \
                     md[1][barcode]['WEIGHT_KG']/2.20462
             md[1][barcode]['WEIGHT_UNITS'] = 'kilograms'
+
+            if all([isinstance(md[1][barcode]['WEIGHT_KG'], float),
+                    md[1][barcode]['WEIGHT_KG'] != 0.0,
+                    isinstance(md[1][barcode]['HEIGHT_CM'], float),
+                    md[1][barcode]['HEIGHT_CM'] != 0.0]):
+                md[1][barcode]['BMI'] = md[1][barcode]['WEIGHT_KG'] / \
+                    (md[1][barcode]['HEIGHT_CM']/100)**2
+            else:
+                md[1][barcode]['BMI'] = 'Unspecified'
 
             # Get age in years (int) and remove birth month
             if responses['BIRTH_MONTH'] != 'Unspecified' and \
@@ -592,6 +603,8 @@ class KniminAccess(object):
             sex = md[1][barcode]['GENDER']
             if sex is not None:
                 sex = sex.lower()
+            else:
+                sex = 'Unspecified'
             md[1][barcode]['SEX'] = sex
 
             # convenience variable
@@ -690,12 +703,6 @@ class KniminAccess(object):
 
             md[1][barcode]['HOST_SUBJECT_ID'] = sha512(
                 specific_info['ag_login_id'] + participant_name).hexdigest()
-
-            if md[1][barcode]['WEIGHT_KG'] and md[1][barcode]['HEIGHT_CM']:
-                md[1][barcode]['BMI'] = md[1][barcode]['WEIGHT_KG'] / \
-                    (md[1][barcode]['HEIGHT_CM']/100)**2
-            else:
-                md[1][barcode]['BMI'] = ''
             md[1][barcode]['PUBLIC'] = 'Yes'
 
             # Add categorization columns
@@ -743,11 +750,11 @@ class KniminAccess(object):
                 md[1][barcode]['AGE_CORRECTED'])
 
             # make sure conversions are done
-            if md[1][barcode]['WEIGHT_KG']:
+            if md[1][barcode]['WEIGHT_KG'] != 'Unspecified':
                 md[1][barcode]['WEIGHT_KG'] = int(md[1][barcode]['WEIGHT_KG'])
-            if md[1][barcode]['HEIGHT_CM']:
+            if md[1][barcode]['HEIGHT_CM'] != 'Unspecified':
                 md[1][barcode]['HEIGHT_CM'] = int(md[1][barcode]['HEIGHT_CM'])
-            if md[1][barcode]['BMI']:
+            if md[1][barcode]['BMI'] != 'Unspecified':
                 md[1][barcode]['BMI'] = '%.2f' % md[1][barcode]['BMI']
 
             # Get rid of columns not wanted for pulldown
