@@ -1,11 +1,12 @@
 from mock import Mock
 from os.path import basename
+from mimetypes import guess_type
 try:
     from urllib import urlencode
 except ImportError:  # py3
     from urllib.parse import urlencode
 
-from requests_toolbelt import MultipartEncoder
+from future.utils import viewitems
 
 from tornado.testing import AsyncHTTPTestCase, LogTrapTestCase
 from knimin.webserver import WebApplication
@@ -56,13 +57,63 @@ class TestHandlerBase(AsyncHTTPTestCase, LogTrapTestCase):
         request object
             The result of the post command
         """
-        fields = {f: (basename(fp), open(fp, 'rb'), 'text/plain')
-                  for f, fp in files.items()}
-        fields.update(data)
-        m = MultipartEncoder(fields=fields)
-        if headers is None:
-            headers = {'Content-Type': m.content_type}
-        else:
-            headers.update({'Content-Type': m.content_type})
+        file_info = []
+        for f, fp in viewitems(files):
+            with open(fp, 'rb') as fin:
+                file_info.append((f, basename(fp), fin.read()))
+        content_type, body = self.encode_multipart_formdata(data.items(),
+                                                            file_info)
+        heads = {'content-type': content_type,
+                 'content-length': str(len(body))}
 
-        return self.fetch(url, data=m, headers=headers)
+        if headers is None:
+            headers = heads
+        else:
+            headers.update(heads)
+
+        return self.fetch(url, method='POST', body=body, headers=headers)
+
+    # https://github.com/bryndin/tornado-flickr-api/blob/master/
+    # tornado_flickrapi/multipart.py
+    def encode_multipart_formdata(self, fields, files):
+        """Encodes form data with files for submission
+
+        Parameters
+        ----------
+        fields : list of tuple of str
+            A sequence of (name, value) elements for regular form fields.
+        files : list of tuple of str
+            A sequence of (name, filepath, value) elements for data to be
+            uploaded as files.
+        Returns
+        -------
+        content_type : str
+            content type for the multipart form
+        body : httplib.HTTP instance
+            Form data, ready for submission as body
+        """
+        BOUNDARY = '----------ThIs_Is_tHe_bouNdaRY_$'
+        CRLF = '\r\n'
+        L = []
+        for (key, value) in fields:
+            L.append('--' + BOUNDARY)
+            L.append('Content-Disposition: form-data; name="%s"' % key)
+            L.append('')
+            L.append(value)
+        for (key, filename, value) in files:
+            filename = filename.encode("utf8")
+            L.append('--' + BOUNDARY)
+            L.append(
+                'Content-Disposition: form-data; name="%s"; filename="%s"'
+                % (key, filename))
+            L.append('Content-Type: %s' % self.get_content_type(filename))
+            L.append('')
+            L.append(value)
+        L.append('--' + BOUNDARY + '--')
+        L.append('')
+        body = CRLF.join(L)
+        content_type = 'multipart/form-data; boundary=%s' % BOUNDARY
+        return content_type, body
+
+    def get_content_type(self, filename):
+        return guess_type(filename)[0] or 'application/octet-stream'
