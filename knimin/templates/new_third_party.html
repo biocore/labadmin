@@ -2,7 +2,7 @@
 
 {% block content %}
 <h3>Add External Survey</h3>
-<div style='color:red;'>{{errors}}</div>
+<div style='color:red;'>{% raw errors %}</div>
 <form method="post" id="form" action="/ag_third_party/add/">
 <table>
   {% for form_item in the_form %}
