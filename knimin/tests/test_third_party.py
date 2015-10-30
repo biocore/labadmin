@@ -37,6 +37,9 @@ class TestThirdPartyData(TestHandlerBase):
         self.assertEqual(response.code, 200)
         self.assertIn("3 surveys added to 'Vioscreen' successfully",
                       response.body)
+
+        obs = db.get_external_survey('Vioscreen', ['14f508185c954721'])
+        self.assertTrue(len(obs['14f508185c954721']) == 266)
         db._clear_table('external_survey_answers', 'ag')
 
     def test_post_missing_data(self):

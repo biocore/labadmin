@@ -1351,6 +1351,7 @@ class KniminAccess(object):
             pulldown_date = datetime.now()
 
         # Load file data into insertable json format
+        # Prepend the survey name to col names as differentiation
         header = in_file.readline().strip().split(separator)
         ext_survey = ext_survey.replace(' ', '_')
         full_id_col = '_'.join([ext_survey, survey_id_col]).upper()
@@ -1408,17 +1409,19 @@ class KniminAccess(object):
         sql = """SELECT survey_id, answers FROM
                  (SELECT * FROM ag.external_survey_answers
                  JOIN ag.external_survey_sources USING (external_survey_id)
-                 WHERE external_survey = %s{0}
-                 ORDER BY pulldown_date ASC)"""
-        sql_args = [survey]
+                 WHERE external_survey = %s AND survey_id IN %s{0}
+                 ORDER BY pulldown_date ASC) AS A"""
+        sql_args = [survey, tuple(survey_ids)]
         format_str = ""
         if pulldown_date is not None:
             format_str = " AND pulldown_date = %s "
             sql_args.append(pulldown_date)
 
-        return {s: json.loads(a)
-                for s, a in self._con.execute_fetchall(
-                    sql.format(format_str), sql_args)}
+        info = self._con.execute_fetchall(sql.format(format_str), sql_args)
+        if info:
+            return {s: a for s, a in info}
+        else:
+            return {}
 
     def addAGLogin(self, email, name, address, city, state, zip_, country):
         clean_email = email.strip().lower()
