@@ -323,13 +323,15 @@ class KniminAccess(object):
         res = self._con.execute_fetchall(sql, [tuple(b[:9] for b in barcodes)])
         return {row[0]: dict(row) for row in res}
 
-    def get_surveys(self, barcodes):  # noqa
+    def get_surveys(self, barcodes, external=None):  # noqa
         """Retrieve surveys for specific barcodes
 
         Parameters
         ----------
         barcodes : iterable of str
             The list of barcodes for which metadata will be retrieved
+        external : list of str, optional
+            The list of external surveys to pull. Default None
 
         Returns
         -------
@@ -393,7 +395,16 @@ class KniminAccess(object):
                JOIN ag.surveys S USING (survey_group)
                WHERE survey_response_type IN ('STRING', 'TEXT')
                    AND (withdrawn IS NULL OR withdrawn != 'Y')
-                   AND barcode in %s"""
+                   AND barcode IN %s"""
+
+        external_sql = """SELECT survey_id, barcode, answers
+                          FROM ag.external_survey_answers
+                          JOIN ag.ag_kit_barcodes USING (survey_id)
+                          JOIN ag.external_survey_sources
+                            USING (external_survey_id)
+                          WHERE external_survey = %s AND barcode IN %s"""
+
+        # Get third party surveys, if there is one and one is requested
 
         # Formats a question and response for a MULTIPLE question into a header
         def _translate_multiple_response_to_header(question, response):
@@ -445,6 +456,11 @@ class KniminAccess(object):
         others_results = _format_responses_as_dict(others_sql, json=True)
         multiple_results = _format_responses_as_dict(multiple_sql,
                                                      multiple=True)
+        external = {}
+        for e in external:
+            for survey_id, barcode, answers in self._con.execute_fetchall(
+                    external_sql, [e, bc]):
+                external[barcode][survey_id] = answers
 
         # combine the results for each barcode
         for survey, barcodes in single_results.items():
