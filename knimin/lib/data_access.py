@@ -1373,25 +1373,16 @@ class KniminAccess(object):
             pulldown_date = datetime.now()
 
         # Load file data into insertable json format
-        # Prepend the survey name to col names as differentiation
         header = in_file.readline().strip().split(separator)
-        ext_survey = ext_survey.replace(' ', '_')
-        full_id_col = '_'.join([ext_survey, survey_id_col]).upper()
         inserts = []
         for line in in_file:
-            hold = {'_'.join([ext_survey, h]).upper(): v.strip() for h, v in
+            hold = {h: v.strip('"\'[]_,\t\r\n\\/ ') for h, v in
                     zip(header, line.split(separator))}
-            # clean out already existing info from AG main survey
-            for cat in ['SEX', 'GENDER', 'AGE', 'HEIGHT', 'WEIGHT', 'BMI',
-                        'EMAIL', 'DOB']:
-                full_cat = '_'.join([ext_survey, cat]).upper()
-                if full_cat in hold:
-                    del hold[full_cat]
 
-            sid = hold[full_id_col]
+            sid = hold[survey_id_col]
             if trim is not None:
                 sid = re.sub(trim, '', sid)
-            del hold[full_id_col]
+            del hold[survey_id_col]
             inserts.append([sid, external_id, pulldown_date,
                             json.dumps(hold)])
 

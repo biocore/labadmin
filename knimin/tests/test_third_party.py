@@ -51,7 +51,8 @@ class TestThirdPartyData(TestHandlerBase):
 
         # Grab one of the inserted surveys for testing
         obs = db.get_external_survey('Vioscreen', ['14f508185c954721'])
-        self.assertTrue(len(obs['14f508185c954721']) == 266)
+        self.assertTrue(len(obs['14f508185c954721']) == 274)
+        self.assertIn('HEI2010_Greens_Beans', obs['14f508185c954721'].keys())
         db._clear_table('external_survey_answers', 'ag')
 
     def test_post_missing_data(self):
