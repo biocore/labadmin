@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 from knimin.handlers.base import BaseHandler
+from tornado.web import authenticated
 
 from knimin import db
 
 
 class AGStatsHandler(BaseHandler):
+    @authenticated
     def get(self):
         stats = db.getAGStats()
         for item, stat in stats:

@@ -198,6 +198,26 @@ def categorize_age(x):  # noqa
     return age_cat
 
 
+def correct_age(age, height, weight, etoh):
+    """Infers incorrect ages and incorrectly classified babies"""
+    # Checks the logic for age (only check ages 0-2, 'baby' definition)
+    if age >= 3 and age < 123:
+        return age
+    if age < 0 or age >= 123:
+        return 'Unspecified'
+
+    # Checks the logic for height (in cm)
+    if height != 'Unspecified' and height > 91.4:
+        return 'Unspecified'
+    # Checks the logic for weight (in kg)
+    if weight != 'Unspecified' and weight > 16.3:
+        return 'Unspecified'
+    # Checks the logic for alcohol
+    if etoh != 'Unspecified' and etoh != 'Never':
+        return 'Unspecified'
+    return age
+
+
 def categorize_etoh(x):
     if x == 'Never':
         etoh_cat = 'No'
