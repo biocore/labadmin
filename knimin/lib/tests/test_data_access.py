@@ -7,6 +7,13 @@ class TestDataAccess(TestCase):
     ext_survey_fp = join(dirname(realpath(__file__)), '..', '..', 'tests',
                          'data', 'external_survey_data.csv')
 
+    def setUp(self):
+        # Make sure vioscreen survey exists in DB
+        try:
+            db.add_external_survey('Vioscreen', 'FFQ', 'http://vioscreen.com')
+        except ValueError:
+            pass
+
     def tearDown(self):
         db._clear_table('external_survey_answers', 'ag')
 
