@@ -397,7 +397,7 @@ class KniminAccess(object):
                    AND (withdrawn IS NULL OR withdrawn != 'Y')
                    AND barcode IN %s"""
 
-        external_sql = """SELECT survey_id, barcode, answers
+        external_sql = """SELECT survey_id, survey, answers
                           FROM ag.external_survey_answers
                           JOIN ag.ag_kit_barcodes USING (survey_id)
                           JOIN ag.external_survey_sources
@@ -456,11 +456,15 @@ class KniminAccess(object):
         others_results = _format_responses_as_dict(others_sql, json=True)
         multiple_results = _format_responses_as_dict(multiple_sql,
                                                      multiple=True)
-        external = {}
+
+        # Get external survey answers and normalize column names
+        external = defaultdict(dict)
         for e in external:
-            for survey_id, barcode, answers in self._con.execute_fetchall(
+            for survey_id, survey, answers in self._con.execute_fetchall(
                     external_sql, [e, bc]):
-                external[barcode][survey_id] = answers
+                external[survey_id].update({
+                    '_'.join([survey.replace(' ', '_'), key]).upper(): val
+                    for key, val in answers})
 
         # combine the results for each barcode
         for survey, barcodes in single_results.items():
@@ -469,6 +473,8 @@ class KniminAccess(object):
                     others_results[survey][barcode])
                 single_results[survey][barcode].update(
                     multiple_results[survey][barcode])
+                single_results[survey][barcode].update(external[
+                    single_results[survey][barcode]['survey_id']])
 
         # At this point, the variable name is a misnomer, as it contains
         # the results from all question types
