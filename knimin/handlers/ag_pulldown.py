@@ -9,15 +9,16 @@ from knimin.lib.mem_zip import InMemoryZip
 class AGPulldownHandler(BaseHandler):
     @authenticated
     def get(self):
+        surveys = db.list_external_surveys()
         self.render("ag_pulldown.html", currentuser=self.current_user,
-                    barcodes=[])
+                    barcodes=[], surveys=surveys)
 
     @authenticated
     def post(self):
         # Do nothing if no file given
         if 'barcodes' not in self.request.files:
             self.render("ag_pulldown.html", currentuser=self.current_user,
-                        barcodes='', blanks='')
+                        barcodes='', blanks='', external='')
             return
         # Get file information, ignoring commented out lines
         fileinfo = self.request.files['barcodes'][0]['body']
@@ -27,9 +28,15 @@ class AGPulldownHandler(BaseHandler):
                    if not l.startswith('#')]
         barcodes = [b for b in samples if not b.upper().startswith('BLANK')]
         blanks = [b for b in samples if b.upper().startswith('BLANK')]
-
+        hold = self.get_arguments('external', [])
+        if hold:
+            external = ','.join(hold)
+        else:
+            external = ''
+        surveys = db.list_external_surveys()
         self.render("ag_pulldown.html", currentuser=self.current_user,
-                    barcodes=",".join(barcodes), blanks=",".join(blanks))
+                    barcodes=",".join(barcodes), blanks=",".join(blanks),
+                    surveys=surveys, external=external)
 
 
 class AGPulldownDLHandler(BaseHandler):
@@ -37,8 +44,12 @@ class AGPulldownDLHandler(BaseHandler):
     def post(self):
         barcodes = self.get_argument('barcodes').split(',')
         blanks = self.get_argument('blanks').split(',')
+        if self.get_argument('external'):
+            external = self.get_argument('external').split(',')
+        else:
+            external = []
         # Get metadata and create zip file
-        metadata, failures = db.pulldown(barcodes, blanks)
+        metadata, failures = db.pulldown(barcodes, blanks, external)
 
         meta_zip = InMemoryZip()
         failed = '\n'.join(['\t'.join(bc) for bc in viewitems(failures)])
