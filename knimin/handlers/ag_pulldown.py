@@ -44,7 +44,7 @@ class AGPulldownDLHandler(BaseHandler):
     def post(self):
         barcodes = self.get_argument('barcodes').split(',')
         if self.get_argument('blanks'):
-            self.get_argument('blanks').split(',')
+            blanks = self.get_argument('blanks').split(',')
         else:
             blanks = []
         if self.get_argument('external'):
