@@ -26,6 +26,8 @@ from knimin.handlers.ag_pulldown import AGPulldownHandler, AGPulldownDLHandler
 from knimin.handlers.ag_add_barcode_kit import AGAddBarcodeKitHandler
 from knimin.handlers.ag_get_participant_names import (AGNamesHandler,
                                                       AGNamesDLHandler)
+from knimin.handlers.ag_third_party import (AGThirdPartyHandler,
+                                            AGNewThirdPartyHandler)
 define("port", default=config.http_port, type=int)
 
 
@@ -62,6 +64,8 @@ class WebApplication(Application):
             (r"/ag_participant_names/download/", AGNamesDLHandler),
             (r"/ag_new_barcode/download/", AGBarcodePrintoutHandler),
             (r"/ag_new_barcode/assigned/", AGBarcodeAssignedHandler),
+            (r"/ag_third_party/data/", AGThirdPartyHandler),
+            (r"/ag_third_party/add/", AGNewThirdPartyHandler),
             (r".*", NoPageHandler)
         ]
         settings = {

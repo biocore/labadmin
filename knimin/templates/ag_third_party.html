@@ -1,0 +1,19 @@
+{% extends auth_sitebase.html %}
+
+{% block content %}
+<h3>Add External Survey Data to AG</h3>
+<div style='color:red;'>{% raw errors %}</div>
+
+<form enctype="multipart/form-data" method="post" id="form" action="/ag_third_party/data/">
+<table>
+  {% for form_item in the_form %}
+  <tr><td>{% raw form_item.label %}
+    {% if form_item.errors %}
+        <ul class="errors">{% for error in form_item.errors %}<li>{{ error }}</li>{% end %}</ul>
+    {% end %}
+  </td><td>{% raw form_item() %}</td></tr>
+  {% end %}
+</table>
+<input type='Submit'>
+</form>
+{% end %}
