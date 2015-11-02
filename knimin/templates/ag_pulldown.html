@@ -21,6 +21,7 @@ p {
       var dummy = new iframeform('/ag_pulldown/download/');
       dummy.addParameter('barcodes', '{{barcodes}}');
       dummy.addParameter('blanks', '{{blanks}}');
+      dummy.addParameter('external', '{{external}}');
       dummy.send();
   {% end %}
     });
@@ -36,6 +37,13 @@ p {
 <form enctype="multipart/form-data" action="/ag_pulldown/" name="agForm" id="agForm" method="post">
 <p>Upload qiime mapping file, or other file with first line header and one barcode per line</p>
 <p>Barcodes File <input type="file" name="barcodes" id="barcodes"/></p>
+<p>External Survey
+  <select name="external" id="external" multiple />
+  {% for s in surveys %}
+  <option value='{{s}}'>{{s}}</option>
+  {% end %}
+  </select>
+</p>
 <p><input type="submit" {%if barcodes%}disabled{% end %}></p>
 </form>
 {% end %}

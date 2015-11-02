@@ -9,6 +9,7 @@ import json
 import re
 
 from bcrypt import hashpw, gensalt
+from future.utils import viewitems
 
 from psycopg2 import connect, Error as PostgresError
 from psycopg2.extras import DictCursor
@@ -394,7 +395,9 @@ class KniminAccess(object):
                JOIN ag.surveys S USING (survey_group)
                WHERE survey_response_type IN ('STRING', 'TEXT')
                    AND (withdrawn IS NULL OR withdrawn != 'Y')
-                   AND barcode in %s"""
+                   AND barcode IN %s"""
+
+        # Get third party surveys, if there is one and one is requested
 
         # Formats a question and response for a MULTIPLE question into a header
         def _translate_multiple_response_to_header(question, response):
@@ -485,7 +488,7 @@ class KniminAccess(object):
         # Calculate the number of 12-month periods between the years
         return (d2.year - d1.year) * 12 + (d2.month - d1.month)
 
-    def format_survey_data(self, md):  # noqa
+    def format_survey_data(self, md, external_surveys=None):  # noqa
         """Modifies barcode metadata to include all columns and correct units
 
         Specifically, this function:
@@ -504,6 +507,8 @@ class KniminAccess(object):
         -------
         dict of dict of dict
         """
+        if external_surveys is None:
+            external_surveys = []
         # get barcode information
         all_barcodes = set().union(*[set(md[s]) for s in md])
         barcode_info = self.get_ag_barcode_details(all_barcodes)
@@ -532,6 +537,21 @@ class KniminAccess(object):
                        JOIN ag.ag_login_surveys als USING (ag_login_id)
                        WHERE  dc.main_survey_id = als.survey_id"""
         dupes_lookup = dict(self._con.execute_fetchall(dupes_sql))
+
+        # Get external survey answers and normalize column names
+        external_sql = """SELECT survey_id, external_survey, answers
+                          FROM ag.external_survey_answers
+                          JOIN ag.ag_kit_barcodes USING (survey_id)
+                          JOIN ag.external_survey_sources
+                            USING (external_survey_id)
+                          WHERE external_survey = %s AND barcode IN %s"""
+        external = defaultdict(dict)
+        for e in external_surveys:
+            for survey_id, survey, answers in self._con.execute_fetchall(
+                    external_sql, [e, tuple(all_barcodes)]):
+                external[survey_id].update({
+                    '_'.join([survey.replace(' ', '_'), key]).upper(): val
+                    for key, val in viewitems(answers)})
 
         # Pet survey (id 2)
         for barcode, responses in md[2].items():
@@ -770,6 +790,9 @@ class KniminAccess(object):
             del md[1][barcode]['SPECIAL_RESTRICTIONS']
             del md[1][barcode]['WILLING_TO_BE_CONTACTED']
 
+            # Add the external surveys
+            md[1][barcode].update(external[md[1][barcode]['SURVEY_ID']])
+
         return md
 
     def participant_names(self):
@@ -785,15 +808,19 @@ class KniminAccess(object):
                  WHERE participant_name IS NOT NULL"""
         return self._con.execute_fetchall(sql)
 
-    def pulldown(self, barcodes, blanks):
+    def pulldown(self, barcodes, blanks=None, external=None):
         """Pulls down AG metadata for given barcodes
 
         Parameters
         ----------
         barcodes : list of str
             Barcodes to pull metadata down for
-        blanks : list of str
-            Names for the blanks to add. Blanks added to survey 1
+        blanks : list of str, optional
+            Names for the blanks to add. Default None
+            Blanks added to survey 1
+        external : list of str, optional
+            External surveys to add to the pulldown, default None
+
 
         Returns
         -------
@@ -808,7 +835,7 @@ class KniminAccess(object):
         if len(all_survey_info) == 0:
             # No barcodes given match any survey
             return {}, self._explain_pulldown_failures(barcodes)
-        all_results = self.format_survey_data(all_survey_info)
+        all_results = self.format_survey_data(all_survey_info, external)
 
         # keep track of which barcodes were seen so we know which weren't
         barcodes_seen = set()
