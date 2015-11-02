@@ -6,6 +6,7 @@ from re import sub
 from hashlib import sha512
 from datetime import datetime, time, timedelta
 import json
+import re
 
 from bcrypt import hashpw, gensalt
 
@@ -1318,7 +1319,19 @@ class KniminAccess(object):
             Short description of what the survey is about
         url : str
             URL for the external survey
+
+        Raises
+        ------
+        ValueError
+            survey already exists in DB
         """
+        sql = """SELECT EXISTS(
+                    SELECT external_survey
+                    FROM ag.external_survey_sources
+                    WHERE external_survey = %s)"""
+        if self._con.execute_fetchone(sql, [survey])[0]:
+            raise ValueError("Survey '%s' already exists" % survey)
+
         sql = """INSERT INTO ag.external_survey_sources
                  (external_survey, external_survey_description,
                   external_survey_url)
@@ -1326,15 +1339,28 @@ class KniminAccess(object):
                  RETURNING external_survey_id"""
         return self._con.execute_fetchone(sql, [survey, description, url])[0]
 
-    def store_external_survey(self, in_file, survey, pulldown_date=None,
-                              separator="\t", survey_id_col="survey_id"):
+    def list_external_surveys(self):
+        """Returns list of external survey names
+
+        Returns
+        -------
+        list of str
+            Third party survey names
+        """
+        sql = """SELECT external_survey
+                 FROM ag.external_survey_sources"""
+        return [x[0] for x in self._con.execute_fetchall(sql)]
+
+    def store_external_survey(self, in_file, ext_survey, pulldown_date=None,
+                              separator="\t", survey_id_col="survey_id",
+                              trim=None):
         """Stores third party survey answers in the database
 
         Parameters
         ----------
-        in_file : str
-            Filepath to the survey answers spreadsheet
-        survey : str
+        in_file : open file or StringIO
+            File with survey spreadsheet
+        external_survey_urlsurvey : str
             What third party survey this belongs to
         pulldown_date : datetime object, optional
             When the data was pulled from the external source, default now()
@@ -1343,6 +1369,14 @@ class KniminAccess(object):
         survey_id_col : str
             What column header holds the associated user AG survey id
             Default 'survey_id'
+        trim : str
+            Regex to trim the survey id column, using re.sub(trim, '', sid)
+            Default None
+
+        Returns
+        -------
+        count : int
+            Number of rows inserted
 
         Raises
         ------
@@ -1353,30 +1387,33 @@ class KniminAccess(object):
         sql = """SELECT external_survey_id
                  FROM external_survey_sources
                  WHERE external_survey = %s"""
-        external_id = self._con.execute_fetchall(sql, [survey])
+        external_id = self._con.execute_fetchone(sql, [ext_survey])
         if not external_id:
-            raise ValueError("Unknown external survey: %s" % survey)
+            raise ValueError("Unknown external survey: %s" % ext_survey)
         external_id = external_id[0]
         if pulldown_date is None:
             pulldown_date = datetime.now()
 
         # Load file data into insertable json format
+        header = in_file.readline().strip().split(separator)
         inserts = []
-        with open(in_file) as f:
-            header = f.readline().strip().split('\t')
-            for line in f:
-                line = line.strip()
-                hold = {h: v.strip() for h, v in zip(header, line.split('\t'))}
-                sid = hold[survey_id_col]
-                del hold[survey_id_col]
-                inserts.append([sid, external_id, pulldown_date,
-                                json.dumps(hold)])
+        for line in in_file:
+            hold = {h: v.strip('"\'[]_,\t\r\n\\/ ') for h, v in
+                    zip(header, line.split(separator))}
+
+            sid = hold[survey_id_col]
+            if trim is not None:
+                sid = re.sub(trim, '', sid)
+            del hold[survey_id_col]
+            inserts.append([sid, external_id, pulldown_date,
+                            json.dumps(hold)])
 
         # insert into the database
         sql = """INSERT INTO ag.external_survey_answers
                  (survey_id, external_survey_id, pulldown_date, answers)
                  VALUES (%s, %s, %s, %s)"""
         self._con.executemany(sql, inserts)
+        return len(inserts)
 
     def get_external_survey(self, survey, survey_ids, pulldown_date=None):
         """Get the answers to a survey for given survey IDs
@@ -1407,17 +1444,19 @@ class KniminAccess(object):
         sql = """SELECT survey_id, answers FROM
                  (SELECT * FROM ag.external_survey_answers
                  JOIN ag.external_survey_sources USING (external_survey_id)
-                 WHERE external_survey = %s{0}
-                 ORDER BY pulldown_date ASC)"""
-        sql_args = [survey]
+                 WHERE external_survey = %s AND survey_id IN %s{0}
+                 ORDER BY pulldown_date ASC) AS A"""
+        sql_args = [survey, tuple(survey_ids)]
         format_str = ""
         if pulldown_date is not None:
             format_str = " AND pulldown_date = %s "
             sql_args.append(pulldown_date)
 
-        return {s: json.loads(a)
-                for s, a in self._con.execute_fetchall(
-                    sql.format(format_str), sql_args)}
+        info = self._con.execute_fetchall(sql.format(format_str), sql_args)
+        if info:
+            return {s: a for s, a in info}
+        else:
+            return {}
 
     def addAGLogin(self, email, name, address, city, state, zip_, country):
         clean_email = email.strip().lower()
@@ -1920,3 +1959,7 @@ class KniminAccess(object):
         """
         sql = """SELECT project FROM project"""
         return [x[0] for x in self._con.execute_fetchall(sql)]
+
+    def _clear_table(self, table, schema):
+        """Test helper to wipe out a database table"""
+        self._con.execute('DELETE FROM %s.%s' % (schema, table))
