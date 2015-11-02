@@ -552,6 +552,8 @@ class KniminAccess(object):
                 external[survey_id].update({
                     '_'.join([survey.replace(' ', '_'), key]).upper(): val
                     for key, val in viewitems(answers)})
+        unknown_external = {k: 'Unspecified'
+                            for k in external[external.keys()[0]].keys()}
 
         # Pet survey (id 2)
         for barcode, responses in md[2].items():
@@ -791,7 +793,8 @@ class KniminAccess(object):
             del md[1][barcode]['WILLING_TO_BE_CONTACTED']
 
             # Add the external surveys
-            md[1][barcode].update(external[md[1][barcode]['SURVEY_ID']])
+            md[1][barcode].update(external.get(md[1][barcode]['SURVEY_ID'],
+                                               unknown_external))
 
         return md
 
