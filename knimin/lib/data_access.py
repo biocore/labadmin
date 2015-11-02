@@ -808,15 +808,16 @@ class KniminAccess(object):
                  WHERE participant_name IS NOT NULL"""
         return self._con.execute_fetchall(sql)
 
-    def pulldown(self, barcodes, blanks, external=None):
+    def pulldown(self, barcodes, blanks=None, external=None):
         """Pulls down AG metadata for given barcodes
 
         Parameters
         ----------
         barcodes : list of str
             Barcodes to pull metadata down for
-        blanks : list of str
-            Names for the blanks to add. Blanks added to survey 1
+        blanks : list of str, optional
+            Names for the blanks to add. Default None
+            Blanks added to survey 1
         external : list of str, optional
             External surveys to add to the pulldown, default None
 
