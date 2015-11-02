@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
-import time
+from datetime import datetime
 
 from knimin import db
 from knimin.lib.constants import survey_type
@@ -72,7 +72,7 @@ class BarcodeUtilHelper(object):
             subject, body_message = self._build_email(
                 login_user, barcode, email_type, sample_date, sample_time)
             if body_message != '':
-                sent_date = time.now()
+                sent_date = datetime.now()
                 email_msg = ("Sent email successfully to kit owner %s" %
                              login_email)
                 try:
