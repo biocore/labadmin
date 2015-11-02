@@ -31,11 +31,21 @@ class TestDataAccess(TestCase):
         survey = obs[1]
         self.assertFalse('VIOSCREEN' in survey)
 
+        obs, _ = db.pulldown(barcodes, blanks=['BLANK.01'])
+        survey = obs[1]
+        self.assertFalse('VIOSCREEN' in survey)
+        self.assertTrue('BLANK.01' in survey)
+
         # Test with third party
         obs, _ = db.pulldown(barcodes, external=['Vioscreen'])
         survey = obs[1]
-        print survey
         self.assertTrue('VIOSCREEN' in survey)
+
+        obs, _ = db.pulldown(barcodes, blanks=['BLANK.01'],
+                             external=['Vioscreen'])
+        survey = obs[1]
+        self.assertTrue('VIOSCREEN' in survey)
+        self.assertTrue('BLANK.01' in survey)
 
 
 if __name__ == "__main__":

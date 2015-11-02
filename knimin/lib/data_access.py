@@ -546,12 +546,16 @@ class KniminAccess(object):
                             USING (external_survey_id)
                           WHERE external_survey = %s AND barcode IN %s"""
         external = defaultdict(dict)
+        unknown_external = {}
         for e in external_surveys:
             for survey_id, survey, answers in self._con.execute_fetchall(
                     external_sql, [e, tuple(all_barcodes)]):
                 external[survey_id].update({
                     '_'.join([survey.replace(' ', '_'), key]).upper(): val
                     for key, val in viewitems(answers)})
+        if external:
+            unknown_external = {k: 'Unspecified'
+                                for k in external[external.keys()[0]].keys()}
 
         # Pet survey (id 2)
         for barcode, responses in md[2].items():
@@ -791,7 +795,9 @@ class KniminAccess(object):
             del md[1][barcode]['WILLING_TO_BE_CONTACTED']
 
             # Add the external surveys
-            md[1][barcode].update(external[md[1][barcode]['SURVEY_ID']])
+            if unknown_external:
+                md[1][barcode].update(external.get(md[1][barcode]['SURVEY_ID'],
+                                                   unknown_external))
 
         return md
 
