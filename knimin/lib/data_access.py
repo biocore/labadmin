@@ -570,9 +570,9 @@ class KniminAccess(object):
             md[2][barcode]['DEPTH'] = 0
             md[2][barcode]['DESCRIPTION'] = 'American Gut Project' + \
                 ' Animal sample'
-            md[2][barcode]['DNA_EXTRACTED'] = 'true'
-            md[2][barcode]['HAS_PHYSICAL_SPECIMEN'] = 'true'
-            md[2][barcode]['PHYSICAL_SPECIMEN_REMAINING'] = 'true'
+            md[2][barcode]['DNA_EXTRACTED'] = 'Yes'
+            md[2][barcode]['HAS_PHYSICAL_SPECIMEN'] = 'Yes'
+            md[2][barcode]['PHYSICAL_SPECIMEN_REMAINING'] = 'Yes'
             md[2][barcode]['PHYSICAL_SPECIMEN_LOCATION'] = 'UCSDMI'
             md[2][barcode]['REQUIRED_SAMPLE_INFO_STATUS'] = 'completed'
 
@@ -643,9 +643,9 @@ class KniminAccess(object):
             md[1][barcode]['ENV_BIOME'] = 'ENVO:dense settlement biome'
             md[1][barcode]['ENV_FEATURE'] = 'ENVO:human-associated habitat'
             md[1][barcode]['DEPTH'] = 0
-            md[1][barcode]['DNA_EXTRACTED'] = 'true'
-            md[1][barcode]['HAS_PHYSICAL_SPECIMEN'] = 'true'
-            md[1][barcode]['PHYSICAL_SPECIMEN_REMAINING'] = 'true'
+            md[1][barcode]['DNA_EXTRACTED'] = 'Yes'
+            md[1][barcode]['HAS_PHYSICAL_SPECIMEN'] = 'Yes'
+            md[1][barcode]['PHYSICAL_SPECIMEN_REMAINING'] = 'Yes'
             md[1][barcode]['PHYSICAL_SPECIMEN_LOCATION'] = 'UCSDMI'
             md[1][barcode]['REQUIRED_SAMPLE_INFO_STATUS'] = 'completed'
 
@@ -793,6 +793,7 @@ class KniminAccess(object):
             del md[1][barcode]['SUPPLEMENTS']
             del md[1][barcode]['SPECIAL_RESTRICTIONS']
             del md[1][barcode]['WILLING_TO_BE_CONTACTED']
+            del md[1][barcode]['RELATIONSHIPS_WITH_OTHERS_IN_STUDY']
 
             # Add the external surveys
             if unknown_external:
