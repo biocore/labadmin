@@ -19,6 +19,7 @@ from util import (make_valid_kit_ids, make_verification_code, make_passwd,
 from constants import (md_lookup, month_int_lookup, month_str_lookup,
                        regions_by_state, blanks_values, season_lookup)
 from geocoder import geocode, Location, GoogleAPILimitExceeded
+from string_converter import converter
 
 
 class IncorrectEmailError(Exception):
@@ -551,7 +552,8 @@ class KniminAccess(object):
             for survey_id, survey, answers in self._con.execute_fetchall(
                     external_sql, [e, tuple(all_barcodes)]):
                 external[survey_id].update({
-                    '_'.join([survey.replace(' ', '_'), key]).upper(): val
+                    converter.camel_to_snake(
+                        '_'.join([survey.replace(' ', '_'), key])).upper(): val
                     for key, val in viewitems(answers)})
         if external:
             unknown_external = {k: 'Unspecified'
