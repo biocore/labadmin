@@ -17,7 +17,8 @@ from psycopg2.extras import DictCursor
 from util import (make_valid_kit_ids, make_verification_code, make_passwd,
                   categorize_age, categorize_etoh, categorize_bmi, correct_age)
 from constants import (md_lookup, month_int_lookup, month_str_lookup,
-                       regions_by_state, blanks_values, season_lookup)
+                       regions_by_state, blanks_values, season_lookup,
+                       ebi_remove)
 from geocoder import geocode, Location, GoogleAPILimitExceeded
 from string_converter import converter
 
@@ -489,7 +490,7 @@ class KniminAccess(object):
         # Calculate the number of 12-month periods between the years
         return (d2.year - d1.year) * 12 + (d2.month - d1.month)
 
-    def format_survey_data(self, md, external_surveys=None):  # noqa
+    def format_survey_data(self, md, external_surveys=None, full=False):  # noqa
         """Modifies barcode metadata to include all columns and correct units
 
         Specifically, this function:
@@ -784,18 +785,9 @@ class KniminAccess(object):
                 md[1][barcode]['BMI'] = '%.2f' % md[1][barcode]['BMI']
 
             # Get rid of columns not wanted for pulldown
-            del responses['BIRTH_MONTH']
-            del md[1][barcode]['ABOUT_YOURSELF_TEXT']
-            del md[1][barcode]['GENDER']
-            del md[1][barcode]['ZIP_CODE']
-            del md[1][barcode]['ANTIBIOTIC_MED']
-            del md[1][barcode]['ANTIBIOTIC_CONDITION']
-            del md[1][barcode]['CONDITIONS_MEDICATION']
-            del md[1][barcode]['MEDICATION_LIST']
-            del md[1][barcode]['SUPPLEMENTS']
-            del md[1][barcode]['SPECIAL_RESTRICTIONS']
-            del md[1][barcode]['WILLING_TO_BE_CONTACTED']
-            del md[1][barcode]['RELATIONSHIPS_WITH_OTHERS_IN_STUDY']
+            if not full:
+                for col in ebi_remove:
+                    del md[1][barcode][col]
 
             # Add the external surveys
             if unknown_external:
@@ -817,7 +809,7 @@ class KniminAccess(object):
                  WHERE participant_name IS NOT NULL"""
         return self._con.execute_fetchall(sql)
 
-    def pulldown(self, barcodes, blanks=None, external=None):
+    def pulldown(self, barcodes, blanks=None, external=None, full=False):
         """Pulls down AG metadata for given barcodes
 
         Parameters
@@ -829,7 +821,9 @@ class KniminAccess(object):
             Blanks added to survey 1
         external : list of str, optional
             External surveys to add to the pulldown, default None
-
+        full : bool, optional
+            If True do a full pulldown, otherwise do an EBI-cleaned pulldown.
+            Default False.
 
         Returns
         -------
@@ -844,7 +838,7 @@ class KniminAccess(object):
         if len(all_survey_info) == 0:
             # No barcodes given match any survey
             return {}, self._explain_pulldown_failures(barcodes)
-        all_results = self.format_survey_data(all_survey_info, external)
+        all_results = self.format_survey_data(all_survey_info, external, full)
 
         # keep track of which barcodes were seen so we know which weren't
         barcodes_seen = set()
