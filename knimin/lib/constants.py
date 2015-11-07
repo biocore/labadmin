@@ -4,7 +4,7 @@ survey_type = {
     2: "Animal"
 }
 
-# Columns to remove for EBI or orther public submissions of metadata
+# Columns to remove for EBI or other public submissions of metadata
 ebi_remove = ['ABOUT_YOURSELF_TEXT', 'GENDER', 'ZIP_CODE', 'ANTIBIOTIC_MED',
               'ANTIBIOTIC_CONDITION', 'CONDITIONS_MEDICATION',
               'MEDICATION_LIST', 'SUPPLEMENTS', 'SPECIAL_RESTRICTIONS',
