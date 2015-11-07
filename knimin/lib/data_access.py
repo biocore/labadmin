@@ -651,6 +651,7 @@ class KniminAccess(object):
             md[1][barcode]['PHYSICAL_SPECIMEN_REMAINING'] = 'Yes'
             md[1][barcode]['PHYSICAL_SPECIMEN_LOCATION'] = 'UCSDMI'
             md[1][barcode]['REQUIRED_SAMPLE_INFO_STATUS'] = 'completed'
+            md[1][barcode]['HOST_COMMON_NAME'] = 'human'
 
             # Sample-dependent information
             zipcode = md[1][barcode]['ZIP_CODE'].upper()
@@ -722,7 +723,6 @@ class KniminAccess(object):
             md[1][barcode]['BODY_SITE'] = md_lookup[site]['BODY_SITE']
             md[1][barcode]['BODY_PRODUCT'] = md_lookup[site]['BODY_PRODUCT']
             md[1][barcode]['DESCRIPTION'] = md_lookup[site]['DESCRIPTION']
-            md[1][barcode]['HOST_COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
 
             participant_name = dupes_lookup.get(
                 md[1][barcode]['SURVEY_ID'],
