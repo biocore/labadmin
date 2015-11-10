@@ -504,6 +504,10 @@ class KniminAccess(object):
         md : dict of dict of dict
             E.g., the output from get_barcode_metadata.
             {survey: {barcode: {shortname: response, ...}, ...}, ...}
+        external_surveys : list of str
+            External surveys to add, default None
+        full : bool
+            Whether to pull full or filtered answers. Default filtered (False)
 
         Returns
         -------
