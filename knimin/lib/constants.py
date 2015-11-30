@@ -5,13 +5,14 @@ survey_type = {
 }
 
 # Columns to remove for EBI or other public submissions of metadata
-ebi_remove = ['ABOUT_YOURSELF_TEXT', 'GENDER', 'ZIP_CODE', 'ANTIBIOTIC_MED',
-              'ANTIBIOTIC_CONDITION', 'CONDITIONS_MEDICATION',
-              'MEDICATION_LIST', 'SUPPLEMENTS', 'SPECIAL_RESTRICTIONS',
-              'WILLING_TO_BE_CONTACTED', 'RELATIONSHIPS_WITH_OTHERS_IN_STUDY',
-              'CAT_CONTACT', 'CAT_LOCATION', 'DOG_CONTACT', 'DOG_LOCATION',
-              'PREGNANT_DUE_DATE', 'TRAVEL_LOCATIONS_LIST', 'BIRTH_MONTH',
-              'DIET_RESTRICTIONS_LIST', 'OTHER_CONDITIONS_LIST', 'RACE_OTHER']
+ebi_remove = ['ABOUT_YOURSELF_TEXT', 'ANTIBIOTIC_CONDITION', 'ANTIBIOTIC_MED',
+              'BIRTH_MONTH', 'CAT_CONTACT', 'CAT_LOCATION',
+              'CONDITIONS_MEDICATION', 'DIET_RESTRICTIONS_LIST', 'DOG_CONTACT',
+              'DOG_LOCATION', 'GENDER', 'MEDICATION_LIST',
+              'OTHER_CONDITIONS_LIST', 'PREGNANT_DUE_DATE', 'RACE_OTHER',
+              'RELATIONSHIPS_WITH_OTHERS_IN_STUDY', 'SPECIAL_RESTRICTIONS',
+              'SUPPLEMENTS', 'TRAVEL_LOCATIONS_LIST', 'ZIP_CODE',
+              'WILLING_TO_BE_CONTACTED']
 # standard fields that are set based on sampling site
 md_lookup = {
     'Hair':
