@@ -7,7 +7,9 @@
     $(".chosen-select").chosen();
     $(".date-picker").datepicker({
       changeMonth: true,
-      maxDate: '+0m',
+      changeYear:true,
+      minDate: '-4m',
+      maxDate: '-0',
       onSelect: function(dateText, inst) {
           $(this).focus();
       }

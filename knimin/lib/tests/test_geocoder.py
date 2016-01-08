@@ -70,8 +70,8 @@ class TestCallWrapper(TestCase):
 class TestGeocode(TestCase):
     def test_geocode_nonmock(self):
         obs = geocode('9500 Gilman Dr, La Jolla, CA')
-        exp = Location('9500 Gilman Dr, La Jolla, CA', 32.8794081,
-                       -117.2368167, 115.2523956298828, 'San Diego', 'CA',
+        exp = Location('9500 Gilman Dr, La Jolla, CA', 32.8794239,
+                       -117.2369135, 114.7895736694336, 'San Diego', 'CA',
                        '92093', 'United States')
         self.assertEqual(obs, exp)
 
