@@ -11,8 +11,7 @@ ebi_remove = ['ABOUT_YOURSELF_TEXT', 'ANTIBIOTIC_CONDITION', 'ANTIBIOTIC_MED',
               'DOG_LOCATION', 'GENDER', 'MEDICATION_LIST',
               'OTHER_CONDITIONS_LIST', 'PREGNANT_DUE_DATE', 'RACE_OTHER',
               'RELATIONSHIPS_WITH_OTHERS_IN_STUDY', 'SPECIAL_RESTRICTIONS',
-              'SUPPLEMENTS', 'TRAVEL_LOCATIONS_LIST', 'ZIP_CODE',
-              'WILLING_TO_BE_CONTACTED']
+              'SUPPLEMENTS', 'TRAVEL_LOCATIONS_LIST', 'ZIP_CODE']
 # standard fields that are set based on sampling site
 md_lookup = {
     'Hair':
