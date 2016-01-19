@@ -68,12 +68,24 @@ class TestCallWrapper(TestCase):
 
 
 class TestGeocode(TestCase):
+    def almostEqual(self, var1, var2, variance=0.01):
+        """Test whether floats are within 0.01 of each other"""
+        self.assertTrue(abs(var1 - var2) < variance)
+
     def test_geocode_nonmock(self):
         obs = geocode('9500 Gilman Dr, La Jolla, CA')
         exp = Location('9500 Gilman Dr, La Jolla, CA', 32.8794239,
                        -117.2369135, 114.7895736694336, 'San Diego', 'CA',
                        '92093', 'United States')
-        self.assertEqual(obs, exp)
+        self.assertEqual(obs.input, exp.input)
+        # almostEqual needed because googleAPI updates for accuracy occasionaly
+        self.almostEqual(obs.lat, exp.lat)
+        self.almostEqual(obs.long, exp.long)
+        self.almostEqual(obs.elev, exp.elev, 5)
+        self.assertEqual(obs.city, exp.city)
+        self.assertEqual(obs.state, exp.state)
+        self.assertEqual(obs.postcode, exp.postcode)
+        self.assertEqual(obs.country, exp.country)
 
         obs = geocode('12 Erlangen')
         exp = Location('12 Erlangen', 59.36121550000001, 16.4908829,

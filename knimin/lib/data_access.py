@@ -791,7 +791,12 @@ class KniminAccess(object):
             # Get rid of columns not wanted for pulldown
             if not full:
                 for col in ebi_remove:
-                    del md[1][barcode][col]
+                    try:
+                        del md[1][barcode][col]
+                    except KeyError:
+                        # Column doesn't exist already for survey (retired),
+                        # so no removal needed
+                        pass
 
             # Add the external surveys
             if unknown_external:
