@@ -793,8 +793,9 @@ class KniminAccess(object):
                 for col in ebi_remove:
                     try:
                         del md[1][barcode][col]
-                    except:
-                        # Column doesn't exist already, so no removal needed
+                    except KeyError:
+                        # Column doesn't exist already for survey (retired),
+                        # so no removal needed
                         pass
 
             # Add the external surveys
