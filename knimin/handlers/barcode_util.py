@@ -124,7 +124,7 @@ For environmental samples, the consent form and survey are not necessary.
 
 To begin the consent/survey process:
   * Click on the "Add Source Survey" tab on the main page.
-  *Select the appropriate category (human, animal, or environmental) for your
+  * Select the appropriate category (human, animal, or environmental) for your
    sample.
 
 2. Associate your sample(s) with your survey(s)
