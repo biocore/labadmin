@@ -123,7 +123,7 @@ necessary.
 For environmental samples, the consent form and survey are not necessary.
 
 To begin the consent/survey process:
-  * Click on the "Add Source Survey" tab on the main page
+  * Click on the "Add Source Survey" tab on the main page.
   *Select the appropriate category (human, animal, or environmental) for your
    sample.
 
@@ -137,7 +137,7 @@ To associate your sample with your survey:
   * Log into your account and click the "Associate/Log Sample" button at the
    bottom of the left-hand navigation menu. This will bring you to a screen
    with the heading "Choose your sample source".
-  * Click on the name of the participant that the sample belongs to
+  * Click on the name of the participant that the sample belongs to.
   * Fill out the required fields and submit.
 
 The American Gut participant website is located at www.microbio.me/americangut.
