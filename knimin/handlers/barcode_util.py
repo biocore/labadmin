@@ -134,11 +134,11 @@ cannot legally work with your sample until this step has been completed. For
 human and pet samples, the survey must be completed before doing this step.
 
 To associate your sample with your survey:
-  *Log into your account and click the "Associate/Log Sample" button at the
+  * Log into your account and click the "Associate/Log Sample" button at the
    bottom of the left-hand navigation menu. This will bring you to a screen
    with the heading "Choose your sample source".
-Click on the name of the participant that the sample belongs to
-Fill out the required fields and submit.
+  * Click on the name of the participant that the sample belongs to
+  * Fill out the required fields and submit.
 
 The American Gut participant website is located at www.microbio.me/americangut.
 The British Gut participant website is located at www.microbio.me/britishgut.
