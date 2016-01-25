@@ -140,8 +140,10 @@ To associate your sample with your survey:
   * Click on the name of the participant that the sample belongs to.
   * Fill out the required fields and submit.
 
-The American Gut participant website is located at www.microbio.me/americangut.
-The British Gut participant website is located at www.microbio.me/britishgut.
+The American Gut participant website is located at
+https://microbio.me/americangut
+The British Gut participant website is located at
+https://microbio.me/britishgut
 If you have any questions, please contact us at info@americangut.org.
 
 Thank you,
