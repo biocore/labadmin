@@ -112,44 +112,46 @@ We have recently received your sample barcode: {barcode}, but we cannot process
 your sample until the following steps have been completed online. Please ensure
 that you have completed both steps outlined below:
 
-1). Submit consent form & survey
-For human samples, the consent form is mandatory. Please note that the consent
-form is located on the first page of the survey. Even if you elect not to
-answer the questions on the survey (as every question is optional), please
-click through and submit the survey in order to ensure we receive your
+1. Submit your consent form and survey
+
+Consent and survey depend on sample type. For human samples, the consent form
+is mandatory. Even if you elect not to answer the questions on the survey,
+please click through and submit the survey in order to ensure we receive your
 completed consent form.
-For pet samples, we ask that you fill out a short survey.
-No consent form is necessary
-For environmental samples, no consent form or survey is necessary.
-Please skip to step 2 below.
-To begin the consent/survey process, click on the "Add Source & Survey" tab
-on the main page. Select the category (human, animal, or environmental) your
-intended sample belongs to.
-2). Log your sample
-Note that for human & pet samples, the survey must be completed before doing
-this step
+For pet samples, we ask that you fill out a short survey. No consent form is
+necessary.
+For environmental samples, the consent form and survey are not necessary.
 
-In order to log your sample, please log into your account and click the
-"Log Sample" button at the bottom of the left-hand navigation menu.
-This will bring you to a screen with the heading "Choose your sample source".
-Click on the name that the sample belongs to, then fill out the prompted
-fields. To facilitate this process, the details you included on the side of
-your sample tube are:
-Sample Date: {sample_date}
-Sample Time: {sample_time}
+To begin the consent/survey process:
+  * Click on the "Add Source Survey" tab on the main page.
+  * Select the appropriate category (human, animal, or environmental) for your
+   sample.
 
-Our website is located at www.microbio.me/americangut. If you have any
-questions, please contact us at info@americangut.org.
+2. Associate your sample(s) with your survey(s)
+
+This step is important as it connects your consent form to your sample. We
+cannot legally work with your sample until this step has been completed. For
+human and pet samples, the survey must be completed before doing this step.
+
+To associate your sample with your survey:
+  * Log into your account and click the "Associate/Log Sample" button at the
+   bottom of the left-hand navigation menu. This will bring you to a screen
+   with the heading "Choose your sample source".
+  * Click on the name of the participant that the sample belongs to.
+  * Fill out the required fields and submit.
+
+The American Gut participant website is located at
+https://microbio.me/americangut
+The British Gut participant website is located at
+https://microbio.me/britishgut
+If you have any questions, please contact us at info@americangut.org.
 
 Thank you,
 American Gut Team
-
 """
 
             body_message = body_message.format(name=login_user,
-                                               barcode=barcode,
-                                               sample_date=sample_date,
-                                               sample_time=sample_time)
+                                               barcode=barcode)
         elif email_type == '1':
             subject = ('American Gut Sample with Barcode %s is Received.'
                        % barcode)
