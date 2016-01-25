@@ -47,6 +47,12 @@ class TestDataAccess(TestCase):
         self.assertTrue('VIOSCREEN' in survey)
         self.assertTrue('BLANK.01' in survey)
 
+    def test_check_consent(self):
+        consent, fail = db.check_consent(['000027561', '000001124', '0000000'])
+        self.assertEqual(consent, ['000027561'])
+        self.assertEqual(fail, {'0000000': 'Not an AG barcode',
+                                '000001124': 'Sample not logged'})
+
 
 if __name__ == "__main__":
     main()

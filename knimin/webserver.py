@@ -28,6 +28,7 @@ from knimin.handlers.ag_get_participant_names import (AGNamesHandler,
                                                       AGNamesDLHandler)
 from knimin.handlers.ag_third_party import (AGThirdPartyHandler,
                                             AGNewThirdPartyHandler)
+from knimin.handlers.ag_consent_check import AGConsentCheckHandler
 define("port", default=config.http_port, type=int)
 
 
@@ -66,6 +67,7 @@ class WebApplication(Application):
             (r"/ag_new_barcode/assigned/", AGBarcodeAssignedHandler),
             (r"/ag_third_party/data/", AGThirdPartyHandler),
             (r"/ag_third_party/add/", AGNewThirdPartyHandler),
+            (r"/consent_check", AGConsentCheckHandler),
             (r".*", NoPageHandler)
         ]
         settings = {

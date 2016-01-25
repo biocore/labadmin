@@ -888,6 +888,32 @@ class KniminAccess(object):
 
         return metadata, self._explain_pulldown_failures(failures)
 
+    def check_consent(self, barcodes):
+        """Gets barcodes with consent, and failure reasons for ones without
+
+        Parameters
+        ----------
+        barcodes : list of str
+            Barcodes to check for consent
+
+        Returns
+        -------
+        consented : list of str
+            Barcodes with consent
+        failures : dict
+            Barcodes unable to pull metadata down, in the form
+            {barcode: reason, ...}
+        """
+        sql = """SELECT barcode
+                 FROM ag.ag_kit_barcodes
+                 WHERE barcode in %s AND survey_id IS NOT NULL"""
+        consented = [x[0] for x in
+                     self._con.execute_fetchall(sql, [tuple(barcodes)])]
+
+        failures = set(barcodes).difference(consented)
+
+        return consented, self._explain_pulldown_failures(failures)
+
     def _explain_pulldown_failures(self, barcodes):
         """Builds failure reason list for barcodes passed
 
@@ -978,7 +1004,7 @@ class KniminAccess(object):
                  FROM ag.ag_kit_barcodes
                  WHERE survey_id IS NULL AND barcode in %s"""
         remaining = update_reason_and_remaining(
-            sql, 'Sample logged without survey', fail_reason, remaining)
+            sql, 'Sample logged without consent', fail_reason, remaining)
         # No more unexplained, so done
         if len(remaining) == 0:
             return fail_reason

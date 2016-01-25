@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <noscript>
+            <meta HTTP-EQUIV="REFRESH" content="0; url=nojs.html">
+        </noscript>
+        <meta charset="utf-8">
+        <title>Knight lab admin - AG Consent Checker</title>
+
+    </head>
+    <body>
+        {% if consents or failures %}
+        <div>
+          <h2>Consent Results</h2>
+          <p><a href="/consent_check">Back to barcode entry</a></p>
+          <table>
+          <tr><td>Barcode</td><td>Consent Exists</td></tr>
+          {% for barcode in consents %}
+            <tr><td style="padding-right: 10px">{{barcode}}</td><td style="color:green">Yes</td></tr>
+          {% end %}
+          <tr><td style="font-weight:bold">Failures</td><td></td></tr>
+          {% for barcode in sorted(failures) %}
+            <tr><td style="padding-right: 10px">{{barcode}}</td><td style="color:red">{% raw failures[barcode] %}</td></tr>
+          {% end %}
+          </table>
+        </div>
+        {% else %}
+        <div>
+            <h2>Check consent available for barcodes.</h2>
+            <p style="font-weight:bold">Enter one barcode per line.<p>
+            <form action="/consent_check" method="POST" id="barcode_form" name="barcode_form">
+                <p><textarea form="barcode_form" rows=20 cols=12 id="barcodes" name="barcodes"> </textarea></p>
+                <p><input type="submit"></p>
+            </form>
+        </div>
+        {% end %}
+    </body>
+</html>
