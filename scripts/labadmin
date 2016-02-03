@@ -6,7 +6,9 @@ from os import makedirs
 from os.path import join
 
 import click
+from dateutil.relativedelta import relativedelta
 
+from knimin.lib.mail import send_email
 from knimin.lib.util import combine_barcodes
 from knimin import db
 
@@ -52,6 +54,31 @@ def pulldown(input_file, output_dir, barcodes):
         click.echo("The following barcodes were not retrieved for any survey:"
                    "\n%s\n" % '\n'.join(sorted(failures)))
 
+
+@cli.command('email-unconsented')
+def email_unconsented():
+    message = """Hello from the American Gut team!
+
+This is a friendly reminder that you have not yet associated your sample 
+barcode %s with a consent form. By law, we are not permitted to work with your 
+sample until you have associated your sample with a consent form. To associate 
+your sample, please login to the participant portal 
+(https://microbio.me/americangut for American Gut samples and 
+https://microbio.me/britishgut for British Gut samples) and click on 
+"Associate/Log Sample" on the bottom of the left hand navigation bar. 
+Then choose the appropriate sample source and complete the required details 
+(sample type, collection date, and collection time). Please note that if your 
+sample has not been associated to a consent form within six months after we 
+receive it in our laboratory (by %s), it will be destroyed and you will not 
+receive a refund or replacement kit. We thank you for your understanding.
+
+The American Gut Team
+"""
+
+    for barcode, scan_date, email in db.get_unconsented():
+        msg = message % (barcode, str(scan_date + relativedelta(months=+6)))
+        send_email(msg, 'You have Un-associated American Gut samples!',
+                   recipient=email)
 
 if __name__ == '__main__':
     cli()

@@ -1,5 +1,6 @@
 from unittest import TestCase, main
 from os.path import join, dirname, realpath
+import datetime
 from knimin import db
 
 
@@ -52,6 +53,12 @@ class TestDataAccess(TestCase):
         self.assertEqual(consent, ['000027561'])
         self.assertEqual(fail, {'0000000': 'Not an AG barcode',
                                 '000001124': 'Sample not logged'})
+
+    def test_get_unconsented(self):
+        obs = db.get_unconsented()
+        self.assertEqual(len(obs), 433)
+        exp = ['000014660', datetime.date(2015, 3, 25), 'REMOVED']
+        self.assertEqual(obs[0], exp)
 
 
 if __name__ == "__main__":
