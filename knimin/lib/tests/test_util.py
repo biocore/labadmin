@@ -2,7 +2,7 @@ from unittest import TestCase, main
 from StringIO import StringIO
 
 from knimin.lib.util import (combine_barcodes, categorize_age, categorize_etoh,
-                             categorize_bmi)
+                             categorize_bmi, correct_bmi)
 
 
 __author__ = "Adam Robbins-Pianka"
@@ -76,16 +76,26 @@ class UtilTests(TestCase):
         self.assertEqual('Yes', categorize_etoh('Rarely (once a month)'))
         self.assertEqual('Unspecified', categorize_etoh('Unspecified'))
 
+    def test_correct_bmi(self):
+        self.assertEqual('Unspecified', correct_bmi(-2))
+        self.assertEqual('Unspecified', correct_bmi(7))
+        self.assertEqual('Unspecified', correct_bmi(80))
+        self.assertEqual('Unspecified', correct_bmi(200))
+        self.assertEqual(8, correct_bmi(8))
+        self.assertEqual(79, correct_bmi(79))
+
     def test_categorize_bmi(self):
         self.assertEqual('Unspecified', categorize_bmi(-2))
-        self.assertEqual('Underweight', categorize_bmi(1))
+        self.assertEqual('Unspecified', categorize_bmi(7.9))
+        self.assertEqual('Underweight', categorize_bmi(8))
         self.assertEqual('Underweight', categorize_bmi(18.4))
         self.assertEqual('Normal', categorize_bmi(18.5))
         self.assertEqual('Normal', categorize_bmi(24.9))
         self.assertEqual('Overweight', categorize_bmi(25))
         self.assertEqual('Overweight', categorize_bmi(29.9))
         self.assertEqual('Obese', categorize_bmi(30))
-        self.assertEqual('Obese', categorize_bmi(200))
+        self.assertEqual('Obese', categorize_bmi(79.9))
+        self.assertEqual('Unspecified', categorize_bmi(80))
         self.assertEqual('Unspecified', categorize_bmi(210))
 
 
