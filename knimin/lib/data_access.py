@@ -15,7 +15,8 @@ from psycopg2 import connect, Error as PostgresError
 from psycopg2.extras import DictCursor
 
 from util import (make_valid_kit_ids, make_verification_code, make_passwd,
-                  categorize_age, categorize_etoh, categorize_bmi, correct_age)
+                  categorize_age, categorize_etoh, categorize_bmi, correct_age,
+                  correct_bmi)
 from constants import (md_lookup, month_int_lookup, month_str_lookup,
                        regions_by_state, blanks_values, season_lookup,
                        ebi_remove)
@@ -765,6 +766,8 @@ class KniminAccess(object):
             md[1][barcode]['SUBSET_BMI'] = \
                 18.5 <= md[1][barcode]['BMI'] < 30 and \
                 not md[1][barcode]['BMI'] == 'Unspecified'
+            md[1][barcode]['BMI_CORRECTED'] = correct_bmi(
+                md[1][barcode]['BMI'])
             md[1][barcode]['SUBSET_HEALTHY'] = all([
                 md[1][barcode]['SUBSET_AGE'],
                 md[1][barcode]['SUBSET_DIABETES'],
