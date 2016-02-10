@@ -14,6 +14,86 @@ ebi_remove = ['ABOUT_YOURSELF_TEXT', 'ANTIBIOTIC_CONDITION', 'ANTIBIOTIC_MED',
               'SUPPLEMENTS', 'TRAVEL_LOCATIONS_LIST', 'ZIP_CODE',
               'WILLING_TO_BE_CONTACTED']
 # standard fields that are set based on sampling site
+env_lookup = {
+    'Animal Habitat':
+    {'SAMPLE_GROUP': 'animal habitat',
+     'SCIENTIFIC_NAME': 'metagenomes',
+     'TAXON_ID': '408169',
+     'ENV_MATTER': 'animal habitation',
+     'DESCRIPTION': 'American Gut Project animal habitat sample'
+     },
+    'Biofilm':
+    {'SAMPLE_GROUP': 'biofilm',
+     'SCIENTIFIC_NAME': 'biofilm metagenome',
+     'TAXON_ID': '718308',
+     'ENV_MATTER': 'biofilm',
+     'DESCRIPTION': 'American Gut Project biofilm sample'
+     },
+    'Dust':
+    {'SAMPLE_GROUP': 'indoor',
+     'SCIENTIFIC_NAME': 'Dust metagenome',
+     'TAXON_ID': '1236744',
+     'ENV_MATTER': 'dust',
+     'DESCRIPTION': 'American Gut Project dust sample'
+     },
+    'Food':
+    {'SAMPLE_GROUP': 'food',
+     'SCIENTIFIC_NAME': 'food metagenome',
+     'TAXON_ID': '870726',
+     'ENV_MATTER': 'food product',
+     'DESCRIPTION': 'American Gut Project food sample'
+     },
+    'Fermented Food':
+    {'SAMPLE_GROUP': 'food',
+     'SCIENTIFIC_NAME': 'Food fermentation metagenome',
+     'TAXON_ID': '1154581',
+     'ENV_MATTER': 'fermented food product',
+     'DESCRIPTION': 'American Gut Project fermented food sample'
+     },
+    'Indoor Surface':
+    {'SAMPLE_GROUP': 'indoor',
+     'SCIENTIFIC_NAME': 'Indoor metagenome',
+     'TAXON_ID': '1256227',
+     'ENV_MATTER': 'dust',
+     'DESCRIPTION': 'American Gut Project indoor surface sample'
+     },
+    'Outdoor Surface':
+    {'SAMPLE_GROUP': 'outdoor',
+     'SCIENTIFIC_NAME': 'metagenomes',
+     'TAXON_ID': '408169',
+     'ENV_MATTER': 'surface layer',
+     'DESCRIPTION': 'American Gut Project outdoor surface sample'
+     },
+    'Plant habitat':
+    {'SAMPLE_GROUP': 'outdoor',
+     'SCIENTIFIC_NAME': 'plant metagenome',
+     'TAXON_ID': '1297885',
+     'ENV_MATTER': 'organic material',
+     'DESCRIPTION': 'American Gut Project plant habitat sample'
+     },
+    'Soil':
+    {'SAMPLE_GROUP': 'outdoor',
+     'SCIENTIFIC_NAME': 'soil metagenome',
+     'TAXON_ID': '410658',
+     'ENV_MATTER': 'soil',
+     'DESCRIPTION': 'American Gut Project soil sample'
+     },
+    'Sole of shoe':
+    {'SAMPLE_GROUP': 'indoor',
+     'SCIENTIFIC_NAME': 'Dust metagenome',
+     'TAXON_ID': '1236744',
+     'ENV_MATTER': 'dust',
+     'DESCRIPTION': 'American Gut Project dust sample'
+     },
+    'Water':
+    {'SAMPLE_GROUP': 'water',
+     'SCIENTIFIC_NAME': 'freshwater metagenome',
+     'TAXON_ID': '449393',
+     'ENV_MATTER': 'water',
+     'DESCRIPTION': 'American Gut Project water sample'
+     }
+}
+
 md_lookup = {
     'Hair':
         {'BODY_PRODUCT': 'UBERON:sebum',
