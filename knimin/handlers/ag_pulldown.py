@@ -33,10 +33,12 @@ class AGPulldownHandler(BaseHandler):
             external = ','.join(hold)
         else:
             external = ''
+        full = True if self.get_argument('full', None) is not None else False
         surveys = db.list_external_surveys()
         self.render("ag_pulldown.html", currentuser=self.current_user,
                     barcodes=",".join(barcodes), blanks=",".join(blanks),
-                    surveys=surveys, external=external)
+                    surveys=surveys, external=external,
+                    full_pulldown=full)
 
 
 class AGPulldownDLHandler(BaseHandler):
@@ -51,8 +53,9 @@ class AGPulldownDLHandler(BaseHandler):
             external = self.get_argument('external').split(',')
         else:
             external = []
+        full = True if self.get_argument('full', None) is not None else False
         # Get metadata and create zip file
-        metadata, failures = db.pulldown(barcodes, blanks, external)
+        metadata, failures = db.pulldown(barcodes, blanks, external, full)
 
         meta_zip = InMemoryZip()
         failed = '\n'.join(['\t'.join(bc) for bc in viewitems(failures)])
