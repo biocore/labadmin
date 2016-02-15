@@ -53,7 +53,7 @@ class AGPulldownDLHandler(BaseHandler):
             external = self.get_argument('external').split(',')
         else:
             external = []
-        full = True if self.get_argument('full', None) is not None else False
+        full = True if self.get_argument('full') == 'True' else False
         # Get metadata and create zip file
         metadata, failures = db.pulldown(barcodes, blanks, external, full)
 

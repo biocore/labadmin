@@ -885,6 +885,7 @@ class KniminAccess(object):
                         converted = unicode(answer, 'utf-8')
                     else:
                         converted = unicode(str(answer), 'utf-8')
+                    converted = re.sub(r"\t|\r|\n|\s+", " ", converted)
                     oa_hold.append(converted)
                 survey_md.append('\t'.join(oa_hold))
             if survey == 1 and blanks:
