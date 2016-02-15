@@ -76,12 +76,12 @@ class TestGeocode(TestCase):
         obs = geocode('9500 Gilman Dr, La Jolla, CA')
         exp = Location('9500 Gilman Dr, La Jolla, CA', 32.8794239,
                        -117.2369135, 114.7895736694336, 'San Diego', 'CA',
-                       '92093', 'United States')
+                       '92037', 'United States')
         self.assertEqual(obs.input, exp.input)
         # almostEqual needed because googleAPI updates for accuracy occasionaly
         self.almostEqual(obs.lat, exp.lat)
         self.almostEqual(obs.long, exp.long)
-        self.almostEqual(obs.elev, exp.elev, 5)
+        self.almostEqual(obs.elev, exp.elev, 10)
         self.assertEqual(obs.city, exp.city)
         self.assertEqual(obs.state, exp.state)
         self.assertEqual(obs.postcode, exp.postcode)
