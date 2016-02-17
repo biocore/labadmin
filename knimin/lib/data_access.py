@@ -1892,7 +1892,8 @@ class KniminAccess(object):
                     cast(ag_kit_id as varchar(100)), barcode,  site_sampled,
                     environment_sampled, sample_date, sample_time,
                     participant_name, notes, refunded, withdrawn, moldy, other,
-                    other_text, date_of_last_email ,overloaded, name, status
+                    other_text, date_of_last_email ,overloaded, name, status,
+                    deposited
                  FROM ag_kit_barcodes akb
                  JOIN ag_kit USING(ag_kit_id)
                  JOIN ag_login USING (ag_login_id)
@@ -2017,6 +2018,22 @@ class KniminAccess(object):
         """
         sql = """SELECT project FROM project"""
         return [x[0] for x in self._con.execute_fetchall(sql)]
+
+    def set_deposited_ebi(self, barcodes, status=True):
+        """Sets barcodes status for whether deposited in EBI
+
+        Parameters
+        ----------
+        barcodes : list of str
+            Barcodes to set
+        status : bool, optional
+            True for submitted, False for not submitted. Default True
+        """
+        deposited = 'true' if status is True else 'false'
+        sql = """UPDATE ag.ag_kit_barcodes
+                 SET deposited = %s
+                 WHERE barcode IN %s"""
+        self._con.execute(sql, [deposited, tuple(barcodes)])
 
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""

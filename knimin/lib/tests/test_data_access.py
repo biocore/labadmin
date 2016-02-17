@@ -53,6 +53,15 @@ class TestDataAccess(TestCase):
         self.assertEqual(fail, {'0000000': 'Not an AG barcode',
                                 '000001124': 'Sample not logged'})
 
+    def test_set_deposited_ebi(self):
+        db.set_deposited_ebi(['000027561'])
+        obs = db.getAGBarcodeDetails('000027561')
+        self.assertTrue(obs['deposited'])
+
+        db.set_deposited_ebi(['000027561'], status=False)
+        obs = db.getAGBarcodeDetails('000027561')
+        self.assertFalse(obs['deposited'])
+
 
 if __name__ == "__main__":
     main()
