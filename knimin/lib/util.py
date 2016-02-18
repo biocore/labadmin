@@ -41,7 +41,7 @@ def fetch_url(url):
     if res is None:
         raise ValueError("Failed at fetching %s" % url)
 
-    return StringIO(res.read())
+    return StringIO(res.body)
 
 
 def combine_barcodes(cli_barcodes=None, input_file=None):
