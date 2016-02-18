@@ -2027,12 +2027,13 @@ class KniminAccess(object):
             'http://www.ebi.ac.uk/ena/data/warehouse/filereport?accession='
             '%s&result=read_run&fields=sample_alias' % accession)
         # Clean EBI formatted sample names to just the barcodes
-        barcodes = [s.strip().split(':')[1].split('.')[1] for s in samples]
+        barcodes = tuple(s.strip().split(':')[1].split('.')[1]
+                         for s in samples)
 
         sql = """UPDATE ag.ag_kit_barcodes
                  SET deposited = TRUE
                  WHERE barcode IN %s"""
-        self._con.execute(sql, [tuple(barcodes)])
+        self._con.execute(sql, [barcodes])
 
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""

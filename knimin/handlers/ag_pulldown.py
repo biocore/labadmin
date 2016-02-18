@@ -72,3 +72,13 @@ class AGPulldownDLHandler(BaseHandler):
         self.write(meta_zip.write_to_buffer())
         self.flush()
         self.finish()
+
+
+class UpdateEBIStatusHandler(BaseHandler):
+    def get(self):
+        try:
+            db.set_deposited_ebi()
+            msg = 'Successfully updated barcodes in database'
+        except Exception as e:
+            msg = 'ERROR: %s' % str(e)
+        self.write(msg)
