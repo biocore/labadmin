@@ -2027,8 +2027,8 @@ class KniminAccess(object):
             'http://www.ebi.ac.uk/ena/data/warehouse/filereport?accession='
             '%s&result=read_run&fields=sample_alias' % accession)
         # Clean EBI formatted sample names to just the barcodes
-        barcodes = tuple(s.strip().split(':')[1].split('.')[1]
-                         for s in samples)
+        barcodes = tuple(s.strip().split('.')[1]
+                         for s in samples if len(s.split('.')) == 2)
 
         sql = """UPDATE ag.ag_kit_barcodes
                  SET deposited = TRUE
