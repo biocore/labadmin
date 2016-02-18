@@ -521,11 +521,18 @@ class KniminAccess(object):
         barcode_info = self.get_ag_barcode_details(all_barcodes)
 
         # tuples are latitude, longitude, elevation, state
-        zipcode_sql = """SELECT UPPER(zipcode), country,
-                             round(latitude::numeric, 1),
-                             round(longitude::numeric,1),
-                             round(elevation::numeric, 1), state
-                         FROM zipcodes"""
+        if full:
+            zipcode_sql = """SELECT UPPER(zipcode), country,
+                                 latitude::numeric,
+                                 longitude::numeric,
+                                 elevation::numeric, state
+                             FROM zipcodes"""
+        else:
+            zipcode_sql = """SELECT UPPER(zipcode), country,
+                                 round(latitude::numeric, 1),
+                                 round(longitude::numeric,1),
+                                 round(elevation::numeric, 1), state
+                             FROM zipcodes"""
         zip_lookup = defaultdict(dict)
         for row in self._con.execute_fetchall(zipcode_sql):
             zip_lookup[row[0]][row[1]] = map(
@@ -676,15 +683,22 @@ class KniminAccess(object):
                 # zipcode table & lookup dict
                 info = self.get_geocode_zipcode(zipcode, country)
                 if info.lat is not None:
-                    md[1][barcode]['LATITUDE'] = "%.1f" % info.lat
-                    md[1][barcode]['LONGITUDE'] = "%.1f" % info.long
-                    md[1][barcode]['ELEVATION'] = "%.1f" % info.elev
+                    if full:
+                        md[1][barcode]['LATITUDE'] = info.lat
+                        md[1][barcode]['LONGITUDE'] = info.long
+                        md[1][barcode]['ELEVATION'] = info.elev
+                    else:
+                        md[1][barcode]['LATITUDE'] = round(info.lat, 1)
+                        md[1][barcode]['LONGITUDE'] = round(info.long, 1)
+                        md[1][barcode]['ELEVATION'] = round(info.elev, 1)
                     md[1][barcode]['STATE'] = info.state
                     md[1][barcode]['COUNTRY'] = country_lookup[info.country]
                     # Store in dict so we don't geocode again
                     zip_lookup[zipcode][country] = (
-                        round(info.lat, 1), round(info.long, 1),
-                        round(info.elev, 1), info.state)
+                        md[1][barcode]['LATITUDE'],
+                        md[1][barcode]['LONGITUDE'],
+                        md[1][barcode]['ELEVATION'],
+                        md[1][barcode]['STATE'])
                 else:
                     md[1][barcode]['LATITUDE'] = 'Unspecified'
                     md[1][barcode]['LONGITUDE'] = 'Unspecified'
@@ -874,6 +888,7 @@ class KniminAccess(object):
                         converted = unicode(answer, 'utf-8')
                     else:
                         converted = unicode(str(answer), 'utf-8')
+                    converted = re.sub(r"\t|\r|\n|\s+", " ", converted)
                     oa_hold.append(converted)
                 survey_md.append('\t'.join(oa_hold))
             if survey == 1 and blanks:
