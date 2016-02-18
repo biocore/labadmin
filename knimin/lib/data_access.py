@@ -15,7 +15,8 @@ from psycopg2 import connect, Error as PostgresError
 from psycopg2.extras import DictCursor
 
 from util import (make_valid_kit_ids, make_verification_code, make_passwd,
-                  categorize_age, categorize_etoh, categorize_bmi, correct_age)
+                  categorize_age, categorize_etoh, categorize_bmi, correct_age,
+                  fetch_url)
 from constants import (md_lookup, month_int_lookup, month_str_lookup,
                        regions_by_state, blanks_values, season_lookup,
                        ebi_remove)
@@ -2019,21 +2020,19 @@ class KniminAccess(object):
         sql = """SELECT project FROM project"""
         return [x[0] for x in self._con.execute_fetchall(sql)]
 
-    def set_deposited_ebi(self, barcodes, status=True):
-        """Sets barcodes status for whether deposited in EBI
+    def set_deposited_ebi(self):
+        """Updates barcode deposited status by checking EBI"""
+        accession = 'ERP012803'
+        samples = fetch_url(
+            'http://www.ebi.ac.uk/ena/data/warehouse/filereport?accession='
+            '%s&result=read_run&fields=sample_alias' % accession)
+        # Clean EBI formatted sample names to just the barcodes
+        barcodes = [s.strip().split(':')[1].split('.')[1] for s in samples]
 
-        Parameters
-        ----------
-        barcodes : list of str
-            Barcodes to set
-        status : bool, optional
-            True for submitted, False for not submitted. Default True
-        """
-        deposited = 'true' if status is True else 'false'
         sql = """UPDATE ag.ag_kit_barcodes
-                 SET deposited = %s
+                 SET deposited = TRUE
                  WHERE barcode IN %s"""
-        self._con.execute(sql, [deposited, tuple(barcodes)])
+        self._con.execute(sql, [tuple(barcodes)])
 
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""
