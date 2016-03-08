@@ -15,7 +15,8 @@ from psycopg2 import connect, Error as PostgresError
 from psycopg2.extras import DictCursor
 
 from util import (make_valid_kit_ids, make_verification_code, make_passwd,
-                  categorize_age, categorize_etoh, categorize_bmi, correct_age)
+                  categorize_age, categorize_etoh, categorize_bmi, correct_age,
+                  fetch_url)
 from constants import (md_lookup, month_int_lookup, month_str_lookup,
                        regions_by_state, blanks_values, season_lookup,
                        ebi_remove)
@@ -1908,7 +1909,8 @@ class KniminAccess(object):
                     cast(ag_kit_id as varchar(100)), barcode,  site_sampled,
                     environment_sampled, sample_date, sample_time,
                     participant_name, notes, refunded, withdrawn, moldy, other,
-                    other_text, date_of_last_email ,overloaded, name, status
+                    other_text, date_of_last_email ,overloaded, name, status,
+                    deposited
                  FROM ag_kit_barcodes akb
                  JOIN ag_kit USING(ag_kit_id)
                  JOIN ag_login USING (ag_login_id)
@@ -2033,6 +2035,22 @@ class KniminAccess(object):
         """
         sql = """SELECT project FROM project"""
         return [x[0] for x in self._con.execute_fetchall(sql)]
+
+    def set_deposited_ebi(self):
+        """Updates barcode deposited status by checking EBI"""
+        accession = 'ERP012803'
+        samples = fetch_url(
+            'http://www.ebi.ac.uk/ena/data/warehouse/filereport?accession='
+            '%s&result=read_run&fields=sample_alias' % accession)
+        # Clean EBI formatted sample names to just the barcodes
+        # stripped of any appended letters for barcodes run multiple times
+        barcodes = tuple(s.strip().split('.')[1][:9]
+                         for s in samples if len(s.split('.')) == 2)
+
+        sql = """UPDATE ag.ag_kit_barcodes
+                 SET deposited = TRUE
+                 WHERE barcode IN %s"""
+        self._con.execute(sql, [barcodes])
 
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""

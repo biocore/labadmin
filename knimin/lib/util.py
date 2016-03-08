@@ -1,4 +1,8 @@
 from random import choice
+from StringIO import StringIO
+import time
+
+from tornado.httpclient import HTTPClient, HTTPError
 
 __author__ = "Adam Robbins-Pianka"
 __copyright__ = "Copyright 2009-2015, QIIME Web Analysis"
@@ -15,6 +19,29 @@ KIT_PASSWD = '1234567890'
 KIT_VERCODE = KIT_PASSWD
 KIT_PASSWD_NOZEROS = KIT_PASSWD[0:-1]
 KIT_VERCODE_NOZEROS = KIT_PASSWD_NOZEROS
+
+
+def fetch_url(url):
+    """Return an open file handle"""
+    # really should use requests instead of urllib2
+    attempts = 0
+    res = None
+    http_client = HTTPClient()
+    while attempts < 5:
+        attempts += 1
+        try:
+            res = http_client.fetch(url)
+        except HTTPError as e:
+            if e.response.code == 500:
+                time.sleep(3)
+                continue
+            else:
+                raise
+
+    if res is None:
+        raise ValueError("Failed at fetching %s" % url)
+
+    return StringIO(res.body)
 
 
 def combine_barcodes(cli_barcodes=None, input_file=None):

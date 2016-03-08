@@ -9,6 +9,16 @@ p {
 }
 </style>
 <script type="text/javascript">
+    function updateEBI() {
+      $("#ebi-button").attr('disabled','disabled');
+      $("#ebi-msg").text('Working...');
+      $.get('/update_ebi/')
+        .done( function ( data ) {
+          $("#ebi-msg").text(data);
+          $("#ebi-button").removeAttr('disabled');
+        });
+    }
+
     $(document).ready(function() {
       $('#agForm').validate({
         rules: {
@@ -30,6 +40,8 @@ p {
 {% end %}
 
 {% block content %}
+<h3>Update EBI status of barcodes</h3>
+<p><button onclick="updateEBI()" id="ebi-button">Click Here to update EBI</button><span id="ebi-msg"></span></p>
 {% if barcodes %}
 <h3 style="color:red">Pulldown Processing, please wait for file download. It may take a while with many barcodes.</h3>
 {% end %}
