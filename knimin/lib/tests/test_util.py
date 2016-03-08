@@ -81,8 +81,8 @@ class UtilTests(TestCase):
         self.assertEqual('Unspecified', correct_bmi(7))
         self.assertEqual('Unspecified', correct_bmi(80))
         self.assertEqual('Unspecified', correct_bmi(200))
-        self.assertEqual(8, correct_bmi(8))
-        self.assertEqual(79, correct_bmi(79))
+        self.assertEqual('8.00', correct_bmi(8))
+        self.assertEqual('79.00', correct_bmi(79))
 
     def test_categorize_bmi(self):
         self.assertEqual('Unspecified', categorize_bmi(-2))
