@@ -518,7 +518,7 @@ class KniminAccess(object):
         """
         if external_surveys is None:
             external_surveys = []
-        errors = []
+        errors = {}
         # get barcode information
         all_barcodes = set().union(*[set(md[s]) for s in md])
         barcode_info = self.get_ag_barcode_details(all_barcodes)
@@ -828,8 +828,9 @@ class KniminAccess(object):
                     md[1][barcode].update(external.get(md[1][barcode][
                         'SURVEY_ID'], unknown_external))
             except Exception as e:
-                errors.append((barcode, str(e)))
-
+                # Add barcode to error and remove from metadata info
+                errors[barcode] = str(e)
+                del md[1][barcode]
         return md, errors
 
     def participant_names(self):
@@ -914,8 +915,9 @@ class KniminAccess(object):
             metadata[survey] = '\n'.join(survey_md).encode('utf-8')
 
         failures = set(barcodes) - barcodes_seen
-
-        return metadata, errors + self._explain_pulldown_failures(failures)
+        failures = self._explain_pulldown_failures(failures)
+        failures.update(errors)
+        return metadata, failures
 
     def check_consent(self, barcodes):
         """Gets barcodes with consent, and failure reasons for ones without
