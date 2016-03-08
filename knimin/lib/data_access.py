@@ -16,7 +16,7 @@ from psycopg2.extras import DictCursor
 
 from util import (make_valid_kit_ids, make_verification_code, make_passwd,
                   categorize_age, categorize_etoh, categorize_bmi, correct_age,
-                  fetch_url)
+                  fetch_url, correct_bmi)
 from constants import (md_lookup, month_int_lookup, month_str_lookup,
                        regions_by_state, blanks_values, season_lookup,
                        ebi_remove)
@@ -763,6 +763,8 @@ class KniminAccess(object):
                 md[1][barcode]['ALCOHOL_CONSUMPTION'] = categorize_etoh(
                     md[1][barcode]['ALCOHOL_FREQUENCY'])
                 md[1][barcode]['BMI_CAT'] = categorize_bmi(
+                    md[1][barcode]['BMI'])
+                md[1][barcode]['BMI_CORRECTED'] = correct_bmi(
                     md[1][barcode]['BMI'])
                 md[1][barcode]['COLLECTION_SEASON'] = season_lookup[
                     bc_info['sample_date'].month]

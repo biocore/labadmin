@@ -259,6 +259,16 @@ def correct_age(age, height, weight, etoh):
     return new_age
 
 
+def correct_bmi(bmi):
+    if bmi == 'Unspecified':
+        return bmi
+
+    bmi = float(bmi)
+    if bmi < 8 or bmi >= 80:
+        return 'Unspecified'
+    return '%.2f' % bmi
+
+
 def categorize_etoh(x):
     if x == 'Never':
         etoh_cat = 'No'
@@ -278,7 +288,7 @@ def categorize_bmi(x):
 
     # Explicit conversion needed in case string passed in
     bmi = float(x)
-    if bmi < 0:
+    if bmi < 8:
         bmi_cat = 'Unspecified'
     elif bmi < 18.5:
         bmi_cat = 'Underweight'
@@ -286,7 +296,7 @@ def categorize_bmi(x):
         bmi_cat = 'Normal'
     elif bmi < 30:
         bmi_cat = 'Overweight'
-    elif bmi < 210:
+    elif bmi < 80:
         bmi_cat = 'Obese'
     else:
         bmi_cat = 'Unspecified'
