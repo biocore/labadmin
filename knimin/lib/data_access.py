@@ -1104,6 +1104,22 @@ class KniminAccess(object):
 
         return False
 
+    def get_unconsented(self):
+        """Returns unconsented barcode and person's email
+
+        Returns
+        -------
+        list of (str, datetime.date, str)
+            Unconsented barcodes, as [(barcode, scan_date, email), ...]
+        """
+        sql = """SELECT DISTINCT barcode, scan_date, email
+                 FROM ag.ag_kit_barcodes
+                 JOIN barcodes.barcode USING (barcode)
+                 JOIN ag.ag_kit USING (ag_kit_id)
+                 JOIN ag.ag_login USING (ag_login_id)
+                 WHERE survey_id IS NULL AND scan_date IS NOT NULL"""
+        return self._con.execute_fetchall(sql)
+
     def getAGKitDetails(self, supplied_kit_id):
         sql = """SELECT
                  cast(ag_kit_id AS varchar(100)) AS ag_kit_id, supplied_kit_id,
