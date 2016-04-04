@@ -1,0 +1,14 @@
+{% extends auth_sitebase.html %}
+{% block content %}
+<h3>Projects Summary</h3>
+<table>
+	<thead>
+		<tr><th>Project</th><th>Barcodes assigned</th></tr>
+	</thead>
+	<tbody>
+  {% for proj, count in proj_counts %}
+  	<tr><td>{{proj}}</td><td>{{count}}</td></tr>
+  {% end %}
+	</tbody>
+</table>
+{% end %}

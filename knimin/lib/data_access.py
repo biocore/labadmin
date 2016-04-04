@@ -15,7 +15,8 @@ from psycopg2 import connect, Error as PostgresError
 from psycopg2.extras import DictCursor
 
 from util import (make_valid_kit_ids, make_verification_code, make_passwd,
-                  categorize_age, categorize_etoh, categorize_bmi, correct_age)
+                  categorize_age, categorize_etoh, categorize_bmi, correct_age,
+                  fetch_url, correct_bmi)
 from constants import (md_lookup, month_int_lookup, month_str_lookup,
                        regions_by_state, blanks_values, season_lookup,
                        ebi_remove)
@@ -512,9 +513,13 @@ class KniminAccess(object):
         Returns
         -------
         dict of dict of dict
+            the formatted metadata
+        list of tuple of str
+            The barcode and error message if something failed
         """
         if external_surveys is None:
             external_surveys = []
+        errors = {}
         # get barcode information
         all_barcodes = set().union(*[set(md[s]) for s in md])
         barcode_info = self.get_ag_barcode_details(all_barcodes)
@@ -592,232 +597,244 @@ class KniminAccess(object):
 
         # Human survey (id 1)
         for barcode, responses in md[1].items():
-            specific_info = barcode_info[barcode[:9]]
-            # convert numeric fields
-            for field in ('HEIGHT_CM', 'WEIGHT_KG'):
-                md[1][barcode][field] = sub('[^0-9.]',
-                                            '', md[1][barcode][field])
-                if md[1][barcode][field]:
-                    md[1][barcode][field] = float(md[1][barcode][field])
-                else:
-                    md[1][barcode][field] = 'Unspecified'
-
-            # Correct height units
-            if responses['HEIGHT_UNITS'] == 'inches' and \
-                    isinstance(md[1][barcode]['HEIGHT_CM'], float):
-                md[1][barcode]['HEIGHT_CM'] = \
-                    2.54*md[1][barcode]['HEIGHT_CM']
-            md[1][barcode]['HEIGHT_UNITS'] = 'centimeters'
-
-            # Correct weight units
-            if responses['WEIGHT_UNITS'] == 'pounds' and \
-                    isinstance(md[1][barcode]['WEIGHT_KG'], float):
-                md[1][barcode]['WEIGHT_KG'] = \
-                    md[1][barcode]['WEIGHT_KG']/2.20462
-            md[1][barcode]['WEIGHT_UNITS'] = 'kilograms'
-
-            if all([isinstance(md[1][barcode]['WEIGHT_KG'], float),
-                    md[1][barcode]['WEIGHT_KG'] != 0.0,
-                    isinstance(md[1][barcode]['HEIGHT_CM'], float),
-                    md[1][barcode]['HEIGHT_CM'] != 0.0]):
-                md[1][barcode]['BMI'] = md[1][barcode]['WEIGHT_KG'] / \
-                    (md[1][barcode]['HEIGHT_CM']/100)**2
-            else:
-                md[1][barcode]['BMI'] = 'Unspecified'
-
-            # Get age in years (int) and remove birth month
-            if responses['BIRTH_MONTH'] != 'Unspecified' and \
-                    responses['BIRTH_YEAR'] != 'Unspecified':
-                birthdate = datetime(
-                    int(responses['BIRTH_YEAR']),
-                    int(month_int_lookup[responses['BIRTH_MONTH']]), 1)
-                now = datetime.now()
-                md[1][barcode]['AGE_YEARS'] = int(self._months_between_dates(
-                    birthdate, now) / 12.0)
-            else:
-                md[1][barcode]['AGE_YEARS'] = 'Unspecified'
-
-            # GENDER to SEX
-            sex = md[1][barcode]['GENDER']
-            if sex is not None:
-                sex = sex.lower()
-            else:
-                sex = 'Unspecified'
-            md[1][barcode]['SEX'] = sex
-
-            # convenience variable
-            site = specific_info['site_sampled']
-
-            # Invariant information
-            md[1][barcode]['ANONYMIZED_NAME'] = barcode
-            md[1][barcode]['HOST_TAXID'] = 9606
-            md[1][barcode]['TITLE'] = 'American Gut Project'
-            md[1][barcode]['ALTITUDE'] = 0
-            md[1][barcode]['ASSIGNED_FROM_GEO'] = 'Yes'
-            md[1][barcode]['ENV_BIOME'] = 'ENVO:dense settlement biome'
-            md[1][barcode]['ENV_FEATURE'] = 'ENVO:human-associated habitat'
-            md[1][barcode]['DEPTH'] = 0
-            md[1][barcode]['DNA_EXTRACTED'] = 'Yes'
-            md[1][barcode]['HAS_PHYSICAL_SPECIMEN'] = 'Yes'
-            md[1][barcode]['PHYSICAL_SPECIMEN_REMAINING'] = 'Yes'
-            md[1][barcode]['PHYSICAL_SPECIMEN_LOCATION'] = 'UCSDMI'
-            md[1][barcode]['REQUIRED_SAMPLE_INFO_STATUS'] = 'completed'
-            md[1][barcode]['HOST_COMMON_NAME'] = 'human'
-
-            # Sample-dependent information
-            zipcode = md[1][barcode]['ZIP_CODE'].upper()
-            country = specific_info['country']
+            bc_info = barcode_info[barcode[:9]]
             try:
-                md[1][barcode]['LATITUDE'] = \
-                    zip_lookup[zipcode][country][0]
-                md[1][barcode]['LONGITUDE'] = \
-                    zip_lookup[zipcode][country][1]
-                md[1][barcode]['ELEVATION'] = \
-                    zip_lookup[zipcode][country][2]
-                md[1][barcode]['STATE'] = \
-                    zip_lookup[zipcode][country][3]
-                md[1][barcode]['COUNTRY'] = country_lookup[country]
-            except KeyError:
-                # geocode unknown zip/country combo and add to
-                # zipcode table & lookup dict
-                info = self.get_geocode_zipcode(zipcode, country)
-                if info.lat is not None:
-                    if full:
-                        md[1][barcode]['LATITUDE'] = info.lat
-                        md[1][barcode]['LONGITUDE'] = info.long
-                        md[1][barcode]['ELEVATION'] = info.elev
+                # convert numeric fields
+                for field in ('HEIGHT_CM', 'WEIGHT_KG'):
+                    md[1][barcode][field] = sub('[^0-9.]',
+                                                '', md[1][barcode][field])
+                    if md[1][barcode][field]:
+                        md[1][barcode][field] = float(md[1][barcode][field])
                     else:
-                        md[1][barcode]['LATITUDE'] = round(info.lat, 1)
-                        md[1][barcode]['LONGITUDE'] = round(info.long, 1)
-                        md[1][barcode]['ELEVATION'] = round(info.elev, 1)
-                    md[1][barcode]['STATE'] = info.state
-                    md[1][barcode]['COUNTRY'] = country_lookup[info.country]
-                    # Store in dict so we don't geocode again
-                    zip_lookup[zipcode][country] = (
-                        md[1][barcode]['LATITUDE'],
-                        md[1][barcode]['LONGITUDE'],
-                        md[1][barcode]['ELEVATION'],
-                        md[1][barcode]['STATE'])
+                        md[1][barcode][field] = 'Unspecified'
+
+                # Correct height units
+                if responses['HEIGHT_UNITS'] == 'inches' and \
+                        isinstance(md[1][barcode]['HEIGHT_CM'], float):
+                    md[1][barcode]['HEIGHT_CM'] = \
+                        2.54*md[1][barcode]['HEIGHT_CM']
+                md[1][barcode]['HEIGHT_UNITS'] = 'centimeters'
+
+                # Correct weight units
+                if responses['WEIGHT_UNITS'] == 'pounds' and \
+                        isinstance(md[1][barcode]['WEIGHT_KG'], float):
+                    md[1][barcode]['WEIGHT_KG'] = \
+                        md[1][barcode]['WEIGHT_KG']/2.20462
+                md[1][barcode]['WEIGHT_UNITS'] = 'kilograms'
+
+                if all([isinstance(md[1][barcode]['WEIGHT_KG'], float),
+                        md[1][barcode]['WEIGHT_KG'] != 0.0,
+                        isinstance(md[1][barcode]['HEIGHT_CM'], float),
+                        md[1][barcode]['HEIGHT_CM'] != 0.0]):
+                    md[1][barcode]['BMI'] = md[1][barcode]['WEIGHT_KG'] / \
+                        (md[1][barcode]['HEIGHT_CM']/100)**2
                 else:
-                    md[1][barcode]['LATITUDE'] = 'Unspecified'
-                    md[1][barcode]['LONGITUDE'] = 'Unspecified'
-                    md[1][barcode]['ELEVATION'] = 'Unspecified'
-                    md[1][barcode]['STATE'] = 'Unspecified'
-                    md[1][barcode]['COUNTRY'] = 'Unspecified'
-                    # Store in dict so we don't geocode again
-                    zip_lookup[zipcode][country] = (
-                        'Unspecified', 'Unspecified', 'Unspecified',
-                        'Unspecified')
+                    md[1][barcode]['BMI'] = 'Unspecified'
 
-            md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode[:9]]
-            try:
-                md[1][barcode]['TAXON_ID'] = md_lookup[site]['TAXON_ID']
-            except KeyError:
-                raise KeyError("Unknown body site for barcode %s: %s" %
-                               (barcode, site))
-            except:
-                raise
+                # Get age in years (int) and remove birth month
+                if responses['BIRTH_MONTH'] != 'Unspecified' and \
+                        responses['BIRTH_YEAR'] != 'Unspecified':
+                    birthdate = datetime(
+                        int(responses['BIRTH_YEAR']),
+                        int(month_int_lookup[responses['BIRTH_MONTH']]), 1)
+                    now = datetime.now()
+                    md[1][barcode]['AGE_YEARS'] = int(
+                        self._months_between_dates(birthdate, now) / 12.0)
+                else:
+                    md[1][barcode]['AGE_YEARS'] = 'Unspecified'
 
-            md[1][barcode]['COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
-            md[1][barcode]['COLLECTION_DATE'] = \
-                specific_info['sample_date'].strftime('%m/%d/%Y')
+                # GENDER to SEX
+                sex = md[1][barcode]['GENDER']
+                if sex is not None:
+                    sex = sex.lower()
+                else:
+                    sex = 'Unspecified'
+                md[1][barcode]['SEX'] = sex
 
-            if specific_info['sample_time']:
-                md[1][barcode]['COLLECTION_TIME'] = \
-                    specific_info['sample_time'].strftime('%H:%M')
-            else:
-                # If no time data, show unspecified and default to midnight
-                md[1][barcode]['COLLECTION_TIME'] = 'Unspecified'
-                specific_info['sample_time'] = time(0, 0)
+                # convenience variable
+                site = bc_info['site_sampled']
 
-            md[1][barcode]['COLLECTION_TIMESTAMP'] = datetime.combine(
-                specific_info['sample_date'],
-                specific_info['sample_time']).strftime('%m/%d/%Y %H:%M')
-            md[1][barcode]['ENV_MATTER'] = md_lookup[site]['ENV_MATTER']
-            md[1][barcode]['SCIENTIFIC_NAME'] = \
-                md_lookup[site]['SCIENTIFIC_NAME']
-            md[1][barcode]['SAMPLE_TYPE'] = md_lookup[site]['SAMPLE_TYPE']
-            md[1][barcode]['BODY_HABITAT'] = md_lookup[site]['BODY_HABITAT']
-            md[1][barcode]['BODY_SITE'] = md_lookup[site]['BODY_SITE']
-            md[1][barcode]['BODY_PRODUCT'] = md_lookup[site]['BODY_PRODUCT']
-            md[1][barcode]['DESCRIPTION'] = md_lookup[site]['DESCRIPTION']
+                # Invariant information
+                md[1][barcode]['ANONYMIZED_NAME'] = barcode
+                md[1][barcode]['HOST_TAXID'] = 9606
+                md[1][barcode]['TITLE'] = 'American Gut Project'
+                md[1][barcode]['ALTITUDE'] = 0
+                md[1][barcode]['ASSIGNED_FROM_GEO'] = 'Yes'
+                md[1][barcode]['ENV_BIOME'] = 'ENVO:dense settlement biome'
+                md[1][barcode]['ENV_FEATURE'] = 'ENVO:human-associated habitat'
+                md[1][barcode]['DEPTH'] = 0
+                md[1][barcode]['DNA_EXTRACTED'] = 'Yes'
+                md[1][barcode]['HAS_PHYSICAL_SPECIMEN'] = 'Yes'
+                md[1][barcode]['PHYSICAL_SPECIMEN_REMAINING'] = 'Yes'
+                md[1][barcode]['PHYSICAL_SPECIMEN_LOCATION'] = 'UCSDMI'
+                md[1][barcode]['REQUIRED_SAMPLE_INFO_STATUS'] = 'completed'
+                md[1][barcode]['HOST_COMMON_NAME'] = 'human'
 
-            participant_name = dupes_lookup.get(
-                md[1][barcode]['SURVEY_ID'],
-                specific_info['participant_name']).lower()
+                # Sample-dependent information
+                zipcode = md[1][barcode]['ZIP_CODE'].upper()
+                country = bc_info['country']
+                try:
+                    md[1][barcode]['LATITUDE'] = \
+                        zip_lookup[zipcode][country][0]
+                    md[1][barcode]['LONGITUDE'] = \
+                        zip_lookup[zipcode][country][1]
+                    md[1][barcode]['ELEVATION'] = \
+                        zip_lookup[zipcode][country][2]
+                    md[1][barcode]['STATE'] = \
+                        zip_lookup[zipcode][country][3]
+                    md[1][barcode]['COUNTRY'] = country_lookup[country]
+                except KeyError:
+                    # geocode unknown zip/country combo and add to
+                    # zipcode table & lookup dict
+                    info = self.get_geocode_zipcode(zipcode, country)
+                    if info.lat is not None:
+                        if full:
+                            md[1][barcode]['LATITUDE'] = info.lat
+                            md[1][barcode]['LONGITUDE'] = info.long
+                            md[1][barcode]['ELEVATION'] = info.elev
+                        else:
+                            md[1][barcode]['LATITUDE'] = round(info.lat, 1)
+                            md[1][barcode]['LONGITUDE'] = round(info.long, 1)
+                            md[1][barcode]['ELEVATION'] = round(info.elev, 1)
+                        md[1][barcode]['STATE'] = info.state
+                        md[1][barcode]['COUNTRY'] = country_lookup[
+                            info.country]
+                        # Store in dict so we don't geocode again
+                        zip_lookup[zipcode][country] = (
+                            md[1][barcode]['LATITUDE'],
+                            md[1][barcode]['LONGITUDE'],
+                            md[1][barcode]['ELEVATION'],
+                            md[1][barcode]['STATE'])
+                    else:
+                        md[1][barcode]['LATITUDE'] = 'Unspecified'
+                        md[1][barcode]['LONGITUDE'] = 'Unspecified'
+                        md[1][barcode]['ELEVATION'] = 'Unspecified'
+                        md[1][barcode]['STATE'] = 'Unspecified'
+                        md[1][barcode]['COUNTRY'] = 'Unspecified'
+                        # Store in dict so we don't geocode again
+                        zip_lookup[zipcode][country] = (
+                            'Unspecified', 'Unspecified', 'Unspecified',
+                            'Unspecified')
 
-            md[1][barcode]['HOST_SUBJECT_ID'] = sha512(
-                specific_info['ag_login_id'] + participant_name).hexdigest()
-            md[1][barcode]['PUBLIC'] = 'Yes'
+                md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode[:9]]
+                try:
+                    md[1][barcode]['TAXON_ID'] = md_lookup[site]['TAXON_ID']
+                except KeyError:
+                    raise KeyError("Unknown body site for barcode %s: %s" %
+                                   (barcode, site))
+                except:
+                    raise
 
-            # Add categorization columns
-            md[1][barcode]['ALCOHOL_CONSUMPTION'] = categorize_etoh(
-                md[1][barcode]['ALCOHOL_FREQUENCY'])
-            md[1][barcode]['BMI_CAT'] = categorize_bmi(
-                md[1][barcode]['BMI'])
-            md[1][barcode]['COLLECTION_SEASON'] = season_lookup[
-                specific_info['sample_date'].month]
-            state = md[1][barcode]['STATE']
-            try:
-                md[1][barcode]['CENSUS_REGION'] = \
-                    regions_by_state[state]['Census_1']
-                md[1][barcode]['ECONOMIC_REGION'] = \
-                    regions_by_state[state]['Economic']
-            except KeyError:
-                md[1][barcode]['CENSUS_REGION'] = 'Unspecified'
-                md[1][barcode]['ECONOMIC_REGION'] = 'Unspecified'
-            md[1][barcode]['SUBSET_AGE'] = \
-                19 < md[1][barcode]['AGE_YEARS'] < 70 and \
-                not md[1][barcode]['AGE_YEARS'] == 'Unspecified'
-            md[1][barcode]['SUBSET_DIABETES'] = \
-                (md[1][barcode]['DIABETES'] == 'I do not have this condition')
-            md[1][barcode]['SUBSET_IBD'] = \
-                md[1][barcode]['IBD'] == 'I do not have this condition'
-            md[1][barcode]['SUBSET_ANTIBIOTIC_HISTORY'] = \
-                (md[1][barcode]['ANTIBIOTIC_HISTORY'] ==
-                 'I have not taken antibiotics in the past year.')
-            md[1][barcode]['SUBSET_BMI'] = \
-                18.5 <= md[1][barcode]['BMI'] < 30 and \
-                not md[1][barcode]['BMI'] == 'Unspecified'
-            md[1][barcode]['SUBSET_HEALTHY'] = all([
-                md[1][barcode]['SUBSET_AGE'],
-                md[1][barcode]['SUBSET_DIABETES'],
-                md[1][barcode]['SUBSET_IBD'],
-                md[1][barcode]['SUBSET_ANTIBIOTIC_HISTORY'],
-                md[1][barcode]['SUBSET_BMI']])
-            md[1][barcode]['COLLECTION_MONTH'] = month_str_lookup.get(
-                specific_info['sample_date'].month, 'Unspecified')
-            md[1][barcode]['AGE_CORRECTED'] = correct_age(
-                md[1][barcode]['AGE_YEARS'], md[1][barcode]['HEIGHT_CM'],
-                md[1][barcode]['WEIGHT_KG'],
-                md[1][barcode]['ALCOHOL_CONSUMPTION'])
-            md[1][barcode]['AGE_CAT'] = categorize_age(
-                md[1][barcode]['AGE_CORRECTED'])
+                md[1][barcode]['COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
+                md[1][barcode]['COLLECTION_DATE'] = \
+                    bc_info['sample_date'].strftime('%m/%d/%Y')
 
-            # make sure conversions are done
-            if md[1][barcode]['WEIGHT_KG'] != 'Unspecified':
-                md[1][barcode]['WEIGHT_KG'] = int(md[1][barcode]['WEIGHT_KG'])
-            if md[1][barcode]['HEIGHT_CM'] != 'Unspecified':
-                md[1][barcode]['HEIGHT_CM'] = int(md[1][barcode]['HEIGHT_CM'])
-            if md[1][barcode]['BMI'] != 'Unspecified':
-                md[1][barcode]['BMI'] = '%.2f' % md[1][barcode]['BMI']
+                if bc_info['sample_time']:
+                    md[1][barcode]['COLLECTION_TIME'] = \
+                        bc_info['sample_time'].strftime('%H:%M')
+                else:
+                    # If no time data, show unspecified and default to midnight
+                    md[1][barcode]['COLLECTION_TIME'] = 'Unspecified'
+                    bc_info['sample_time'] = time(0, 0)
 
-            # Get rid of columns not wanted for pulldown
-            if not full:
-                for col in ebi_remove:
-                    try:
-                        del md[1][barcode][col]
-                    except KeyError:
-                        # Column doesn't exist already for survey (retired),
-                        # so no removal needed
-                        pass
+                md[1][barcode]['COLLECTION_TIMESTAMP'] = datetime.combine(
+                    bc_info['sample_date'],
+                    bc_info['sample_time']).strftime('%m/%d/%Y %H:%M')
+                md[1][barcode]['ENV_MATTER'] = md_lookup[site]['ENV_MATTER']
+                md[1][barcode]['SCIENTIFIC_NAME'] = \
+                    md_lookup[site]['SCIENTIFIC_NAME']
+                md[1][barcode]['SAMPLE_TYPE'] = md_lookup[site]['SAMPLE_TYPE']
+                md[1][barcode]['BODY_HABITAT'] = md_lookup[site][
+                    'BODY_HABITAT']
+                md[1][barcode]['BODY_SITE'] = md_lookup[site]['BODY_SITE']
+                md[1][barcode]['BODY_PRODUCT'] = md_lookup[site][
+                    'BODY_PRODUCT']
+                md[1][barcode]['DESCRIPTION'] = md_lookup[site]['DESCRIPTION']
 
-            # Add the external surveys
-            if unknown_external:
-                md[1][barcode].update(external.get(md[1][barcode]['SURVEY_ID'],
-                                                   unknown_external))
+                participant_name = dupes_lookup.get(
+                    md[1][barcode]['SURVEY_ID'],
+                    bc_info['participant_name']).lower()
 
-        return md
+                md[1][barcode]['HOST_SUBJECT_ID'] = sha512(
+                    bc_info['ag_login_id'] + participant_name).hexdigest()
+                md[1][barcode]['PUBLIC'] = 'Yes'
+
+                # Add categorization columns
+                md[1][barcode]['ALCOHOL_CONSUMPTION'] = categorize_etoh(
+                    md[1][barcode]['ALCOHOL_FREQUENCY'])
+                md[1][barcode]['BMI_CAT'] = categorize_bmi(
+                    md[1][barcode]['BMI'])
+                md[1][barcode]['BMI_CORRECTED'] = correct_bmi(
+                    md[1][barcode]['BMI'])
+                md[1][barcode]['COLLECTION_SEASON'] = season_lookup[
+                    bc_info['sample_date'].month]
+                state = md[1][barcode]['STATE']
+                try:
+                    md[1][barcode]['CENSUS_REGION'] = \
+                        regions_by_state[state]['Census_1']
+                    md[1][barcode]['ECONOMIC_REGION'] = \
+                        regions_by_state[state]['Economic']
+                except KeyError:
+                    md[1][barcode]['CENSUS_REGION'] = 'Unspecified'
+                    md[1][barcode]['ECONOMIC_REGION'] = 'Unspecified'
+                md[1][barcode]['SUBSET_AGE'] = \
+                    19 < md[1][barcode]['AGE_YEARS'] < 70 and \
+                    not md[1][barcode]['AGE_YEARS'] == 'Unspecified'
+                md[1][barcode]['SUBSET_DIABETES'] = \
+                    (md[1][barcode]['DIABETES'] ==
+                        'I do not have this condition')
+                md[1][barcode]['SUBSET_IBD'] = \
+                    md[1][barcode]['IBD'] == 'I do not have this condition'
+                md[1][barcode]['SUBSET_ANTIBIOTIC_HISTORY'] = \
+                    (md[1][barcode]['ANTIBIOTIC_HISTORY'] ==
+                     'I have not taken antibiotics in the past year.')
+                md[1][barcode]['SUBSET_BMI'] = \
+                    18.5 <= md[1][barcode]['BMI'] < 30 and \
+                    not md[1][barcode]['BMI'] == 'Unspecified'
+                md[1][barcode]['SUBSET_HEALTHY'] = all([
+                    md[1][barcode]['SUBSET_AGE'],
+                    md[1][barcode]['SUBSET_DIABETES'],
+                    md[1][barcode]['SUBSET_IBD'],
+                    md[1][barcode]['SUBSET_ANTIBIOTIC_HISTORY'],
+                    md[1][barcode]['SUBSET_BMI']])
+                md[1][barcode]['COLLECTION_MONTH'] = month_str_lookup.get(
+                    bc_info['sample_date'].month, 'Unspecified')
+                md[1][barcode]['AGE_CORRECTED'] = correct_age(
+                    md[1][barcode]['AGE_YEARS'], md[1][barcode]['HEIGHT_CM'],
+                    md[1][barcode]['WEIGHT_KG'],
+                    md[1][barcode]['ALCOHOL_CONSUMPTION'])
+                md[1][barcode]['AGE_CAT'] = categorize_age(
+                    md[1][barcode]['AGE_CORRECTED'])
+
+                # make sure conversions are done
+                if md[1][barcode]['WEIGHT_KG'] != 'Unspecified':
+                    md[1][barcode]['WEIGHT_KG'] = int(
+                        md[1][barcode]['WEIGHT_KG'])
+                if md[1][barcode]['HEIGHT_CM'] != 'Unspecified':
+                    md[1][barcode]['HEIGHT_CM'] = int(
+                        md[1][barcode]['HEIGHT_CM'])
+                if md[1][barcode]['BMI'] != 'Unspecified':
+                    md[1][barcode]['BMI'] = '%.2f' % md[1][barcode]['BMI']
+
+                # Get rid of columns not wanted for pulldown
+                if not full:
+                    for col in ebi_remove:
+                        try:
+                            del md[1][barcode][col]
+                        except KeyError:
+                            # Column doesn't exist already for survey
+                            # (retired), so no removal needed
+                            pass
+
+                # Add the external surveys
+                if unknown_external:
+                    md[1][barcode].update(external.get(md[1][barcode][
+                        'SURVEY_ID'], unknown_external))
+            except Exception as e:
+                # Add barcode to error and remove from metadata info
+                errors[barcode] = str(e)
+                del md[1][barcode]
+        return md, errors
 
     def participant_names(self):
         """Retrieve the participant names for the given barcodes
@@ -861,7 +878,8 @@ class KniminAccess(object):
         if len(all_survey_info) == 0:
             # No barcodes given match any survey
             return {}, self._explain_pulldown_failures(barcodes)
-        all_results = self.format_survey_data(all_survey_info, external, full)
+        all_results, errors = self.format_survey_data(
+            all_survey_info, external, full)
 
         # keep track of which barcodes were seen so we know which weren't
         barcodes_seen = set()
@@ -900,8 +918,9 @@ class KniminAccess(object):
             metadata[survey] = '\n'.join(survey_md).encode('utf-8')
 
         failures = set(barcodes) - barcodes_seen
-
-        return metadata, self._explain_pulldown_failures(failures)
+        failures = self._explain_pulldown_failures(failures)
+        failures.update(errors)
+        return metadata, failures
 
     def check_consent(self, barcodes):
         """Gets barcodes with consent, and failure reasons for ones without
@@ -1892,7 +1911,8 @@ class KniminAccess(object):
                     cast(ag_kit_id as varchar(100)), barcode,  site_sampled,
                     environment_sampled, sample_date, sample_time,
                     participant_name, notes, refunded, withdrawn, moldy, other,
-                    other_text, date_of_last_email ,overloaded, name, status
+                    other_text, date_of_last_email ,overloaded, name, status,
+                    deposited
                  FROM ag_kit_barcodes akb
                  JOIN ag_kit USING(ag_kit_id)
                  JOIN ag_login USING (ag_login_id)
@@ -2018,6 +2038,22 @@ class KniminAccess(object):
         """
         sql = """SELECT project FROM project"""
         return [x[0] for x in self._con.execute_fetchall(sql)]
+
+    def set_deposited_ebi(self):
+        """Updates barcode deposited status by checking EBI"""
+        accession = 'ERP012803'
+        samples = fetch_url(
+            'http://www.ebi.ac.uk/ena/data/warehouse/filereport?accession='
+            '%s&result=read_run&fields=sample_alias' % accession)
+        # Clean EBI formatted sample names to just the barcodes
+        # stripped of any appended letters for barcodes run multiple times
+        barcodes = tuple(s.strip().split('.')[1][:9]
+                         for s in samples if len(s.split('.')) == 2)
+
+        sql = """UPDATE ag.ag_kit_barcodes
+                 SET deposited = TRUE
+                 WHERE barcode IN %s"""
+        self._con.execute(sql, [barcodes])
 
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""
