@@ -276,7 +276,9 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
         email_msg = ag_update_msg = project_msg = None
         exisiting_proj, parent_project = db.getBarcodeProjType(
             barcode)
-        exisiting_proj = set(exisiting_proj.split(','))
+        # This WILL NOT let you remove a sample from being in AG if it is
+        # part of AG to begin with
+        exisiting_proj = set(exisiting_proj.split(', '))
         if exisiting_proj != projects:
             try:
                 add_projects = projects.difference(exisiting_proj)
