@@ -1076,7 +1076,7 @@ class KniminAccess(object):
         Returns
         -------
         list of (str, datetime.date, str)
-            Unconsted barcodes, in the form [(barcode, scan_date, email), ...]
+            Unconsented barcodes, as [(barcode, scan_date, email), ...]
         """
         sql = """SELECT DISTINCT barcode, scan_date, email
                  FROM ag.ag_kit_barcodes
