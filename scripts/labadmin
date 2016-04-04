@@ -2,15 +2,15 @@
 
 from __future__ import division
 
-from os import makedirs
 from os.path import join
 
+from future.utils import viewitems
 import click
 from dateutil.relativedelta import relativedelta
 
 from knimin.lib.mail import send_email
-from knimin.lib.util import combine_barcodes
-from knimin import db
+from knimin import db, config
+from knimin.lib.data_access import SQLHandler
 
 __author__ = "Adam Robbins-Pianka"
 __copyright__ = "Copyright 2009-2015, QIIME Web Analysis"
@@ -30,29 +30,61 @@ def cli():
 
 
 @cli.command()
-@click.option('-i', '--input-file', required=False,
-              type=click.File('U'),
-              help="Path to file containing barcodes, one per line")
-@click.option('-o', '--output-dir', required=True,
-              type=click.Path(exists=False, readable=True, writable=True))
+@click.option('-o', '--output_dir', required=True, type=click.Path(
+    exists=True, file_okay=False, writable=True))
+@click.option('-f', '--full', type=bool, default=False, is_flag=True)
+@click.option('-i', '--input_fp', type=click.Path(
+    exists=True, dir_okay=False), default=None)
 @click.argument('barcodes', nargs=-1)
-def pulldown(input_file, output_dir, barcodes):
-    if not barcodes and input_file is None:
-        click.echo("You must specify either an input file (-i) or at least "
-                   "one barcode")
+def pulldown(output_dir, full=False, input_fp=None, barcodes=None):
+    """Does a pulldown on given barcodes, or all available if none given
 
-    all_barcodes = combine_barcodes(barcodes, input_file)
-    metadata, failures = db.pulldown(all_barcodes)
-    makedirs(output_dir)
+    Parameters
+    ----------
+    output_dir : str
+        where to write out files
+    full : bool, optional
+    input_fp : str, optional
+        A file with barcodes, one per line. If given, pull down these barcodes
+    barcodes : list of str, optional
+      If given, pull down these barcodes.
+    """
+    samples = []
+    # load in from files if given
+    if input_fp is not None:
+        with open(input_fp, 'rU') as f:
+            lines = f.readlines()
+        # barcodes must be in first column, stripping in case extra spaces
+        samples = [l.split('\t')[0].strip() for l in lines
+                   if not l.startswith('#')]
+    # load in the list if given
+    if barcodes is not None:
+        samples.extend(barcodes)
+    # load in all vailable barcodes if none given
+    if not samples:
+        sql_handler = SQLHandler(config)
+        sql = """SELECT DISTINCT barcode
+                 FROM ag.ag_kit_barcodes
+                 WHERE survey_id is not NULL AND survey_id != ''
+                 AND site_sampled IS NOT NULL AND site_sampled != ''
+                 AND site_sampled != 'Please select...'
+                 AND sample_date IS NOT NULL"""
+        samples = [x[0] for x in sql_handler.execute_fetchall(sql)]
 
-    for survey, barcodes_responses in metadata.items():
-        with open(join(output_dir,
-                       'survey_%d_md.txt' % survey), 'w') as outfile:
-            outfile.write(barcodes_responses)
+    barcodes = [b for b in samples if not b.upper().startswith('BLANK')]
+    blanks = [b for b in samples if b.upper().startswith('BLANK')]
 
-    if failures:
-        click.echo("The following barcodes were not retrieved for any survey:"
-                   "\n%s\n" % '\n'.join(sorted(failures)))
+    # Get metadata and create zip file
+    metadata, failures = db.pulldown(barcodes, blanks, full=full)
+
+    failed = '\n'.join(['\t'.join(bc) for bc in viewitems(failures)])
+    with open(join(output_dir, 'failures.txt'), 'w') as f:
+        f.write("The following barcodes were not retrieved "
+                "for any survey:\n%s" % failed)
+
+    for survey, meta in viewitems(metadata):
+        with open(join(output_dir, 'survey_%s_md.txt' % survey), 'w') as f:
+            f.write(meta)
 
 
 @cli.command('email-unconsented')
