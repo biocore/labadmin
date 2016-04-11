@@ -161,7 +161,7 @@ Dear {name},
 We have recently received your sample with barcode {barcode} dated
 {sample_date} {sample_time} and we have begun processing it.  Please see our
 FAQ section for when you can expect results.
-(http://www.microbio.me/americangut/FAQ.psp#faq4)
+(https://microbio.me/AmericanGut/faq/#faq4)
 
 Thank you for your participation!
 
