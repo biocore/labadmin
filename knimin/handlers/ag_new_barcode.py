@@ -9,6 +9,7 @@ from knimin import db
 class AGBarcodePrintoutHandler(BaseHandler):
     @authenticated
     def post(self):
+        self.has_access('Create barcodes')
         barcodes = self.get_argument('barcodes').split(",")
         pdf = build_barcodes_pdf(barcodes)
         self.add_header('Content-type',  'application/pdf')
@@ -25,6 +26,7 @@ class AGBarcodePrintoutHandler(BaseHandler):
 class AGBarcodeAssignedHandler(BaseHandler):
     @authenticated
     def post(self):
+        self.has_access('Create barcodes')
         barcodes = self.get_argument('barcodes').split(",")
         projects = self.get_argument('projects')
         text = "".join(["%s\t%s\n" % (b, projects) for b in barcodes])
@@ -42,6 +44,7 @@ class AGBarcodeAssignedHandler(BaseHandler):
 class AGNewBarcodeHandler(BaseHandler):
     @authenticated
     def get(self):
+        self.has_access('Create barcodes')
         project_names = db.getProjectNames()
         remaining = len(db.get_unassigned_barcodes())
         self.render("ag_new_barcode.html", currentuser=self.current_user,
@@ -50,6 +53,7 @@ class AGNewBarcodeHandler(BaseHandler):
 
     @authenticated
     def post(self):
+        self.has_access('Create barcodes')
         # create barcodes
         msg = ""
         newbc = []

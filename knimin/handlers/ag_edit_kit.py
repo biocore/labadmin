@@ -8,6 +8,8 @@ from knimin import db
 class AGEditKitHandler(BaseHandler):
     @authenticated
     def get(self):
+        self.has_access('Search')
+        self.has_access('Create AG kits')
         kitid = self.get_argument('kitid', None)
         if kitid is not None:
             kitdetails = db.getAGKitDetails(kitid)
@@ -17,6 +19,8 @@ class AGEditKitHandler(BaseHandler):
 
     @authenticated
     def post(self):
+        self.has_access('Search')
+        self.has_access('Create AG kits')
         ag_kit_id = self.get_argument('ag_kit_id')
         kit_id = self.get_argument('kitid')
         passwd = self.get_argument('kit_password')

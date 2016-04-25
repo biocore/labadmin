@@ -9,12 +9,14 @@ from knimin.lib.mem_zip import InMemoryZip
 class AGPulldownHandler(BaseHandler):
     @authenticated
     def get(self):
+        self.has_access('Metadata Pulldown')
         surveys = db.list_external_surveys()
         self.render("ag_pulldown.html", currentuser=self.current_user,
                     barcodes=[], surveys=surveys)
 
     @authenticated
     def post(self):
+        self.has_access('Metadata Pulldown')
         # Do nothing if no file given
         if 'barcodes' not in self.request.files:
             self.render("ag_pulldown.html", currentuser=self.current_user,
@@ -42,6 +44,7 @@ class AGPulldownHandler(BaseHandler):
 class AGPulldownDLHandler(BaseHandler):
     @authenticated
     def post(self):
+        self.has_access('Metadata Pulldown')
         barcodes = self.get_argument('barcodes').split(',')
         if self.get_argument('blanks'):
             blanks = self.get_argument('blanks').split(',')
@@ -76,6 +79,7 @@ class AGPulldownDLHandler(BaseHandler):
 
 class UpdateEBIStatusHandler(BaseHandler):
     def get(self):
+        self.has_access('Metadata Pulldown')
         try:
             db.set_deposited_ebi()
             msg = 'Successfully updated barcodes in database'

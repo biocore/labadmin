@@ -10,6 +10,7 @@ from knimin.lib.util import get_printout_data
 class AGNewKitDLHandler(BaseHandler):
     @authenticated
     def post(self):
+        self.has_access('Create AG kits')
         kitinfo = loads(self.get_argument('kitinfo'))
         fields = self.get_argument('fields').split(',')
         table = ['\t'.join(fields)]
@@ -32,6 +33,7 @@ class AGNewKitDLHandler(BaseHandler):
 class AGNewKitHandler(BaseHandler):
     @authenticated
     def get(self):
+        self.has_access('Create AG kits')
         project_names = db.getProjectNames()
         remaining = len(db.get_unassigned_barcodes())
         self.render("ag_new_kit.html", projects=project_names,
@@ -40,6 +42,7 @@ class AGNewKitHandler(BaseHandler):
 
     @authenticated
     def post(self):
+        self.has_access('Create AG kits')
         tag = self.get_argument("tag")
         if not tag:
             tag = None

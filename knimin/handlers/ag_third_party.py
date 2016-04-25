@@ -32,6 +32,7 @@ class NewThirdParty(Form):
 class AGThirdPartyHandler(BaseHandler):
     @authenticated
     def get(self):
+        self.has_access('Add external surveys')
         form = ThirdPartyData()
         form.survey.choices = [(x, x) for x in db.list_external_surveys()]
         self.render("ag_third_party.html", the_form=form,
@@ -39,6 +40,7 @@ class AGThirdPartyHandler(BaseHandler):
 
     @authenticated
     def post(self):
+        self.has_access('Add external surveys')
         form = ThirdPartyData()
         form.survey.choices = [(x, x) for x in db.list_external_surveys()]
         msg = ''
@@ -76,11 +78,13 @@ class AGThirdPartyHandler(BaseHandler):
 class AGNewThirdPartyHandler(BaseHandler):
     @authenticated
     def get(self):
+        self.has_access('Add external surveys')
         self.render("new_third_party.html", the_form=NewThirdParty(),
                     errors='')
 
     @authenticated
     def post(self):
+        self.has_access('Add external surveys')
         form = NewThirdParty()
         msg = ''
         args = {a: v[0] for a, v in viewitems(self.request.arguments)}
