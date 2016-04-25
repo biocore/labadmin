@@ -310,6 +310,10 @@ class KniminAccess(object):
         bool
             Whether user has access (true) or not (false)
         """
+        sql = "Select 1 from ag.labadmin_access WHERE access_name = %s"
+        if self._con.execute_fetchone(sql, [access_level]) is None:
+            raise ValueError('Unknown access level %s' % access_level)
+
         sql = """SELECT EXISTS(
                     SELECT 1
                     FROM ag.labadmin_users_access
