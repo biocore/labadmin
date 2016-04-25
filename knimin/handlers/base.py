@@ -1,4 +1,6 @@
-from tornado.web import RequestHandler
+from tornado.web import RequestHandler, HTTPError
+
+from knimin import db
 
 
 class BaseHandler(RequestHandler):
@@ -26,6 +28,11 @@ class BaseHandler(RequestHandler):
             self.render('error.html', error=error, trace_info=trace_info,
                         request_info=request_info,
                         user=self.current_user)
+
+    def has_access(self, access_level):
+        if not db.has_access(self.current_user, access_level):
+            raise HTTPError(403, 'User %s does not have access level %s' %
+                            (self.current_user, access_level))
 
 
 class MainHandler(BaseHandler):
