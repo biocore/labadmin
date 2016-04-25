@@ -1,3 +1,4 @@
+{% from knimin import db %}
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -23,21 +24,36 @@
         <h3>American Gut Utilities</h3>
 
         <ul class="mainmenu">
+            {% set admin = db.has_access(current_user, 'Admin') %}
+            {% if admin or db.has_access(current_user, 'Search') %}
             <li><a href="/ag_search/">Search</a></li>
+            {% end %}
             <li><a href="/ag_stats/">Statistics</a></li>
             <li><a href="/projects/summary/">Projects Summary</a></li>
-            <li><a href="/ag_new_kit/">Add New AG Kits</a></li>
+            {% if admin or db.has_access(current_user, 'Create barcodes') %}
             <li><a href="/ag_new_barcode/">Add/View Barcodes</a></li>
+            {% end %}
+            {% if admin or db.has_access(current_user, 'Create AG Kits') %}
+            <li><a href="/ag_new_kit/">Add New AG Kits</a></li>
             <li><a href="/ag_add_barcode_kit/">Add Barcodes to AG Kits</a></li>
+            {% end %}
+            {% if admin or db.has_access(current_user, 'Add external surveys')%}
             <li><a href="/ag_third_party/add/">Add External Survey</a></li>
             <li><a href="/ag_third_party/data/">Add External Survey Data</a></li>
+            {% end %}
+            {% if admin or db.has_access(current_user, 'Metadata Pulldown') %}
             <li><a href="/ag_pulldown/">Metadata Pulldown</a></li>
+            {% end %}
+            {% if admin %}
             <li><a href="/ag_participant_names/">Participant Names</a></li>
+            {% end %}
         </ul>
 
         <h3>General Project Utilities</h3>
         <ul class="mainmenu">
+            {% if admin or db.has_access(current_user, 'Scan Barcodes') %}
             <li><a href="/barcode_util/">Scan Barcode</a></li>
+            {% end %}
         </ul>
         <a href="/auth/logout/">Log Out</a>
     </div>
