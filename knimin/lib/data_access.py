@@ -295,6 +295,28 @@ class KniminAccess(object):
         else:
             return []
 
+    def has_access(self, email, access_level):
+        """Whether user has access level given or not.
+
+        Parameters
+        ----------
+        email : str
+            Email of user to check
+        access_level : str
+            Access level to check
+
+        Returns
+        -------
+        bool
+            Whether user has access (true) or not (false)
+        """
+        sql = """SELECT EXISTS(
+                    SELECT 1
+                    FROM ag.labadmin_users_access
+                    JOIN ag.labadmin_access USING (access_id)
+                    WHERE email = %s AND access_name = %s)"""
+        return self._con.execute_fetchone(sql, [email, access_level])[0]
+
     def get_barcode_details(self, barcode):
         """
         Returns the general barcode details for a barcode
@@ -789,8 +811,8 @@ class KniminAccess(object):
                     (md[1][barcode]['ANTIBIOTIC_HISTORY'] ==
                      'I have not taken antibiotics in the past year.')
                 md[1][barcode]['SUBSET_BMI'] = \
-                    18.5 <= md[1][barcode]['BMI'] < 30 and \
-                    not md[1][barcode]['BMI'] == 'Unspecified'
+                    not md[1][barcode]['BMI'] == 'Unspecified' and \
+                    18.5 <= md[1][barcode]['BMI'] < 30
                 md[1][barcode]['SUBSET_HEALTHY'] = all([
                     md[1][barcode]['SUBSET_AGE'],
                     md[1][barcode]['SUBSET_DIABETES'],
