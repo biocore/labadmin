@@ -1,19 +1,19 @@
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
+from knimin.handlers.access_decorators import set_access
 
 from knimin import db
 
 
+@set_access(['Create AG kits'])
 class AGAddBarcodeKitHandler(BaseHandler):
     @authenticated
     def get(self):
-        self.has_access('Create AG kits')
         self.render("ag_add_barcode_kit.html", currentuser=self.current_user,
                     kit_ids=db.get_used_kit_ids(), skid='', barcodes='')
 
     @authenticated
     def post(self):
-        self.has_access('Create AG kits')
         supplied_kit_id = self.get_argument('kit_id')
         num_barcodes = int(self.get_argument('num_barcodes'))
 

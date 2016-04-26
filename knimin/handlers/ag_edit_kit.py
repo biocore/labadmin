@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
+from knimin.handlers.access_decorators import set_access
 
 from knimin import db
 
 
+@set_access(['Search', 'Create AG kits'])
 class AGEditKitHandler(BaseHandler):
     @authenticated
     def get(self):
-        self.has_access('Search')
-        self.has_access('Create AG kits')
         kitid = self.get_argument('kitid', None)
         if kitid is not None:
             kitdetails = db.getAGKitDetails(kitid)
@@ -19,8 +19,6 @@ class AGEditKitHandler(BaseHandler):
 
     @authenticated
     def post(self):
-        self.has_access('Search')
-        self.has_access('Create AG kits')
         ag_kit_id = self.get_argument('ag_kit_id')
         kit_id = self.get_argument('kitid')
         passwd = self.get_argument('kit_password')

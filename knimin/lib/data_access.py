@@ -295,14 +295,14 @@ class KniminAccess(object):
         else:
             return []
 
-    def has_access(self, email, access_level):
+    def has_access(self, email, access_levels):
         """Whether user has access level given or not.
 
         Parameters
         ----------
         email : str
             Email of user to check
-        access_level : str
+        access_levels : list of str
             Access level to check
 
         Returns
@@ -319,17 +319,19 @@ class KniminAccess(object):
         ValueError
             Unknown access level passed
         """
+        # Make sure all access levels passed exist
         sql = "Select 1 from ag.labadmin_access WHERE access_name = %s"
-        if self._con.execute_fetchone(sql, [access_level]) is None:
-            raise ValueError('Unknown access level %s' % access_level)
+        for level in access_levels:
+            if self._con.execute_fetchone(sql, [level]) is None:
+                raise ValueError('Unknown access level %s' % level)
 
         sql = """SELECT EXISTS(
                     SELECT 1
                     FROM ag.labadmin_users_access
                     JOIN ag.labadmin_access USING (access_id)
-                    WHERE email = %s AND (access_name = %s OR
-                          access_name = 'Admin'))"""
-        return self._con.execute_fetchone(sql, [email, access_level])[0]
+                    WHERE email = %s AND access_name IN %s)"""
+        access = tuple(access_levels + ['Admin'])
+        return self._con.execute_fetchone(sql, [email, access])[0]
 
     def get_barcode_details(self, barcode):
         """

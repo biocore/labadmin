@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
+from knimin.handlers.access_decorators import set_access
 
 
+@set_access(['Base'])
 class LoggedInIndexHandler(BaseHandler):
     @authenticated
     def get(self):

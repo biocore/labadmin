@@ -6,6 +6,7 @@ from datetime import datetime
 from knimin import db
 from knimin.lib.constants import survey_type
 from knimin.lib.mail import send_email
+from knimin.handlers.access_decorators import set_access
 
 
 class BarcodeUtilHelper(object):
@@ -175,12 +176,10 @@ Thank you for your participation!
         return subject, body_message
 
 
+@set_access(['Scan Barcodes'])
 class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
     @authenticated
     def get(self):
-        # Make sure user has access to the page
-        self.has_access('Scan Barcodes')
-
         barcode = self.get_argument('barcode', None)
         if barcode is None:
             self.render("barcode_util.html", div_and_msg=None,
@@ -241,9 +240,6 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
 
     @authenticated
     def post(self):
-        # Make sure user has access to the page
-        self.has_access('Scan Barcodes')
-
         barcode = self.get_argument('barcode')
         postmark_date = self.get_argument('postmark_date', None)
         scan_date = self.get_argument('scan_date', None)

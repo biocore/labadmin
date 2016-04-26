@@ -2,15 +2,16 @@
 from json import dumps, loads
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
+from knimin.handlers.access_decorators import set_access
 from knimin import db
 from knimin.lib.mem_zip import InMemoryZip
 from knimin.lib.util import get_printout_data
 
 
+@set_access('Create AG kits')
 class AGNewKitDLHandler(BaseHandler):
     @authenticated
     def post(self):
-        self.has_access('Create AG kits')
         kitinfo = loads(self.get_argument('kitinfo'))
         fields = self.get_argument('fields').split(',')
         table = ['\t'.join(fields)]
@@ -30,10 +31,10 @@ class AGNewKitDLHandler(BaseHandler):
         self.finish()
 
 
+@set_access('Create AG kits')
 class AGNewKitHandler(BaseHandler):
     @authenticated
     def get(self):
-        self.has_access('Create AG kits')
         project_names = db.getProjectNames()
         remaining = len(db.get_unassigned_barcodes())
         self.render("ag_new_kit.html", projects=project_names,
@@ -42,7 +43,6 @@ class AGNewKitHandler(BaseHandler):
 
     @authenticated
     def post(self):
-        self.has_access('Create AG kits')
         tag = self.get_argument("tag")
         if not tag:
             tag = None

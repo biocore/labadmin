@@ -1,20 +1,20 @@
 #!/usr/bin/env python
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
+from knimin.handlers.access_decorators import set_access
 
 from knimin import db
 
 
+@set_access(['Search'])
 class AGSearchHandler(BaseHandler):
     @authenticated
     def get(self):
-        self.has_access('Search')
         self.render("ag_search.html", results=None, handouts=None,
                     currentuser=self.current_user)
 
     @authenticated
     def post(self):
-        self.has_access('Search')
         term = self.get_argument('search_term')
         results = {}
         # search participant info

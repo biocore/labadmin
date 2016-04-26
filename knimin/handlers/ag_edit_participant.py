@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
+from knimin.handlers.access_decorators import set_access
 from urllib import unquote
 
 from knimin import db
 
 
+@set_access(['Search'])
 class AGEditParticipantHandler(BaseHandler):
     @authenticated
     def get(self):
-        self.has_access('Search')
         email = self.get_argument('email', None)
         if email is not None:
             email = unquote(email)
@@ -19,7 +20,6 @@ class AGEditParticipantHandler(BaseHandler):
 
     @authenticated
     def post(self):
-        self.has_access('Search')
         email = self.get_argument('email')
         name = self.get_argument('name')
         address = self.get_argument('address')

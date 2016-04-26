@@ -5,6 +5,7 @@ from tornado.web import authenticated
 from wtforms import (Form, SelectField, FileField, TextField, validators)
 
 from knimin.handlers.base import BaseHandler
+from knimin.handlers.access_decorators import set_access
 from knimin import db
 
 
@@ -29,10 +30,10 @@ class NewThirdParty(Form):
     url = TextField('Survey URL', validators=[required("Required field")])
 
 
+@set_access(['Add external surveys'])
 class AGThirdPartyHandler(BaseHandler):
     @authenticated
     def get(self):
-        self.has_access('Add external surveys')
         form = ThirdPartyData()
         form.survey.choices = [(x, x) for x in db.list_external_surveys()]
         self.render("ag_third_party.html", the_form=form,
@@ -40,7 +41,6 @@ class AGThirdPartyHandler(BaseHandler):
 
     @authenticated
     def post(self):
-        self.has_access('Add external surveys')
         form = ThirdPartyData()
         form.survey.choices = [(x, x) for x in db.list_external_surveys()]
         msg = ''
@@ -75,16 +75,15 @@ class AGThirdPartyHandler(BaseHandler):
                     errors=msg)
 
 
+@set_access(['Add external surveys'])
 class AGNewThirdPartyHandler(BaseHandler):
     @authenticated
     def get(self):
-        self.has_access('Add external surveys')
         self.render("new_third_party.html", the_form=NewThirdParty(),
                     errors='')
 
     @authenticated
     def post(self):
-        self.has_access('Add external surveys')
         form = NewThirdParty()
         msg = ''
         args = {a: v[0] for a, v in viewitems(self.request.arguments)}

@@ -24,24 +24,24 @@
         <h3>American Gut Utilities</h3>
 
         <ul class="mainmenu">
-            {% set admin = db.has_access(current_user, 'Admin') %}
-            {% if admin or db.has_access(current_user, 'Search') %}
+            {% set admin = db.has_access(current_user, ['Admin']) %}
+            {% if admin or db.has_access(current_user, ['Search']) %}
             <li><a href="/ag_search/">Search</a></li>
             {% end %}
             <li><a href="/ag_stats/">Statistics</a></li>
             <li><a href="/projects/summary/">Projects Summary</a></li>
-            {% if admin or db.has_access(current_user, 'Create barcodes') %}
+            {% if admin or db.has_access(current_user, ['Create barcodes']) %}
             <li><a href="/ag_new_barcode/">Add/View Barcodes</a></li>
             {% end %}
-            {% if admin or db.has_access(current_user, 'Create AG kits') %}
+            {% if admin or db.has_access(current_user, ['Create AG kits']) %}
             <li><a href="/ag_new_kit/">Add New AG kits</a></li>
             <li><a href="/ag_add_barcode_kit/">Add Barcodes to AG Kits</a></li>
             {% end %}
-            {% if admin or db.has_access(current_user, 'Add external surveys')%}
+            {% if admin or db.has_access(current_user, ['Add external surveys'])%}
             <li><a href="/ag_third_party/add/">Add External Survey</a></li>
             <li><a href="/ag_third_party/data/">Add External Survey Data</a></li>
             {% end %}
-            {% if admin or db.has_access(current_user, 'Metadata Pulldown') %}
+            {% if admin or db.has_access(current_user, ['Metadata Pulldown']) %}
             <li><a href="/ag_pulldown/">Metadata Pulldown</a></li>
             {% end %}
             {% if admin %}
@@ -51,7 +51,7 @@
 
         <h3>General Project Utilities</h3>
         <ul class="mainmenu">
-            {% if admin or db.has_access(current_user, 'Scan Barcodes') %}
+            {% if admin or db.has_access(current_user, ['Scan Barcodes']) %}
             <li><a href="/barcode_util/">Scan Barcode</a></li>
             {% end %}
         </ul>

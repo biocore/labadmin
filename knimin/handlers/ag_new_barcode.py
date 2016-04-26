@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 from tornado.web import authenticated, HTTPError
 from knimin.handlers.base import BaseHandler
+from knimin.handlers.access_decorators import set_access
 
 from knimin.lib.squash_barcodes import build_barcodes_pdf
 from knimin import db
 
 
+@set_access(['Create barcodes'])
 class AGBarcodePrintoutHandler(BaseHandler):
     @authenticated
     def post(self):
-        self.has_access('Create barcodes')
         barcodes = self.get_argument('barcodes').split(",")
         pdf = build_barcodes_pdf(barcodes)
         self.add_header('Content-type',  'application/pdf')
@@ -26,7 +27,6 @@ class AGBarcodePrintoutHandler(BaseHandler):
 class AGBarcodeAssignedHandler(BaseHandler):
     @authenticated
     def post(self):
-        self.has_access('Create barcodes')
         barcodes = self.get_argument('barcodes').split(",")
         projects = self.get_argument('projects')
         text = "".join(["%s\t%s\n" % (b, projects) for b in barcodes])
@@ -41,10 +41,10 @@ class AGBarcodeAssignedHandler(BaseHandler):
         self.finish()
 
 
+@set_access(['Create barcodes'])
 class AGNewBarcodeHandler(BaseHandler):
     @authenticated
     def get(self):
-        self.has_access('Create barcodes')
         project_names = db.getProjectNames()
         remaining = len(db.get_unassigned_barcodes())
         self.render("ag_new_barcode.html", currentuser=self.current_user,
@@ -53,7 +53,6 @@ class AGNewBarcodeHandler(BaseHandler):
 
     @authenticated
     def post(self):
-        self.has_access('Create barcodes')
         # create barcodes
         msg = ""
         newbc = []

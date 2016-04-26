@@ -1,14 +1,15 @@
 from tornado.web import authenticated
 
 from knimin.handlers.base import BaseHandler
+from knimin.handlers.access_decorators import set_access
 from knimin import db
 from knimin.lib.mem_zip import InMemoryZip
 
 
+@set_access(['Admin'])
 class AGNamesHandler(BaseHandler):
     @authenticated
     def get(self):
-        self.has_access('Admin')
         self.render("ag_participant_names.html", currentuser=self.current_user)
 
     @authenticated
@@ -19,7 +20,6 @@ class AGNamesHandler(BaseHandler):
 class AGNamesDLHandler(BaseHandler):
     @authenticated
     def post(self):
-        self.has_access('Admin')
         participants = db.participant_names()
         participants = '\n'.join(['\t'.join(r) for r in participants])
 
