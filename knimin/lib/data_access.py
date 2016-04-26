@@ -309,6 +309,15 @@ class KniminAccess(object):
         -------
         bool
             Whether user has access (true) or not (false)
+
+        Notes
+        -----
+        For uses with Admin acces, this will always return true.
+
+        Raises
+        ------
+        ValueError
+            Unknown access level passed
         """
         sql = "Select 1 from ag.labadmin_access WHERE access_name = %s"
         if self._con.execute_fetchone(sql, [access_level]) is None:
@@ -318,7 +327,8 @@ class KniminAccess(object):
                     SELECT 1
                     FROM ag.labadmin_users_access
                     JOIN ag.labadmin_access USING (access_id)
-                    WHERE email = %s AND access_name = %s)"""
+                    WHERE email = %s AND (access_name = %s OR
+                          access_name = 'Admin'))"""
         return self._con.execute_fetchone(sql, [email, access_level])[0]
 
     def get_barcode_details(self, barcode):
@@ -332,6 +342,62 @@ class KniminAccess(object):
                   WHERE barcode = %s"""
         res = self._con.execute_fetchdict(sql, [barcode])
         return res[0] if res else {}
+
+    def get_access_levels(self):
+        """Returns tuple of all access levels and ids in the system
+
+        Returns
+        -------
+        list of tuple of (int, str)
+            All access levels in the form (id, name)
+        """
+        sql = "SELECT access_id, access_level FROM ag.labadmin_access"
+        return self._con.execute_fetchall(sql)
+
+    def get_access_levels_user(self, email):
+        """Returns tuple of all access levels and ids for a user
+
+        Parameters
+        ----------
+        email : str
+            Email of user to check
+
+        Returns
+        -------
+        list of tuple of (int, str)
+            All access levels in the form (id, name)
+        """
+        sql = """SELECT access_id, access_level
+                 FROM ag.labadmin_access
+                 JOIN ag.labadmin_users_access USING (access_id)
+                 WHERE email = %s"""
+        return self._con.execute_fetchall(sql, [email])
+
+    def alter_access_levels(self, email, levels):
+        """Alters existing user's access levels
+
+        Parameters
+        ----------
+        email : str
+            Email of user to alter
+        levels : list of int
+            List of access level IDs user should now have
+        """
+        all_levels = set(l[0] for l in self.get_access_levels())
+        new_levels = set(levels)
+        user_levels = set(l[0] for l in self.get_access_levels_user(email))
+
+        # Delete removed levels
+        remove = all_levels - new_levels
+        sql = """DELETE FROM ag.labadmin_users_access
+                 WHERE email = %s and access_id IN %s"""
+        self._con.execute(sql, [email, tuple(remove)])
+
+        # Add new levels
+        add = new_levels - user_levels
+        sql = """INSERT INTO ag.labadmin_users_access (email, access_id)
+                 VALUES (%s, %s)"""
+        self._con.executemany(sql, [(email, l) for l in add])
 
     def get_ag_barcode_details(self, barcodes):
         """Retrieve sample, kit, and login details by barcode
