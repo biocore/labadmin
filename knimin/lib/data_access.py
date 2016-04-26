@@ -883,8 +883,8 @@ class KniminAccess(object):
                     (md[1][barcode]['ANTIBIOTIC_HISTORY'] ==
                      'I have not taken antibiotics in the past year.')
                 md[1][barcode]['SUBSET_BMI'] = \
-                    not md[1][barcode]['BMI'] == 'Unspecified' and \
-                    18.5 <= md[1][barcode]['BMI'] < 30
+                    18.5 <= md[1][barcode]['BMI'] < 30 and \
+                    not md[1][barcode]['BMI'] == 'Unspecified'
                 md[1][barcode]['SUBSET_HEALTHY'] = all([
                     md[1][barcode]['SUBSET_AGE'],
                     md[1][barcode]['SUBSET_DIABETES'],
