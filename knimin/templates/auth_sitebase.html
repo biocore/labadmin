@@ -55,6 +55,12 @@
             <li><a href="/barcode_util/">Scan Barcode</a></li>
             {% end %}
         </ul>
+        {% if admin %}
+        <h3>Admin Utilities</h3>
+        <ul class="mainmenu">
+            <li><a href="/admin/edit/">Edit user groups</a></li>
+        </ul>
+        {% end %}
         <a href="/auth/logout/">Log Out</a>
     </div>
 

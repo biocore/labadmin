@@ -333,6 +333,17 @@ class KniminAccess(object):
         access = tuple(access_levels + ['Admin'])
         return self._con.execute_fetchone(sql, [email, access])[0]
 
+    def get_users(self):
+        """Get a list of users in the system
+
+        Returns
+        -------
+        list of str
+            Users in the system
+        """
+        sql = "SELECT email FROM ag.labadmin_users"
+        return [x[0] for x in self._con.execute_fetchall(sql)]
+
     def get_barcode_details(self, barcode):
         """
         Returns the general barcode details for a barcode
@@ -353,7 +364,7 @@ class KniminAccess(object):
         list of tuple of (int, str)
             All access levels in the form (id, name)
         """
-        sql = "SELECT access_id, access_level FROM ag.labadmin_access"
+        sql = "SELECT access_id, access_name FROM ag.labadmin_access"
         return self._con.execute_fetchall(sql)
 
     def get_access_levels_user(self, email):
@@ -369,7 +380,7 @@ class KniminAccess(object):
         list of tuple of (int, str)
             All access levels in the form (id, name)
         """
-        sql = """SELECT access_id, access_level
+        sql = """SELECT access_id, access_name
                  FROM ag.labadmin_access
                  JOIN ag.labadmin_users_access USING (access_id)
                  WHERE email = %s"""
