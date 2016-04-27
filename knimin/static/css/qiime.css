@@ -284,6 +284,7 @@ div.verification_color {
 	width: 400px;
 	border-radius: 10px;
 	text-align: center;
+	height: relative;
 }
 
 div.verification_text_wrapper {
