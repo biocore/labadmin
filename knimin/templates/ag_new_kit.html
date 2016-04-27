@@ -36,25 +36,29 @@
     }
 
     function build_submit() {
+        $("#msg").text("")
         $("#submit-create").prop("disabled", true);
         if (!validate()) {
-            return false;
             $("#submit-create").prop("disabled", false);
+            return false;
         }
+
+        $("#msg").text("Please wait for file to download");
         $.post("/ag_new_kit/", $("#agForm").serialize())
           .done(function(data) {
-            if (data.msg.find('ERROR') != -1) {
-                alert(data.msg);
-                return;
-            }
-            var dummy = new iframeform('/ag_new_kit/download/');
-            dummy.addParameter('kitinfo', data.kitinfo);
-            dummy.addParameter('fields', data.fields);
-            dummy.send();
             barcodes = $("#num-barcodes").text();
             $("#num-barcodes").text(+barcodes - data.kitinfo.length);
             $("#submit-create").prop("disabled", false);
+            // Build and download the kit information
+            var dummy = new iframeform('/ag_new_kit/download/');
+            dummy.addParameter('kitinfo', JSON.stringify(data.kitinfo));
+            dummy.addParameter('fields', data.fields);
+            dummy.send();
+          })
+          .fail(function() {
+            $("#msg").text("Error creating kits. Please try again later.");
           });
+        return false;
     }
 </script>
 {% end %}
@@ -63,7 +67,7 @@
 <iframe id="download" width="1" height="1" style="display:none"></iframe>
 <h3 id="msg"></h3>
 <h3>Add AG Kit</h3>
-<form name="agForm" id="agForm" onsubmit="build_submit()">
+<form name="agForm" id="agForm">
 <table>
     <tr><td style="width:150px">
         <label for="tag">Tag: </label><input type="text" name="tag" id="tag" style="width:5em" maxlength="3">
@@ -86,6 +90,6 @@
     </td></tr>
 </table>
 <p><a href="#" class="tr_clone_add">Add another kit type</a> | <a href="#" class="tr_clone_rem">Remove last kit type</a></p>
-<input type="submit" id="submit-create">
 </form>
+<button id="submit-create" onclick="build_submit()">Submit</button>
 {% end %}
