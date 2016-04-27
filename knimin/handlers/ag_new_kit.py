@@ -56,9 +56,4 @@ class AGNewKitHandler(BaseHandler):
         else:
             msg = "Kits created! Please wait for downloads."
 
-        project_names = db.getProjectNames()
-        remaining = len(db.get_unassigned_barcodes())
-        self.render("ag_new_kit.html", projects=project_names,
-                    currentuser=self.current_user, msg=msg,
-                    kitinfo=dumps(kits), remaining=remaining,
-                    fields=fields)
+        self.write({'kitinfo': dumps(kits), 'fields': fields, 'msg': msg})
