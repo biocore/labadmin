@@ -113,7 +113,7 @@ Find stuff.
                                     <th>refunded</th>
                                     <tr class="gridrow">
                                     <td><a href="/ag_edit_barcode/?barcode={{barcode}}">edit</a></td>
-                                    <td><a href="ag_edit_barcode{{barcode}}</td>
+                                    <td>{{barcode}}</td>
                                     {% set sample_date = kit['barcode_info'][barcode]['ag_info']['sample_date'] %}
                                     {% if sample_date is None %}
                                     {%  set sample_date = '' %}
