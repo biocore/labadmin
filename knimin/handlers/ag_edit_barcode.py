@@ -14,7 +14,8 @@ class AGEditBarcodeHandler(BaseHandler):
             ag_login_id = db.search_kits(details['ag_kit_id'])[0]
             site_sampled = db.human_sites
             environment_sampled = db.general_sites
-            participants = db.getHumanParticipants(ag_login_id)
+            participants = db.getHumanParticipants(ag_login_id) + \
+                db.getAnimalParticipants(ag_login_id)
             self.render("ag_edit_barcode.html", response=None, barcode=barcode,
                         sites_sampled=site_sampled, details=details,
                         environments_sampled=environment_sampled,
@@ -42,10 +43,9 @@ class AGEditBarcodeHandler(BaseHandler):
             self.render("ag_edit_barcode.html", response='Good', barcode=None,
                         sites_sampled=None, details=None,
                         environments_sampled=None,
-                        logins=None, currentuser=self.current_user)
-        except Exception as e:
-            print str(e)
+                        participants=[], currentuser=self.current_user)
+        except:
             self.render("ag_edit_barcode.html", response='Bad', barcode=None,
                         sites_sampled=None, details=None,
                         environments_sampled=None,
-                        logins=None, currentuser=self.current_user)
+                        participants=[], currentuser=self.current_user)

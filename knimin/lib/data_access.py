@@ -1601,12 +1601,11 @@ class KniminAccess(object):
             participant_name = None
 
         # convert empty strings to None for DB consistency
-        site_sampled = site_sampled if site_sampled else None
-        environment_sampled = environment_sampled if environment_sampled \
-            else None
-        sample_date = sample_date if sample_date else None
-        sample_time = sample_time if sample_time else None
-        notes = notes if notes else None
+        site_sampled = site_sampled or None
+        environment_sampled = environment_sampled or None
+        sample_date = sample_date or None
+        sample_time = sample_time or None
+        notes = notes or None
 
         sql = """UPDATE  ag_kit_barcodes
                  SET ag_kit_id = %s,
