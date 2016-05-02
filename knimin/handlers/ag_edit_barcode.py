@@ -11,13 +11,15 @@ class AGEditBarcodeHandler(BaseHandler):
         barcode = self.get_argument('barcode', None)
         if barcode is not None:
             details = db.getAGBarcodeDetails(barcode)
+            ag_login_id = db.search_kits(details['ag_kit_id'])[0]
             site_sampled = db.human_sites
             environment_sampled = db.general_sites
-            logins = db.getAGKitsByLogin()
+            participants = db.getHumanParticipants(ag_login_id)
             self.render("ag_edit_barcode.html", response=None, barcode=barcode,
                         sites_sampled=site_sampled, details=details,
                         environments_sampled=environment_sampled,
-                        logins=logins, currentuser=self.current_user)
+                        participants=participants,
+                        currentuser=self.current_user)
 
     @authenticated
     def post(self):
@@ -31,6 +33,7 @@ class AGEditBarcodeHandler(BaseHandler):
         notes = self.get_argument('notes')
         refunded = self.get_argument('refunded')
         withdrawn = self.get_argument('withdrawn')
+
         try:
             db.updateAGBarcode(barcode, ag_kit_id, site_sampled,
                                environment_sampled, sample_date,
@@ -40,7 +43,8 @@ class AGEditBarcodeHandler(BaseHandler):
                         sites_sampled=None, details=None,
                         environments_sampled=None,
                         logins=None, currentuser=self.current_user)
-        except:
+        except Exception as e:
+            print str(e)
             self.render("ag_edit_barcode.html", response='Bad', barcode=None,
                         sites_sampled=None, details=None,
                         environments_sampled=None,

@@ -60,6 +60,20 @@ class TestDataAccess(TestCase):
         exp = ['000014660', datetime.date(2015, 3, 25), 'REMOVED']
         self.assertEqual(obs[0], exp)
 
+    def test_get_user_for_kit(self):
+        obs = self.ag_data.get_user_for_kit('tst_IueFX')
+        self.assertEqual('ded5101d-c8e3-f6b3-e040-8a80115d6f03', obs)
+
+        obs = self.ag_data.get_user_for_kit('tst_esABz')
+        self.assertEqual('d8592c74-8421-2135-e040-8a80115d6401', obs)
+
+    def test_get_user_for_kit_errors(self):
+        with self.assertRaises(ValueError):
+            self.ag_data.get_user_for_kit('the_fooster')
+
+        with self.assertRaises(ValueError):
+            self.ag_data.get_user_for_kit('tst_esXXX')
+
 
 if __name__ == "__main__":
     main()
