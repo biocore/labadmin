@@ -103,8 +103,7 @@ class BarcodeUtilHelper(object):
         subject = body_message = ""
 
         if email_type == '0':
-            subject = ('Follow up on Your American Gut Sample with '
-                       'Barcode %s' % barcode)
+            subject = 'ACTION REQUIRED - Assign your samples in American Gut'
             body_message = """
 Dear {name},
 
