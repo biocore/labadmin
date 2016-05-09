@@ -1588,6 +1588,25 @@ class KniminAccess(object):
     def updateAGBarcode(self, barcode, ag_kit_id, site_sampled,
                         environment_sampled, sample_date, sample_time,
                         participant_name, notes, refunded, withdrawn):
+        # Get survey ID for participant if needed
+        if participant_name:
+            ag_login_id = self.search_kits(ag_kit_id)[0]
+            sql = """SELECT survey_id
+                     FROM ag_login_surveys
+                     WHERE participant_name = %s AND ag_login_id = %s"""
+            survey_id = self._con.execute_fetchone(
+                sql, [participant_name, ag_login_id])[0]
+        else:
+            survey_id = None
+            participant_name = None
+
+        # convert empty strings to None for DB consistency
+        site_sampled = site_sampled or None
+        environment_sampled = environment_sampled or None
+        sample_date = sample_date or None
+        sample_time = sample_time or None
+        notes = notes or None
+
         sql = """UPDATE  ag_kit_barcodes
                  SET ag_kit_id = %s,
                      site_sampled = %s,
@@ -1597,11 +1616,13 @@ class KniminAccess(object):
                      participant_name = %s,
                      notes = %s,
                      refunded = %s,
-                     withdrawn = %s
+                     withdrawn = %s,
+                     survey_id = %s
                  WHERE barcode = %s"""
         self._con.execute(sql, [ag_kit_id, site_sampled, environment_sampled,
                                 sample_date, sample_time, participant_name,
-                                notes, refunded, withdrawn, barcode])
+                                notes, refunded, withdrawn, survey_id,
+                                barcode])
 
     def AGGetBarcodeMetadata(self, barcode):
         results = self._con.execute_proc_return_cursor(
@@ -1865,10 +1886,12 @@ class KniminAccess(object):
                  FROM ag_kit
                  WHERE lower(supplied_kit_id) like %s or
                  lower(kit_password) like %s or
-                 lower(kit_verification_code) = %s"""
+                 lower(kit_verification_code) = %s or
+                 cast(ag_kit_id as varchar(100)) like %s"""
         liketerm = '%%' + term.lower() + '%%'
         results = self._con.execute_fetchall(sql,
-                                             [liketerm, liketerm, liketerm])
+                                             [liketerm, liketerm, liketerm,
+                                              liketerm])
         return [x[0] for x in results]
 
     def search_barcodes(self, term):
