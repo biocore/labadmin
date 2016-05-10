@@ -28,11 +28,7 @@
             alert('Must fill all swab and kit fields!');
             return false;
         }
-        var swabs = $(".swabs").map(function() { return parseInt(this.value); });
-        swabs = swabs.sort(function(a, b) { return b-a; })[0];
-
-        if(swabs > 7 && confirm(swabs + " swabs per kit? REALLY?") == false) { return false; }
-        return true;
+        return confirm("Are you sure you want to create the kits?");
     }
 
     function build_submit() {
