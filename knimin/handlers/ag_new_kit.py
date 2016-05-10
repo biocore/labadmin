@@ -8,7 +8,7 @@ from knimin.lib.mem_zip import InMemoryZip
 from knimin.lib.util import get_printout_data
 
 
-@set_access(['Create AG kits'])
+@set_access(['AG kits'])
 class AGNewKitDLHandler(BaseHandler):
     @authenticated
     def post(self):
@@ -31,7 +31,7 @@ class AGNewKitDLHandler(BaseHandler):
         self.finish()
 
 
-@set_access(['Create AG kits'])
+@set_access(['AG kits'])
 class AGNewKitHandler(BaseHandler):
     @authenticated
     def get(self):

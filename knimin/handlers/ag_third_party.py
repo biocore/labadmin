@@ -30,7 +30,7 @@ class NewThirdParty(Form):
     url = TextField('Survey URL', validators=[required("Required field")])
 
 
-@set_access(['Add external surveys'])
+@set_access(['External surveys'])
 class AGThirdPartyHandler(BaseHandler):
     @authenticated
     def get(self):
@@ -75,7 +75,7 @@ class AGThirdPartyHandler(BaseHandler):
                     errors=msg)
 
 
-@set_access(['Add external surveys'])
+@set_access(['External surveys'])
 class AGNewThirdPartyHandler(BaseHandler):
     @authenticated
     def get(self):

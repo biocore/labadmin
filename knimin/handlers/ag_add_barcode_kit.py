@@ -5,7 +5,7 @@ from knimin.handlers.access_decorators import set_access
 from knimin import db
 
 
-@set_access(['Create AG kits'])
+@set_access(['AG kits'])
 class AGAddBarcodeKitHandler(BaseHandler):
     @authenticated
     def get(self):

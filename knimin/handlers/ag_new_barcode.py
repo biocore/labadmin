@@ -7,7 +7,7 @@ from knimin.lib.squash_barcodes import build_barcodes_pdf
 from knimin import db
 
 
-@set_access(['Create barcodes'])
+@set_access(['Barcodes'])
 class AGBarcodePrintoutHandler(BaseHandler):
     @authenticated
     def post(self):
@@ -41,7 +41,7 @@ class AGBarcodeAssignedHandler(BaseHandler):
         self.finish()
 
 
-@set_access(['Create barcodes'])
+@set_access(['Barcodes'])
 class AGNewBarcodeHandler(BaseHandler):
     @authenticated
     def get(self):

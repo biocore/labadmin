@@ -6,7 +6,7 @@ from knimin.handlers.access_decorators import set_access
 from knimin import db
 
 
-@set_access(['Search', 'Create AG kits'])
+@set_access(['Search', 'AG kits'])
 class AGEditKitHandler(BaseHandler):
     @authenticated
     def get(self):
