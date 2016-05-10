@@ -8,5 +8,5 @@ class ProjectsSummaryHandler(BaseHandler):
     @authenticated
     def get(self):
         projects = db.getProjectNames()
-        info = [(p, len(db.get_barcodes_for_projects(p))) for p in projects]
+        info = [(p, len(db.get_barcodes_for_projects([p]))) for p in projects]
         self.render('projects_summary.html', proj_counts=info)
