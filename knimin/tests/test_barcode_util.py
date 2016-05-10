@@ -162,12 +162,13 @@ class TestBarcodeUtil(TestHandlerBase):
         self.assertIn('Project successfully changed', response.body)
         barcode_projects, parent_project = db.getBarcodeProjType(self.ag_good)
         self.assertEqual(barcode_projects, 'UNKNOWN')
+        self.assertEqual(parent_project, 'American Gut')
 
         # reset back
-        db.setBarcodeProjects(self.ag_good, ['American Gut Project'],
-                              ['UNKNOWN'])
+        db.setBarcodeProjects(self.ag_good, rem_projects=['UNKNOWN'])
         barcode_projects, parent_project = db.getBarcodeProjType(self.ag_good)
-        self.assertEqual(barcode_projects, 'American Gut Project')
+        self.assertEqual(barcode_projects, '')
+        self.assertEqual(parent_project, 'American Gut')
 
 
 if __name__ == '__main__':

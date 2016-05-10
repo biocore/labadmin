@@ -2036,6 +2036,7 @@ class KniminAccess(object):
         results = [x[0] for x in self._con.execute_fetchall(sql, [barcode])]
         if 'American Gut Project' in results:
             parent_project = 'American Gut'
+            results.remove('American Gut Project')
             projects = ', '.join(results)
         else:
             projects = ', '.join(results)

@@ -282,9 +282,9 @@ div.verification_color {
 	position: relative;
 	margin-left: 2em;
 	width: 400px;
-	height: 200px;
 	border-radius: 10px;
 	text-align: center;
+	height: relative;
 }
 
 div.verification_text_wrapper {

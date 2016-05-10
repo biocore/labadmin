@@ -46,10 +46,11 @@
 
 {% if barcode is not None%}
 <div id="{{div_and_msg[0]}}" class="verification_color">
-           <div class="verification_text_wrapper">
+           <div>
               <br />
                 <h2 class="verification_text">
                  Project type: {{parent_project}} <br><br>
+                 Subprojects: {{ barcode_projects }} <br><br>
                  Barcode: {{div_and_msg[2]}}<br><br>
                 {{div_and_msg[1]}}</h2>
             </div>
