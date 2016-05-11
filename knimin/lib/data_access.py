@@ -1222,7 +1222,8 @@ class KniminAccess(object):
                  JOIN barcodes.barcode USING (barcode)
                  JOIN ag.ag_kit USING (ag_kit_id)
                  JOIN ag.ag_login USING (ag_login_id)
-                 WHERE survey_id IS NULL AND scan_date IS NOT NULL"""
+                 WHERE survey_id IS NULL AND scan_date IS NOT NULL
+                 ORDER BY barcode"""
         return self._con.execute_fetchall(sql)
 
     def getAGKitDetails(self, supplied_kit_id):

@@ -57,7 +57,7 @@ class TestDataAccess(TestCase):
     def test_get_unconsented(self):
         obs = db.get_unconsented()
         self.assertEqual(len(obs), 433)
-        exp = ['000014660', datetime.date(2015, 3, 25), 'REMOVED']
+        exp = ['000001000', datetime.date(2015, 4, 10), 'REMOVED']
         self.assertEqual(obs[0], exp)
 
 
