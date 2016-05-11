@@ -19,27 +19,44 @@ class TestThirdPartyData(TestHandlerBase):
             pass
         super(TestThirdPartyData, self).setUp()
 
-    def test_get_not_authed(self):
+    def test_get_not_logged_in(self):
+        db.alter_access_levels('test', [4])
         response = self.get('/ag_third_party/data/')
         self.assertEqual(response.code, 200)
         self.assertTrue(response.effective_url.endswith(
             '?next=%2Fag_third_party%2Fdata%2F'))
 
+    def test_get_not_authed(self):
+        self.mock_login()
+        response = self.get('/ag_third_party/data/')
+        self.assertEqual(response.code, 403)
+
     def test_get(self):
         self.mock_login()
+        db.alter_access_levels('test', [4])
         response = self.get('/ag_third_party/data/')
         self.assertEqual(response.code, 200)
         self.assertIn('File seperator', response.body)
         self.assertIn('Vioscreen', response.body)
 
     def test_post_not_authed(self):
+        self.mock_login()
         response = self.post('/ag_third_party/data/',
                              data={'survey': '', 'seperator': 'comma',
                                    'survey_id': '', 'trim': ''})
         self.assertEqual(response.code, 403)
 
+    def test_post_not_logged_in(self):
+        db.alter_access_levels('test', [4])
+        data = {'survey': 'Vioscreen', 'seperator': 'comma',
+                'survey_id': 'SubjectId', 'trim': '-160'}
+        files = {'file_in': self.ext_survey_fp}
+        response = self.post('/ag_third_party/data/', data, files)
+        self.assertEqual(response.code, 403)
+
     def test_post_data(self):
         self.mock_login()
+        db.alter_access_levels('test', [4])
         data = {'survey': 'Vioscreen', 'seperator': 'comma',
                 'survey_id': 'SubjectId', 'trim': '-160'}
         files = {'file_in': self.ext_survey_fp}
@@ -57,6 +74,7 @@ class TestThirdPartyData(TestHandlerBase):
 
     def test_post_missing_data(self):
         self.mock_login()
+        db.alter_access_levels('test', [4])
         data = {'seperator': 'comma', 'survey_id': 'SubjectId', 'trim': ''}
         files = {'file_in': self.ext_survey_fp}
 
@@ -84,6 +102,7 @@ class TestNewThirdParty(TestHandlerBase):
 
     def test_get(self):
         self.mock_login()
+        db.alter_access_levels('test', [4])
         response = self.get('/ag_third_party/add/')
         self.assertEqual(response.code, 200)
         self.assertIn('<label for="description">Description</label>',
@@ -98,6 +117,7 @@ class TestNewThirdParty(TestHandlerBase):
 
     def test_post_data(self):
         self.mock_login()
+        db.alter_access_levels('test', [4])
         name = ''.join([choice(ascii_letters) for x in range(15)])
         response = self.post('/ag_third_party/add/',
                              data={'name': name, 'description': 'TEST',
@@ -107,6 +127,7 @@ class TestNewThirdParty(TestHandlerBase):
 
     def test_post_missing_data(self):
         self.mock_login()
+        db.alter_access_levels('test', [4])
         name = ''.join([choice(ascii_letters) for x in range(15)])
         data = {'name': name, 'description': 'TEST', 'url': ''}
 
@@ -118,6 +139,7 @@ class TestNewThirdParty(TestHandlerBase):
 
     def test_post_existing_survey(self):
         self.mock_login()
+        db.alter_access_levels('test', [4])
         data = {'name': 'Vioscreen', 'description': 'TEST', 'url': 'test.fake'}
 
         response = self.post('/ag_third_party/add/', data)

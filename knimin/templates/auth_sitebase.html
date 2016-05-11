@@ -30,14 +30,14 @@
             {% end %}
             <li><a href="/ag_stats/">Statistics</a></li>
             <li><a href="/projects/summary/">Projects Summary</a></li>
-            {% if admin or db.has_access(current_user, ['Create barcodes']) %}
+            {% if admin or db.has_access(current_user, ['Barcodes']) %}
             <li><a href="/ag_new_barcode/">Add/View Barcodes</a></li>
             {% end %}
-            {% if admin or db.has_access(current_user, ['Create AG kits']) %}
+            {% if admin or db.has_access(current_user, ['AG kits']) %}
             <li><a href="/ag_new_kit/">Add New AG kits</a></li>
             <li><a href="/ag_add_barcode_kit/">Add Barcodes to AG Kits</a></li>
             {% end %}
-            {% if admin or db.has_access(current_user, ['Add external surveys'])%}
+            {% if admin or db.has_access(current_user, ['External surveys'])%}
             <li><a href="/ag_third_party/add/">Add External Survey</a></li>
             <li><a href="/ag_third_party/data/">Add External Survey Data</a></li>
             {% end %}

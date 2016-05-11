@@ -34,15 +34,21 @@ class TestBarcodeUtil(TestHandlerBase):
         }
         super(TestBarcodeUtil, self).setUp()
 
-    def test_get_not_authed(self):
-        response = self.get(
-            '/barcode_util/')
+    def test_get_not_logged_in(self):
+        db.alter_access_levels('test', [3])
+        response = self.get('/barcode_util/')
         self.assertEqual(response.code, 200)
         self.assertTrue(
             response.effective_url.endswith('?next=%2Fbarcode_util%2F'))
 
+    def test_get_not_authed(self):
+        self.mock_login()
+        response = self.get('/barcode_util/')
+        self.assertEqual(response.code, 403)
+
     def test_get(self):
         self.mock_login()
+        db.alter_access_levels('test', [3])
         response = self.get('/barcode_util/')
         self.assertEqual(response.code, 200)
         self.assertIn(
@@ -56,6 +62,7 @@ class TestBarcodeUtil(TestHandlerBase):
 
     def test_get_ag_barcode(self):
         self.mock_login()
+        db.alter_access_levels('test', [3])
         response = self.get('/barcode_util/', {'barcode': self.ag_good})
         self.assertEqual(response.code, 200)
         self.assertIn(
@@ -72,6 +79,7 @@ class TestBarcodeUtil(TestHandlerBase):
 
     def test_get_enviro_barcode(self):
         self.mock_login()
+        db.alter_access_levels('test', [3])
         response = self.get('/barcode_util/', {'barcode': self.ag_enviro})
         self.assertEqual(response.code, 200)
         self.assertIn(
@@ -89,6 +97,7 @@ class TestBarcodeUtil(TestHandlerBase):
 
     def test_get_handout_barcode(self):
         self.mock_login()
+        db.alter_access_levels('test', [3])
         response = self.get('/barcode_util/', {'barcode': self.ag_handout})
         self.assertEqual(response.code, 200)
         self.assertIn(
@@ -107,6 +116,7 @@ class TestBarcodeUtil(TestHandlerBase):
 
     def test_get_unlogged_barcode(self):
         self.mock_login()
+        db.alter_access_levels('test', [3])
         response = self.get('/barcode_util/', {'barcode': self.ag_unlogged})
         self.assertEqual(response.code, 200)
         self.assertIn(
@@ -125,6 +135,7 @@ class TestBarcodeUtil(TestHandlerBase):
 
     def test_get_non_ag_barcode(self):
         self.mock_login()
+        db.alter_access_levels('test', [3])
         response = self.get('/barcode_util/', {'barcode': self.not_ag})
         self.assertEqual(response.code, 200)
         self.assertIn(
@@ -139,7 +150,18 @@ class TestBarcodeUtil(TestHandlerBase):
         self.assertIn('Project type: UNKNOWN', response.body)
         self.assertIn('Barcode Info is correct', response.body)
 
+    def test_post_not_logged_in(self):
+        db.alter_access_levels('test', [3])
+        response = self.post('/barcode_util/', self.data)
+        self.assertEqual(response.code, 403)
+
+    def test_post_not_authed(self):
+        self.mock_login()
+        response = self.post('/barcode_util/', self.data)
+        self.assertEqual(response.code, 403)
+
     def test_post_update_ag(self):
+        db.alter_access_levels('test', [3])
         notes = ''.join([choice(ascii_letters) for x in range(40)])
         self.data['other_text'] = notes
         self.mock_login()
@@ -153,6 +175,7 @@ class TestBarcodeUtil(TestHandlerBase):
         self.assertEqual(obs['other_text'], notes)
 
     def test_post_update_ag_project_change(self):
+        db.alter_access_levels('test', [3])
         self.data['project'] = 'UNKNOWN'
         self.mock_login()
         response = self.post('/barcode_util/', data=self.data)

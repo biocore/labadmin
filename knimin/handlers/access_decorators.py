@@ -21,12 +21,12 @@ def set_access(access_levels=['Admin']):
             _access_levels = access_levels
 
             def _has_access(self):
+                # If no user, let the authenticated decorator take over
+                if self.current_user is None:
+                    return
                 # Base level access is given to everyone
                 if self._access_levels[0] == 'Base':
                     return
-                if self.current_user is None:
-                    raise HTTPError(403, 'User not logged in!')
-
                 if not db.has_access(self.current_user, self._access_levels):
                     raise HTTPError(403, 'User %s does not have access level '
                                     '%s' % (self.current_user,
