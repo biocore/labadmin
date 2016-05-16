@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-from json import dumps, loads
-from tornado.web import authenticated
+from json import loads
+from tornado.web import authenticated, HTTPError
 from knimin.handlers.base import BaseHandler
 from knimin import db
 from knimin.lib.mem_zip import InMemoryZip
@@ -52,13 +52,6 @@ class AGNewKitHandler(BaseHandler):
             kits = db.create_ag_kits(zip(num_swabs, num_kits), tag, projects)
             fields = ','.join(kits[0]._fields)
         except Exception as e:
-            msg = "ERROR: %s" % str(e)
-        else:
-            msg = "Kits created! Please wait for downloads."
+            raise HTTPError(500, "ERROR: %s" % str(e))
 
-        project_names = db.getProjectNames()
-        remaining = len(db.get_unassigned_barcodes())
-        self.render("ag_new_kit.html", projects=project_names,
-                    currentuser=self.current_user, msg=msg,
-                    kitinfo=dumps(kits), remaining=remaining,
-                    fields=fields)
+        self.write({'kitinfo': kits, 'fields': fields})
