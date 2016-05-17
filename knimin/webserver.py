@@ -31,6 +31,7 @@ from knimin.handlers.ag_third_party import (AGThirdPartyHandler,
                                             AGNewThirdPartyHandler)
 from knimin.handlers.ag_consent_check import AGConsentCheckHandler
 from knimin.handlers.projects_summary import ProjectsSummaryHandler
+from knimin.handlers.access_control import AGEditAccessHandler
 define("port", default=config.http_port, type=int)
 
 
@@ -71,6 +72,7 @@ class WebApplication(Application):
             (r"/ag_third_party/data/", AGThirdPartyHandler),
             (r"/ag_third_party/add/", AGNewThirdPartyHandler),
             (r"/projects/summary/", ProjectsSummaryHandler),
+            (r"/admin/edit/", AGEditAccessHandler),
             (r"/consent_check", AGConsentCheckHandler),
             (r".*", NoPageHandler)
         ]

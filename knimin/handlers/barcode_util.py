@@ -6,6 +6,7 @@ from datetime import datetime
 from knimin import db
 from knimin.lib.constants import survey_type
 from knimin.lib.mail import send_email
+from knimin.handlers.access_decorators import set_access
 
 
 class BarcodeUtilHelper(object):
@@ -174,6 +175,7 @@ Thank you for your participation!
         return subject, body_message
 
 
+@set_access(['Scan Barcodes'])
 class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
     @authenticated
     def get(self):

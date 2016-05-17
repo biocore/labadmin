@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 from knimin.handlers.base import BaseHandler
+from knimin.handlers.access_decorators import set_access
 from tornado.web import authenticated
 
 from knimin import db
 
 
+@set_access(['Base'])
 class AGStatsHandler(BaseHandler):
     @authenticated
     def get(self):

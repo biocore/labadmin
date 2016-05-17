@@ -2,11 +2,13 @@
 from json import loads
 from tornado.web import authenticated, HTTPError
 from knimin.handlers.base import BaseHandler
+from knimin.handlers.access_decorators import set_access
 from knimin import db
 from knimin.lib.mem_zip import InMemoryZip
 from knimin.lib.util import get_printout_data
 
 
+@set_access(['AG kits'])
 class AGNewKitDLHandler(BaseHandler):
     @authenticated
     def post(self):
@@ -29,6 +31,7 @@ class AGNewKitDLHandler(BaseHandler):
         self.finish()
 
 
+@set_access(['AG kits'])
 class AGNewKitHandler(BaseHandler):
     @authenticated
     def get(self):

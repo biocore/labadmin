@@ -11,6 +11,7 @@ from future.utils import viewitems
 from tornado.testing import AsyncHTTPTestCase, LogTrapTestCase
 from knimin.webserver import WebApplication
 from knimin.handlers.base import BaseHandler
+from knimin import db
 
 
 class TestHandlerBase(AsyncHTTPTestCase, LogTrapTestCase):
@@ -18,6 +19,8 @@ class TestHandlerBase(AsyncHTTPTestCase, LogTrapTestCase):
 
     def tearDown(self):
         BaseHandler.get_current_user = self.orig_func
+        # Remove all access privileges user may hve been given by a test
+        db.alter_access_levels('test', [])
         super(TestHandlerBase, self).tearDown()
 
     def get_app(self):

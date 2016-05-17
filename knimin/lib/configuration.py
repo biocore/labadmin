@@ -51,7 +51,8 @@ class KniminConfig(object):
             config.readfp(conf_file)
 
         _expected_sections = {'main', 'postgres', 'tornado', 'email'}
-        if set(config.sections()) != _expected_sections:
+        if set(config.sections()) != _expected_sections and \
+                len(_expected_sections.difference(config.sections())) != 0:
             missing = _expected_sections - set(config.sections())
             raise ValueError("Missing sections: %s" % missing)
 

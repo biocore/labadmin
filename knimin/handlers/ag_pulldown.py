@@ -4,8 +4,10 @@ from future.utils import viewitems
 from knimin.handlers.base import BaseHandler
 from knimin import db
 from knimin.lib.mem_zip import InMemoryZip
+from knimin.handlers.access_decorators import set_access
 
 
+@set_access(['Metadata Pulldown'])
 class AGPulldownHandler(BaseHandler):
     @authenticated
     def get(self):
@@ -39,6 +41,7 @@ class AGPulldownHandler(BaseHandler):
                     surveys=surveys, external=external)
 
 
+@set_access(['Metadata Pulldown'])
 class AGPulldownDLHandler(BaseHandler):
     @authenticated
     def post(self):
@@ -74,6 +77,7 @@ class AGPulldownDLHandler(BaseHandler):
         self.finish()
 
 
+@set_access(['Metadata Pulldown'])
 class UpdateEBIStatusHandler(BaseHandler):
     def get(self):
         try:

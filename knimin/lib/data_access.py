@@ -295,6 +295,55 @@ class KniminAccess(object):
         else:
             return []
 
+    def has_access(self, email, access_levels):
+        """Whether user has access level given or not.
+
+        Parameters
+        ----------
+        email : str
+            Email of user to check
+        access_levels : list of str
+            Access level to check
+
+        Returns
+        -------
+        bool
+            Whether user has access (true) or not (false)
+
+        Notes
+        -----
+        For uses with Admin acces, this will always return true.
+
+        Raises
+        ------
+        ValueError
+            Unknown access level passed
+        """
+        # Make sure all access levels passed exist
+        sql = "Select 1 from ag.labadmin_access WHERE access_name = %s"
+        for level in access_levels:
+            if self._con.execute_fetchone(sql, [level]) is None:
+                raise ValueError('Unknown access level %s' % level)
+
+        sql = """SELECT EXISTS(
+                    SELECT 1
+                    FROM ag.labadmin_users_access
+                    JOIN ag.labadmin_access USING (access_id)
+                    WHERE email = %s AND access_name IN %s)"""
+        access = tuple(access_levels + ['Admin'])
+        return self._con.execute_fetchone(sql, [email, access])[0]
+
+    def get_users(self):
+        """Get a list of users in the system
+
+        Returns
+        -------
+        list of str
+            Users in the system
+        """
+        sql = "SELECT email FROM ag.labadmin_users"
+        return [x[0] for x in self._con.execute_fetchall(sql)]
+
     def get_barcode_details(self, barcode):
         """
         Returns the general barcode details for a barcode
@@ -306,6 +355,62 @@ class KniminAccess(object):
                   WHERE barcode = %s"""
         res = self._con.execute_fetchdict(sql, [barcode])
         return res[0] if res else {}
+
+    def get_access_levels(self):
+        """Returns tuple of all access levels and ids in the system
+
+        Returns
+        -------
+        list of tuple of (int, str)
+            All access levels in the form (id, name)
+        """
+        sql = "SELECT access_id, access_name FROM ag.labadmin_access"
+        return self._con.execute_fetchall(sql)
+
+    def get_access_levels_user(self, email):
+        """Returns tuple of all access levels and ids for a user
+
+        Parameters
+        ----------
+        email : str
+            Email of user to check
+
+        Returns
+        -------
+        list of tuple of (int, str)
+            All access levels in the form (id, name)
+        """
+        sql = """SELECT access_id, access_name
+                 FROM ag.labadmin_access
+                 JOIN ag.labadmin_users_access USING (access_id)
+                 WHERE email = %s"""
+        return self._con.execute_fetchall(sql, [email])
+
+    def alter_access_levels(self, email, levels):
+        """Alters existing user's access levels
+
+        Parameters
+        ----------
+        email : str
+            Email of user to alter
+        levels : list of int
+            List of access level IDs user should now have
+        """
+        all_levels = set(l[0] for l in self.get_access_levels())
+        new_levels = set(levels)
+        user_levels = set(l[0] for l in self.get_access_levels_user(email))
+
+        # Delete removed levels
+        remove = all_levels - new_levels
+        sql = """DELETE FROM ag.labadmin_users_access
+                 WHERE email = %s and access_id IN %s"""
+        self._con.execute(sql, [email, tuple(remove)])
+
+        # Add new levels
+        add = new_levels - user_levels
+        sql = """INSERT INTO ag.labadmin_users_access (email, access_id)
+                 VALUES (%s, %s)"""
+        self._con.executemany(sql, [(email, l) for l in add])
 
     def get_ag_barcode_details(self, barcodes):
         """Retrieve sample, kit, and login details by barcode
@@ -1117,7 +1222,8 @@ class KniminAccess(object):
                  JOIN barcodes.barcode USING (barcode)
                  JOIN ag.ag_kit USING (ag_kit_id)
                  JOIN ag.ag_login USING (ag_login_id)
-                 WHERE survey_id IS NULL AND scan_date IS NOT NULL"""
+                 WHERE survey_id IS NULL AND scan_date IS NOT NULL
+                 ORDER BY barcode"""
         return self._con.execute_fetchall(sql)
 
     def getAGKitDetails(self, supplied_kit_id):
