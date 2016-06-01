@@ -101,11 +101,11 @@ class BarcodeUtilHelper(object):
 
     def _build_email(self, login_user, barcode, email_type,
                      sample_date, sample_time):
-        subject = body_message = ""
+        subject = body_message = u""
 
         if email_type == '0':
-            subject = 'ACTION REQUIRED - Assign your samples in American Gut'
-            body_message = """
+            subject = u'ACTION REQUIRED - Assign your samples in American Gut'
+            body_message = u"""
 Dear {name},
 
 We have recently received your sample barcode: {barcode}, but we cannot process
@@ -153,9 +153,9 @@ American Gut Team
             body_message = body_message.format(name=login_user,
                                                barcode=barcode)
         elif email_type == '1':
-            subject = ('American Gut Sample with Barcode %s is Received.'
+            subject = (u'American Gut Sample with Barcode %s is Received.'
                        % barcode)
-            body_message = """
+            body_message = u"""
 Dear {name},
 
 We have recently received your sample with barcode {barcode} dated
