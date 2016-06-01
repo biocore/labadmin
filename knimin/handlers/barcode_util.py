@@ -171,6 +171,8 @@ Thank you for your participation!
                                                barcode=barcode,
                                                sample_date=sample_date,
                                                sample_time=sample_time)
+        else:
+            raise RuntimeError("Unknown email type passed: %s" % email_type)
 
         return subject, body_message
 
