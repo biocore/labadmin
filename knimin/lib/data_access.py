@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 from contextlib import contextmanager
 from collections import defaultdict, namedtuple
 from os import walk
-from os.path import join, splitext, isdir
+from os.path import join, splitext, isdir, abspath
 from copy import copy
 from re import sub
 from hashlib import sha512
@@ -2102,7 +2102,7 @@ class KniminAccess(object):
         """
         path = join(self.config.base_data_dir, 'pdfs')
         if not isdir(path):
-            raise IOError('Unknown folder %s' % path)
+            raise IOError('Unknown folder %s' % abspath(path))
         # Get the list of barcodes from the PDF names
         files = next(walk(path))[2]
         return [splitext(f)[0] for f in files if f.endswith('.pdf')]
