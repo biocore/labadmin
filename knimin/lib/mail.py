@@ -8,7 +8,7 @@ from knimin import config
 
 
 def send_email(message, subject, recipient='americangut@gmail.com',
-               sender=config.help_email, html=False):
+               sender=config.help_email, bcc=None, html=False):
     """Send an email from your local host"""
 
     msg = MIMEText(message, "html" if html else "plain")
@@ -18,6 +18,7 @@ def send_email(message, subject, recipient='americangut@gmail.com',
     msg['Subject'] = subject
     msg['From'] = sender
     msg['To'] = recipient
+    msg_bcc = bcc if bcc is not None else []
 
     # Send the message via our own SMTP server, but don't include the
     # envelope header.
@@ -47,5 +48,6 @@ def send_email(message, subject, recipient='americangut@gmail.com',
     if config.smtp_user:
         s.login(config.smtp_user, config.smtp_password)
 
-    s.sendmail(sender, [recipient], msg.as_string())
+    # Send with BCC from http://stackoverflow.com/a/1546435
+    s.sendmail(sender, [recipient] + msg_bcc, msg.as_string())
     s.quit()
