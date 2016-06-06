@@ -1,6 +1,6 @@
 from unittest import TestCase, main
 from os.path import join, dirname, realpath
-from datetime import datetime
+import datetime
 
 from knimin import db
 
@@ -59,6 +59,7 @@ class TestDataAccess(TestCase):
     def test_get_unconsented(self):
         obs = db.get_unconsented()
         self.assertEqual(len(obs), 433)
+        print obs[0]
         exp = ['000001000', datetime.date(2015, 4, 10), 'REMOVED']
         self.assertEqual(obs[0], exp)
 

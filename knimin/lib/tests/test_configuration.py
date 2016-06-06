@@ -25,6 +25,7 @@ class ConfigurationTests(TestCase):
     def test_get_main(self):
         config = KniminConfig(self.config_fp)
         self.assertTrue(config.debug)
+        self.assertEqual(config.base_data_dir, '/some/dir/path')
 
     def test_get_postgres(self):
         config = KniminConfig(self.config_fp)
@@ -41,6 +42,7 @@ class ConfigurationTests(TestCase):
 test_config = """[main]
 debug = True
 help_email = help@email.com
+base_data_dir = /some/dir/path
 
 [postgres]
 user = test
