@@ -4,7 +4,7 @@ import socket
 
 from email.mime.text import MIMEText
 
-from knimin import config
+from knimin.lib.configuration import config
 
 
 def send_email(message, subject, recipient='americangut@gmail.com',

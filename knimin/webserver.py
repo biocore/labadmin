@@ -7,7 +7,7 @@ from tornado.ioloop import IOLoop
 from tornado.web import Application, StaticFileHandler
 from tornado.options import define, options, parse_command_line
 
-from knimin import config
+from knimin.lib.configuration import config
 from knimin.handlers.base import MainHandler, NoPageHandler
 from knimin.handlers.auth_handlers import AuthLoginHandler, AuthLogoutHandler
 from knimin.handlers.ag_search import AGSearchHandler
@@ -32,8 +32,8 @@ from knimin.handlers.ag_third_party import (AGThirdPartyHandler,
 from knimin.handlers.ag_consent_check import AGConsentCheckHandler
 from knimin.handlers.projects_summary import ProjectsSummaryHandler
 from knimin.handlers.access_control import AGEditAccessHandler
-define("port", default=config.http_port, type=int)
 
+define("port", default=config.http_port, type=int)
 
 DIRNAME = dirname(__file__)
 STATIC_PATH = join(DIRNAME, "static")
