@@ -2110,22 +2110,24 @@ class KniminAccess(object):
         -----
         This function automatically sends emails out to only newly set results
         ready barcodes. This means you can pass in a list of all barcodes from
-        all rounds, regardless of if they are already marked as ready, and the
-        function will filter for new results automatically.
+        all rounds that have results ready, and the function will filter for
+        new results automatically.
         """
         ready_sql = """UPDATE ag.ag_kit_barcodes
                        SET results_ready = 'Y'
                        WHERE barcode IN %s
-                       AND results_ready != 'Y'
+                       AND (results_ready != 'Y' OR results_ready IS NULL)
                        RETURNING barcode"""
         new_bcs = tuple(x[0] for x in
                         self._con.execute_fetchall(
                             ready_sql, [tuple(barcodes)]))
+        if len(new_bcs) == 0:
+            # No new barcodes, so no emails to send
+            return
 
         bc_sql = """UPDATE ag.ag_kit_barcodes
-                 SET date_of_last_email = {0}
-                 WHERE barcode IN %s""".format(
-            datetime.now().strftime('%Y-%m-%d %H:%m'))
+                 SET date_of_last_email = '{0}'
+                 WHERE barcode IN %s""".format(datetime.now())
         subject = "Your American/British Gut results are ready"
         message = (
             "Good afternoon American & British Gut participants!\n\n"
