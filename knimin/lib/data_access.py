@@ -1,6 +1,8 @@
 from __future__ import unicode_literals
 from contextlib import contextmanager
 from collections import defaultdict, namedtuple
+from os import walk
+from os.path import join, splitext
 from copy import copy
 from re import sub
 from hashlib import sha512
@@ -289,6 +291,7 @@ class KniminAccess(object):
     def __init__(self, config):
         self._con = SQLHandler(config)
         self._con.execute('set search_path to ag, barcodes, public')
+        self.config = config
 
     def _get_col_names_from_cursor(self, cur):
         if cur.description:
@@ -2097,6 +2100,19 @@ class KniminAccess(object):
                  WHERE results_ready = 'Y'
                  ORDER BY barcode"""
         return [x[0] for x in self._con.execute_fetchall(sql)]
+
+    def get_barcodes_with_results(self):
+        """Returns list of all barcodes with results ready (PDFs available)
+
+        Returns
+        -------
+        list of str
+            All barcodes with result PDFs available
+        """
+        path = join(self.config.base_data_dir, 'pdfs')
+        # Get the list of barcodes from the PDF names
+        return [splitext(f)[0] for f in next(walk(path))[2]
+                if f.endswith('.pdf')]
 
     def mark_results_ready(self, barcodes):
         """Marks the list of barcodes as ready in the databse and sends email
