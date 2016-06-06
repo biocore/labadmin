@@ -2122,6 +2122,7 @@ class KniminAccess(object):
         all rounds that have results ready, and the function will filter for
         new results automatically.
         """
+        debug = {}
         ready_sql = """UPDATE ag.ag_kit_barcodes
                        SET results_ready = 'Y'
                        WHERE barcode IN %s
@@ -2130,6 +2131,7 @@ class KniminAccess(object):
         new_bcs = tuple(x[0] for x in
                         self._con.execute_fetchall(
                             ready_sql, [tuple(barcodes)]))
+        debug['new_bcs'] = new_bcs
         if len(new_bcs) == 0:
             # No new barcodes, so no emails to send
             return
@@ -2156,10 +2158,11 @@ class KniminAccess(object):
         barcode_info = self.get_ag_barcode_details(new_bcs)
         # Make sure email only sent once if multiple barcodes with same email
         seen_emails = set(i['email'] for bc, i in viewitems(barcode_info))
-        send_email(message, subject, bcc=list(seen_emails))
+        mail = send_email(message, subject, bcc=list(seen_emails), debug=debug)
+        debug['mail'] = mail
         self._con.execute(bc_sql, [new_bcs])
         if debug:
-            return new_bcs
+            return debug
 
     def getHumanParticipants(self, ag_login_id):
         # get people from new survey setup

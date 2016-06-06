@@ -59,7 +59,6 @@ class TestDataAccess(TestCase):
     def test_get_unconsented(self):
         obs = db.get_unconsented()
         self.assertEqual(len(obs), 433)
-        print obs[0]
         exp = ['000001000', datetime.date(2015, 4, 10), 'REMOVED']
         self.assertEqual(obs[0], exp)
 
@@ -85,7 +84,14 @@ class TestDataAccess(TestCase):
         self.assertEqual(obs['000001072']['results_ready'], 'Y')
 
         obs = db.mark_results_ready(['000001072', '000023299'], debug=True)
-        self.assertEqual(obs, ('000023299', ))
+        self.assertEqual(obs['new_bcs'], ('000023299', ))
+        self.assertEqual(obs['mail']['mimetext']['To'],
+                         'americangut@gmail.com')
+        self.assertEqual(obs['mail']['mimetext']['From'], '')
+        self.assertEqual(obs['mail']['mimetext']['Subject'],
+                         'Your American/British Gut results are ready')
+        self.assertEqual(obs['mail']['recipients'],
+                         ['americangut@gmail.com', 'REMOVED'])
 
         obs = db.get_ag_barcode_details(['000001072', '000023299'])
         self.assertEqual(obs['000023299']['results_ready'], 'Y')
