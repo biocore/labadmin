@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 from contextlib import contextmanager
 from collections import defaultdict, namedtuple
 from os import walk
-from os.path import join, splitext
+from os.path import join, splitext, isdir
 from copy import copy
 from re import sub
 from hashlib import sha512
@@ -2087,20 +2087,6 @@ class KniminAccess(object):
                    self._con.execute_fetchall(sql, [ag_kit_id])]
         return results
 
-    def have_results_ready(self):
-        """Returns list of barcodes that have results ready
-
-        Returns
-        -------
-        list of str
-            Barcodes with results ready
-        """
-        sql = """SELECT barcode
-                 FROM ag.ag_kit_barcodes
-                 WHERE results_ready = 'Y'
-                 ORDER BY barcode"""
-        return [x[0] for x in self._con.execute_fetchall(sql)]
-
     def get_barcodes_with_results(self):
         """Returns list of all barcodes with results ready (PDFs available)
 
@@ -2108,13 +2094,20 @@ class KniminAccess(object):
         -------
         list of str
             All barcodes with result PDFs available
+
+        Raises
+        ------
+        IOError
+            PDF directory does not exist
         """
         path = join(self.config.base_data_dir, 'pdfs')
+        if not isdir(path):
+            raise IOError('Unknown folder %s' % path)
         # Get the list of barcodes from the PDF names
-        return [splitext(f)[0] for f in next(walk(path))[2]
-                if f.endswith('.pdf')]
+        files = next(walk(path))[2]
+        return [splitext(f)[0] for f in files if f.endswith('.pdf')]
 
-    def mark_results_ready(self, barcodes):
+    def mark_results_ready(self, barcodes, debug=False):
         """Marks the list of barcodes as ready in the databse and sends email
 
         Parameters
@@ -2165,6 +2158,8 @@ class KniminAccess(object):
         seen_emails = set(i['email'] for bc, i in viewitems(barcode_info))
         send_email(message, subject, bcc=list(seen_emails))
         self._con.execute(bc_sql, [new_bcs])
+        if debug:
+            return new_bcs
 
     def getHumanParticipants(self, ag_login_id):
         # get people from new survey setup
