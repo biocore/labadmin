@@ -19,77 +19,77 @@ env_lookup = {
     {'SAMPLE_GROUP': 'animal habitat',
      'SCIENTIFIC_NAME': 'metagenomes',
      'TAXON_ID': '408169',
-     'ENV_MATTER': 'animal habitation',
+     'ENV_MATERIAL': 'animal-associated habitat',
      'DESCRIPTION': 'American Gut Project animal habitat sample'
      },
     'Biofilm':
     {'SAMPLE_GROUP': 'biofilm',
      'SCIENTIFIC_NAME': 'biofilm metagenome',
      'TAXON_ID': '718308',
-     'ENV_MATTER': 'biofilm',
+     'ENV_MATERIAL': 'biofilm',
      'DESCRIPTION': 'American Gut Project biofilm sample'
      },
     'Dust':
     {'SAMPLE_GROUP': 'indoor',
      'SCIENTIFIC_NAME': 'Dust metagenome',
      'TAXON_ID': '1236744',
-     'ENV_MATTER': 'dust',
+     'ENV_MATERIAL': 'dust',
      'DESCRIPTION': 'American Gut Project dust sample'
      },
     'Food':
     {'SAMPLE_GROUP': 'food',
      'SCIENTIFIC_NAME': 'food metagenome',
      'TAXON_ID': '870726',
-     'ENV_MATTER': 'food product',
+     'ENV_MATERIAL': 'food product',
      'DESCRIPTION': 'American Gut Project food sample'
      },
     'Fermented Food':
     {'SAMPLE_GROUP': 'food',
      'SCIENTIFIC_NAME': 'Food fermentation metagenome',
      'TAXON_ID': '1154581',
-     'ENV_MATTER': 'fermented food product',
+     'ENV_MATERIAL': 'fermented food product',
      'DESCRIPTION': 'American Gut Project fermented food sample'
      },
     'Indoor Surface':
     {'SAMPLE_GROUP': 'indoor',
      'SCIENTIFIC_NAME': 'Indoor metagenome',
      'TAXON_ID': '1256227',
-     'ENV_MATTER': 'dust',
+     'ENV_MATERIAL': 'dust',
      'DESCRIPTION': 'American Gut Project indoor surface sample'
      },
     'Outdoor Surface':
     {'SAMPLE_GROUP': 'outdoor',
      'SCIENTIFIC_NAME': 'metagenomes',
      'TAXON_ID': '408169',
-     'ENV_MATTER': 'surface layer',
+     'ENV_MATERIAL': 'surface layer',
      'DESCRIPTION': 'American Gut Project outdoor surface sample'
      },
     'Plant habitat':
     {'SAMPLE_GROUP': 'outdoor',
      'SCIENTIFIC_NAME': 'plant metagenome',
      'TAXON_ID': '1297885',
-     'ENV_MATTER': 'organic material',
+     'ENV_MATERIAL': 'organic material',
      'DESCRIPTION': 'American Gut Project plant habitat sample'
      },
     'Soil':
     {'SAMPLE_GROUP': 'outdoor',
      'SCIENTIFIC_NAME': 'soil metagenome',
      'TAXON_ID': '410658',
-     'ENV_MATTER': 'soil',
+     'ENV_MATERIAL': 'soil',
      'DESCRIPTION': 'American Gut Project soil sample'
      },
     'Sole of shoe':
     {'SAMPLE_GROUP': 'indoor',
      'SCIENTIFIC_NAME': 'Dust metagenome',
      'TAXON_ID': '1236744',
-     'ENV_MATTER': 'dust',
+     'ENV_MATERIAL': 'dust',
      'DESCRIPTION': 'American Gut Project dust sample'
      },
     'Water':
     {'SAMPLE_GROUP': 'water',
      'SCIENTIFIC_NAME': 'freshwater metagenome',
      'TAXON_ID': '449393',
-     'ENV_MATTER': 'water',
+     'ENV_MATERIAL': 'water',
      'DESCRIPTION': 'American Gut Project water sample'
      }
 }
@@ -102,7 +102,7 @@ md_lookup = {
          'SCIENTIFIC_NAME': 'Homo sapiens sapiens',
          'TAXON_ID': '539655',
          'BODY_HABITAT': 'UBERON:hair',
-         'ENV_MATTER': 'ENVO:sebum',
+         'ENV_MATERIAL': 'ENVO:sebum',
          'DESCRIPTION': 'American Gut Project Hair sample',
          'BODY_SITE': 'UBERON:hair'},
     'Nares': {
@@ -112,7 +112,7 @@ md_lookup = {
         'SCIENTIFIC_NAME': 'Homo sapiens sapiens',
         'TAXON_ID': '1131769',
         'BODY_HABITAT': 'UBERON:nose',
-        'ENV_MATTER': 'ENVO:mucus',
+        'ENV_MATERIAL': 'ENVO:mucus',
         'DESCRIPTION': 'American Gut Project Nares sample',
         'BODY_SITE': 'UBERON:nostril'},
     'Vaginal mucus': {
@@ -122,7 +122,7 @@ md_lookup = {
         'SCIENTIFIC_NAME': 'Homo sapiens sapiens',
         'TAXON_ID': '1549736',
         'BODY_HABITAT': 'UBERON:vagina',
-        'ENV_MATTER': 'ENVO:mucus',
+        'ENV_MATERIAL': 'ENVO:mucus',
         'DESCRIPTION': 'American Gut Project Vaginal mucus sample',
         'BODY_SITE': 'UBERON:vaginal introitus'},
     'Sole of foot': {
@@ -132,7 +132,7 @@ md_lookup = {
         'SCIENTIFIC_NAME': 'Homo sapiens sapiens',
         'TAXON_ID': '539655',
         'BODY_HABITAT': 'UBERON:skin',
-        'ENV_MATTER': 'ENVO:sebum',
+        'ENV_MATERIAL': 'ENVO:sebum',
         'DESCRIPTION': 'American Gut Project Sole of foot sample',
         'BODY_SITE': 'UBERON:skin of foot'},
     'Nasal mucus': {
@@ -142,7 +142,7 @@ md_lookup = {
         'SCIENTIFIC_NAME': 'Homo sapiens sapiens',
         'TAXON_ID': '1131769',
         'BODY_HABITAT': 'UBERON:nose',
-        'ENV_MATTER': 'ENVO:mucus',
+        'ENV_MATERIAL': 'ENVO:mucus',
         'DESCRIPTION': 'American Gut Project Nasal mucus sample',
         'BODY_SITE': 'UBERON:nostril'},
     'Stool': {
@@ -152,7 +152,7 @@ md_lookup = {
         'SCIENTIFIC_NAME': 'Homo sapiens sapiens',
         'TAXON_ID': '408170',
         'BODY_HABITAT': 'UBERON:feces',
-        'ENV_MATTER': 'ENVO:feces',
+        'ENV_MATERIAL': 'ENVO:feces',
         'DESCRIPTION': 'American Gut Project Stool sample',
         'BODY_SITE': 'UBERON:feces'},
     'Forehead': {
@@ -162,7 +162,7 @@ md_lookup = {
         'SCIENTIFIC_NAME': 'Homo sapiens sapiens',
         'TAXON_ID': '539655',
         'BODY_HABITAT': 'UBERON:skin',
-        'ENV_MATTER': 'ENVO:sebum',
+        'ENV_MATERIAL': 'ENVO:sebum',
         'DESCRIPTION': 'American Gut Project Forehead sample',
         'BODY_SITE': 'UBERON:skin of head'},
     'Tears': {
@@ -172,7 +172,7 @@ md_lookup = {
         'SCIENTIFIC_NAME': 'Homo sapiens sapiens',
         'TAXON_ID': '646099',
         'BODY_HABITAT': 'UBERON:eye',
-        'ENV_MATTER': 'ENVO:tears',
+        'ENV_MATERIAL': 'ENVO:tears',
         'DESCRIPTION': 'American Gut Project Tears sample',
         'BODY_SITE': 'UBERON:eye'},
     'Right hand': {
@@ -182,7 +182,7 @@ md_lookup = {
         'SCIENTIFIC_NAME': 'Homo sapiens sapiens',
         'TAXON_ID': '539655',
         'BODY_HABITAT': 'UBERON:skin',
-        'ENV_MATTER': 'ENVO:sebum',
+        'ENV_MATERIAL': 'ENVO:sebum',
         'DESCRIPTION': 'American Gut Project Right Hand sample',
         'BODY_SITE': 'UBERON:skin of hand'},
     'Mouth': {
@@ -192,7 +192,7 @@ md_lookup = {
         'SCIENTIFIC_NAME': 'Homo sapiens sapiens',
         'TAXON_ID': '447426',
         'BODY_HABITAT': 'UBERON:oral cavity',
-        'ENV_MATTER': 'ENVO:saliva',
+        'ENV_MATERIAL': 'ENVO:saliva',
         'DESCRIPTION': 'American Gut Project Mouth sample',
         'BODY_SITE': 'UBERON:tongue'},
     'Left hand': {
@@ -202,7 +202,7 @@ md_lookup = {
         'SCIENTIFIC_NAME': 'Homo sapiens sapiens',
         'TAXON_ID': '539655',
         'BODY_HABITAT': 'UBERON:skin',
-        'ENV_MATTER': 'ENVO:sebum',
+        'ENV_MATERIAL': 'ENVO:sebum',
         'DESCRIPTION': 'American Gut Project Left Hand sample',
         'BODY_SITE': 'UBERON:skin of hand'},
     'Ear wax': {
@@ -212,7 +212,7 @@ md_lookup = {
         'SCIENTIFIC_NAME': 'Homo sapiens sapiens',
         'TAXON_ID': '646099',
         'BODY_HABITAT': 'UBERON:ear',
-        'ENV_MATTER': 'ENVO:ear wax',
+        'ENV_MATERIAL': 'ENVO:ear wax',
         'DESCRIPTION': 'American Gut Project Ear wax sample',
         'BODY_SITE': 'UBERON:external auditory meatus'}
 }
@@ -421,7 +421,7 @@ blanks_values = defaultdict(default_blank,
                             ELEVATION='193.0',
                             ENV_BIOME="ENVO:aquatic biome",
                             ENV_FEATURE="ENVO:water",
-                            ENV_MATTER="ENVO:sterile water",
+                            ENV_MATERIAL="ENVO:sterile water",
                             TAXON_ID='408169',
                             HOST_TAXID='408169',
                             LATITUDE='32.8',

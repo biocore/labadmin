@@ -18,7 +18,7 @@ from util import (make_valid_kit_ids, make_verification_code, make_passwd,
                   categorize_age, categorize_etoh, categorize_bmi, correct_age)
 from constants import (md_lookup, month_int_lookup, month_str_lookup,
                        regions_by_state, blanks_values, season_lookup,
-                       ebi_remove)
+                       ebi_remove, env_lookup)
 from geocoder import geocode, Location, GoogleAPILimitExceeded
 from string_converter import converter
 
@@ -258,6 +258,9 @@ class KniminAccess(object):
                    'Right hand',
                    'Left hand',
                    'Forehead',
+                   'Torso',
+                   'Left leg',
+                   'Right leg',
                    'Nares',
                    'Hair',
                    'Tears',
@@ -697,14 +700,12 @@ class KniminAccess(object):
 
             md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode[:9]]
             try:
-                md[1][barcode]['TAXON_ID'] = md_lookup[site]['TAXON_ID']
+                md[1][barcode].update(md_lookup[site])
             except KeyError:
-                raise KeyError("Unknown body site for barcode %s: %s" %
-                               (barcode, site))
+                del md[1][barcode]
+                continue
             except:
                 raise
-
-            md[1][barcode]['COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
             md[1][barcode]['COLLECTION_DATE'] = \
                 specific_info['sample_date'].strftime('%m/%d/%Y')
 
@@ -719,14 +720,6 @@ class KniminAccess(object):
             md[1][barcode]['COLLECTION_TIMESTAMP'] = datetime.combine(
                 specific_info['sample_date'],
                 specific_info['sample_time']).strftime('%m/%d/%Y %H:%M')
-            md[1][barcode]['ENV_MATTER'] = md_lookup[site]['ENV_MATTER']
-            md[1][barcode]['SCIENTIFIC_NAME'] = \
-                md_lookup[site]['SCIENTIFIC_NAME']
-            md[1][barcode]['SAMPLE_TYPE'] = md_lookup[site]['SAMPLE_TYPE']
-            md[1][barcode]['BODY_HABITAT'] = md_lookup[site]['BODY_HABITAT']
-            md[1][barcode]['BODY_SITE'] = md_lookup[site]['BODY_SITE']
-            md[1][barcode]['BODY_PRODUCT'] = md_lookup[site]['BODY_PRODUCT']
-            md[1][barcode]['DESCRIPTION'] = md_lookup[site]['DESCRIPTION']
 
             participant_name = dupes_lookup.get(
                 md[1][barcode]['SURVEY_ID'],
@@ -805,6 +798,65 @@ class KniminAccess(object):
 
         return md
 
+    def format_environmental(self, barcodes):
+        """Format the environemntal data pulldown metadata
+
+        Parameters
+        ----------
+        barcodes : list of (barcode, env sampled)
+            List of tuples of barcode and the environment sampled
+
+        Returns
+        -------
+        str
+            Formatted tsv metadata for the environmental samples
+        """
+        md = {}
+        barcode_info = self.get_ag_barcode_details(
+            [b[0][:9] for b in barcodes])
+
+        for barcode, env in barcodes:
+            # Not using defaultdict so we don't ever allow accidental insertion
+            # of unknown barcodes
+            md[barcode] = {}
+            # Add info from constants dict
+            try:
+                md[barcode].update(env_lookup[env])
+            except KeyError:
+                # Unknown env, so can't pull down
+                del md[barcode]
+                continue
+            # Invariant information
+            md[barcode]['ANONYMIZED_NAME'] = barcode
+            md[barcode]['TITLE'] = 'American Gut Project'
+            md[barcode]['ALTITUDE'] = 0
+            md[barcode]['ASSIGNED_FROM_GEO'] = 'Yes'
+            md[barcode]['DEPTH'] = 0
+            md[barcode]['DNA_EXTRACTED'] = 'Yes'
+            md[barcode]['HAS_PHYSICAL_SPECIMEN'] = 'Yes'
+            md[barcode]['PHYSICAL_SPECIMEN_REMAINING'] = 'Yes'
+            md[barcode]['PHYSICAL_SPECIMEN_LOCATION'] = 'UCSDMI'
+            md[barcode]['REQUIRED_SAMPLE_INFO_STATUS'] = 'completed'
+
+            # Barcode specific details
+            specific_info = barcode_info[barcode[:9]]
+
+            md[barcode]['COLLECTION_DATE'] = \
+                specific_info['sample_date'].strftime('%m/%d/%Y')
+
+            if specific_info['sample_time']:
+                md[barcode]['COLLECTION_TIME'] = \
+                    specific_info['sample_time'].strftime('%H:%M')
+            else:
+                # If no time data, show unspecified and default to midnight
+                md[barcode]['COLLECTION_TIME'] = 'Unspecified'
+                specific_info['sample_time'] = time(0, 0)
+
+            md[barcode]['COLLECTION_TIMESTAMP'] = datetime.combine(
+                specific_info['sample_date'],
+                specific_info['sample_time']).strftime('%m/%d/%Y %H:%M')
+        return md
+
     def participant_names(self):
         """Retrieve the participant names for the given barcodes
 
@@ -848,6 +900,15 @@ class KniminAccess(object):
             # No barcodes given match any survey
             return {}, self._explain_pulldown_failures(barcodes)
         all_results = self.format_survey_data(all_survey_info, external, full)
+
+        # Do the pulldown for the environmental samples
+        sql = """SELECT barcode, environment_sampled
+                 FROM ag.ag_kit_barcodes
+                 WHERE environment_sampled IS NOT NULL
+                     AND environment_sampled != ''"""
+        env_barcodes = self._con.execute_fetchall(sql)
+        barcodes.extend([b[0] for b in env_barcodes])
+        all_results['env'] = self.format_environmental(env_barcodes)
 
         # keep track of which barcodes were seen so we know which weren't
         barcodes_seen = set()
@@ -989,12 +1050,26 @@ class KniminAccess(object):
         if len(remaining) == 0:
             return fail_reason
 
-        # environmental sample
+        # bad human or animal sample site
         sql = """SELECT barcode
                  FROM ag.ag_kit_barcodes
-                 WHERE environment_sampled IS NOT NULL AND barcode in %s"""
+                 WHERE site_sampled IS NOT NULL AND barcode in %s
+                 AND site_sampled NOT IN ({})""".format(','.join(
+            "'%s'" % s for s in self.animal_sites + self.human_sites))
         remaining = update_reason_and_remaining(
-            sql, 'Environmental sample', fail_reason, remaining)
+            sql, 'Unknown human/pet sample site', fail_reason, remaining)
+        # No more unexplained, so done
+        if len(remaining) == 0:
+            return fail_reason
+
+        # Unknown environmental sample site
+        sql = """SELECT barcode
+                 FROM ag.ag_kit_barcodes
+                 WHERE environment_sampled IS NOT NULL AND barcode in %s
+                 AND environment_sampled NOT IN ({})""".format(','.join(
+            "'%s'" % s for s in self.general_sites))
+        remaining = update_reason_and_remaining(
+            sql, 'Unknown environmental sample site', fail_reason, remaining)
         # No more unexplained, so done
         if len(remaining) == 0:
             return fail_reason
