@@ -1092,7 +1092,7 @@ class KniminAccess(object):
                     # Take care of retired questions not having an answer
                     answer = shortnames_answers.get(h, 'Unspecified')
                     # Convert everything to utf-8 unicode for standardization
-                    converted = self._clean_value(answer)
+                    converted = self._unicode_convert(answer)
                     oa_hold.append(converted)
                 survey_md.append('\t'.join(oa_hold))
             if survey == 1 and blanks:
@@ -1111,7 +1111,8 @@ class KniminAccess(object):
         failures.update(errors)
         return metadata, failures
 
-    def _clean_value(value):
+    def _unicode_convert(self, value):
+        """Convert given value to unicode string"""
         if isinstance(value, unicode):
             converted = value
         elif isinstance(value, str):
