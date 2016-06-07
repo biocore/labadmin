@@ -22,7 +22,7 @@ env_lookup = {
      'ENV_MATERIAL': 'animal-associated habitat',
      'ENV_PACKAGE': 'host-associated',
      'ENV_FEATURE': 'animal-associated habitat',
-     'ENV_BIOME': 'urban biome',
+     'ENV_BIOME': 'dense settlement biome',
      'DESCRIPTION': 'American Gut Project animal habitat sample',
      'SAMPLE_TYPE': 'animal-associated'
      },
@@ -30,7 +30,7 @@ env_lookup = {
     {'SAMPLE_GROUP': 'biofilm',
      'SCIENTIFIC_NAME': 'biofilm metagenome',
      'TAXON_ID': '718308',
-     'ENV_MATERIAL': 'biofilm',
+     'ENV_MATERIAL': 'organic material',
      'ENV_PACKAGE': 'microbial mat/biofilm',
      'ENV_FEATURE': 'biofilm',
      'ENV_BIOME': 'biofilm',
@@ -44,7 +44,7 @@ env_lookup = {
      'ENV_MATERIAL': 'dust',
      'ENV_PACKAGE': 'built-environment',
      'ENV_FEATURE': 'environmental material',
-     'ENV_BIOME': 'urban biome',
+     'ENV_BIOME': 'dense settlement biome',
      'DESCRIPTION': 'American Gut Project dust sample',
      'SAMPLE_TYPE': 'dust'
      },
@@ -55,7 +55,7 @@ env_lookup = {
      'ENV_MATERIAL': 'food product',
      'ENV_PACKAGE': 'misc environment',
      'ENV_FEATURE': 'environmental material',
-     'ENV_BIOME': 'urban biome',
+     'ENV_BIOME': 'dense settlement biome',
      'DESCRIPTION': 'American Gut Project food sample',
      'SAMPLE_TYPE': 'food'
      },
@@ -66,7 +66,7 @@ env_lookup = {
      'ENV_MATERIAL': 'fermented food product',
      'ENV_PACKAGE': 'misc environment',
      'ENV_FEATURE': 'environmental material',
-     'ENV_BIOME': 'urban biome',
+     'ENV_BIOME': 'dense settlement biome',
      'DESCRIPTION': 'American Gut Project fermented food sample',
      'SAMPLE_TYPE': 'food'
      },
@@ -77,7 +77,7 @@ env_lookup = {
      'ENV_MATERIAL': 'dust',
      'ENV_PACKAGE': 'built environment',
      'ENV_FEATURE': 'building',
-     'ENV_BIOME': 'urban biome',
+     'ENV_BIOME': 'dense settlement biome',
      'DESCRIPTION': 'American Gut Project indoor surface sample',
      'SAMPLE_TYPE': 'dust'
      },
@@ -88,7 +88,7 @@ env_lookup = {
      'ENV_MATERIAL': 'surface layer',
      'ENV_PACKAGE': 'misc environment',
      'ENV_FEATURE': 'building',
-     'ENV_BIOME': 'urban biome',
+     'ENV_BIOME': 'dense settlement biome',
      'DESCRIPTION': 'American Gut Project outdoor surface sample',
      'SAMPLE_TYPE': 'surface'
      },
@@ -99,7 +99,7 @@ env_lookup = {
      'ENV_MATERIAL': 'organic material',
      'ENV_PACKAGE': 'plant-associated',
      'ENV_FEATURE': 'environmental material',
-     'ENV_BIOME': 'urban biome',
+     'ENV_BIOME': 'dense settlement biome',
      'DESCRIPTION': 'American Gut Project plant habitat sample',
      'SAMPLE_TYPE': 'plant'
      },
@@ -110,7 +110,7 @@ env_lookup = {
      'ENV_MATERIAL': 'soil',
      'ENV_PACKAGE': 'soil',
      'ENV_FEATURE': 'terrestrial habitat',
-     'ENV_BIOME': 'urban biome',
+     'ENV_BIOME': 'dense settlement biome',
      'DESCRIPTION': 'American Gut Project soil sample',
      'SAMPLE_TYPE': 'soil'
      },
@@ -121,7 +121,7 @@ env_lookup = {
      'ENV_MATERIAL': 'dust',
      'ENV_PACKAGE': 'built-environment',
      'ENV_FEATURE': 'environmental material',
-     'ENV_BIOME': 'urban biome',
+     'ENV_BIOME': 'dense settlement biome',
      'DESCRIPTION': 'American Gut Project dust sample',
      'SAMPLE_TYPE': 'dust'
      },
@@ -132,7 +132,7 @@ env_lookup = {
      'ENV_MATERIAL': 'water',
      'ENV_PACKAGE': 'water',
      'ENV_FEATURE': 'environmental material',
-     'ENV_BIOME': 'urban biome',
+     'ENV_BIOME': 'dense settlement biome',
      'DESCRIPTION': 'American Gut Project water sample',
      'SAMPLE_TYPE': 'water'
      }
@@ -508,10 +508,12 @@ blanks_values = defaultdict(default_blank,
                             ENV_BIOME="aquatic biome",
                             ENV_FEATURE="water",
                             ENV_MATERIAL="sterile water",
+                            ENV_PACKAGE='water',
                             TAXON_ID='408169',
                             HOST_TAXID='408169',
                             LATITUDE='32.8',
                             LONGITUDE='-117.2',
+                            GEO_LOC_NAME='United States:CA:San Diego',
                             PUBLIC='Yes',
                             SAMPLE_TYPE='control blank',
                             SCIENTIFIC_NAME='unclassified metagenome',
