@@ -5,6 +5,7 @@ from tornado.escape import json_encode
 from knimin import db
 from knimin.lib.data_access import IncorrectEmailError, IncorrectPasswordError
 from knimin.handlers.base import BaseHandler
+from knimin.handlers.access_decorators import set_access
 
 # login code modified from https://gist.github.com/guillaumevincent/4771570
 
@@ -12,6 +13,7 @@ from knimin.handlers.base import BaseHandler
 # d3984140ab3db185920f473710da53c2587aee49
 
 
+@set_access(['Base'])
 class AuthLoginHandler(BaseHandler):
     """user login, no page necessary"""
     def get(self):

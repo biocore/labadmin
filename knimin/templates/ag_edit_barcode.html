@@ -6,27 +6,7 @@
 <form method="post" name="edit_barcode" id="edit_barcode" action="/ag_edit_barcode/">
 <input type="hidden" name="barcode" id="barcode" value="{{barcode}}">
  <table>
-        <tr><td> Barcode</td><td><input type="text" name="barcode" id="barcode" value="{{barcode}}" disabled style="background-color:#ccc;"></td></tr>
-        <tr>
-            <td>Kit ID</td>
-            <td class="warning">
-                <select name="ag_kit_id" id="ag_kit_id">
-                <option value="">Please Select...</a>
-
-
-    {% for logindict in logins %}
-        {% if details['ag_kit_id'] == logindict['ag_kit_id'] %}
-            '<option value="{{logindict['ag_kit_id']}}" selected>{{logindict['email']}} ({{logindict['supplied_kit_id']}})</option>'
-        {% else %}
-            '<option value="{{logindict['ag_kit_id']}}">{{logindict['email']}} ({{logindict['supplied_kit_id']}})</option>'
-        {% end %}
-    {% end %}
-                </select>
-            </td>
-        </tr>
-        <tr>
-            <td></td><td class="warning">WARNING: Changing this value will reassign this barcode to the selected kit.<br/>Leave this value alone unless you are certain you wish to reassign.</td>
-        </tr>
+        <tr><td> Barcode</td><td><input type="text" name="barcode" id="barcode" value="{{barcode}}" disabled style="background-color:#ccc;"><input type="hidden" name="ag_kit_id" value="{{details['ag_kit_id']}}"></td></tr>
         <tr>
 
         <tr>
@@ -105,7 +85,14 @@
         </tr>
         <tr>
             <td>Participant Name</td>
-            <td class="warning"><input type="text" name="participant_name" id="participant_name" value="{{details['participant_name']}}"/></td>
+            <td class="warning">
+              <select name="participant_name" id="participant_name">
+                <option value=""></option>
+            {% for participant in participants %}
+                <option value="{{participant}}" {% if participant == details['participant_name'] %}selected{% end %}>{{participant}}</option>
+            {% end %}
+              </select>
+            </td>
         </tr>
         <tr>
         <td></td><td class="warning">WARNING: Changing this value will reassign the barcode to the specified participant.<br/>Leave this alone unless you need to reassign!

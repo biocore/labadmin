@@ -1,4 +1,8 @@
 from random import choice
+from StringIO import StringIO
+import time
+
+from tornado.httpclient import HTTPClient, HTTPError
 
 __author__ = "Adam Robbins-Pianka"
 __copyright__ = "Copyright 2009-2015, QIIME Web Analysis"
@@ -15,6 +19,29 @@ KIT_PASSWD = '1234567890'
 KIT_VERCODE = KIT_PASSWD
 KIT_PASSWD_NOZEROS = KIT_PASSWD[0:-1]
 KIT_VERCODE_NOZEROS = KIT_PASSWD_NOZEROS
+
+
+def fetch_url(url):
+    """Return an open file handle"""
+    # really should use requests instead of urllib2
+    attempts = 0
+    res = None
+    http_client = HTTPClient()
+    while attempts < 5:
+        attempts += 1
+        try:
+            res = http_client.fetch(url)
+        except HTTPError as e:
+            if e.response.code == 500:
+                time.sleep(3)
+                continue
+            else:
+                raise
+
+    if res is None:
+        raise ValueError("Failed at fetching %s" % url)
+
+    return StringIO(res.body)
 
 
 def combine_barcodes(cli_barcodes=None, input_file=None):
@@ -172,25 +199,30 @@ def make_verification_code(vercode_length=5):
 
 
 def categorize_age(x):  # noqa
-    if x < 0:
+    if x == 'Unspecified':
+        return 'Unspecified'
+
+    # Explicit conversion needed in case string passed in
+    age = float(x)
+    if age < 0:
         age_cat = 'Unspecified'
-    elif x < 3:
+    elif age < 3:
         age_cat = "baby"
-    elif x < 13:
+    elif age < 13:
         age_cat = "child"
-    elif x < 20:
+    elif age < 20:
         age_cat = "teen"
-    elif x < 30:
+    elif age < 30:
         age_cat = "20s"
-    elif x < 40:
+    elif age < 40:
         age_cat = "30s"
-    elif x < 50:
+    elif age < 50:
         age_cat = "40s"
-    elif x < 60:
+    elif age < 60:
         age_cat = "50s"
-    elif x < 70:
+    elif age < 70:
         age_cat = "60s"
-    elif x < 123:
+    elif age < 123:
         age_cat = "70+"
     else:
         age_cat = 'Unspecified'
@@ -200,22 +232,41 @@ def categorize_age(x):  # noqa
 
 def correct_age(age, height, weight, etoh):
     """Infers incorrect ages and incorrectly classified babies"""
+    # Make sure all required data exists
+    if any([age == 'Unspecified', height == 'Unspecified',
+            weight == 'Unspecified', etoh == 'Unspecified']):
+        return 'Unspecified'
+
+    # Explicit conversion needed in case string passed in
+    new_age = float(age)
+    new_height = float(height)
+    new_weight = float(weight)
     # Checks the logic for age (only check ages 0-2, 'baby' definition)
-    if age >= 3 and age < 123:
-        return age
-    if age < 0 or age >= 123:
+    if new_age >= 3 and new_age < 123:
+        return new_age
+    if new_age < 0 or new_age >= 123:
         return 'Unspecified'
 
     # Checks the logic for height (in cm)
-    if height != 'Unspecified' and height > 91.4:
+    if new_height > 91.4:
         return 'Unspecified'
     # Checks the logic for weight (in kg)
-    if weight != 'Unspecified' and weight > 16.3:
+    if new_weight > 16.3:
         return 'Unspecified'
     # Checks the logic for alcohol
-    if etoh != 'Unspecified' and etoh != 'Never':
+    if etoh != 'Never':
         return 'Unspecified'
-    return age
+    return new_age
+
+
+def correct_bmi(bmi):
+    if bmi == 'Unspecified':
+        return bmi
+
+    bmi = float(bmi)
+    if bmi < 8 or bmi >= 80:
+        return 'Unspecified'
+    return '%.2f' % bmi
 
 
 def categorize_etoh(x):
@@ -232,16 +283,21 @@ def categorize_etoh(x):
 
 
 def categorize_bmi(x):
-    if x < 0:
+    if x == 'Unspecified':
+        return 'Unspecified'
+
+    # Explicit conversion needed in case string passed in
+    bmi = float(x)
+    if bmi < 8:
         bmi_cat = 'Unspecified'
-    elif x < 18.5:
-        bmi_cat = "Underweight"
-    elif x < 25:
-        bmi_cat = "Normal"
-    elif x < 30:
-        bmi_cat = "Overweight"
-    elif x < 210:
-        bmi_cat = "Obese"
+    elif bmi < 18.5:
+        bmi_cat = 'Underweight'
+    elif bmi < 25:
+        bmi_cat = 'Normal'
+    elif bmi < 30:
+        bmi_cat = 'Overweight'
+    elif bmi < 80:
+        bmi_cat = 'Obese'
     else:
         bmi_cat = 'Unspecified'
 

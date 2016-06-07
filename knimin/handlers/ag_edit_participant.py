@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
+from knimin.handlers.access_decorators import set_access
 from urllib import unquote
 
 from knimin import db
 
 
+@set_access(['Search'])
 class AGEditParticipantHandler(BaseHandler):
     @authenticated
     def get(self):

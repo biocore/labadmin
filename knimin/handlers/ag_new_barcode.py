@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 from tornado.web import authenticated, HTTPError
 from knimin.handlers.base import BaseHandler
+from knimin.handlers.access_decorators import set_access
 
 from knimin.lib.squash_barcodes import build_barcodes_pdf
 from knimin import db
 
 
+@set_access(['Barcodes'])
 class AGBarcodePrintoutHandler(BaseHandler):
     @authenticated
     def post(self):
@@ -39,6 +41,7 @@ class AGBarcodeAssignedHandler(BaseHandler):
         self.finish()
 
 
+@set_access(['Barcodes'])
 class AGNewBarcodeHandler(BaseHandler):
     @authenticated
     def get(self):

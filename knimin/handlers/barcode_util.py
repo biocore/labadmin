@@ -6,6 +6,7 @@ from datetime import datetime
 from knimin import db
 from knimin.lib.constants import survey_type
 from knimin.lib.mail import send_email
+from knimin.handlers.access_decorators import set_access
 
 
 class BarcodeUtilHelper(object):
@@ -96,12 +97,11 @@ class BarcodeUtilHelper(object):
 
     def _build_email(self, login_user, barcode, email_type,
                      sample_date, sample_time):
-        subject = body_message = ""
+        subject = body_message = u""
 
         if email_type == '0':
-            subject = ('Follow up on Your American Gut Sample with '
-                       'Barcode %s' % barcode)
-            body_message = """
+            subject = u'ACTION REQUIRED - Assign your samples in American Gut'
+            body_message = u"""
 Dear {name},
 
 We have recently received your sample barcode: {barcode}, but we cannot process
@@ -149,15 +149,15 @@ American Gut Team
             body_message = body_message.format(name=login_user,
                                                barcode=barcode)
         elif email_type == '1':
-            subject = ('American Gut Sample with Barcode %s is Received.'
+            subject = (u'American Gut Sample with Barcode %s is Received.'
                        % barcode)
-            body_message = """
+            body_message = u"""
 Dear {name},
 
 We have recently received your sample with barcode {barcode} dated
 {sample_date} {sample_time} and we have begun processing it.  Please see our
 FAQ section for when you can expect results.
-(http://www.microbio.me/americangut/FAQ.psp#faq4)
+(https://microbio.me/AmericanGut/faq/#faq4)
 
 Thank you for your participation!
 
@@ -167,10 +167,13 @@ Thank you for your participation!
                                                barcode=barcode,
                                                sample_date=sample_date,
                                                sample_time=sample_time)
+        else:
+            raise RuntimeError("Unknown email type passed: %s" % email_type)
 
         return subject, body_message
 
 
+@set_access(['Scan Barcodes'])
 class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
     @authenticated
     def get(self):
@@ -272,7 +275,9 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
         email_msg = ag_update_msg = project_msg = None
         exisiting_proj, parent_project = db.getBarcodeProjType(
             barcode)
-        exisiting_proj = set(exisiting_proj.split(','))
+        # This WILL NOT let you remove a sample from being in AG if it is
+        # part of AG to begin with
+        exisiting_proj = set(exisiting_proj.split(', '))
         if exisiting_proj != projects:
             try:
                 add_projects = projects.difference(exisiting_proj)

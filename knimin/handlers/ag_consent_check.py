@@ -1,7 +1,9 @@
 from knimin.handlers.base import BaseHandler
+from knimin.handlers.access_decorators import set_access
 from knimin import db
 
 
+@set_access(['Base'])
 class AGConsentCheckHandler(BaseHandler):
     def get(self):
         self.render('consent_check.html', consents=[], failures={})

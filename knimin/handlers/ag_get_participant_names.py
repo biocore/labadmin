@@ -1,10 +1,12 @@
 from tornado.web import authenticated
 
 from knimin.handlers.base import BaseHandler
+from knimin.handlers.access_decorators import set_access
 from knimin import db
 from knimin.lib.mem_zip import InMemoryZip
 
 
+@set_access(['Admin'])
 class AGNamesHandler(BaseHandler):
     @authenticated
     def get(self):

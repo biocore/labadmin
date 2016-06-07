@@ -1,0 +1,28 @@
+{% extends auth_sitebase.html %}
+
+{% block content %}
+<div id="user-select-div">
+	<h1> Edit User Groups</h1>
+	<form action="/admin/edit/" method="GET">
+	User: <select id="user" name="user">
+		{% for user in users %}
+		<option value='{{user}}'>{{user}}</option>
+		{% end %}
+	</select> 
+	<input type="submit" value="Select">
+	</form>
+</div>
+	{% if user_levels %}
+<div id="user-permissions-div">
+<h3>User {{user}}</h3>
+	<form action="/admin/edit/" method="POST">
+	<input type="hidden" name="user" value="{{user}}">
+		{% for id_, level in all_levels %}
+		<input type='checkbox' name='levels' value="{{id_}}" {% if [id_, level] in user_levels %}checked{% end %}> {{level}}<br/>
+		{% end %}
+		<input type="submit" value="Update groups">
+		</form>
+		{{msg}}
+</div>
+	{% end %}
+{% end %}
