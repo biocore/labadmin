@@ -951,6 +951,7 @@ class KniminAccess(object):
             Formatted tsv metadata for the environmental samples
         """
         md = {}
+        errors = {}
         barcode_info = self.get_ag_barcode_details(
             [b[0][:9] for b in barcodes])
         # tuples are latitude, longitude, elevation, state
@@ -976,49 +977,49 @@ class KniminAccess(object):
             # Add info from constants dict
             try:
                 md[barcode].update(env_lookup[env])
-            except KeyError:
-                # Unknown env, so can't pull down
+                # Invariant information
+                md[barcode]['TITLE'] = 'American Gut Project'
+                md[barcode]['ALTITUDE'] = 0
+                md[barcode]['ASSIGNED_FROM_GEO'] = 'Yes'
+                md[barcode]['DEPTH'] = 0
+                md[barcode]['DNA_EXTRACTED'] = 'Yes'
+                md[barcode]['HAS_PHYSICAL_SPECIMEN'] = 'Yes'
+                md[barcode]['PHYSICAL_SPECIMEN_REMAINING'] = 'Yes'
+                md[barcode]['PHYSICAL_SPECIMEN_LOCATION'] = 'UCSDMI'
+                md[barcode]['REQUIRED_SAMPLE_INFO_STATUS'] = 'completed'
+
+                # Barcode specific information
+                specific_info = barcode_info[barcode[:9]]
+
+                md[barcode]['ANONYMIZED_NAME'] = barcode
+                md[barcode]['HOST_SUBJECT_ID'] = barcode
+
+                # Geolocate based on kit information, since no other
+                # geographic info available
+                zipcode = specific_info['zip'].upper()
+                country = specific_info['country']
+                md[barcode] = self._geocode(md[barcode], zipcode, country,
+                                            zip_lookup, country_lookup)
+
+                md[barcode]['COLLECTION_DATE'] = \
+                    specific_info['sample_date'].strftime('%m/%d/%Y')
+
+                if specific_info['sample_time']:
+                    md[barcode]['COLLECTION_TIME'] = \
+                        specific_info['sample_time'].strftime('%H:%M')
+                else:
+                    # If no time data, show unspecified and default to midnight
+                    md[barcode]['COLLECTION_TIME'] = 'Unspecified'
+                    specific_info['sample_time'] = time(0, 0)
+
+                md[barcode]['COLLECTION_TIMESTAMP'] = datetime.combine(
+                    specific_info['sample_date'],
+                    specific_info['sample_time']).strftime('%m/%d/%Y %H:%M')
+            except Exception as e:
                 del md[barcode]
+                errors[barcode] = str(e)
                 continue
-            # Invariant information
-            md[barcode]['TITLE'] = 'American Gut Project'
-            md[barcode]['ALTITUDE'] = 0
-            md[barcode]['ASSIGNED_FROM_GEO'] = 'Yes'
-            md[barcode]['DEPTH'] = 0
-            md[barcode]['DNA_EXTRACTED'] = 'Yes'
-            md[barcode]['HAS_PHYSICAL_SPECIMEN'] = 'Yes'
-            md[barcode]['PHYSICAL_SPECIMEN_REMAINING'] = 'Yes'
-            md[barcode]['PHYSICAL_SPECIMEN_LOCATION'] = 'UCSDMI'
-            md[barcode]['REQUIRED_SAMPLE_INFO_STATUS'] = 'completed'
-
-            # Barcode specific information
-            specific_info = barcode_info[barcode[:9]]
-
-            md[barcode]['ANONYMIZED_NAME'] = barcode
-            md[barcode]['HOST_SUBJECT_ID'] = barcode
-
-            # Geolocate based on kit information, since no other
-            # geographic info available
-            zipcode = specific_info['zip'].upper()
-            country = specific_info['country']
-            md[barcode] = self._geocode(md[barcode], zipcode, country,
-                                        zip_lookup, country_lookup)
-
-            md[barcode]['COLLECTION_DATE'] = \
-                specific_info['sample_date'].strftime('%m/%d/%Y')
-
-            if specific_info['sample_time']:
-                md[barcode]['COLLECTION_TIME'] = \
-                    specific_info['sample_time'].strftime('%H:%M')
-            else:
-                # If no time data, show unspecified and default to midnight
-                md[barcode]['COLLECTION_TIME'] = 'Unspecified'
-                specific_info['sample_time'] = time(0, 0)
-
-            md[barcode]['COLLECTION_TIMESTAMP'] = datetime.combine(
-                specific_info['sample_date'],
-                specific_info['sample_time']).strftime('%m/%d/%Y %H:%M')
-        return md
+        return md, errors
 
     def participant_names(self):
         """Retrieve the participant names for the given barcodes
@@ -1074,7 +1075,8 @@ class KniminAccess(object):
         env_barcodes = self._con.execute_fetchall(sql, [tuple(barcodes)])
         barcodes.extend([b[0] for b in env_barcodes])
         if len(env_barcodes) > 0:
-            all_results['env'] = self.format_environmental(env_barcodes)
+            all_results['env'], err = self.format_environmental(env_barcodes)
+            errors.update(err)
 
         # keep track of which barcodes were seen so we know which weren't
         barcodes_seen = set()
