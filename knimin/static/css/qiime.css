@@ -306,6 +306,10 @@ h2.verification_text{
 	background-color: #0f5;
 }
 
+#verified_environmental {
+	background-color: #0f5;
+}
+
 #not_assigned {
 	background-color: #ff0;
 }

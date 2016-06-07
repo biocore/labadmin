@@ -84,7 +84,7 @@ class TestBarcodeUtil(TestHandlerBase):
                       response.body)
 
         self.assertIn('Project type: American Gut', response.body)
-        self.assertIn('Cannot retrieve metadata: Environmental sample',
+        self.assertIn('All good',
                       response.body)
 
     def test_get_handout_barcode(self):

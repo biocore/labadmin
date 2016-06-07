@@ -934,18 +934,20 @@ class KniminAccess(object):
             Barcodes unable to pull metadata down, in the form
             {barcode: reason, ...}
         """
+        all_results = {}
         all_survey_info = self.get_surveys(barcodes)
-        if len(all_survey_info) == 0:
+        if len(all_survey_info) > 0:
             # No barcodes given match any survey
-            return {}, self._explain_pulldown_failures(barcodes)
-        all_results = self.format_survey_data(all_survey_info, external, full)
+            all_results = self.format_survey_data(all_survey_info, external,
+                                                  full)
 
         # Do the pulldown for the environmental samples
         sql = """SELECT barcode, environment_sampled
                  FROM ag.ag_kit_barcodes
                  WHERE environment_sampled IS NOT NULL
-                     AND environment_sampled != ''"""
-        env_barcodes = self._con.execute_fetchall(sql)
+                     AND environment_sampled != ''
+                     AND barcode IN %s"""
+        env_barcodes = self._con.execute_fetchall(sql, [tuple(barcodes)])
         barcodes.extend([b[0] for b in env_barcodes])
         all_results['env'] = self.format_environmental(env_barcodes)
 
