@@ -23,7 +23,8 @@ env_lookup = {
      'ENV_PACKAGE': 'host-associated',
      'ENV_FEATURE': 'animal-associated habitat',
      'ENV_BIOME': 'urban biome',
-     'DESCRIPTION': 'American Gut Project animal habitat sample'
+     'DESCRIPTION': 'American Gut Project animal habitat sample',
+     'SAMPLE_TYPE': 'animal-associated'
      },
     'Biofilm':
     {'SAMPLE_GROUP': 'biofilm',
@@ -33,7 +34,8 @@ env_lookup = {
      'ENV_PACKAGE': 'microbial mat/biofilm',
      'ENV_FEATURE': 'biofilm',
      'ENV_BIOME': 'biofilm',
-     'DESCRIPTION': 'American Gut Project biofilm sample'
+     'DESCRIPTION': 'American Gut Project biofilm sample',
+     'SAMPLE_TYPE': 'biofilm'
      },
     'Dust':
     {'SAMPLE_GROUP': 'indoor',
@@ -43,7 +45,8 @@ env_lookup = {
      'ENV_PACKAGE': 'built-environment',
      'ENV_FEATURE': 'environmental material',
      'ENV_BIOME': 'urban biome',
-     'DESCRIPTION': 'American Gut Project dust sample'
+     'DESCRIPTION': 'American Gut Project dust sample',
+     'SAMPLE_TYPE': 'dust'
      },
     'Food':
     {'SAMPLE_GROUP': 'food',
@@ -53,7 +56,8 @@ env_lookup = {
      'ENV_PACKAGE': 'misc environment',
      'ENV_FEATURE': 'environmental material',
      'ENV_BIOME': 'urban biome',
-     'DESCRIPTION': 'American Gut Project food sample'
+     'DESCRIPTION': 'American Gut Project food sample',
+     'SAMPLE_TYPE': 'food'
      },
     'Fermented Food':
     {'SAMPLE_GROUP': 'food',
@@ -63,7 +67,8 @@ env_lookup = {
      'ENV_PACKAGE': 'misc environment',
      'ENV_FEATURE': 'environmental material',
      'ENV_BIOME': 'urban biome',
-     'DESCRIPTION': 'American Gut Project fermented food sample'
+     'DESCRIPTION': 'American Gut Project fermented food sample',
+     'SAMPLE_TYPE': 'food'
      },
     'Indoor Surface':
     {'SAMPLE_GROUP': 'indoor',
@@ -73,7 +78,8 @@ env_lookup = {
      'ENV_PACKAGE': 'built environment',
      'ENV_FEATURE': 'building',
      'ENV_BIOME': 'urban biome',
-     'DESCRIPTION': 'American Gut Project indoor surface sample'
+     'DESCRIPTION': 'American Gut Project indoor surface sample',
+     'SAMPLE_TYPE': 'dust'
      },
     'Outdoor Surface':
     {'SAMPLE_GROUP': 'outdoor',
@@ -83,7 +89,8 @@ env_lookup = {
      'ENV_PACKAGE': 'misc environment',
      'ENV_FEATURE': 'building',
      'ENV_BIOME': 'urban biome',
-     'DESCRIPTION': 'American Gut Project outdoor surface sample'
+     'DESCRIPTION': 'American Gut Project outdoor surface sample',
+     'SAMPLE_TYPE': 'surface'
      },
     'Plant habitat':
     {'SAMPLE_GROUP': 'outdoor',
@@ -93,7 +100,8 @@ env_lookup = {
      'ENV_PACKAGE': 'plant-associated',
      'ENV_FEATURE': 'environmental material',
      'ENV_BIOME': 'urban biome',
-     'DESCRIPTION': 'American Gut Project plant habitat sample'
+     'DESCRIPTION': 'American Gut Project plant habitat sample',
+     'SAMPLE_TYPE': 'plant'
      },
     'Soil':
     {'SAMPLE_GROUP': 'outdoor',
@@ -103,7 +111,8 @@ env_lookup = {
      'ENV_PACKAGE': 'soil',
      'ENV_FEATURE': 'terrestrial habitat',
      'ENV_BIOME': 'urban biome',
-     'DESCRIPTION': 'American Gut Project soil sample'
+     'DESCRIPTION': 'American Gut Project soil sample',
+     'SAMPLE_TYPE': 'soil'
      },
     'Sole of shoe':
     {'SAMPLE_GROUP': 'indoor',
@@ -113,7 +122,8 @@ env_lookup = {
      'ENV_PACKAGE': 'built-environment',
      'ENV_FEATURE': 'environmental material',
      'ENV_BIOME': 'urban biome',
-     'DESCRIPTION': 'American Gut Project dust sample'
+     'DESCRIPTION': 'American Gut Project dust sample',
+     'SAMPLE_TYPE': 'dust'
      },
     'Water':
     {'SAMPLE_GROUP': 'water',
@@ -123,7 +133,8 @@ env_lookup = {
      'ENV_PACKAGE': 'water',
      'ENV_FEATURE': 'environmental material',
      'ENV_BIOME': 'urban biome',
-     'DESCRIPTION': 'American Gut Project water sample'
+     'DESCRIPTION': 'American Gut Project water sample',
+     'SAMPLE_TYPE': 'water'
      }
 }
 
