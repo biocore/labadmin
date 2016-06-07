@@ -614,6 +614,7 @@ class KniminAccess(object):
         for barcode, responses in md[2].items():
             # Invariant information
             md[2][barcode]['ANONYMIZED_NAME'] = barcode
+            md[2][barcode]['HOST_SUBJECT_ID'] = barcode
             # md[2][barcode]['HOST_TAXID'] = ????
             md[2][barcode]['TITLE'] = 'American Gut Project'
             md[2][barcode]['ALTITUDE'] = 0
