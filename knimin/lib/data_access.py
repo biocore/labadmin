@@ -736,8 +736,8 @@ class KniminAccess(object):
             md[2][barcode]['TITLE'] = 'American Gut Project'
             md[2][barcode]['ALTITUDE'] = 0
             md[2][barcode]['ASSIGNED_FROM_GEO'] = 'Yes'
-            md[2][barcode]['ENV_BIOME'] = 'ENVO:dense settlement biome'
-            md[2][barcode]['ENV_FEATURE'] = 'ENVO:animal-associated habitat'
+            md[2][barcode]['ENV_BIOME'] = 'dense settlement biome'
+            md[2][barcode]['ENV_FEATURE'] = 'animal-associated habitat'
             md[2][barcode]['DEPTH'] = 0
             md[2][barcode]['DESCRIPTION'] = 'American Gut Project' + \
                 ' Animal sample'
@@ -818,8 +818,8 @@ class KniminAccess(object):
                 md[1][barcode]['TITLE'] = 'American Gut Project'
                 md[1][barcode]['ALTITUDE'] = 0
                 md[1][barcode]['ASSIGNED_FROM_GEO'] = 'Yes'
-                md[1][barcode]['ENV_BIOME'] = 'ENVO:dense settlement biome'
-                md[1][barcode]['ENV_FEATURE'] = 'ENVO:human-associated habitat'
+                md[1][barcode]['ENV_BIOME'] = 'dense settlement biome'
+                md[1][barcode]['ENV_FEATURE'] = 'human-associated habitat'
                 md[1][barcode]['DEPTH'] = 0
                 md[1][barcode]['DNA_EXTRACTED'] = 'Yes'
                 md[1][barcode]['HAS_PHYSICAL_SPECIMEN'] = 'Yes'
