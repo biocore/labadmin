@@ -33,7 +33,7 @@ env_lookup = {
      'ENV_MATERIAL': 'organic material',
      'ENV_PACKAGE': 'microbial mat/biofilm',
      'ENV_FEATURE': 'biofilm',
-     'ENV_BIOME': 'urban biome',
+     'ENV_BIOME': 'dense settlement biome',
      'DESCRIPTION': 'American Gut Project biofilm sample',
      'SAMPLE_TYPE': 'biofilm'
      },
