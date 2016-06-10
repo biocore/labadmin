@@ -41,6 +41,7 @@ class ConfigurationTests(TestCase):
 test_config = """[main]
 debug = True
 help_email = help@email.com
+BASE_LOG_DIR = /tmp
 
 [postgres]
 user = test
