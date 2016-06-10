@@ -602,14 +602,10 @@ class KniminAccess(object):
     def _geocode(self, barcode, zipcode, country, zip_lookup, country_lookup):
         """Adds geocoding information to the barcoe for pulldown"""
         try:
-            barcode['LATITUDE'] = \
-                zip_lookup[zipcode][country][0]
-            barcode['LONGITUDE'] = \
-                zip_lookup[zipcode][country][1]
-            barcode['ELEVATION'] = \
-                zip_lookup[zipcode][country][2]
-            barcode['STATE'] = \
-                zip_lookup[zipcode][country][3]
+            barcode['LATITUDE'] = zip_lookup[zipcode][country][0]
+            barcode['LONGITUDE'] = zip_lookup[zipcode][country][1]
+            barcode['ELEVATION'] = zip_lookup[zipcode][country][2]
+            barcode['STATE'] = zip_lookup[zipcode][country][3]
             barcode['COUNTRY'] = country_lookup[country]
             barcode['GEO_LOC_NAME'] = ':'.join(
                 [barcode['COUNTRY'], barcode['STATE']])
