@@ -342,7 +342,11 @@ class KniminAccess(object):
             Users in the system
         """
         sql = "SELECT email FROM ag.labadmin_users"
-        return [x[0] for x in self._con.execute_fetchall(sql)]
+        hold = self._con.execute_fetchall(sql)
+        if hold is not None:
+            return [x[0] for x in hold]
+        else:
+            return []
 
     def get_barcode_details(self, barcode):
         """
@@ -384,7 +388,8 @@ class KniminAccess(object):
                  FROM ag.labadmin_access
                  JOIN ag.labadmin_users_access USING (access_id)
                  WHERE email = %s"""
-        return self._con.execute_fetchall(sql, [email])
+        hold = self._con.execute_fetchall(sql, [email])
+        return hold if hold is not None else []
 
     def alter_access_levels(self, email, levels):
         """Alters existing user's access levels
