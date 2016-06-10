@@ -815,12 +815,11 @@ class KniminAccess(object):
                 # Invariant information
                 md[1][barcode]['ANONYMIZED_NAME'] = barcode
                 md[1][barcode]['HOST_TAXID'] = 9606
+                md[1][barcode]['SCIENTIFIC_NAME'] = 'Homo sapiens'
                 md[1][barcode]['TITLE'] = 'American Gut Project'
-                md[1][barcode]['ALTITUDE'] = 0
                 md[1][barcode]['ASSIGNED_FROM_GEO'] = 'Yes'
                 md[1][barcode]['ENV_BIOME'] = 'dense settlement biome'
                 md[1][barcode]['ENV_FEATURE'] = 'human-associated habitat'
-                md[1][barcode]['DEPTH'] = 0
                 md[1][barcode]['DNA_EXTRACTED'] = 'Yes'
                 md[1][barcode]['HAS_PHYSICAL_SPECIMEN'] = 'Yes'
                 md[1][barcode]['PHYSICAL_SPECIMEN_REMAINING'] = 'Yes'
