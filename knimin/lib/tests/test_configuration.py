@@ -43,6 +43,7 @@ test_config = """[main]
 debug = True
 help_email = help@email.com
 base_data_dir = /some/dir/path
+BASE_LOG_DIR = /tmp
 
 [postgres]
 user = test

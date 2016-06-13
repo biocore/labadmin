@@ -88,6 +88,9 @@ class WebApplication(Application):
 
 
 def main():
+    # format looks like labadmin_8888.log
+    prefix = join(config.base_log_dir, "labadmin_%d.log" % options.port)
+    options.log_file_prefix = prefix
     parse_command_line()
     http_server = HTTPServer(WebApplication())
     http_server.listen(options.port)

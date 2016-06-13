@@ -36,14 +36,10 @@ class BarcodeUtilHelper(object):
                 div_id = "no_metadata"
                 message = "Cannot retrieve metadata: %s" % failures[barcode]
                 ag_details['email_type'] = "-1"
-            elif survey_type[survey_id] == 'Human':
-                # and we can successfully retrieve sample
-                # metadata
+            elif (survey_id is None and ag_details['environment_sampled']) \
+                    or survey_type[survey_id] == 'Human' \
+                    or survey_type[survey_id] == 'Animal':
                 div_id = "verified"
-                message = "All good"
-                ag_details['email_type'] = "1"
-            elif survey_type[survey_id] == 'Animal':
-                div_id = "verified_animal"
                 message = "All good"
                 ag_details['email_type'] = "1"
             else:
@@ -101,11 +97,11 @@ class BarcodeUtilHelper(object):
 
     def _build_email(self, login_user, barcode, email_type,
                      sample_date, sample_time):
-        subject = body_message = ""
+        subject = body_message = u""
 
         if email_type == '0':
-            subject = 'ACTION REQUIRED - Assign your samples in American Gut'
-            body_message = """
+            subject = u'ACTION REQUIRED - Assign your samples in American Gut'
+            body_message = u"""
 Dear {name},
 
 We have recently received your sample barcode: {barcode}, but we cannot process
@@ -153,9 +149,9 @@ American Gut Team
             body_message = body_message.format(name=login_user,
                                                barcode=barcode)
         elif email_type == '1':
-            subject = ('American Gut Sample with Barcode %s is Received.'
+            subject = (u'American Gut Sample with Barcode %s is Received.'
                        % barcode)
-            body_message = """
+            body_message = u"""
 Dear {name},
 
 We have recently received your sample with barcode {barcode} dated
@@ -171,6 +167,8 @@ Thank you for your participation!
                                                barcode=barcode,
                                                sample_date=sample_date,
                                                sample_time=sample_time)
+        else:
+            raise RuntimeError("Unknown email type passed: %s" % email_type)
 
         return subject, body_message
 

@@ -22,6 +22,8 @@ class KniminConfig(object):
     ----------
     debug : bool
         If in debug state
+    base_log_dir : str
+        Path to the base directory where the log file will be written
     user : str
         The postgres user
     password : str
@@ -66,6 +68,7 @@ class KniminConfig(object):
         self.debug = config.getboolean('main', 'debug')
         self.help_email = config.get('main', 'help_email')
         self.base_data_dir = config.get('main', 'base_data_dir')
+        self.base_log_dir = config.get('main', 'BASE_LOG_DIR')
 
     def _get_postgres(self, config):
         """Get the configuration of the postgres section"""
