@@ -865,7 +865,8 @@ class KniminAccess(object):
                 md[1][barcode]['PUBLIC'] = 'Yes'
 
                 # Convert finer grained IBD to coarser grained
-                ibd = md[1][barcode]['IBD_DIAGNOSIS_REFINED']
+                ibd = md[1][barcode].get('IBD_DIAGNOSIS_REFINED',
+                                         'Unspecified')
                 if ibd != 'Unspecified':
                     if ibd in {"Ileal Crohn's Disease",
                                "Colonic Crohn's Disease",
