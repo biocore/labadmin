@@ -870,7 +870,7 @@ class KniminAccess(object):
                     if ibd in {"Ileal Crohn's Disease",
                                "Colonic Crohn's Disease",
                                "Ileal and Colonic Crohn's Disease"}:
-                        md[1][barcode]['IBD_DIAGNOSIS'] = "Crohn's Disease"
+                        md[1][barcode]['IBD_DIAGNOSIS'] = "Crohn's disease"
                     elif ibd == 'Ulcerative colitis':
                         md[1][barcode]['IBD_DIAGNOSIS'] = 'Ulcerative colitis'
 
