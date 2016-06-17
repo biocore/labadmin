@@ -5,14 +5,14 @@
 	<h1> Edit User Groups</h1>
 	<form action="/admin/edit/" method="GET">
 	User: <select id="user" name="user">
-		{% for user in users %}
-		<option value='{{user}}'>{{user}}</option>
+		{% for u in users %}
+		<option value='{{u}}' {% if user and u == user %} selected{% end %}>{{u}}</option>
 		{% end %}
 	</select> 
 	<input type="submit" value="Select">
 	</form>
 </div>
-	{% if user_levels %}
+	{% if user %}
 <div id="user-permissions-div">
 <h3>User {{user}}</h3>
 	<form action="/admin/edit/" method="POST">
