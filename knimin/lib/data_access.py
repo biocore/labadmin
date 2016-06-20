@@ -856,6 +856,17 @@ class KniminAccess(object):
                     bc_info['ag_login_id'] + participant_name).hexdigest()
                 md[1][barcode]['PUBLIC'] = 'Yes'
 
+                # Convert finer grained IBD to coarser grained
+                ibd = md[1][barcode].get('IBD_DIAGNOSIS_REFINED',
+                                         'Unspecified')
+                if ibd != 'Unspecified':
+                    if ibd in {"Ileal Crohn's Disease",
+                               "Colonic Crohn's Disease",
+                               "Ileal and Colonic Crohn's Disease"}:
+                        md[1][barcode]['IBD_DIAGNOSIS'] = "Crohn's disease"
+                    elif ibd == 'Ulcerative colitis':
+                        md[1][barcode]['IBD_DIAGNOSIS'] = 'Ulcerative colitis'
+
                 # Add categorization columns
                 md[1][barcode]['ALCOHOL_CONSUMPTION'] = categorize_etoh(
                     md[1][barcode]['ALCOHOL_FREQUENCY'])
