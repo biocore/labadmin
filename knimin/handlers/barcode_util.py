@@ -14,10 +14,9 @@ class BarcodeUtilHelper(object):
         ag_details = db.getAGBarcodeDetails(barcode)
         _, failures = db.pulldown([barcode], [])
 
-        if failures:
+        if len(ag_details) == 0 and failures:
             div_id = "no_metadata"
             message = "Cannot retrieve metadata: %s" % failures[barcode]
-            ag_details = {'email_type': '-1'}
         elif len(ag_details) > 0:
             for col, val in ag_details.iteritems():
                 if val is None:
