@@ -19,7 +19,7 @@ from util import (make_valid_kit_ids, make_verification_code, make_passwd,
                   fetch_url, correct_bmi)
 from constants import (md_lookup, month_int_lookup, month_str_lookup,
                        regions_by_state, blanks_values, season_lookup,
-                       ebi_remove)
+                       ebi_remove, env_lookup)
 from geocoder import geocode, Location, GoogleAPILimitExceeded
 from string_converter import converter
 
@@ -259,6 +259,9 @@ class KniminAccess(object):
                    'Right hand',
                    'Left hand',
                    'Forehead',
+                   'Torso',
+                   'Left leg',
+                   'Right leg',
                    'Nares',
                    'Hair',
                    'Tears',
@@ -342,7 +345,11 @@ class KniminAccess(object):
             Users in the system
         """
         sql = "SELECT email FROM ag.labadmin_users"
-        return [x[0] for x in self._con.execute_fetchall(sql)]
+        hold = self._con.execute_fetchall(sql)
+        if hold is not None:
+            return [x[0] for x in hold]
+        else:
+            return []
 
     def get_barcode_details(self, barcode):
         """
@@ -384,7 +391,8 @@ class KniminAccess(object):
                  FROM ag.labadmin_access
                  JOIN ag.labadmin_users_access USING (access_id)
                  WHERE email = %s"""
-        return self._con.execute_fetchall(sql, [email])
+        hold = self._con.execute_fetchall(sql, [email])
+        return hold if hold is not None else []
 
     def alter_access_levels(self, email, levels):
         """Alters existing user's access levels
@@ -596,6 +604,45 @@ class KniminAccess(object):
         # Calculate the number of 12-month periods between the years
         return (d2.year - d1.year) * 12 + (d2.month - d1.month)
 
+    def _geocode(self, barcode, zipcode, country, zip_lookup, country_lookup):
+        """Adds geocoding information to the barcoe for pulldown"""
+        try:
+            barcode['LATITUDE'] = zip_lookup[zipcode][country][0]
+            barcode['LONGITUDE'] = zip_lookup[zipcode][country][1]
+            barcode['ELEVATION'] = zip_lookup[zipcode][country][2]
+            barcode['STATE'] = zip_lookup[zipcode][country][3]
+            barcode['COUNTRY'] = country_lookup[country]
+            barcode['GEO_LOC_NAME'] = ':'.join(
+                [barcode['COUNTRY'], barcode['STATE']])
+        except KeyError:
+            # geocode unknown zip/country combo and add to
+            # zipcode table & lookup dict
+            info = self.get_geocode_zipcode(zipcode, country)
+            if info.lat is not None:
+                barcode['LATITUDE'] = "%.1f" % info.lat
+                barcode['LONGITUDE'] = "%.1f" % info.long
+                barcode['ELEVATION'] = "%.1f" % info.elev
+                barcode['STATE'] = info.state
+                barcode['COUNTRY'] = country_lookup[info.country]
+                barcode['GEO_LOC_NAME'] = ':'.join(
+                    [barcode['COUNTRY'], barcode['STATE']])
+                # Store in dict so we don't geocode again
+                zip_lookup[zipcode][country] = (
+                    round(info.lat, 1), round(info.long, 1),
+                    round(info.elev, 1), info.state)
+            else:
+                barcode['LATITUDE'] = 'Unspecified'
+                barcode['LONGITUDE'] = 'Unspecified'
+                barcode['ELEVATION'] = 'Unspecified'
+                barcode['STATE'] = 'Unspecified'
+                barcode['COUNTRY'] = 'Unspecified'
+                barcode['GEO_LOC_NAME'] = 'Unspecified'
+                # Store in dict so we don't geocode again
+                zip_lookup[zipcode][country] = (
+                    'Unspecified', 'Unspecified', 'Unspecified',
+                    'Unspecified')
+        return barcode
+
     def format_survey_data(self, md, external_surveys=None, full=False):  # noqa
         """Modifies barcode metadata to include all columns and correct units
 
@@ -685,20 +732,25 @@ class KniminAccess(object):
         for barcode, responses in md[2].items():
             # Invariant information
             md[2][barcode]['ANONYMIZED_NAME'] = barcode
+            md[2][barcode]['HOST_SUBJECT_ID'] = barcode
             # md[2][barcode]['HOST_TAXID'] = ????
             md[2][barcode]['TITLE'] = 'American Gut Project'
             md[2][barcode]['ALTITUDE'] = 0
             md[2][barcode]['ASSIGNED_FROM_GEO'] = 'Yes'
-            md[2][barcode]['ENV_BIOME'] = 'ENVO:dense settlement biome'
-            md[2][barcode]['ENV_FEATURE'] = 'ENVO:animal-associated habitat'
+            md[2][barcode]['ENV_BIOME'] = 'dense settlement biome'
+            md[2][barcode]['ENV_FEATURE'] = 'animal-associated habitat'
             md[2][barcode]['DEPTH'] = 0
             md[2][barcode]['DESCRIPTION'] = 'American Gut Project' + \
                 ' Animal sample'
             md[2][barcode]['DNA_EXTRACTED'] = 'Yes'
-            md[2][barcode]['HAS_PHYSICAL_SPECIMEN'] = 'Yes'
             md[2][barcode]['PHYSICAL_SPECIMEN_REMAINING'] = 'Yes'
             md[2][barcode]['PHYSICAL_SPECIMEN_LOCATION'] = 'UCSDMI'
-            md[2][barcode]['REQUIRED_SAMPLE_INFO_STATUS'] = 'completed'
+
+            specific_info = barcode_info[barcode[:9]]
+            zipcode = specific_info['zip'].upper()
+            country = specific_info['country']
+            md[1][barcode] = self._geocode(md[1][barcode], zipcode, country,
+                                           zip_lookup, country_lookup)
 
         # Human survey (id 1)
         for barcode, responses in md[1].items():
@@ -762,75 +814,25 @@ class KniminAccess(object):
                 # Invariant information
                 md[1][barcode]['ANONYMIZED_NAME'] = barcode
                 md[1][barcode]['HOST_TAXID'] = 9606
+                md[1][barcode]['SCIENTIFIC_NAME'] = 'Homo sapiens'
                 md[1][barcode]['TITLE'] = 'American Gut Project'
-                md[1][barcode]['ALTITUDE'] = 0
                 md[1][barcode]['ASSIGNED_FROM_GEO'] = 'Yes'
-                md[1][barcode]['ENV_BIOME'] = 'ENVO:dense settlement biome'
-                md[1][barcode]['ENV_FEATURE'] = 'ENVO:human-associated habitat'
-                md[1][barcode]['DEPTH'] = 0
+                md[1][barcode]['ENV_BIOME'] = 'dense settlement biome'
+                md[1][barcode]['ENV_FEATURE'] = 'human-associated habitat'
                 md[1][barcode]['DNA_EXTRACTED'] = 'Yes'
-                md[1][barcode]['HAS_PHYSICAL_SPECIMEN'] = 'Yes'
                 md[1][barcode]['PHYSICAL_SPECIMEN_REMAINING'] = 'Yes'
                 md[1][barcode]['PHYSICAL_SPECIMEN_LOCATION'] = 'UCSDMI'
-                md[1][barcode]['REQUIRED_SAMPLE_INFO_STATUS'] = 'completed'
                 md[1][barcode]['HOST_COMMON_NAME'] = 'human'
 
                 # Sample-dependent information
                 zipcode = md[1][barcode]['ZIP_CODE'].upper()
                 country = bc_info['country']
-                try:
-                    md[1][barcode]['LATITUDE'] = \
-                        zip_lookup[zipcode][country][0]
-                    md[1][barcode]['LONGITUDE'] = \
-                        zip_lookup[zipcode][country][1]
-                    md[1][barcode]['ELEVATION'] = \
-                        zip_lookup[zipcode][country][2]
-                    md[1][barcode]['STATE'] = \
-                        zip_lookup[zipcode][country][3]
-                    md[1][barcode]['COUNTRY'] = country_lookup[country]
-                except KeyError:
-                    # geocode unknown zip/country combo and add to
-                    # zipcode table & lookup dict
-                    info = self.get_geocode_zipcode(zipcode, country)
-                    if info.lat is not None:
-                        if full:
-                            md[1][barcode]['LATITUDE'] = info.lat
-                            md[1][barcode]['LONGITUDE'] = info.long
-                            md[1][barcode]['ELEVATION'] = info.elev
-                        else:
-                            md[1][barcode]['LATITUDE'] = round(info.lat, 1)
-                            md[1][barcode]['LONGITUDE'] = round(info.long, 1)
-                            md[1][barcode]['ELEVATION'] = round(info.elev, 1)
-                        md[1][barcode]['STATE'] = info.state
-                        md[1][barcode]['COUNTRY'] = country_lookup[
-                            info.country]
-                        # Store in dict so we don't geocode again
-                        zip_lookup[zipcode][country] = (
-                            md[1][barcode]['LATITUDE'],
-                            md[1][barcode]['LONGITUDE'],
-                            md[1][barcode]['ELEVATION'],
-                            md[1][barcode]['STATE'])
-                    else:
-                        md[1][barcode]['LATITUDE'] = 'Unspecified'
-                        md[1][barcode]['LONGITUDE'] = 'Unspecified'
-                        md[1][barcode]['ELEVATION'] = 'Unspecified'
-                        md[1][barcode]['STATE'] = 'Unspecified'
-                        md[1][barcode]['COUNTRY'] = 'Unspecified'
-                        # Store in dict so we don't geocode again
-                        zip_lookup[zipcode][country] = (
-                            'Unspecified', 'Unspecified', 'Unspecified',
-                            'Unspecified')
+                md[1][barcode] = self._geocode(
+                    md[1][barcode], zipcode, country, zip_lookup,
+                    country_lookup)
 
                 md[1][barcode]['SURVEY_ID'] = survey_lookup[barcode[:9]]
-                try:
-                    md[1][barcode]['TAXON_ID'] = md_lookup[site]['TAXON_ID']
-                except KeyError:
-                    raise KeyError("Unknown body site for barcode %s: %s" %
-                                   (barcode, site))
-                except:
-                    raise
-
-                md[1][barcode]['COMMON_NAME'] = md_lookup[site]['COMMON_NAME']
+                md[1][barcode].update(md_lookup[site])
                 md[1][barcode]['COLLECTION_DATE'] = \
                     bc_info['sample_date'].strftime('%m/%d/%Y')
 
@@ -845,16 +847,6 @@ class KniminAccess(object):
                 md[1][barcode]['COLLECTION_TIMESTAMP'] = datetime.combine(
                     bc_info['sample_date'],
                     bc_info['sample_time']).strftime('%m/%d/%Y %H:%M')
-                md[1][barcode]['ENV_MATTER'] = md_lookup[site]['ENV_MATTER']
-                md[1][barcode]['SCIENTIFIC_NAME'] = \
-                    md_lookup[site]['SCIENTIFIC_NAME']
-                md[1][barcode]['SAMPLE_TYPE'] = md_lookup[site]['SAMPLE_TYPE']
-                md[1][barcode]['BODY_HABITAT'] = md_lookup[site][
-                    'BODY_HABITAT']
-                md[1][barcode]['BODY_SITE'] = md_lookup[site]['BODY_SITE']
-                md[1][barcode]['BODY_PRODUCT'] = md_lookup[site][
-                    'BODY_PRODUCT']
-                md[1][barcode]['DESCRIPTION'] = md_lookup[site]['DESCRIPTION']
 
                 participant_name = dupes_lookup.get(
                     md[1][barcode]['SURVEY_ID'],
@@ -863,6 +855,17 @@ class KniminAccess(object):
                 md[1][barcode]['HOST_SUBJECT_ID'] = sha512(
                     bc_info['ag_login_id'] + participant_name).hexdigest()
                 md[1][barcode]['PUBLIC'] = 'Yes'
+
+                # Convert finer grained IBD to coarser grained
+                ibd = md[1][barcode].get('IBD_DIAGNOSIS_REFINED',
+                                         'Unspecified')
+                if ibd != 'Unspecified':
+                    if ibd in {"Ileal Crohn's Disease",
+                               "Colonic Crohn's Disease",
+                               "Ileal and Colonic Crohn's Disease"}:
+                        md[1][barcode]['IBD_DIAGNOSIS'] = "Crohn's disease"
+                    elif ibd == 'Ulcerative colitis':
+                        md[1][barcode]['IBD_DIAGNOSIS'] = 'Ulcerative colitis'
 
                 # Add categorization columns
                 md[1][barcode]['ALCOHOL_CONSUMPTION'] = categorize_etoh(
@@ -941,6 +944,85 @@ class KniminAccess(object):
                 del md[1][barcode]
         return md, errors
 
+    def format_environmental(self, barcodes):
+        """Format the environemntal data pulldown metadata
+
+        Parameters
+        ----------
+        barcodes : list of (barcode, env sampled)
+            List of tuples of barcode and the environment sampled
+
+        Returns
+        -------
+        str
+            Formatted tsv metadata for the environmental samples
+        """
+        md = {}
+        errors = {}
+        barcode_info = self.get_ag_barcode_details(
+            [b[0][:9] for b in barcodes])
+        # tuples are latitude, longitude, elevation, state
+        zipcode_sql = """SELECT UPPER(zipcode), country,
+                             round(latitude::numeric, 1),
+                             round(longitude::numeric,1),
+                             round(elevation::numeric, 1), state
+                         FROM zipcodes"""
+        zip_lookup = defaultdict(dict)
+        for row in self._con.execute_fetchall(zipcode_sql):
+            zip_lookup[row[0]][row[1]] = map(
+                lambda x: x if x is not None else 'Unspecified', row[2:])
+
+        country_sql = "SELECT country, EBI from ag.iso_country_lookup"
+        country_lookup = dict(self._con.execute_fetchall(country_sql))
+        # Add for scrubbed testing database
+        country_lookup['REMOVED'] = 'REMOVED'
+
+        for barcode, env in barcodes:
+            # Not using defaultdict so we don't ever allow accidental insertion
+            # of unknown barcodes
+            md[barcode] = {}
+            # Add info from constants dict
+            try:
+                md[barcode].update(env_lookup[env])
+                # Invariant information
+                md[barcode]['TITLE'] = 'American Gut Project'
+                md[barcode]['ASSIGNED_FROM_GEO'] = 'Yes'
+                md[barcode]['PHYSICAL_SPECIMEN_REMAINING'] = 'Yes'
+                md[barcode]['PHYSICAL_SPECIMEN_LOCATION'] = 'UCSDMI'
+
+                # Barcode specific information
+                specific_info = barcode_info[barcode[:9]]
+
+                md[barcode]['ANONYMIZED_NAME'] = barcode
+                md[barcode]['HOST_SUBJECT_ID'] = barcode
+
+                # Geolocate based on kit information, since no other
+                # geographic info available
+                zipcode = specific_info['zip'].upper()
+                country = specific_info['country']
+                md[barcode] = self._geocode(md[barcode], zipcode, country,
+                                            zip_lookup, country_lookup)
+
+                md[barcode]['COLLECTION_DATE'] = \
+                    specific_info['sample_date'].strftime('%m/%d/%Y')
+
+                if specific_info['sample_time']:
+                    md[barcode]['COLLECTION_TIME'] = \
+                        specific_info['sample_time'].strftime('%H:%M')
+                else:
+                    # If no time data, show unspecified and default to midnight
+                    md[barcode]['COLLECTION_TIME'] = 'Unspecified'
+                    specific_info['sample_time'] = time(0, 0)
+
+                md[barcode]['COLLECTION_TIMESTAMP'] = datetime.combine(
+                    specific_info['sample_date'],
+                    specific_info['sample_time']).strftime('%m/%d/%Y %H:%M')
+            except Exception as e:
+                del md[barcode]
+                errors[barcode] = str(e)
+                continue
+        return md, errors
+
     def participant_names(self):
         """Retrieve the participant names for the given barcodes
 
@@ -979,12 +1061,24 @@ class KniminAccess(object):
             Barcodes unable to pull metadata down, in the form
             {barcode: reason, ...}
         """
+        all_results = {}
+        errors = {}
         all_survey_info = self.get_surveys(barcodes)
-        if len(all_survey_info) == 0:
-            # No barcodes given match any survey
-            return {}, self._explain_pulldown_failures(barcodes)
-        all_results, errors = self.format_survey_data(
-            all_survey_info, external, full)
+        if len(all_survey_info) > 0:
+            all_results, errors = self.format_survey_data(all_survey_info,
+                                                          external, full)
+
+        # Do the pulldown for the environmental samples
+        sql = """SELECT barcode, environment_sampled
+                 FROM ag.ag_kit_barcodes
+                 WHERE environment_sampled IS NOT NULL
+                     AND environment_sampled != ''
+                     AND barcode IN %s"""
+        env_barcodes = self._con.execute_fetchall(sql, [tuple(barcodes)])
+        barcodes.extend([b[0] for b in env_barcodes])
+        if len(env_barcodes) > 0:
+            all_results['env'], err = self.format_environmental(env_barcodes)
+            errors.update(err)
 
         # keep track of which barcodes were seen so we know which weren't
         barcodes_seen = set()
@@ -1002,13 +1096,7 @@ class KniminAccess(object):
                     # Take care of retired questions not having an answer
                     answer = shortnames_answers.get(h, 'Unspecified')
                     # Convert everything to utf-8 unicode for standardization
-                    if isinstance(answer, unicode):
-                        converted = answer
-                    elif isinstance(answer, str):
-                        converted = unicode(answer, 'utf-8')
-                    else:
-                        converted = unicode(str(answer), 'utf-8')
-                    converted = re.sub(r"\t|\r|\n|\s+", " ", converted)
+                    converted = self._unicode_convert(answer)
                     oa_hold.append(converted)
                 survey_md.append('\t'.join(oa_hold))
             if survey == 1 and blanks:
@@ -1026,6 +1114,17 @@ class KniminAccess(object):
         failures = self._explain_pulldown_failures(failures)
         failures.update(errors)
         return metadata, failures
+
+    def _unicode_convert(self, value):
+        """Convert given value to unicode string"""
+        if isinstance(value, unicode):
+            converted = value
+        elif isinstance(value, str):
+            converted = unicode(value, 'utf-8')
+        else:
+            converted = unicode(str(value), 'utf-8')
+        converted = re.sub(r"\t|\r|\n|\s+", " ", converted)
+        return converted
 
     def check_consent(self, barcodes):
         """Gets barcodes with consent, and failure reasons for ones without
@@ -1124,16 +1223,6 @@ class KniminAccess(object):
                  WHERE sample_date IS NULL AND barcode in %s"""
         remaining = update_reason_and_remaining(
             sql, 'Sample not logged', fail_reason, remaining)
-        # No more unexplained, so done
-        if len(remaining) == 0:
-            return fail_reason
-
-        # environmental sample
-        sql = """SELECT barcode
-                 FROM ag.ag_kit_barcodes
-                 WHERE environment_sampled IS NOT NULL AND barcode in %s"""
-        remaining = update_reason_and_remaining(
-            sql, 'Environmental sample', fail_reason, remaining)
         # No more unexplained, so done
         if len(remaining) == 0:
             return fail_reason
