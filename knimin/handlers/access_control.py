@@ -26,7 +26,6 @@ class AGEditAccessHandler(BaseHandler):
         msg = 'Access levels updated'
         access_levels = [int(x) for x in self.get_arguments('levels')]
         user = self.get_argument('user')
-        print access_levels
         try:
             db.alter_access_levels(user, access_levels)
         except Exception as e:

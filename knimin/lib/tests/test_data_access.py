@@ -97,5 +97,30 @@ class TestDataAccess(TestCase):
         self.assertEqual(obs['000023299']['results_ready'], 'Y')
         self.assertEqual(obs['000001072']['results_ready'], 'Y')
 
+    def test_get_access_levels_user(self):
+        obs = db.get_access_levels_user('test')
+        self.assertEqual(obs, [])
+
+        db.alter_access_levels('test', [1, 6])
+        obs = db.get_access_levels_user('test')
+        self.assertEqual(obs, [[1, 'Barcodes'], [6, 'Search']])
+
+        db.alter_access_levels('test', [])
+        obs = db.get_access_levels_user('test')
+        self.assertEqual(obs, [])
+
+    def test_get_users(self):
+        obs = db.get_users()
+        exp = ['test']
+        self.assertEqual(obs, exp)
+
+    def test_get_access_levels(self):
+        obs = db.get_access_levels()
+        exp = [[1, 'Barcodes'], [2, 'AG kits'], [3, 'Scan Barcodes'],
+               [4, 'External surveys'], [5, 'Metadata Pulldown'],
+               [6, 'Search'], [7, 'Admin']]
+        self.assertEqual(obs, exp)
+
+
 if __name__ == "__main__":
     main()
