@@ -12,7 +12,12 @@ from knimin.handlers.access_decorators import set_access
 class BarcodeUtilHelper(object):
     def get_ag_details(self, barcode):
         ag_details = db.getAGBarcodeDetails(barcode)
-        if len(ag_details) > 0:
+        _, failures = db.pulldown([barcode], [])
+
+        if len(ag_details) == 0 and failures:
+            div_id = "no_metadata"
+            message = "Cannot retrieve metadata: %s" % failures[barcode]
+        elif len(ag_details) > 0:
             for col, val in ag_details.iteritems():
                 if val is None:
                     ag_details[col] = ''
@@ -28,7 +33,6 @@ class BarcodeUtilHelper(object):
                 ag_details['other_checked'] = 'checked'
 
             survey_id = db.get_barcode_survey(barcode)
-            _, failures = db.pulldown([barcode], [])
 
             # it has all sample details
             # (sample time, date, site)
@@ -55,7 +59,7 @@ class BarcodeUtilHelper(object):
                 ag_details['email_type'] = "-1"
         else:
             div_id = "not_assigned"
-            message = ("In American Gut project group but No "
+            message = ("In American Gut project group but no "
                        "American Gut info for barcode")
             ag_details['email_type'] = "-1"
         return div_id, message, ag_details

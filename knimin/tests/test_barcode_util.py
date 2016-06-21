@@ -111,9 +111,8 @@ class TestBarcodeUtil(TestHandlerBase):
                          response.body)
 
         self.assertIn('Project type: American Gut', response.body)
-        self.assertIn('In American Gut project group but No American Gut info '
-                      'for barcode',
-                      response.body)
+        self.assertIn('Cannot retrieve metadata: Unassigned handout kit '
+                      'barcode', response.body)
 
     def test_get_unlogged_barcode(self):
         self.mock_login()
@@ -130,9 +129,8 @@ class TestBarcodeUtil(TestHandlerBase):
                          response.body)
 
         self.assertIn('Project type: American Gut', response.body)
-        self.assertIn('In American Gut project group but No American Gut info '
-                      'for barcode',
-                      response.body)
+        self.assertIn('Cannot retrieve metadata: Unassigned handout kit '
+                      'barcode', response.body)
 
     def test_get_non_ag_barcode(self):
         self.mock_login()
