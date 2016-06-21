@@ -67,6 +67,7 @@ class KniminConfig(object):
         """Get the configuration of the main section"""
         self.debug = config.getboolean('main', 'debug')
         self.help_email = config.get('main', 'help_email')
+        self.base_data_dir = config.get('main', 'base_data_dir')
         self.base_log_dir = config.get('main', 'BASE_LOG_DIR')
 
     def _get_postgres(self, config):
@@ -87,3 +88,5 @@ class KniminConfig(object):
         self.smtp_port = config.getint('email', 'PORT')
         self.smtp_user = config.get('email', 'USERNAME')
         self.smtp_password = config.get('email', 'PASSWORD')
+
+config = KniminConfig()

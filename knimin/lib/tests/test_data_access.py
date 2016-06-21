@@ -1,6 +1,7 @@
 from unittest import TestCase, main
 from os.path import join, dirname, realpath
 import datetime
+
 from knimin import db
 
 
@@ -17,6 +18,7 @@ class TestDataAccess(TestCase):
 
     def tearDown(self):
         db._clear_table('external_survey_answers', 'ag')
+        db._revert_ready(['000023299'])
 
     def test_pulldown_third_party(self):
         # Add survey answers
@@ -69,6 +71,31 @@ class TestDataAccess(TestCase):
 
         obs = db.search_kits('000001124')
         self.assertEqual([], obs)
+
+    def test_get_barcodes_with_results(self):
+        obs = db.get_barcodes_with_results()
+        exp = ['000023299']
+        self.assertEqual(obs, exp)
+
+    def test_mark_results_ready(self):
+        db._revert_ready(['000023299'])
+        obs = db.get_ag_barcode_details(['000001072', '000023299'])
+        self.assertEqual(obs['000023299']['results_ready'], None)
+        self.assertEqual(obs['000001072']['results_ready'], 'Y')
+
+        obs = db.mark_results_ready(['000001072', '000023299'], debug=True)
+        self.assertEqual(obs['new_bcs'], ('000023299', ))
+        self.assertEqual(obs['mail']['mimetext']['To'],
+                         'americangut@gmail.com')
+        self.assertEqual(obs['mail']['mimetext']['From'], '')
+        self.assertEqual(obs['mail']['mimetext']['Subject'],
+                         'Your American/British Gut results are ready')
+        self.assertEqual(obs['mail']['recipients'],
+                         ['americangut@gmail.com', 'REMOVED'])
+
+        obs = db.get_ag_barcode_details(['000001072', '000023299'])
+        self.assertEqual(obs['000023299']['results_ready'], 'Y')
+        self.assertEqual(obs['000001072']['results_ready'], 'Y')
 
     def test_get_access_levels_user(self):
         obs = db.get_access_levels_user('test')

@@ -1,6 +1,8 @@
 from __future__ import unicode_literals
 from contextlib import contextmanager
 from collections import defaultdict, namedtuple
+from os import walk
+from os.path import join, splitext, isdir, abspath
 from copy import copy
 from re import sub
 from hashlib import sha512
@@ -14,6 +16,7 @@ from future.utils import viewitems
 from psycopg2 import connect, Error as PostgresError
 from psycopg2.extras import DictCursor
 
+from mail import send_email
 from util import (make_valid_kit_ids, make_verification_code, make_passwd,
                   categorize_age, categorize_etoh, categorize_bmi, correct_age,
                   fetch_url, correct_bmi)
@@ -291,6 +294,7 @@ class KniminAccess(object):
     def __init__(self, config):
         self._con = SQLHandler(config)
         self._con.execute('set search_path to ag, barcodes, public')
+        self.config = config
 
     def _get_col_names_from_cursor(self, cur):
         if cur.description:
@@ -2172,6 +2176,83 @@ class KniminAccess(object):
                    self._con.execute_fetchall(sql, [ag_kit_id])]
         return results
 
+    def get_barcodes_with_results(self):
+        """Returns list of all barcodes with results ready (PDFs available)
+
+        Returns
+        -------
+        list of str
+            All barcodes with result PDFs available
+
+        Raises
+        ------
+        IOError
+            PDF directory does not exist
+        """
+        path = join(self.config.base_data_dir, 'pdfs')
+        if not isdir(path):
+            raise IOError('Unknown folder %s' % abspath(path))
+        # Get the list of barcodes from the PDF names
+        files = next(walk(path))[2]
+        return [splitext(f)[0] for f in files if f.endswith('.pdf')]
+
+    def mark_results_ready(self, barcodes, debug=False):
+        """Marks the list of barcodes as ready in the databse and sends email
+
+        Parameters
+        ----------
+        barcodes: iterable of str
+            Barcodes to mark as having results ready
+
+        Notes
+        -----
+        This function automatically sends emails out to only newly set results
+        ready barcodes. This means you can pass in a list of all barcodes from
+        all rounds that have results ready, and the function will filter for
+        new results automatically.
+        """
+        debug = {}
+        ready_sql = """UPDATE ag.ag_kit_barcodes
+                       SET results_ready = 'Y'
+                       WHERE barcode IN %s
+                       AND (results_ready != 'Y' OR results_ready IS NULL)
+                       RETURNING barcode"""
+        new_bcs = tuple(x[0] for x in
+                        self._con.execute_fetchall(
+                            ready_sql, [tuple(barcodes)]))
+        debug['new_bcs'] = new_bcs
+        if len(new_bcs) == 0:
+            # No new barcodes, so no emails to send
+            return
+
+        bc_sql = """UPDATE ag.ag_kit_barcodes
+                 SET date_of_last_email = '{0}'
+                 WHERE barcode IN %s""".format(datetime.now())
+        subject = "Your American/British Gut results are ready"
+        message = (
+            "Good afternoon American & British Gut participants!\n\n"
+            "We are pleased to let you know that your results are now "
+            "available. You may access them by signing onto "
+            "microbio.me/americangut or microbio.me/britishgut. If you have "
+            "forgotten your login credentials, you may retrieve them using "
+            "the \"Forgot kit ID/password\" functions.\n\n"
+            "We thank you for being a part of the project. While we emphasize "
+            "getting results back to you, the participant, we and the broader "
+            "American/British Gut scientific collaborative network are "
+            "extremely excited about the population-scale microbiome "
+            "observations that are for the first time becoming possible thanks"
+            " to you and the other participants!\n\n"
+            "Regards,\n"
+            "The American Gut Team\n")
+        barcode_info = self.get_ag_barcode_details(new_bcs)
+        # Make sure email only sent once if multiple barcodes with same email
+        seen_emails = set(i['email'] for bc, i in viewitems(barcode_info))
+        mail = send_email(message, subject, bcc=list(seen_emails), debug=debug)
+        debug['mail'] = mail
+        self._con.execute(bc_sql, [new_bcs])
+        if debug:
+            return debug
+
     def getHumanParticipants(self, ag_login_id):
         # get people from new survey setup
         sql = """SELECT DISTINCT participant_name from ag.ag_login_surveys
@@ -2292,3 +2373,10 @@ class KniminAccess(object):
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""
         self._con.execute('DELETE FROM %s.%s' % (schema, table))
+
+    def _revert_ready(self, barcodes):
+        """Test helper to revert barcodes set as ready"""
+        sql = """UPDATE ag.ag_kit_barcodes
+                 SET results_ready = NULL
+                 WHERE barcode IN %s"""
+        self._con.execute(sql, [tuple(barcodes)])

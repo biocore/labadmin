@@ -7,7 +7,7 @@ from tornado.ioloop import IOLoop
 from tornado.web import Application, StaticFileHandler
 from tornado.options import define, options, parse_command_line
 
-from knimin import config
+from knimin.lib.configuration import config
 from knimin.handlers.base import MainHandler, NoPageHandler
 from knimin.handlers.auth_handlers import AuthLoginHandler, AuthLogoutHandler
 from knimin.handlers.ag_search import AGSearchHandler
@@ -32,8 +32,9 @@ from knimin.handlers.ag_third_party import (AGThirdPartyHandler,
 from knimin.handlers.ag_consent_check import AGConsentCheckHandler
 from knimin.handlers.projects_summary import ProjectsSummaryHandler
 from knimin.handlers.access_control import AGEditAccessHandler
-define("port", default=config.http_port, type=int)
+from knimin.handlers.ag_results_ready import AGResultsReadyHandler
 
+define("port", default=config.http_port, type=int)
 
 DIRNAME = dirname(__file__)
 STATIC_PATH = join(DIRNAME, "static")
@@ -62,6 +63,7 @@ class WebApplication(Application):
             (r"/ag_new_barcode/", AGNewBarcodeHandler),
             (r"/ag_update_geocode/", AGUpdateGeocodeHandler),
             (r"/update_ebi/", UpdateEBIStatusHandler),
+            (r"/update_ready/", AGResultsReadyHandler),
             (r"/ag_edit_barcode/", AGEditBarcodeHandler),
             (r"/ag_pulldown/", AGPulldownHandler),
             (r"/ag_pulldown/download/", AGPulldownDLHandler),
