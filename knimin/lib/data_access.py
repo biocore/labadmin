@@ -437,9 +437,11 @@ class KniminAccess(object):
         dict of dict
             {barcode: {column: value}, ...}
         """
-        sql = """SELECT barcode, *
+        sql = """SELECT DISTINCT barcode, *
                  FROM ag_kit_barcodes
                  JOIN ag_kit USING (ag_kit_id)
+                 FULL OUTER JOIN ag_login_surveys USING
+                    (survey_id, ag_login_id)
                  JOIN ag_login USING (ag_login_id)
                  WHERE barcode in %s"""
         res = self._con.execute_fetchall(sql, [tuple(b[:9] for b in barcodes)])
@@ -1037,6 +1039,7 @@ class KniminAccess(object):
         """
         sql = """SELECT barcode, participant_name
                  FROM ag.ag_kit_barcodes
+                 JOIN ag.ag_login_surveys USING (survey_id)
                  WHERE participant_name IS NOT NULL"""
         return self._con.execute_fetchall(sql)
 
@@ -1812,14 +1815,13 @@ class KniminAccess(object):
                      environment_sampled = %s,
                      sample_date = %s,
                      sample_time = %s,
-                     participant_name = %s,
                      notes = %s,
                      refunded = %s,
                      withdrawn = %s,
                      survey_id = %s
                  WHERE barcode = %s"""
         self._con.execute(sql, [ag_kit_id, site_sampled, environment_sampled,
-                                sample_date, sample_time, participant_name,
+                                sample_date, sample_time,
                                 notes, refunded, withdrawn, survey_id,
                                 barcode])
 
@@ -2094,11 +2096,12 @@ class KniminAccess(object):
         return [x[0] for x in results]
 
     def search_barcodes(self, term):
-        sql = """SELECT cast(ak.ag_login_id as varchar(100)) as ag_login_id
+        sql = """SELECT cast(ag_login_id as varchar(100)) as ag_login_id
                  FROM ag_kit ak
-                 INNER JOIN ag_kit_barcodes akb
-                 ON ak.ag_kit_id = akb.ag_kit_id
-                 WHERE   barcode like %s or lower(participant_name) like
+                 INNER JOIN ag_kit_barcodes akb USING (ag_kit_id)
+                 FULL OUTER JOIN ag_login_surveys USING
+                    (survey_id, ag_login_id)
+                 WHERE barcode like %s or lower(participant_name) like
                  %s or lower(notes) like %s"""
         liketerm = '%%' + term.lower() + '%%'
         results = self._con.execute_fetchall(sql,
@@ -2145,7 +2148,8 @@ class KniminAccess(object):
         return self._con.execute_fetchdict(sql, [ag_login_id])
 
     def getAGBarcodeDetails(self, barcode):
-        sql = """SELECT  email, cast(ag_kit_barcode_id as varchar(100)),
+        sql = """SELECT DISTINCT email,
+                    cast(ag_kit_barcode_id as varchar(100)),
                     cast(ag_kit_id as varchar(100)), barcode,  site_sampled,
                     environment_sampled, sample_date, sample_time,
                     participant_name, notes, refunded, withdrawn, moldy, other,
@@ -2154,7 +2158,9 @@ class KniminAccess(object):
                  FROM ag_kit_barcodes akb
                  JOIN ag_kit USING(ag_kit_id)
                  JOIN ag_login USING (ag_login_id)
-                 JOIN barcode USING(barcode)
+                 FULL OUTER JOIN ag_login_surveys USING
+                    (survey_id, ag_login_id)
+                 JOIN barcode USING (barcode)
                  WHERE barcode = %s"""
 
         results = self._con.execute_fetchone(sql, [barcode])
@@ -2167,9 +2173,10 @@ class KniminAccess(object):
         sql = """SELECT  cast(ag_kit_barcode_id as varchar(100)) as
                          ag_kit_barcode_id, cast(ag_kit_id as varchar(100)) as
                          ag_kit_id, barcode, sample_date, sample_time,
-                         site_sampled, participant_name, environment_sampled,
+                         site_sampled, environment_sampled,
                          notes, results_ready, withdrawn, refunded
                  FROM    ag_kit_barcodes
+                FULL OUTER JOIN ag_login_surveys USING (survey_id)
                  WHERE   ag_kit_id = %s"""
 
         results = [dict(row) for row in
@@ -2256,7 +2263,7 @@ class KniminAccess(object):
     def getHumanParticipants(self, ag_login_id):
         # get people from new survey setup
         sql = """SELECT DISTINCT participant_name from ag.ag_login_surveys
-                 JOIN ag.survey_answers USING (survey_id)
+                 LEFT JOIN ag.survey_answers USING (survey_id)
                  JOIN ag.group_questions gq USING (survey_question_id)
                  JOIN ag.surveys ags USING (survey_group)
                  WHERE ag_login_id = %s AND ags.survey_id = %s"""
