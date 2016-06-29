@@ -131,24 +131,15 @@ class TestDataAccess(TestCase):
         self.assertEqual(obs, ['d8592c74-7c27-2135-e040-8a80115d6401'])
 
         obs = db.search_barcodes('REMOVED-8')
-        exp = ['d8592c74-9491-2135-e040-8a80115d6401',
-               'df703c65-b700-401c-e040-8a80115d46ed',
+        exp = ['d8592c74-7da1-2135-e040-8a80115d6401',
+               '00711b0a-67d6-0fed-e050-8a800c5d7570',
+               'd8592c74-9491-2135-e040-8a80115d6401',
                'f37dc99e-2241-3a4f-e040-8a80115d1694',
                'e025e238-4529-77a9-e040-8a80115d503f',
-               'e025e238-4529-77a9-e040-8a80115d503f',
-               'e025e238-4529-77a9-e040-8a80115d503f',
-               'f37dc99e-2241-3a4f-e040-8a80115d1694',
-               'e02a84fb-8db9-1e6a-e040-8a80115d6e16',
-               'e02a84fb-8db9-1e6a-e040-8a80115d6e16',
-               'e02a84fb-8db9-1e6a-e040-8a80115d6e16',
-               'e02a84fb-8db9-1e6a-e040-8a80115d6e16',
-               'e76468db-82ca-bf84-e040-8a80115d55dc',
-               'e76468db-82ca-bf84-e040-8a80115d55dc',
-               'e76468db-82ca-bf84-e040-8a80115d55dc',
                'e76468db-82ca-bf84-e040-8a80115d55dc',
                'fa66366c-12f2-50aa-e040-8a800c5d6584',
-               '00711b0a-67d6-0fed-e050-8a800c5d7570',
-               'd8592c74-7da1-2135-e040-8a80115d6401']
+               'df703c65-b700-401c-e040-8a80115d46ed',
+               'e02a84fb-8db9-1e6a-e040-8a80115d6e16']
         self.assertEqual(obs, exp)
 
     def test_getAGBarcodeDetails(self):

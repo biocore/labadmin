@@ -2096,7 +2096,8 @@ class KniminAccess(object):
         return [x[0] for x in results]
 
     def search_barcodes(self, term):
-        sql = """SELECT cast(ag_login_id as varchar(100)) as ag_login_id
+        sql = """SELECT DISTINCT
+                    cast(ag_login_id as varchar(100)) as ag_login_id
                  FROM ag_kit ak
                  INNER JOIN ag_kit_barcodes akb USING (ag_kit_id)
                  FULL OUTER JOIN ag_login_surveys USING
