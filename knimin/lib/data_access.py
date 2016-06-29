@@ -2171,7 +2171,7 @@ class KniminAccess(object):
             return dict(results)
 
     def get_barcode_info_by_kit_id(self, ag_kit_id):
-        sql = """SELECT  cast(ag_kit_barcode_id as varchar(100)) as
+        sql = """SELECT DISTINCT cast(ag_kit_barcode_id as varchar(100)) as
                          ag_kit_barcode_id, cast(ag_kit_id as varchar(100)) as
                          ag_kit_id, barcode, sample_date, sample_time,
                          site_sampled, environment_sampled, participant_name,
