@@ -173,6 +173,7 @@ class TestDataAccess(TestCase):
                 'barcode': '000018046',
                 'results_ready': 'Y',
                 'refunded': None,
+                'participant_name': 'REMOVED-0',
                 'ag_kit_barcode_id': '0060a301-e5c1-6a4e-e050-8a800c5d49b7',
                 'sample_date': datetime.date(2014, 8, 13),
                 'withdrawn': None,
