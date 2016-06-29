@@ -121,6 +121,90 @@ class TestDataAccess(TestCase):
                [6, 'Search'], [7, 'Admin']]
         self.assertEqual(obs, exp)
 
+    def test_participant_names(self):
+        obs = db.participant_names()
+        self.assertEqual(len(obs), 8237)
+        self.assertEqual(obs[0], ['000027561', 'REMOVED-0'])
+
+    def test_search_barcodes(self):
+        obs = db.search_barcodes('000001124')
+        self.assertEqual(obs, ['d8592c74-7c27-2135-e040-8a80115d6401'])
+
+        obs = db.search_barcodes('REMOVED-8')
+        exp = ['d8592c74-7da1-2135-e040-8a80115d6401',
+               '00711b0a-67d6-0fed-e050-8a800c5d7570',
+               'd8592c74-9491-2135-e040-8a80115d6401',
+               'f37dc99e-2241-3a4f-e040-8a80115d1694',
+               'e025e238-4529-77a9-e040-8a80115d503f',
+               'e76468db-82ca-bf84-e040-8a80115d55dc',
+               'fa66366c-12f2-50aa-e040-8a800c5d6584',
+               'df703c65-b700-401c-e040-8a80115d46ed',
+               'e02a84fb-8db9-1e6a-e040-8a80115d6e16']
+        self.assertEqual(obs, exp)
+
+    def test_getAGBarcodeDetails(self):
+        obs = db.getAGBarcodeDetails('000018046')
+        exp = {'status': 'Received',
+               'ag_kit_id': '0060a301-e5c0-6a4e-e050-8a800c5d49b7',
+               'barcode': '000018046',
+               'environment_sampled': None,
+               'name': 'REMOVED',
+               'ag_kit_barcode_id': '0060a301-e5c1-6a4e-e050-8a800c5d49b7',
+               'sample_time': datetime.time(11, 15),
+               'notes': 'REMOVED',
+               'overloaded': 'N',
+               'withdrawn': None, 'email': 'REMOVED',
+               'other': 'N', 'deposited': False,
+               'participant_name': 'REMOVED-0',
+               'refunded': None, 'moldy': 'N',
+               'sample_date': datetime.date(2014, 8, 13),
+               'date_of_last_email': datetime.date(2014, 8, 15),
+               'other_text': 'REMOVED',
+               'site_sampled': 'Stool'}
+        self.assertEqual(obs, exp)
+
+    def test_get_barcode_info_by_kit_id(self):
+        obs = db.get_barcode_info_by_kit_id(
+            '0060a301-e5c0-6a4e-e050-8a800c5d49b7')
+        exp = [{'ag_kit_id': '0060a301-e5c0-6a4e-e050-8a800c5d49b7',
+                'environment_sampled': None,
+                'sample_time': datetime.time(11, 15),
+                'notes': 'REMOVED',
+                'barcode': '000018046',
+                'results_ready': 'Y',
+                'refunded': None,
+                'ag_kit_barcode_id': '0060a301-e5c1-6a4e-e050-8a800c5d49b7',
+                'sample_date': datetime.date(2014, 8, 13),
+                'withdrawn': None,
+                'site_sampled': 'Stool'}]
+        self.assertEqual(obs, exp)
+
+    def test_getHumanParticipants(self):
+        i = "d8592c74-9694-2135-e040-8a80115d6401"
+        res = db.getHumanParticipants(i)
+        exp = ['REMOVED-2', 'REMOVED-0', 'REMOVED-3', 'REMOVED-1']
+        self.assertItemsEqual(res, exp)
+
+    def test_getHumanParticipantsNotPresent(self):
+        i = '00000000-0000-0000-0000-000000000000'
+        res = db.getHumanParticipants(i)
+        self.assertEqual(res, [])
+
+    def test_getAnimalParticipants(self):
+        i = "ed5ab96f-fe3b-ead5-e040-8a80115d1c4b"
+        res = db.getAnimalParticipants(i)
+        exp = ['REMOVED-0']
+        self.assertItemsEqual(res, exp)
+
+    def test_getAnimalParticipantsNotPresent(self):
+        i = "00711b0a-67d6-0fed-e050-8a800c5d7570"
+        res = db.getAnimalParticipants(i)
+        self.assertEqual(res, [])
+
+    def test_get_ag_barcode_details(self):
+        obs = db.get_ag_barcode_details('000001018')
+        print obs
+
 
 if __name__ == "__main__":
     main()
