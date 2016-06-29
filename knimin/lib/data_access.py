@@ -2174,10 +2174,10 @@ class KniminAccess(object):
         sql = """SELECT  cast(ag_kit_barcode_id as varchar(100)) as
                          ag_kit_barcode_id, cast(ag_kit_id as varchar(100)) as
                          ag_kit_id, barcode, sample_date, sample_time,
-                         site_sampled, environment_sampled,
+                         site_sampled, environment_sampled, participant_name,
                          notes, results_ready, withdrawn, refunded
                  FROM    ag_kit_barcodes
-                FULL OUTER JOIN ag_login_surveys USING (survey_id)
+                 FULL OUTER JOIN ag_login_surveys USING (survey_id)
                  WHERE   ag_kit_id = %s"""
 
         results = [dict(row) for row in
