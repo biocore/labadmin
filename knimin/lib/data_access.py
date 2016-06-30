@@ -414,15 +414,17 @@ class KniminAccess(object):
 
         # Delete removed levels
         remove = all_levels - new_levels
-        sql = """DELETE FROM ag.labadmin_users_access
-                 WHERE email = %s and access_id IN %s"""
-        self._con.execute(sql, [email, tuple(remove)])
+        if remove:
+            sql = """DELETE FROM ag.labadmin_users_access
+                     WHERE email = %s and access_id IN %s"""
+            self._con.execute(sql, [email, tuple(remove)])
 
         # Add new levels
         add = new_levels - user_levels
-        sql = """INSERT INTO ag.labadmin_users_access (email, access_id)
-                 VALUES (%s, %s)"""
-        self._con.executemany(sql, [(email, l) for l in add])
+        if add:
+            sql = """INSERT INTO ag.labadmin_users_access (email, access_id)
+                     VALUES (%s, %s)"""
+            self._con.executemany(sql, [(email, l) for l in add])
 
     def get_ag_barcode_details(self, barcodes):
         """Retrieve sample, kit, and login details by barcode
