@@ -33,7 +33,7 @@ class AGEditAccessHandler(BaseHandler):
 
         all_levels = db.get_access_levels()
         user_levels = db.get_access_levels_user(user)
-        if 'Admin' not in user_levels:
+        if [7, 'Admin'] not in user_levels:
             self.redirect('/logged_in_index/')
         else:
             users = db.get_users()
