@@ -1095,8 +1095,7 @@ class KniminAccess(object):
                         FROM ag.survey_question
                         JOIN ag.group_questions USING (survey_question_id)
                         JOIN ag.surveys USING (survey_group)
-                        WHERE survey_id = %s
-                        ORDER BY question_shortname"""
+                        WHERE survey_id = %s"""
 
         ext_survey_sql = """SELECT DISTINCT json_object_keys(answers)
                             FROM ag.external_survey_answers
@@ -1106,13 +1105,15 @@ class KniminAccess(object):
 
         # keep track of which barcodes were seen so we know which weren't
         barcodes_seen = set()
-
         metadata = {}
         for survey, bc_responses in all_results.items():
             if not bc_responses:
                 continue
-            headers = [x[0] for x in
-                       self._con.execute_fetchall(header_sql, [survey])]
+            # Get the headers for the survey, then union with ones added during
+            # pulldown formatting
+            headers = set(x[0] for x in
+                          self._con.execute_fetchall(header_sql, [survey]))
+            headers = sorted(headers.union(bc_responses.values()[0]))
             # Add external survey headers to the human survey answers
             if survey == 1 and external is not None:
                 for ext in external:
