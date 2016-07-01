@@ -1095,8 +1095,7 @@ class KniminAccess(object):
                         FROM ag.survey_question
                         JOIN ag.group_questions USING (survey_question_id)
                         JOIN ag.surveys USING (survey_group)
-                        WHERE survey_id = %s
-                        ORDER BY question_shortname"""
+                        WHERE survey_id = %s"""
 
         ext_survey_sql = """SELECT DISTINCT json_object_keys(answers)
                             FROM ag.external_survey_answers
@@ -1115,7 +1114,8 @@ class KniminAccess(object):
             # pulldown formatting
             headers = set(x[0] for x in
                           self._con.execute_fetchall(header_sql, [survey]))
-            headers = headers.union(bc_responses.values()[0])
+            headers = sorted(headers.union(bc_responses.values()[0]))
+            print type(headers)
             # Add external survey headers to the human survey answers
             if survey == 1 and external is not None:
                 for ext in external:
