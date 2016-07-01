@@ -1089,6 +1089,13 @@ class KniminAccess(object):
             all_results['env'], err = self.format_environmental(env_barcodes)
             errors.update(err)
 
+        # Set up sql for getting all survey question shortnames
+        header_sql = """SELECT DISTINCT question_shortname
+                        FROM ag.survey_question
+                        JOIN ag.group_questions USING (survey_question_id)
+                        JOIN ag.surveys USING (survey_group)
+                        WHERE survey_id = %s"""
+
         # keep track of which barcodes were seen so we know which weren't
         barcodes_seen = set()
 
@@ -1096,7 +1103,8 @@ class KniminAccess(object):
         for survey, bc_responses in all_results.items():
             if not bc_responses:
                 continue
-            headers = sorted(bc_responses.values()[0])
+            headers = [x[0] for x in
+                       self._con.execute_fetchall(header_sql, [survey])]
             survey_md = [''.join(['sample_name\t', '\t'.join(headers)])]
             for barcode, shortnames_answers in sorted(bc_responses.items()):
                 barcodes_seen.add(barcode)
