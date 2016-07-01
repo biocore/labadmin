@@ -1094,7 +1094,8 @@ class KniminAccess(object):
                         FROM ag.survey_question
                         JOIN ag.group_questions USING (survey_question_id)
                         JOIN ag.surveys USING (survey_group)
-                        WHERE survey_id = %s"""
+                        WHERE survey_id = %s
+                        ORDER BY question_shortname"""
 
         # keep track of which barcodes were seen so we know which weren't
         barcodes_seen = set()
