@@ -1105,7 +1105,6 @@ class KniminAccess(object):
 
         # keep track of which barcodes were seen so we know which weren't
         barcodes_seen = set()
-
         metadata = {}
         for survey, bc_responses in all_results.items():
             if not bc_responses:
@@ -1115,7 +1114,6 @@ class KniminAccess(object):
             headers = set(x[0] for x in
                           self._con.execute_fetchall(header_sql, [survey]))
             headers = sorted(headers.union(bc_responses.values()[0]))
-            print type(headers)
             # Add external survey headers to the human survey answers
             if survey == 1 and external is not None:
                 for ext in external:
