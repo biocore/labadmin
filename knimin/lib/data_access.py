@@ -1111,8 +1111,11 @@ class KniminAccess(object):
         for survey, bc_responses in all_results.items():
             if not bc_responses:
                 continue
-            headers = [x[0] for x in
-                       self._con.execute_fetchall(header_sql, [survey])]
+            # Get the headers for the survey, then union with ones added during
+            # pulldown formatting
+            headers = set(x[0] for x in
+                          self._con.execute_fetchall(header_sql, [survey]))
+            headers = headers.union(bc_responses.values()[0])
             # Add external survey headers to the human survey answers
             if survey == 1 and external is not None:
                 for ext in external:
