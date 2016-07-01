@@ -1113,16 +1113,17 @@ class KniminAccess(object):
             # pulldown formatting
             headers = set(x[0] for x in
                           self._con.execute_fetchall(header_sql, [survey]))
-            headers = sorted(headers.union(bc_responses.values()[0]))
+            headers = headers.union(bc_responses.values()[0])
             # Add external survey headers to the human survey answers
             if survey == 1 and external is not None:
                 for ext in external:
                     # get all external survey headers and format them
                     ext_headers = self._con.execute_fetchall(
                         ext_survey_sql, [ext])
-                    headers.extend(self._convert_header(ext, h[0])
-                                   for h in ext_headers)
-            survey_md = [''.join(['sample_name\t', '\t'.join(headers)])]
+                    headers.union(self._convert_header(ext, h[0])
+                                  for h in ext_headers)
+            survey_md = [''.join(['sample_name\t', '\t'.join(
+                                  sorted(headers))])]
 
             for barcode, shortnames_answers in sorted(bc_responses.items()):
                 barcodes_seen.add(barcode)
