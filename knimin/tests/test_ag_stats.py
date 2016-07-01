@@ -27,7 +27,7 @@ class TestAGStatsHandler(TestHandlerBase):
         self.assertIn(
             'Total barcodes with results</td><td>4546', response.body)
         self.assertIn(
-            'Average age of participants</td><td>47 years', response.body)
+            'Average age of participants</td><td>48 years', response.body)
         self.assertIn(
             'Total male participants</td><td>2577', response.body)
         self.assertIn(
