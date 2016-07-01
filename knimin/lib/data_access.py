@@ -1077,7 +1077,7 @@ class KniminAccess(object):
             all_results, errors = self.format_survey_data(all_survey_info,
                                                           external, full)
 
-        # Do the pulldown for the environmental samples
+        # Get barcodes for environmental samples
         sql = """SELECT barcode, environment_sampled
                  FROM ag.ag_kit_barcodes
                  WHERE environment_sampled IS NOT NULL
@@ -1085,9 +1085,6 @@ class KniminAccess(object):
                      AND barcode IN %s"""
         env_barcodes = self._con.execute_fetchall(sql, [tuple(barcodes)])
         barcodes.extend([b[0] for b in env_barcodes])
-        if len(env_barcodes) > 0:
-            all_results['env'], err = self.format_environmental(env_barcodes)
-            errors.update(err)
 
         # Set up sql for getting all survey question shortnames
         header_sql = """SELECT DISTINCT question_shortname
@@ -1127,6 +1124,11 @@ class KniminAccess(object):
                         '\t'.join([blank] + [blanks_copy[h]
                                              for h in headers]))
             metadata[survey] = '\n'.join(survey_md).encode('utf-8')
+
+        # Do the environmental pulldown if needed
+        if len(env_barcodes) > 0:
+            all_results['env'], err = self.format_environmental(env_barcodes)
+            errors.update(err)
 
         failures = set(barcodes) - barcodes_seen
         failures = self._explain_pulldown_failures(failures)
