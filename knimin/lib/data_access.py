@@ -729,8 +729,7 @@ class KniminAccess(object):
             for survey_id, survey, answers in self._con.execute_fetchall(
                     external_sql, [e, tuple(all_barcodes)]):
                 external[survey_id].update({
-                    converter.camel_to_snake(
-                        '_'.join([survey.replace(' ', '_'), key])).upper(): val
+                    self._convert_header(survey, key): val
                     for key, val in viewitems(answers)})
         if external:
             unknown_external = {k: 'Unspecified'
@@ -1045,7 +1044,12 @@ class KniminAccess(object):
                  WHERE participant_name IS NOT NULL"""
         return self._con.execute_fetchall(sql)
 
-    def pulldown(self, barcodes, blanks=None, external=None, full=False):
+    def _convert_header(self, survey, header):
+        return converter.camel_to_snake('_'.join(
+            [survey.replace(' ', '_'), header])).upper()
+
+    def pulldown(self, barcodes, blanks=None, external=None,  # noqa
+                 full=False):
         """Pulls down AG metadata for given barcodes
 
         Parameters
@@ -1085,9 +1089,20 @@ class KniminAccess(object):
                      AND barcode IN %s"""
         env_barcodes = self._con.execute_fetchall(sql, [tuple(barcodes)])
         barcodes.extend([b[0] for b in env_barcodes])
-        if len(env_barcodes) > 0:
-            all_results['env'], err = self.format_environmental(env_barcodes)
-            errors.update(err)
+
+        # Set up sql for getting all survey question shortnames
+        header_sql = """SELECT DISTINCT question_shortname
+                        FROM ag.survey_question
+                        JOIN ag.group_questions USING (survey_question_id)
+                        JOIN ag.surveys USING (survey_group)
+                        WHERE survey_id = %s
+                        ORDER BY question_shortname"""
+
+        ext_survey_sql = """SELECT DISTINCT json_object_keys(answers)
+                            FROM ag.external_survey_answers
+                            JOIN ag.external_survey_sources
+                                USING (external_survey_id)
+                            WHERE external_survey = %s"""
 
         # keep track of which barcodes were seen so we know which weren't
         barcodes_seen = set()
@@ -1096,8 +1111,18 @@ class KniminAccess(object):
         for survey, bc_responses in all_results.items():
             if not bc_responses:
                 continue
-            headers = sorted(bc_responses.values()[0])
+            headers = [x[0] for x in
+                       self._con.execute_fetchall(header_sql, [survey])]
+            # Add external survey headers to the human survey answers
+            if survey == 1 and external is not None:
+                for ext in external:
+                    # get all external survey headers and format them
+                    ext_headers = self._con.execute_fetchall(
+                        ext_survey_sql, [ext])
+                    headers.extend(self._convert_header(ext, h[0])
+                                   for h in ext_headers)
             survey_md = [''.join(['sample_name\t', '\t'.join(headers)])]
+
             for barcode, shortnames_answers in sorted(bc_responses.items()):
                 barcodes_seen.add(barcode)
                 oa_hold = [barcode]
@@ -1118,6 +1143,12 @@ class KniminAccess(object):
                         '\t'.join([blank] + [blanks_copy[h]
                                              for h in headers]))
             metadata[survey] = '\n'.join(survey_md).encode('utf-8')
+
+        if len(env_barcodes) > 0:
+            all_results['env'], err = self.format_environmental(env_barcodes)
+            for b in all_results['env']:
+                barcodes_seen.add(b)
+            errors.update(err)
 
         failures = set(barcodes) - barcodes_seen
         failures = self._explain_pulldown_failures(failures)
