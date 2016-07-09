@@ -31,6 +31,7 @@ You should now be able to start the webserver::
 And log on to the test database at localhost:7777, or whichever port you specified in config.txt.
 
 Initial default test login credentials are::
+
 **User:** test
 
 **Password:** password 
