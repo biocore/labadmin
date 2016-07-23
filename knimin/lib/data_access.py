@@ -1122,8 +1122,8 @@ class KniminAccess(object):
                         ext_survey_sql, [ext])
                     headers.union(self._convert_header(ext, h[0])
                                   for h in ext_headers)
-            survey_md = [''.join(['sample_name\t', '\t'.join(
-                                  sorted(headers))])]
+            headers = sorted(headers)
+            survey_md = [''.join(['sample_name\t', '\t'.join(headers)])]
 
             for barcode, shortnames_answers in sorted(bc_responses.items()):
                 barcodes_seen.add(barcode)
