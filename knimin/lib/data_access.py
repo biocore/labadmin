@@ -1122,6 +1122,8 @@ class KniminAccess(object):
                         ext_survey_sql, [ext])
                     headers.union(self._convert_header(ext, h[0])
                                   for h in ext_headers)
+            # Remove the ebi prohibited columns
+            headers = headers.difference(ebi_remove)
             headers = sorted(headers)
             survey_md = [''.join(['sample_name\t', '\t'.join(headers)])]
 
