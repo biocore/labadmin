@@ -6,6 +6,7 @@ import datetime
 import pandas as pd
 
 from knimin import db
+from knimin.lib.constants import ebi_remove
 
 
 class TestDataAccess(TestCase):
@@ -41,6 +42,11 @@ class TestDataAccess(TestCase):
         survey_df = pd.read_csv(
             StringIO(obs[1]), delimiter='\t', dtype=str, encoding='utf-8')
         survey_df.set_index('sample_name', inplace=True, drop=True)
+
+        # Make sure that the prohibited columns from EBI are not in the
+        # pulldown
+        self.assertEqual(set(survey_df.columns).intersection(ebi_remove),
+                         set())
 
         freq_accepted_vals = {
             'Never', 'Rarely (a few times/month)',
