@@ -1,8 +1,6 @@
 import unittest
 from knimin.lib.mem_zip import InMemoryZip
 import zipfile
-import zlib
-from random import seed
 import os
 import io
 
@@ -27,8 +25,6 @@ class TestInMemoryZip(unittest.TestCase):
         self.assertEqual(mem.in_memory_zip.debug, 3)
 
     def test_append(self):
-
-        test_fname = 'test.zip'
         exp_contents = 'argh'
         mem = InMemoryZip()
         mem2 = mem.append(self.test_fname, exp_contents)
@@ -55,5 +51,5 @@ class TestInMemoryZip(unittest.TestCase):
         res_contents = zhandle.read(self.test_fname)
         self.assertEqual(res_contents, exp_contents)
 
-if __name__=='__main__':
+if __name__ == '__main__':
     unittest.main()
