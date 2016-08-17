@@ -293,7 +293,7 @@ class TestDataAccess(TestCase):
         }}
         print obs
         print exp
-        self.assertDictEqual(obs, exp)
+        self.assertEqual(obs, exp)
 
 
 if __name__ == "__main__":
