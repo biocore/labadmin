@@ -1,8 +1,12 @@
 from unittest import TestCase, main
 from os.path import join, dirname, realpath
+from six import StringIO
 import datetime
 
+import pandas as pd
+
 from knimin import db
+from knimin.lib.constants import ebi_remove
 
 
 class TestDataAccess(TestCase):
@@ -31,6 +35,40 @@ class TestDataAccess(TestCase):
         barcodes = ['000029429', '000018046', '000023299', '000023300']
         # Test without third party
         obs, _ = db.pulldown(barcodes)
+
+        # Parse the metadata into a pandas dataframe to test some invariants
+        # This tests does not ensure that the columns have the exact value
+        # but at least ensure that the contents looks as expected
+        survey_df = pd.read_csv(
+            StringIO(obs[1]), delimiter='\t', dtype=str, encoding='utf-8')
+        survey_df.set_index('sample_name', inplace=True, drop=True)
+
+        # Make sure that the prohibited columns from EBI are not in the
+        # pulldown
+        self.assertEqual(set(survey_df.columns).intersection(ebi_remove),
+                         set())
+
+        freq_accepted_vals = {
+            'Never', 'Rarely (a few times/month)',
+            'Regularly (3-5 times/week)', 'Occasionally (1-2 times/week)',
+            'Unspecified', 'Daily'}
+
+        freq_cols = ['ALCOHOL_FREQUENCY', 'PROBIOTIC_FREQUENCY',
+                     'ONE_LITER_OF_WATER_A_DAY_FREQUENCY', 'POOL_FREQUENCY',
+                     'FLOSSING_FREQUENCY', 'COSMETICS_FREQUENCY']
+
+        for col in freq_cols:
+            vals = set(survey_df[col])
+            self.assertTrue(all([x in freq_accepted_vals for x in vals]))
+
+        # This astype is making sure that the values in the BMI column are
+        # values that can be casted to float.
+        survey_df.BMI.astype(float)
+
+        body_product_values = set(survey_df.BODY_PRODUCT)
+        self.assertTrue(all([x.startswith('UBERON') or x == 'Unspecified'
+                             for x in body_product_values]))
+
         survey = obs[1]
         self.assertFalse('VIOSCREEN' in survey)
 
