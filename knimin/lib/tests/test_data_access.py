@@ -242,18 +242,6 @@ class TestDataAccess(TestCase):
 
     def test_get_ag_barcode_details(self):
         obs = db.get_ag_barcode_details(['000018046'])
-        exp = [{'ag_kit_id': '0060a301-e5c0-6a4e-e050-8a800c5d49b7',
-                'environment_sampled': None,
-                'sample_time': datetime.time(11, 15),
-                'notes': 'REMOVED',
-                'barcode': '000018046',
-                'results_ready': 'Y',
-                'refunded': None,
-                'participant_name': 'REMOVED-0',
-                'ag_kit_barcode_id': '0060a301-e5c1-6a4e-e050-8a800c5d49b7',
-                'sample_date': datetime.date(2014, 8, 13),
-                'withdrawn': None,
-                'site_sampled': 'Stool'}]
         exp = {'000018046': {
                 'ag_kit_barcode_id': '0060a301-e5c1-6a4e-e050-8a800c5d49b7',
                 'verification_email_sent': 'n',
@@ -303,7 +291,7 @@ class TestDataAccess(TestCase):
                 'other': 'N',
                 'sample_barcode_file_md5': None
         }}
-        self.assertEqual(obs, exp)
+        self.assertDictEqual(obs, exp)
 
 
 if __name__ == "__main__":
