@@ -291,6 +291,8 @@ class TestDataAccess(TestCase):
                 'other': 'N',
                 'sample_barcode_file_md5': None
         }}
+        print obs
+        print exp
         self.assertDictEqual(obs, exp)
 
 
