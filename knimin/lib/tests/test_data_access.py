@@ -259,8 +259,10 @@ class TestDataAccess(TestCase):
                 'state': 'REMOVED',
                 'results_ready': 'Y',
                 'moldy': 'N',
-                'registered_on': datetime.datetime(2016, 8, 17, 10, 47, 2,
-                                                   713292),
+                # The key 'registered_on' is a time stamp when the database is
+                # created. It is unique per deployment.
+                # 'registered_on': datetime.datetime(2016, 8, 17, 10, 47, 2,
+                #                                   713292),
                 'participant_name': 'REMOVED-0',
                 'kit_password': ('$2a$12$LiakUCHOpAMvEp9Wxehw5OIlD/TIIP0Bs3blw'
                                  '18ePcmKHWWAePrQ.'),
@@ -291,8 +293,8 @@ class TestDataAccess(TestCase):
                 'other': 'N',
                 'sample_barcode_file_md5': None
         }}
-        print obs
-        print exp
+        for key in obs:
+            del(obs[key]['registered_on'])
         self.assertEqual(obs, exp)
 
 
