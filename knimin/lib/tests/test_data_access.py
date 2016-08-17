@@ -241,8 +241,69 @@ class TestDataAccess(TestCase):
         self.assertEqual(res, [])
 
     def test_get_ag_barcode_details(self):
-        obs = db.get_ag_barcode_details('000001018')
-        print obs
+        obs = db.get_ag_barcode_details(['000018046'])
+        exp = [{'ag_kit_id': '0060a301-e5c0-6a4e-e050-8a800c5d49b7',
+                'environment_sampled': None,
+                'sample_time': datetime.time(11, 15),
+                'notes': 'REMOVED',
+                'barcode': '000018046',
+                'results_ready': 'Y',
+                'refunded': None,
+                'participant_name': 'REMOVED-0',
+                'ag_kit_barcode_id': '0060a301-e5c1-6a4e-e050-8a800c5d49b7',
+                'sample_date': datetime.date(2014, 8, 13),
+                'withdrawn': None,
+                'site_sampled': 'Stool'}]
+        exp = {'000018046': {
+                'ag_kit_barcode_id': '0060a301-e5c1-6a4e-e050-8a800c5d49b7',
+                'verification_email_sent': 'n',
+                'pass_reset_code': None,
+                'vioscreen_status': 3,
+                'sample_barcode_file': '000018046.jpg',
+                'environment_sampled': None,
+                'supplied_kit_id': 'tst_nVEyP',
+                'withdrawn': None,
+                'kit_verified': 'y',
+                'city': 'REMOVED',
+                'ag_kit_id': '0060a301-e5c0-6a4e-e050-8a800c5d49b7',
+                'zip': 'REMOVED',
+                'ag_login_id': '0060a301-e5bf-6a4e-e050-8a800c5d49b7',
+                'state': 'REMOVED',
+                'results_ready': 'Y',
+                'moldy': 'N',
+                'registered_on': datetime.datetime(2016, 8, 17, 10, 47, 2,
+                                                   713292),
+                'participant_name': 'REMOVED-0',
+                'kit_password': ('$2a$12$LiakUCHOpAMvEp9Wxehw5OIlD/TIIP0Bs3blw'
+                                 '18ePcmKHWWAePrQ.'),
+                'deposited': False,
+                'sample_date': datetime.date(2014, 8, 13),
+                'email': 'REMOVED',
+                'print_results': False,
+                'open_humans_token': None,
+                'elevation': 0.0,
+                'refunded': None,
+                'other_text': 'REMOVED',
+                'barcode': '000018046',
+                'swabs_per_kit': 1L,
+                'kit_verification_code': '60260',
+                'latitude': 0.0,
+                'cannot_geocode': None,
+                'address': 'REMOVED',
+                'date_of_last_email': datetime.date(2014, 8, 15),
+                'site_sampled': 'Stool',
+                'name': 'REMOVED',
+                'sample_time': datetime.time(11, 15),
+                'notes': 'REMOVED',
+                'overloaded': 'N',
+                'longitude': 0.0,
+                'pass_reset_time': None,
+                'country': 'REMOVED',
+                'survey_id': '084532330aca5885',
+                'other': 'N',
+                'sample_barcode_file_md5': None
+        }}
+        self.assertEqual(obs, exp)
 
 
 if __name__ == "__main__":
