@@ -1,7 +1,6 @@
 from mock import Mock
 from os.path import basename
 from mimetypes import guess_type
-import json
 try:
     from urllib import urlencode
 except ImportError:  # py3

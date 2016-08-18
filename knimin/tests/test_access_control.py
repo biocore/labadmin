@@ -2,6 +2,7 @@ from unittest import main
 from knimin.tests.tornado_test_base import TestHandlerBase
 from knimin import db
 
+
 class TestAccessControlHandler(TestHandlerBase):
     def test_get_not_authed(self):
         response = self.get('/admin/edit/')
