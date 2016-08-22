@@ -1,5 +1,6 @@
 # http://stackoverflow.com/a/19722365
 import zipfile
+
 try:
     from cStringIO import StringIO
 except ImportError:
@@ -17,12 +18,26 @@ class InMemoryZip(object):
 
     def append(self, filename_in_zip, file_contents):
         '''Appends a file with name filename_in_zip and contents of
-        file_contents to the in-memory zip.'''
+        file_contents to the in-memory zip.
+
+        Parameters
+        ----------
+        filename_in_zip : str
+            Filename of zip file.
+        file_contents : str
+            Contents to be written into file.
+        '''
         self.in_memory_zip.writestr(filename_in_zip, file_contents)
         return self   # so you can daisy-chain
 
     def writetofile(self, filename):
-        '''Writes the in-memory zip to a file.'''
+        '''Writes the in-memory zip to a file.
+
+        Parameters
+        ----------
+        filename : str
+           Name of the output zip file.
+        '''
         # Mark the files as having been created on Windows so that
         # Unix permissions are not inferred as 0000
         for zfile in self.in_memory_zip.filelist:
@@ -32,6 +47,16 @@ class InMemoryZip(object):
             f.write(self.in_memory_data.getvalue())
 
     def write_to_buffer(self):
+        """ Closes the buffer and returns the binary content.
+
+        Returns
+        -------
+        str : binary content of the zipped buffer.
+
+        See Also
+        --------
+        io.BytesIO
+        """
         self.in_memory_zip.close()
         return self.in_memory_data.getvalue()
 
