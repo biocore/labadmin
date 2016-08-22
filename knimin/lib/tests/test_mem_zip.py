@@ -12,11 +12,10 @@ class TestInMemoryZip(unittest.TestCase):
         self.test_out_fname = 'testout.zip'
 
     def tearDown(self):
-        self.test_fname = 'test.zip'
         if os.path.exists(self.test_fname):
             os.remove(self.test_fname)
-        # if os.path.exists(self.test_out_fname):
-        #     os.remove(self.test_out_fname)
+        if os.path.exists(self.test_out_fname):
+            os.remove(self.test_out_fname)
 
     def test_constructor(self):
         mem = InMemoryZip()
