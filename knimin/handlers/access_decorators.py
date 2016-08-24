@@ -21,6 +21,10 @@ def set_access(access_levels=['Admin']):  # noqa: C901
             _access_levels = access_levels
 
             def _has_access(self):
+                # If no user, let the authenticated decorator take over
+                if self.current_user is None:
+                    return
+
                 # verify the user exists
                 # WARNING: this is a list lookup. As the number of users is
                 # anticipated to be small for labadmin, this is probably okay.
