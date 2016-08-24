@@ -30,6 +30,10 @@ class TestHandlerBase(AsyncHTTPTestCase, LogTrapTestCase):
     def mock_login(self):
         BaseHandler.get_current_user = Mock(return_value='test')
 
+    def mock_login_admin(self):
+        db.alter_access_levels('test', [7])
+        self.mock_login()
+
     def get(self, url, data=None, headers=None):
         if isinstance(data, dict):
                 data = urlencode(data)
@@ -38,7 +42,7 @@ class TestHandlerBase(AsyncHTTPTestCase, LogTrapTestCase):
 
     def post(self, url, data, headers=None):
         if isinstance(data, dict):
-                data = urlencode(data)
+            data = urlencode(data, True)
         return self.fetch(url, method='POST', body=data, headers=headers)
 
     def multipart_post(self, url, data, files, headers=None):
