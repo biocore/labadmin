@@ -24,8 +24,7 @@ class AGEditBarcodeHandler(BaseHandler):
                         participants=participants,
                         currentuser=self.current_user)
         else:
-            raise self.set_status(400)
-
+            self.set_status(400)
 
     @authenticated
     def post(self):

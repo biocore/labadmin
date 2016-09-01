@@ -5,16 +5,16 @@ from knimin import db
 
 class TestEditBarcodeHandler(TestHandlerBase):
     def test_get_no_barcode(self):
-        self.mock_login()
+        self.mock_login_admin()
         response = self.get('/ag_edit_barcode/')
         self.assertEqual(response.code, 400)
 
-    def test_get_auth(self):
+    def test_get_no_auth(self):
         self.mock_login()
         response = self.get('/ag_edit_barcode/', {'barcode': '000004216'})
         self.assertEqual(response.code, 403)
 
-    def test_get_no_barcode(self):
+    def test_get_barcode(self):
         self.mock_login_admin()
         response = self.get('/ag_edit_barcode/', {'barcode': '000004216'})
         self.assertEqual(response.code, 200)
