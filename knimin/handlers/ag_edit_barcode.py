@@ -23,6 +23,8 @@ class AGEditBarcodeHandler(BaseHandler):
                         environments_sampled=environment_sampled,
                         participants=participants,
                         currentuser=self.current_user)
+        else:
+            self.set_status(400)
 
     @authenticated
     def post(self):
