@@ -23,7 +23,7 @@ class TestAGStatsHandler(TestHandlerBase):
         self.assertIn(
             'Total registered kits</td><td>7480', response.body)
         self.assertIn(
-            'Total registered barcodes</td><td>17254', response.body)
+            'Total registered barcodes</td><td>', response.body)
         self.assertIn(
             'Total barcodes with results</td><td>4546', response.body)
         self.assertIn(
