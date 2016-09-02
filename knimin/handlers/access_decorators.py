@@ -3,8 +3,8 @@ from tornado.web import HTTPError
 from knimin import db
 
 
-def set_access(access_levels=['Admin']):
-    """Decorator that resricts access to specific user group(s)
+def set_access(access_levels=['Admin']):  # noqa: C901
+    """Decorator that restricts access to specific user group(s)
 
     Parameters
     ----------
@@ -24,9 +24,21 @@ def set_access(access_levels=['Admin']):
                 # If no user, let the authenticated decorator take over
                 if self.current_user is None:
                     return
-                # Base level access is given to everyone
+
+                # verify the user exists
+                # WARNING: this is a list lookup. As the number of users is
+                # anticipated to be small for labadmin, this is probably okay.
+                if self.current_user not in db.get_users():
+                    raise HTTPError(403, 'User %s does not have access level '
+                                    '%s' % (self.current_user,
+                                            ', '.join(self._access_levels)))
+
+                # Base level access is given to everyone assuming the user
+                # is valid
                 if self._access_levels[0] == 'Base':
                     return
+
+                # verify access
                 if not db.has_access(self.current_user, self._access_levels):
                     raise HTTPError(403, 'User %s does not have access level '
                                     '%s' % (self.current_user,
