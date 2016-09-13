@@ -103,7 +103,7 @@ class BarcodeUtilHelper(object):
                      sample_date, sample_time):
         subject = body_message = u""
 
-        if email_type == '0':
+        if email_type in ('0', '-1'):
             subject = u'ACTION REQUIRED - Assign your samples in American Gut'
             body_message = u"""
 Dear {name},
