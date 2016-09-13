@@ -1,7 +1,10 @@
 from collections import defaultdict
 survey_type = {
     1: "Human",
-    2: "Animal"
+    2: "Animal",
+    3: "Fermented foods",
+    4: "Surfers",
+    5: "Personal microbiome"
 }
 
 # Columns to remove for EBI or other public submissions of metadata
