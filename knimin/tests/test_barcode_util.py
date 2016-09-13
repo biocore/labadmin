@@ -12,8 +12,9 @@ class TestBarcodeUtil(TestHandlerBase):
         self.ag_good = '000001018'
         self.ag_enviro = '000009460'
         self.ag_handout = '000022146'
-        self.ag_unlogged = '000022640'
+        self.ag_unassigned = '000022640'
         self.not_ag = '000006155'
+        self.not_logged = '000001137'
 
         self.data = {
             'barcode': self.ag_good,
@@ -34,6 +35,12 @@ class TestBarcodeUtil(TestHandlerBase):
             'parent_project': 'American Gut',
             'biomass_remaining': 'Unknown',
         }
+
+        self.data_not_logged = {
+            'barcode': self.not_logged,
+            'login_email': 'REMOVED',
+            'email_type': 0}
+
         super(TestBarcodeUtil, self).setUp()
 
     def test_get_not_logged_in(self):
@@ -114,10 +121,10 @@ class TestBarcodeUtil(TestHandlerBase):
         self.assertIn('Cannot retrieve metadata: Unassigned handout kit '
                       'barcode', response.body)
 
-    def test_get_unlogged_barcode(self):
+    def test_get_unassigned_barcode(self):
         self.mock_login()
         db.alter_access_levels('test', [3])
-        response = self.get('/barcode_util/', {'barcode': self.ag_unlogged})
+        response = self.get('/barcode_util/', {'barcode': self.ag_unassigned})
         self.assertEqual(response.code, 200)
         self.assertIn(
             '<input id="barcode" name="barcode" type="text" '
@@ -191,6 +198,19 @@ class TestBarcodeUtil(TestHandlerBase):
         barcode_projects, parent_project = db.getBarcodeProjType(self.ag_good)
         self.assertEqual(barcode_projects, '')
         self.assertEqual(parent_project, 'American Gut')
+
+    def test_post_not_logged_barcode(self):
+        db.alter_access_levels('test', [3])
+        notes = ''.join([choice(ascii_letters) for x in range(40)])
+        self.data['other_text'] = notes
+        self.mock_login()
+        response = self.post('/barcode_util/', data=self.data_not_logged)
+        self.assertEqual(response.code, 200)
+        # I believe this is correct: the sample is marked as received, as well
+        # as status such as moldy/etc but there is no consent or tie sample
+        # site. This _should_ trigger an email
+        self.assertIn('Barcode %s general details updated' %
+                      self.not_logged, response.body)
 
     def test_build_email(self):
         db.alter_access_levels('test', [3])
