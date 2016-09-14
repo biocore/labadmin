@@ -1,0 +1,88 @@
+<!-- The Plate Mapper module -->
+<!-- Plate list -->
+<!-- Qiyun Zhu -->
+
+{% extends logged_in_index.html %}
+{% block head %}
+{% from json import dumps %}
+<script type="text/javascript" src="/static/js/labmin.js"></script>
+<script type="text/javascript" src="/static/vendor/js/jquery.validate.min.js"></script>
+<style>
+  p {
+    font-weight: bold;
+  }
+  table {
+    table-layout: fixed;
+    width: 100%;
+    height: 100%;
+    border-top: 1px solid black;
+    border-bottom: 1px solid black;
+  }
+  th {
+    margin: 0;
+    border-bottom: 1px solid black;
+  }
+  td {
+      margin: 0;
+  }
+  tbody.list {
+    cursor: pointer;
+  }
+  tbody.list tr:hover {
+    background-color: lightgray;
+  }
+</style>
+<script type="text/javascript">
+  window.onload = function() {
+    // items=items, pageno=pageno, total=total, plates=plates
+    var items = {{items}};
+    var pageno = {{pageno}};
+    var total = {{total}};
+    var plates = {{plates}};
+    var npage = Math.ceil(total/items);
+    $("#title").html(items + " plates per page, " + pageno + " of " + npage + " pages");
+    var nplate = plates.length;
+    if (nplate > 0) {
+      var table = document.getElementById("plate_list");
+      for (var i = 0; i < nplate; i++) {
+        var row = table.insertRow();
+        for (var j = 0; j < 4; j++) {
+          var cell = row.insertCell(-1);
+          cell.innerHTML = plates[i][j];
+        }
+        // document.write("<p>" + plates[i][0] + ": " + plates[i][1] + "(" + plates[i][2] + ")</p>");
+      }
+    } else {
+      alert("Error: no plate is available.");
+    }
+  }
+</script>
+{% end %}
+
+{% block content %}
+<h3>Plate List</h3>
+<p id="title"></p>
+
+<div id="navigator">
+  <p><button onclick="location.href='/pm_plate_map/?id=0';">Create new plate</button></p>
+  <p><button onclick="location.href='/pm_plate_map/?id=1';">Go to 1st plate</button></p>
+</div>
+
+<table width="100%">
+  <thead>
+    <tr width="100%">
+      <th width="10%">ID</th>
+      <th width="50%">Name</th>
+      <th width="20%">Type</th>
+      <th width="20%">Person</th>
+    </tr>
+  </thead>
+  <tbody class="list" id="plate_list">
+  </tbody>
+</table>
+
+<form method="post" action="/pm_plate_list/" name="migrate_form" id="migrate_form">
+  <input type="hidden" name="action" value="migrate">
+  <p>Migrate data: <input type="submit"></p>
+</form>
+{% end %}

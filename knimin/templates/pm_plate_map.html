@@ -1,0 +1,108 @@
+<!-- The Plate Mapper module -->
+<!-- Plate map -->
+<!-- Qiyun Zhu -->
+
+{% extends logged_in_index.html %}
+{% block head %}
+{% from json import dumps %}
+<script type="text/javascript" src="/static/js/labmin.js"></script>
+<script type="text/javascript" src="/static/vendor/js/jquery.validate.min.js"></script>
+<style>
+  p {
+    font-weight: bold;
+  }
+  table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+  }
+  input.cell {
+    display: block;
+    text-align: center;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    width: 100%;
+    border-radius: 0;
+    line-height: 2.5;
+  }
+  input.cell:focus {
+    outline: none;
+    border-color: #719ECE;
+    box-shadow: 0 0 10px #719ECE;
+    background-color: white;
+  }
+  td {
+    text-align: center;
+    vertical-align: middle;
+    border: 1px solid black;
+    margin: 0;
+    padding: 0;
+    background-color: rgba(255,255,0,0.5);
+  }
+</style>
+<script type="text/javascript">
+  var id;
+  var type;
+  var map = {};  // col_row => sample_id
+
+  $(document).ready(function(){
+    $("input.cell").on("click", function () {
+      alert("wahhhhh");
+      // alert($(this).value());
+    });
+  });
+
+  window.onload = function() {
+    id = {{id}};
+    type = {{type}};
+    if (id > 0) {
+      map0 = {{map}};
+      for (var i = 0; i < map0.length; i++) {
+        map[map0[i][0] + "_" + map0[i][1]] = map0[i][2];
+      }
+    }
+    // generate table
+    var table = document.getElementById("plate_map");
+    table.innerHTML = "";
+    var ncol = type[2];
+    var nrow = type[3];
+    for (var i = 0; i <= nrow; i++) {
+      var row = table.insertRow();
+      var row_html = "";
+      for (var j = 0; j <= ncol; j++) {
+        if (i == 0) {
+          if (j == 0) {
+            row_html += "<td width=20></td>";
+          } else {
+            row_html += "<td>" + j.toString() + "</td>";
+          }
+        } else if (j == 0) {
+          row_html += "<td>" + String.fromCharCode(64 + i); + "</td>";
+        } else {
+          var well = j.toString() + "_" + i.toString();
+          var sample = "";
+          if (map.hasOwnProperty(well)) {
+            sample = map[well];
+          }
+          row_html += "<td><input class='cell', type='text', data-sample='" + sample + "'></td>";
+        }
+      }
+      row.innerHTML = row_html;
+    }
+    $("input.cell").each(function() {
+        $(this).val($(this).attr("data-sample").replace(/\b0+/g, ''));
+    });
+    // $("input.cell").val($(this).attr("data-sample").replace(/\b0+/g, ''));
+  }
+
+</script>
+{% end %}
+
+{% block content %}
+<h3>Plate Mapper</h3>
+<div id="plate_info">
+</div>
+<table id="plate_map"></table>
+<hr>
+{% end %}
