@@ -2381,7 +2381,7 @@ class KniminAccess(object):
         if add_projects:
             sql = """INSERT INTO barcodes.project_barcode
                       SELECT project_id, %s FROM (
-                        SELECT project_id from barcodes.project
+                        SELECT project_id FROM barcodes.project
                         WHERE project in %s)
                      AS P"""
 
@@ -2398,6 +2398,130 @@ class KniminAccess(object):
         """
         sql = """SELECT project FROM project"""
         return [x[0] for x in self._con.execute_fetchall(sql)]
+
+    def get_plate_ids(self):
+        """Gets all existing plate ids
+        """
+        sql = """SELECT plate_id FROM pm.plate ORDER BY plate_id"""
+        plate_ids = [x[0] for x in self._con.execute_fetchall(sql)]
+        if not plate_ids:
+            raise ValueError('Retrieval of plate IDs failed!')
+        return plate_ids
+
+    def get_plate_details(self, plate_id):
+        """Gets details of a plate by id
+        """
+        sql = """SELECT * FROM plate WHERE plate_id = %s"""
+        details = self._con.execute_fetchone(sql, [plate_id])
+        if not details:
+            raise ValueError('Plate ID %s does not exist!' % plate_id)
+        return details
+
+    def populate_barcodes(self):
+        """This command is only temporary.
+        It adds barcodes to plates.
+        """
+        sql = """SELECT plate_id FROM plate ORDER BY plate_id"""
+        ids = [x[0] for x in self._con.execute_fetchall(sql)]
+        for id in ids:
+            sql = """SELECT barcode FROM plate_barcode WHERE plate_id = %s"""
+            barcodes = [x[0] for x in self._con.execute_fetchall(sql, [id])]
+            if not barcodes:
+                continue
+            # barcodes_str = '"' + '", "'.join(barcodes) + '"'
+            sql = """UPDATE plate SET barcodes = %s WHERE plate_id = %s"""
+            self._con.execute(sql, [barcodes, id])
+        return 0
+
+    def migrate_data(self):
+        """This command is only temporary. It migrates existing data from
+        schema "barcodes" into the newly created schema "pm".
+        """
+        # barcode => sample
+        sql = """INSERT INTO pm.sample (sample_id)
+                 SELECT barcode
+                 FROM barcodes.barcode;"""
+        self._con.execute(sql)
+        sql = """UPDATE pm.sample SET barcode = sample_id"""
+        self._con.execute(sql)
+        # project => study
+        sql = """INSERT INTO pm.study (study_id, title)
+                 SELECT project_id, project
+                 FROM barcodes.project;"""
+        self._con.execute(sql)
+        # project_barcode => study_sample
+        sql = """INSERT INTO pm.study_sample (study_id, sample_id)
+                 SELECT project_id, barcode
+                 FROM barcodes.project_barcode
+                 ORDER BY project_id, barcode;"""
+        self._con.execute(sql)
+        # plate => plate
+        sql = """SELECT plate_id, plate FROM barcodes.plate
+                 ORDER BY plate_id"""
+        plates = [(x[0], x[1]) for x in self._con.execute_fetchall(sql)]
+        if not plates:
+            return 1
+        for plate in plates:
+            sql = """INSERT INTO pm.plate (name, email, plate_type_id)
+                     VALUES (%s, 'test', 1) RETURNING plate_id"""
+            id = self._con.execute_fetchone(sql, [plate[1]])[0]
+            sql = """SELECT barcode FROM barcodes.plate_barcode
+                     WHERE plate_id = %s ORDER BY barcode"""
+            barcodes = [x[0] for x in self._con.execute_fetchall(sql, [id])]
+            if not barcodes:
+                continue
+            count = 0
+            nbarcode = len(barcodes)
+            (ncol, nrow) = (12, 8)
+            for i in range(ncol):
+                for j in range(nrow):
+                    sql = """INSERT INTO pm.plate_sample (plate_id, col,
+                                row, sample_id)
+                             VALUES (%s, %s, %s, %s)"""
+                    self._con.execute(sql, [id, i+1, j+1, barcodes[count]])
+                    count += 1
+                    if count == nbarcode:
+                        break
+                if count == nbarcode:
+                    break
+        return 0
+
+    def get_plate_total(self):
+        """Gets total number of plates
+        """
+        sql = """SELECT COUNT(*) FROM pm.plate"""
+        return self._con.execute_fetchone(sql)[0]
+
+    def get_plate_info(self, limit="ALL", offset="0"):
+        """Gets basic information of a range of plates
+        """
+        sql = """SELECT plate_id, name, email, plate_type_id
+                 FROM pm.plate ORDER BY plate_id LIMIT %s OFFSET %s;"""
+        return self._con.execute_fetchall(sql, [limit, offset])
+
+    def get_plate_type(self, plate_id):
+        """Gets plate type by plate id
+        """
+        sql = """SELECT plate_type_id FROM pm.plate WHERE plate_id = %s"""
+        plate_type_id = self._con.execute_fetchone(sql, [plate_id])[0]
+        if not plate_type_id:
+            raise ValueError('Plate ID %s does not exist!' % plate_id)
+        sql = """SELECT * FROM pm.plate_type WHERE plate_type_id = %s"""
+        return self._con.execute_fetchone(sql, [plate_type_id])
+
+    def get_default_plate_type(self):
+        """Gets the default plate type
+        """
+        default_plate_type_id = 1
+        sql = """SELECT * FROM pm.plate_type WHERE plate_type_id = %s"""
+        return self._con.execute_fetchone(sql, [default_plate_type_id])
+
+    def get_plate_map(self, plate_id):
+        """Gets plate map by id
+        """
+        sql = """SELECT col, row, sample_id FROM pm.plate_sample
+                 WHERE plate_id = %s"""
+        return self._con.execute_fetchall(sql, [plate_id])
 
     def set_deposited_ebi(self):
         """Updates barcode deposited status by checking EBI"""
