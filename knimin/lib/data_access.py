@@ -1619,7 +1619,7 @@ class KniminAccess(object):
             barcodes in each project is returned)
         limit : int, optional
             Number of barcodes to return, starting with most recent
-            (defult all)
+            (default all)
 
         Returns
         -------
@@ -2381,7 +2381,7 @@ class KniminAccess(object):
         if add_projects:
             sql = """INSERT INTO barcodes.project_barcode
                       SELECT project_id, %s FROM (
-                        SELECT project_id from barcodes.project
+                        SELECT project_id FROM barcodes.project
                         WHERE project in %s)
                      AS P"""
 
@@ -2398,6 +2398,232 @@ class KniminAccess(object):
         """
         sql = """SELECT project FROM project"""
         return [x[0] for x in self._con.execute_fetchall(sql)]
+
+    def migrate_data(self):
+        """This command is only temporary. It migrates existing data from
+        schema "barcodes" into the newly created schema "pm".
+        """
+        # barcode => sample
+        sql = """INSERT INTO pm.sample (sample_id)
+                 SELECT barcode
+                 FROM barcodes.barcode;"""
+        self._con.execute(sql)
+        sql = """UPDATE pm.sample SET barcode = sample_id"""
+        self._con.execute(sql)
+        # project => study
+        sql = """INSERT INTO pm.study (study_id, title)
+                 SELECT project_id, project
+                 FROM barcodes.project;"""
+        self._con.execute(sql)
+        # project_barcode => study_sample
+        sql = """INSERT INTO pm.study_sample (study_id, sample_id)
+                 SELECT project_id, barcode
+                 FROM barcodes.project_barcode
+                 ORDER BY project_id, barcode;"""
+        self._con.execute(sql)
+        # plate => plate
+        sql = """SELECT plate_id, plate FROM barcodes.plate
+                 ORDER BY plate_id"""
+        plates = [(x[0], x[1]) for x in self._con.execute_fetchall(sql)]
+        if not plates:
+            return 1
+        for plate in plates:
+            sql = """INSERT INTO pm.plate (name, email, plate_type_id)
+                     VALUES (%s, 'test', 1) RETURNING plate_id"""
+            id = self._con.execute_fetchone(sql, [plate[1]])[0]
+            sql = """SELECT barcode FROM barcodes.plate_barcode
+                     WHERE plate_id = %s ORDER BY barcode"""
+            barcodes = [x[0] for x in self._con.execute_fetchall(sql, [id])]
+            if not barcodes:
+                continue
+            count = 0
+            nbarcode = len(barcodes)
+            (ncol, nrow) = (12, 8)
+            for i in range(ncol):
+                for j in range(nrow):
+                    sql = """INSERT INTO pm.plate_sample (plate_id, col,
+                                row, sample_id)
+                             VALUES (%s, %s, %s, %s)"""
+                    self._con.execute(sql, [id, i+1, j+1, barcodes[count]])
+                    count += 1
+                    if count == nbarcode:
+                        break
+                if count == nbarcode:
+                    break
+        return 0
+
+    def get_plate_info(self, plate_id):
+        """Gets attributes of a plate by id
+
+        Parameters
+        ----------
+        plate_id : int
+            Plate id
+
+        Returns
+        -------
+        dict
+            Plate attributes
+        """
+        sql = """SELECT * FROM pm.plate WHERE plate_id = %s"""
+        return self._con.execute_fetchdict(sql, [plate_id])[0]
+
+    def set_plate_info(self, plate_id, plate_info):
+        """Sets attributes of a plate by id
+
+        Parameters
+        ----------
+        plate_id : int
+            Existing plate id (>0) or create new plate (0)
+        plate_info : dict
+            Plate attributes
+
+        Returns
+        -------
+        int
+            Plate id of the created / modified plate
+        """
+        keys = ', '.join([str(x) for x in plate_info.keys()])
+        values = ', '.join(['\'' + str(x) + '\'' for x in plate_info.values()])
+        sql = ''
+        if plate_id == 0:  # Create new plate
+            sql = 'INSERT INTO pm.plate (' + keys + ') VALUES (' + values + ')'
+        else:  # Modify existing plate
+            sql = 'UPDATE pm.plate SET (' + keys + ') = (' + values + ')'
+            sql += ' WHERE plate_id = ' + str(plate_id)
+        sql += ' RETURNING plate_id'
+        return self._con.execute_fetchone(sql)[0]
+
+    def get_plate_map(self, plate_id):
+        """Gets plate map by id
+
+        Parameters
+        ----------
+        plate_id : int
+            Plate id
+
+        Returns
+        -------
+        list of tuple of (int, int, str)
+            Column id, row id, sample id
+        """
+        sql = """SELECT col, row, sample_id FROM pm.plate_sample
+                 WHERE plate_id = %s"""
+        return self._con.execute_fetchall(sql, [plate_id])
+
+    def set_plate_map(self, plate_id, plate_map):
+        """Sets plate map by id
+
+        Parameters
+        ----------
+        plate_id : int
+            Plate id
+        plate_map : list of tuple of (int, int, str)
+            Column id, row id, sample id
+
+        Returns
+        -------
+        tuple (int, int, int)
+            Numbers of samples added / modified / deleted
+
+        Notes
+        -----
+        An empty sample_id represents an empty well, in which case, the record
+        will be deleted if exists.
+        """
+        (nadd, nmod, ndel) = (0, 0, 0)
+        for (col, row, sample_id) in plate_map:
+            sql = """SELECT sample_id FROM pm.plate_sample WHERE plate_id = %s
+                     AND col = %s AND row = %s LIMIT 1"""
+            old_rec = self._con.execute_fetchone(sql, [plate_id, col, row])
+            if old_rec is None:  # Create new record
+                sql_args = [plate_id, col, row, sample_id]
+                sql = """INSERT INTO pm.plate_sample (plate_id, col, row,
+                            sample_id)
+                         VALUES (%s, %s, %s, %s) RETURNING sample_id"""
+                self._con.execute(sql, sql_args)
+                nadd += 1
+            elif sample_id != '':
+                if old_rec[0] != sample_id:  # Modify existing record
+                    sql_args = [sample_id, plate_id, col, row]
+                    sql = """UPDATE pm.plate_sample SET sample_id = %s
+                             WHERE plate_id = %s AND col = %s AND row = %s
+                             RETURNING sample_id"""
+                    self._con.execute(sql, sql_args)
+                    nmod += 1
+            else:  # Delete existing record
+                sql_args = [plate_id, col, row]
+                sql = """DELETE FROM pm.plate_sample WHERE plate_id = %s
+                         AND col = %s AND row = %s RETURNING sample_id"""
+                self._con.execute(sql, sql_args)
+                ndel += 1
+        return (nadd, nmod, ndel)
+
+    def get_plate_type(self, plate_id):
+        """Gets plate type attributes
+        Parameters
+        ----------
+        plate_id : int
+            0: first plate type in the table
+            >0: plate type of an exisiting plate by id
+
+        Returns
+        -------
+        dict
+            Attributes of a plate type, currently including: plate_type_id,
+            name, cols, rows, notes
+        """
+        plate_type_id = 1
+        if plate_id > 0:
+            sql = """SELECT plate_type_id FROM pm.plate WHERE plate_id = %s"""
+            plate_type_id = self._con.execute_fetchone(sql, [plate_id])[0]
+        sql = """SELECT * FROM pm.plate_type WHERE plate_type_id = %s"""
+        return self._con.execute_fetchdict(sql, [plate_type_id])[0]
+
+    def get_plate_count(self):
+        """Gets total number of plates
+
+        Returns
+        -------
+        int
+            Number of existing plates
+        """
+        sql = """SELECT COUNT(*) FROM pm.plate"""
+        return int(self._con.execute_fetchone(sql)[0])
+
+    def get_plate_list(self, limit=0, offset=0):
+        """Gets basic information of a range of plates
+
+        Parameters
+        ----------
+        limit : int, optional
+            Number of plates to return
+            Default 0 (all)
+        offset : int, optional
+            Number of plates to skip before returning
+            Default 0 (none)
+
+        Returns
+        -------
+        list of tuple of (int, str, str, int, str)
+            Plate id, plate name, plate type name, number of samples, email
+        """
+        sql_args = []
+        sql = """SELECT plate_id, plate.name, plate_type.name,
+                    (SELECT COUNT(*) FROM pm.plate_sample
+                     WHERE pm.plate_sample.plate_id = pm.plate.plate_id),
+                     email
+                 FROM pm.plate
+                 JOIN pm.plate_type
+                 USING (plate_type_id)
+                 ORDER BY plate_id"""
+        if limit:
+            sql += " LIMIT %s"
+            sql_args.append(limit)
+        if offset:
+            sql += " OFFSET %s"
+            sql_args.append(offset)
+        return self._con.execute_fetchall(sql, sql_args)
 
     def set_deposited_ebi(self):
         """Updates barcode deposited status by checking EBI"""
@@ -2425,3 +2651,39 @@ class KniminAccess(object):
                  SET results_ready = NULL
                  WHERE barcode IN %s"""
         self._con.execute(sql, [tuple(barcodes)])
+
+    def _add_new_samples(self, sample_ids):
+        """Test helper to create new samples to test with
+
+        Parameters
+        ----------
+        sample_ids : list of str
+            Sample ids to create
+        """
+        sql = """INSERT INTO pm.sample (sample_id) VALUES (%s)"""
+        self._con.executemany(sql, [[x] for x in sample_ids])
+
+    def _delete_new_samples(self, sample_ids):
+        """Test helper to delete the samples that were just created
+
+        Parameters
+        ----------
+        sample_ids : list of str
+            Sample ids to delete
+        """
+        sql = """DELETE FROM pm.sample WHERE sample_id = %s"""
+        self._con.executemany(sql, [[x] for x in sample_ids])
+
+    def _delete_new_plate(self, plate_id):
+        """Test helper to delete the plate that was just created, and reset
+        the plate id sequence
+
+        Parameters
+        ----------
+        plate_id : int
+            Plate id to delete
+        """
+        sql = """DELETE FROM pm.plate_sample WHERE plate_id = %s"""
+        self._con.execute(sql, [plate_id])
+        sql = """DELETE FROM pm.plate WHERE plate_id = %s"""
+        self._con.execute(sql, [plate_id])
