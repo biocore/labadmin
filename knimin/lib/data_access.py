@@ -2577,8 +2577,7 @@ class KniminAccess(object):
         self._con.executemany(sql, [[x] for x in sample_ids])
 
     def _delete_new_plate(self, plate_id):
-        """Test helper to delete the plate that was just created, and reset
-        the plate id sequence
+        """Test helper to delete the plate that was just created
 
         Parameters
         ----------
