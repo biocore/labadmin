@@ -7,7 +7,6 @@ from knimin.tests.tornado_test_base import TestHandlerBase
 class TestProjectsSummaryHandler(TestHandlerBase):
     def test_get_not_authed(self):
         response = self.get('/projects/summary/')
-        # print(response)
         self.assertEqual(response.code, 200)
         self.assertTrue(response.effective_url.endswith(
             '/login/?next=%2Fprojects%2Fsummary%2F'))
