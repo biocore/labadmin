@@ -9,20 +9,20 @@ from knimin.handlers.access_decorators import set_access
 class PMPlateMapHandler(BaseHandler):
     @authenticated
     def get(self):
-        id = self.get_argument("id", default="1")
-        if int(id) > 0:
-            # view/edit an existing plate (id>0)
-            type = db.get_plate_type(id)
-            type[0] = int(type[0])
-            map = db.get_plate_map(id)
-            self.render("pm_plate_map.html", currentuser=self.current_user,
-                        id=id, type=type, map=map)
-        else:
-            # create a new plate (id=0)
-            type = db.get_default_plate_type()
-            type[0] = int(type[0])
-            self.render("pm_plate_map.html", currentuser=self.current_user,
-                        id=id, type=type, map=None)
+        id = int(self.get_argument("id", default="1"))
+        plate_type = db.get_plate_type(id)
+        plate_type['plate_type_id'] = int(plate_type['plate_type_id'])
+        plate_map = db.get_plate_map(id)
+        plate_info = {}
+        if id:
+            plate_info = db.get_plate_info(id)
+            plate_info = {key: value for key, value in plate_info.items()
+                          if value}
+            for i in plate_info:
+                if type(plate_info[i]) is long:
+                    plate_info[i] = int(plate_info[i])
+        self.render("pm_plate_map.html", currentuser=self.current_user,
+                    id=id, type=plate_type, info=plate_info, map=plate_map)
 
     @authenticated
     def post(self):

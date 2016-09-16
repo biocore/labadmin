@@ -11,10 +11,51 @@
   p {
     font-weight: bold;
   }
-  table {
+  button {
+    padding: 5px 10px 5px 10px;
+    text-decoration: none;
+    font-size: 100%;
+  }
+  #plate_info {
+    border-collapse: collapse;
+  }
+  #plate_info td {
+    margin: 0;
+    padding: 0;
+  }
+  #plate_info td:nth-child(1) {
+    width: 200px;
+    text-align: right;
+    padding-right: 20px;
+    font-size: 80%;
+    vertical-align: middle;
+  }
+  #plate_info td:nth-child(2) {
+    width: 300px;
+    border: 1px solid black;
+  }
+  input.field {
+    display: block;
+    text-align: left;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    width: 100%;
+    border-radius: 0;
+    line-height: 2.5;
+  }
+  #plate_map {
     width: 100%;
     table-layout: fixed;
     border-collapse: collapse;
+  }
+  #plate_map td {
+    text-align: center;
+    vertical-align: middle;
+    border: 1px solid black;
+    margin: 0;
+    padding: 0;
+    background-color: rgba(255,255,0,0.5);
   }
   input.cell {
     display: block;
@@ -31,14 +72,6 @@
     border-color: #719ECE;
     box-shadow: 0 0 10px #719ECE;
     background-color: white;
-  }
-  td {
-    text-align: center;
-    vertical-align: middle;
-    border: 1px solid black;
-    margin: 0;
-    padding: 0;
-    background-color: rgba(255,255,0,0.5);
   }
 </style>
 <script type="text/javascript">
@@ -62,11 +95,45 @@
         map[map0[i][0] + "_" + map0[i][1]] = map0[i][2];
       }
     }
-    // generate table
+
+    // Generate plate info
+    var fields = [
+      ['name', 'Name'],
+      ['email', 'Plated by'],
+      ['template_id', 'Barcode sequence template'],
+      ['linker_seq', 'Liner sequence'],
+      ['extraction_kit_lot_id', 'Extraction kit lot'],
+      ['extraction_robot_id', 'Extraction robot'],
+      ['tm1000_8_tool_id', 'TM1000-8 tool'],
+      ['master_mix_lot_id', 'Master mix lot'],
+      ['water_lot_id', 'Water lot'],
+      ['processing_robot_id', 'Processing robot'],
+      ['tm300_8_tool_id', 'TM300-8 tool'],
+      ['tm50_8_tool_id', 'TM50-8 tool'],
+      ['notes', 'Notes']
+    ];
+    var info = {{info}};
+    var table = document.getElementById("plate_info");
+    for (var i = 0; i < fields.length; i++) {
+      // table.innerHTML = "";
+      var row = table.insertRow();
+      // row.innerHTML = "";
+      var cell = row.insertCell(0);
+      cell.innerHTML = fields[i][1];
+      var cell = row.insertCell(1);
+      var field = fields[i][0];
+      var value = "";
+      if (info.hasOwnProperty(field)) {
+        value = info[field].toString();
+      }
+      cell.innerHTML = "<input class='field', type='text', value='" + value + "', data-field='" + fields[i][0] + "'>";
+    }
+
+    // Generate plate map
     var table = document.getElementById("plate_map");
     table.innerHTML = "";
-    var ncol = type[2];
-    var nrow = type[3];
+    var ncol = type['cols'];
+    var nrow = type['rows'];
     for (var i = 0; i <= nrow; i++) {
       var row = table.insertRow();
       var row_html = "";
@@ -93,16 +160,20 @@
     $("input.cell").each(function() {
         $(this).val($(this).attr("data-sample").replace(/\b0+/g, ''));
     });
-    // $("input.cell").val($(this).attr("data-sample").replace(/\b0+/g, ''));
   }
 
 </script>
 {% end %}
 
 {% block content %}
-<h3>Plate Mapper</h3>
-<div id="plate_info">
+<h3>Plate Editor</h3>
+<p><button onclick="$('#div_plate_info').toggle();">Plate Info</button></p>
+<div id="div_plate_info">
+  <table id="plate_info"></table>
 </div>
-<table id="plate_map"></table>
+<p><button onclick="$('#div_plate_map').toggle();">Plate Map</button></p>
+<div id="div_plate_map">
+  <table id="plate_map"></table>
+</div>
 <hr>
 {% end %}

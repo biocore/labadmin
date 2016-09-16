@@ -39,6 +39,9 @@
     var pageno = {{pageno}};
     var total = {{total}};
     var plates = {{plates}};
+    if (items == 0) {
+      items = total;
+    }
     var npage = Math.ceil(total/items);
     $("#title").html(items + " plates per page, " + pageno + " of " + npage + " pages");
     var nplate = plates.length;
@@ -46,11 +49,10 @@
       var table = document.getElementById("plate_list");
       for (var i = 0; i < nplate; i++) {
         var row = table.insertRow();
-        for (var j = 0; j < 4; j++) {
+        for (var j = 0; j < 5; j++) {
           var cell = row.insertCell(-1);
           cell.innerHTML = plates[i][j];
         }
-        // document.write("<p>" + plates[i][0] + ": " + plates[i][1] + "(" + plates[i][2] + ")</p>");
       }
     } else {
       alert("Error: no plate is available.");
@@ -73,7 +75,8 @@
     <tr width="100%">
       <th width="10%">ID</th>
       <th width="50%">Name</th>
-      <th width="20%">Type</th>
+      <th width="10%">Type</th>
+      <th width="10%">Samples</th>
       <th width="20%">Person</th>
     </tr>
   </thead>

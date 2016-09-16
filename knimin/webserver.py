@@ -33,7 +33,6 @@ from knimin.handlers.ag_consent_check import AGConsentCheckHandler
 from knimin.handlers.projects_summary import ProjectsSummaryHandler
 from knimin.handlers.access_control import AGEditAccessHandler
 from knimin.handlers.ag_results_ready import AGResultsReadyHandler
-from knimin.handlers.plate_mapper import PlateMapperHandler
 from knimin.handlers.pm_plate_list import PMPlateListHandler
 from knimin.handlers.pm_plate_map import PMPlateMapHandler
 
@@ -79,7 +78,6 @@ class WebApplication(Application):
             (r"/projects/summary/", ProjectsSummaryHandler),
             (r"/admin/edit/", AGEditAccessHandler),
             (r"/consent_check", AGConsentCheckHandler),
-            (r"/plate_mapper/", PlateMapperHandler),
             (r"/pm_plate_list/", PMPlateListHandler),
             (r"/pm_plate_map/", PMPlateMapHandler),
             (r".*", NoPageHandler)

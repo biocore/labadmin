@@ -9,12 +9,14 @@ from knimin.handlers.access_decorators import set_access
 class PMPlateListHandler(BaseHandler):
     @authenticated
     def get(self):
-        items = self.get_argument("items", default="10")
-        pageno = self.get_argument("pageno", default="1")
-        total = db.get_plate_total()
-        plates = []
-        for x in db.get_plate_info(items, int(items)*(int(pageno)-1)):
-            plates.append([int(x[0]), x[1], x[2], int(x[3])])
+        items = self.get_argument("items", default=10)
+        pageno = self.get_argument("pageno", default=1)
+        total = db.get_plate_count()
+        plates = db.get_plate_list(items, int(items)*(int(pageno)-1))
+        for i in range(len(plates)):
+            for j in range(len(plates[i])):
+                if type(plates[i][j]) is long:
+                    plates[i][j] = int(plates[i][j])
         self.render("pm_plate_list.html", currentuser=self.current_user,
                     items=items, pageno=pageno, total=total, plates=plates)
 
