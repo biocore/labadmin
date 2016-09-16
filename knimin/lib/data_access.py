@@ -1813,17 +1813,6 @@ class KniminAccess(object):
                                 address, city, state, zipcode, country,
                                 ag_login_id])
 
-    def updateAGKit(self, ag_kit_id, supplied_kit_id, kit_password,
-                    swabs_per_kit, kit_verification_code):
-        kit_password = hashpw(kit_password)
-        sql = """UPDATE ag_kit
-                 SET supplied_kit_id = %s, kit_password = %s,
-                     swabs_per_kit = %s, kit_verification_code = %s
-                 WHERE ag_kit_id = %s"""
-
-        self._con.execute(sql, [supplied_kit_id, kit_password, swabs_per_kit,
-                                kit_verification_code, ag_kit_id])
-
     def updateAGBarcode(self, barcode, ag_kit_id, site_sampled,
                         environment_sampled, sample_date, sample_time,
                         participant_name, notes, refunded, withdrawn):
