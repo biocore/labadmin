@@ -19,6 +19,7 @@ class TestAuthLoginHandler(TestHandlerBase):
                              {'email': 'idontexist',
                               'password': 'password',
                               })
+        # TODO: check via response.code, see issue #102
         self.assertIn('>Unknown user<', response.body)
 
         # check if incorrect password is recognized
@@ -26,6 +27,7 @@ class TestAuthLoginHandler(TestHandlerBase):
                              {'email': 'test',
                               'password': 'wrong',
                               })
+        # TODO: check via response.code, see issue #102
         self.assertIn('>Incorrect password<', response.body)
 
         # check if login with correct credentials is possible
@@ -34,6 +36,7 @@ class TestAuthLoginHandler(TestHandlerBase):
                               'password': 'password',
                               })
         port = self.get_http_port()
+        # TODO: check via response.code, see issue #102
         self.assertEqual(
             'http://localhost:%d/login/?next=%s' %
             (port, url_escape('/logged_in_index/')),
@@ -61,6 +64,13 @@ class TestAuthLogoutHandler(TestHandlerBase):
 
         # TODO: how can I check that the cookie has been cleared? Or don't I
         # have to, because it's something tornado guarantees or its unit tests?
+        # Here is a implicit test:
+        # A logged out user should no longer be able to access this page,
+        # instead he well be refered somewhere else. We check this here.
+        response = self.get('/projects/summary/')
+        self.assertEqual(response.code, 200)
+        self.assertTrue(response.effective_url.endswith(
+            '/login/?next=%2Fprojects%2Fsummary%2F'))
 
 if __name__ == "__main__":
     main()
