@@ -2652,17 +2652,6 @@ class KniminAccess(object):
                  WHERE barcode IN %s"""
         self._con.execute(sql, [tuple(barcodes)])
 
-    def _get_new_plate_id(self):
-        """Test helper to get id of the next new plate to be created
-
-        Returns
-        -------
-        int
-            Next new plate id
-        """
-        sql = """SELECT last_value FROM pm.plate_plate_id_seq"""
-        return self._con.execute_fetchone(sql)[0] + 1
-
     def _add_new_samples(self, sample_ids):
         """Test helper to create new samples to test with
 
@@ -2697,6 +2686,4 @@ class KniminAccess(object):
         sql = """DELETE FROM pm.plate_sample WHERE plate_id = %s"""
         self._con.execute(sql, [plate_id])
         sql = """DELETE FROM pm.plate WHERE plate_id = %s"""
-        self._con.execute(sql, [plate_id])
-        sql = """ALTER SEQUENCE pm.plate_plate_id_seq RESTART WITH %s;"""
         self._con.execute(sql, [plate_id])

@@ -309,7 +309,6 @@ class TestDataAccess(TestCase):
         # setUp
         sample_ids = ['test_sample_1', 'test_sample_2', 'test_sample_3']
         db._add_new_samples(sample_ids)
-        plate_id = db._get_new_plate_id()
 
         # Test set_plate_info
         # Create new plate
@@ -321,9 +320,10 @@ class TestDataAccess(TestCase):
             'extraction_robot_id': 1  # HOWE_KF1
         }
         obs = db.set_plate_info(0, plate_info)
-        exp = plate_id
-        self.assertEqual(obs, exp)
+        self.assertGreater(obs, 0)
+
         # Edit existing plate
+        plate_id = obs
         plate_info = {
             'processing_robot_id': 2,  # RIKE
             'tm300_8_tool_id': 3,  # 109375A
