@@ -2399,59 +2399,6 @@ class KniminAccess(object):
         sql = """SELECT project FROM project"""
         return [x[0] for x in self._con.execute_fetchall(sql)]
 
-    def migrate_data(self):
-        """This command is only temporary. It migrates existing data from
-        schema "barcodes" into the newly created schema "pm".
-        """
-        # barcode => sample
-        sql = """INSERT INTO pm.sample (sample_id)
-                 SELECT barcode
-                 FROM barcodes.barcode;"""
-        self._con.execute(sql)
-        sql = """UPDATE pm.sample SET barcode = sample_id"""
-        self._con.execute(sql)
-        # project => study
-        sql = """INSERT INTO pm.study (study_id, title)
-                 SELECT project_id, project
-                 FROM barcodes.project;"""
-        self._con.execute(sql)
-        # project_barcode => study_sample
-        sql = """INSERT INTO pm.study_sample (study_id, sample_id)
-                 SELECT project_id, barcode
-                 FROM barcodes.project_barcode
-                 ORDER BY project_id, barcode;"""
-        self._con.execute(sql)
-        # plate => plate
-        sql = """SELECT plate_id, plate FROM barcodes.plate
-                 ORDER BY plate_id"""
-        plates = [(x[0], x[1]) for x in self._con.execute_fetchall(sql)]
-        if not plates:
-            return 1
-        for plate in plates:
-            sql = """INSERT INTO pm.plate (name, email, plate_type_id)
-                     VALUES (%s, 'test', 1) RETURNING plate_id"""
-            id = self._con.execute_fetchone(sql, [plate[1]])[0]
-            sql = """SELECT barcode FROM barcodes.plate_barcode
-                     WHERE plate_id = %s ORDER BY barcode"""
-            barcodes = [x[0] for x in self._con.execute_fetchall(sql, [id])]
-            if not barcodes:
-                continue
-            count = 0
-            nbarcode = len(barcodes)
-            (ncol, nrow) = (12, 8)
-            for i in range(ncol):
-                for j in range(nrow):
-                    sql = """INSERT INTO pm.plate_sample (plate_id, col,
-                                row, sample_id)
-                             VALUES (%s, %s, %s, %s)"""
-                    self._con.execute(sql, [id, i+1, j+1, barcodes[count]])
-                    count += 1
-                    if count == nbarcode:
-                        break
-                if count == nbarcode:
-                    break
-        return 0
-
     def get_plate_info(self, plate_id):
         """Gets attributes of a plate by id
 
@@ -2579,51 +2526,6 @@ class KniminAccess(object):
             plate_type_id = self._con.execute_fetchone(sql, [plate_id])[0]
         sql = """SELECT * FROM pm.plate_type WHERE plate_type_id = %s"""
         return self._con.execute_fetchdict(sql, [plate_type_id])[0]
-
-    def get_plate_count(self):
-        """Gets total number of plates
-
-        Returns
-        -------
-        int
-            Number of existing plates
-        """
-        sql = """SELECT COUNT(*) FROM pm.plate"""
-        return int(self._con.execute_fetchone(sql)[0])
-
-    def get_plate_list(self, limit=0, offset=0):
-        """Gets basic information of a range of plates
-
-        Parameters
-        ----------
-        limit : int, optional
-            Number of plates to return
-            Default 0 (all)
-        offset : int, optional
-            Number of plates to skip before returning
-            Default 0 (none)
-
-        Returns
-        -------
-        list of tuple of (int, str, str, int, str)
-            Plate id, plate name, plate type name, number of samples, email
-        """
-        sql_args = []
-        sql = """SELECT plate_id, plate.name, plate_type.name,
-                    (SELECT COUNT(*) FROM pm.plate_sample
-                     WHERE pm.plate_sample.plate_id = pm.plate.plate_id),
-                     email
-                 FROM pm.plate
-                 JOIN pm.plate_type
-                 USING (plate_type_id)
-                 ORDER BY plate_id"""
-        if limit:
-            sql += " LIMIT %s"
-            sql_args.append(limit)
-        if offset:
-            sql += " OFFSET %s"
-            sql_args.append(offset)
-        return self._con.execute_fetchall(sql, sql_args)
 
     def set_deposited_ebi(self):
         """Updates barcode deposited status by checking EBI"""
