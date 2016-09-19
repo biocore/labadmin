@@ -297,71 +297,74 @@ class TestDataAccess(TestCase):
             del(obs[key]['registered_on'])
         self.assertEqual(obs, exp)
 
-    def test_plate_operations(self):
-        """Test four functions involving read/write operations to tables
-        pm.sample and pm.plate
+    def test_get_id_by_name(self):
+        """"""
+        obs = db.get_id_by_name('tm1000_8_tool', '108379Z')
+        exp = 1
+        self.assertEqual(obs, exp)
+        with self.assertRaises(ValueError):
+            db.get_id_by_name('tm1000_8_tool', 'an_invalid_name')
 
-        Notes
-        -----
-        They are put together in one test, because they are dependent on each
-        other.
-        """
-        # setUp
-        sample_ids = ['test_sample_1', 'test_sample_2', 'test_sample_3']
-        db._add_new_samples(sample_ids)
+    def test_create_sample(self):
+        """"""
+        sample_ids = ['test_sample_1']
+        obs = db.create_sample(sample_ids)
+        self.assertTrue(obs)
+        db.delete_sample(sample_ids)
 
-        # Test set_plate_info
-        # Create new plate
-        plate_info = {
-            'name': 'test plate 01',
-            'email': 'test',
-            'plate_type_id': 1,  # 96-well
-            'linker_seq': 'GT',
-            'extraction_robot_id': 1  # HOWE_KF1
-        }
-        obs = db.set_plate_info(0, plate_info)
+    def test_delete_sample(self):
+        """"""
+        sample_ids = ['test_sample_1']
+        db.create_sample(sample_ids)
+        obs = db.delete_sample(sample_ids)
+        self.assertTrue(obs)
+
+    def test_create_plate(self):
+        """"""
+        obs = db.create_plate('test_plate_1', 'test', '96-well')
         self.assertGreater(obs, 0)
+        db.delete_plate([obs])
 
-        # Edit existing plate
-        plate_id = obs
-        plate_info = {
-            'processing_robot_id': 2,  # RIKE
-            'tm300_8_tool_id': 3,  # 109375A
-        }
+    def test_delete_plate(self):
+        """"""
+        plate_id = db.create_plate("test_plate_1", "test", "96-well")
+        obs = db.delete_plate([plate_id])
+        self.assertTrue(obs)
+
+    def test_set_plate_info(self):
+        """"""
+        plate_id = db.create_plate('test_plate_1', 'test', '96-well')
+        plate_info = ('test_plate_1_rev', '', 'GT', '', 'HOWE_KF2', '108379Z',
+                      '', '', 'RIKE', '', '', 'Notes for test plate 1.')
         obs = db.set_plate_info(plate_id, plate_info)
-        exp = plate_id
-        self.assertEqual(obs, exp)
+        self.assertTrue(obs)
+        db.delete_plate([plate_id])
 
-        # Test get_plate_info:
-        exp = {
-            'plate_id': plate_id,
-            'name': 'test plate 01',
-            'email': 'test',
-            'plate_type_id': 1,
-            'template_id': None,
-            'linker_seq': 'GT',
-            'extraction_kit_lot_id': None,
-            'extraction_robot_id': 1,  # HOWE_KF1
-            'tm1000_8_tool_id': None,
-            'master_mix_lot_id': None,
-            'water_lot_id': None,
-            'processing_robot_id': 2,  # RIKE
-            'tm300_8_tool_id': 3,  # 109375A
-            'tm50_8_tool_id': None,
-            'notes': None
-        }
-        obs = db.set_plate_info(plate_id, plate_info)
-        exp = plate_id
-        self.assertEqual(obs, exp)
+    def test_get_plate_info(self):
+        """"""
+        plate_id = db.create_plate('test_plate_1', 'test', '96-well')
+        plate_info = ('test_plate_1_rev', '', 'GT', '', 'HOWE_KF2', '108379Z',
+                      '', '', 'RIKE', '', '', 'Notes for test plate 1.')
+        db.set_plate_info(plate_id, plate_info)
+        obs = db.get_plate_info(plate_id)
+        exp = (plate_id, 'test_plate_1_rev', 'test', '96-well', None, 'GT',
+               None, 'HOWE_KF2', '108379Z', None, None, 'RIKE', None, None,
+               'Notes for test plate 1.')
+        self.assertTupleEqual(obs, exp)
+        db.delete_plate([plate_id])
 
-        # Test set_plate_map
+    def test_set_plate_map(self):
+        """"""
+        sample_ids = ['test_sample_1', 'test_sample_2', 'test_sample_3']
+        db.create_sample(sample_ids)
+        plate_id = db.create_plate('test_plate_1', 'test', '96-well')
         # Add two samples
-        plate_map = [(1, 1, 'test_sample_1'), (1, 2, 'test_sample_2')]
+        plate_map = [(1, 1, sample_ids[0]), (1, 2, sample_ids[1])]
         obs = db.set_plate_map(plate_id, plate_map)
         exp = (2, 0, 0)
         self.assertTupleEqual(obs, exp)
         # Modify one sample
-        plate_map = [(1, 2, 'test_sample_3')]
+        plate_map = [(1, 2, sample_ids[2])]
         obs = db.set_plate_map(plate_id, plate_map)
         exp = (0, 1, 0)
         self.assertTupleEqual(obs, exp)
@@ -370,25 +373,58 @@ class TestDataAccess(TestCase):
         obs = db.set_plate_map(plate_id, plate_map)
         exp = (0, 0, 1)
         self.assertTupleEqual(obs, exp)
+        db.delete_plate([plate_id])
+        db.delete_sample(sample_ids)
 
-        # Test get_plate_map
-        exp = [[1, 2, 'test_sample_3']]
+    def test_get_plate_map(self):
+        """"""
+        sample_ids = ['test_sample_1', 'test_sample_2', 'test_sample_3']
+        db.create_sample(sample_ids)
+        plate_id = db.create_plate('test_plate_1', 'test', '96-well')
+        plate_map = [(1, 1, sample_ids[0]), (1, 2, sample_ids[1])]
+        db.set_plate_map(plate_id, plate_map)
         obs = db.get_plate_map(plate_id)
+        exp = plate_map
         self.assertListEqual(obs, exp)
-
-        # tearDown
-        db.set_plate_map(plate_id, [(1, 2, '')])
-        db._delete_new_plate(plate_id)
-        db._delete_new_samples(sample_ids)
+        db.delete_plate([plate_id])
+        db.delete_sample(sample_ids)
 
     def test_get_plate_type(self):
+        """"""
+        obs = db.get_plate_type(0)
         exp = {'plate_type_id': 1,
                'name': '96-well',
                'cols': 12,
                'rows': 8,
                'notes': 'Standard 96-well plate'}
-        obs = db.get_plate_type(0)
         self.assertDictEqual(obs, exp)
+
+    def test_get_plate_count(self):
+        """"""
+        plate_id = db.create_plate('test_plate_1', 'test', '96-well')
+        obs = db.get_plate_count()
+        self.assertGreater(obs, 0)
+        db.delete_plate([plate_id])
+
+    def test_get_plate_list(self):
+        """"""
+        sample_ids = ['test_sample_1', 'test_sample_2', 'test_sample_3']
+        db.create_sample(sample_ids)
+        n_plate = db.get_plate_count()
+        plate_1_id = db.create_plate('test_plate_1', 'test', '96-well')
+        plate_map = [(1, 1, sample_ids[0]), (1, 2, sample_ids[1])]
+        db.set_plate_map(plate_1_id, plate_map)
+        plate_2_id = db.create_plate('test_plate_2', 'test', '96-well')
+        plate_map = [(2, 3, sample_ids[2])]
+        db.set_plate_map(plate_2_id, plate_map)
+        obs = db.get_plate_list(2, n_plate)
+        exp = [
+            (plate_1_id, 'test_plate_1', '96-well', 2, 'test'),
+            (plate_2_id, 'test_plate_2', '96-well', 1, 'test')
+        ]
+        self.assertListEqual(obs, exp)
+        db.delete_plate([plate_1_id, plate_2_id])
+        db.delete_sample(sample_ids)
 
 
 if __name__ == "__main__":
