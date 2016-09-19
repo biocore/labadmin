@@ -37,8 +37,6 @@ class TestAGNamesDLHandler(TestHandlerBase):
         self.mock_login_admin()
         response = self.post('/ag_participant_names/download/', {})
         self.assertEqual(response.code, 200)
-        # is it sufficient to check that the response provides a zip-file or
-        # should I also unpack the content and compare it to a database query?
         self.assertEqual(response.headers['Content-Disposition'],
                          'attachment; filename=participants.zip')
 
