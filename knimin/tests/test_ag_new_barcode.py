@@ -16,10 +16,12 @@ class TestAGBarcodePrintoutHandler(TestHandlerBase):
         response = self.post('/ag_new_barcode/download/',
                              {'barcodes': "1111,222,33,4"})
         self.assertEqual(response.code, 200)
-        # is it sufficient to check that the response provides a pdf-file or
-        # should I somehow check the contents of the PDF?
         self.assertEqual(response.headers['Content-Disposition'],
                          'attachment; filename=barcodes.pdf')
+        # check that the files is a PDF ...
+        self.assertIn('%PDF-1.4', response.body)
+        # ... and it is not empty
+        self.assertEqual(len(response.body) > 1000, True)
 
 
 class TestAGBarcodeAssignedHandler(TestHandlerBase):
