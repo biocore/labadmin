@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from tornado.web import authenticated
+from tornado.escape import json_encode
 from knimin.handlers.base import BaseHandler
 from knimin import db
 from knimin.handlers.access_decorators import set_access
@@ -16,9 +17,11 @@ class PMPlateMapHandler(BaseHandler):
         plate_info = {}
         if id:
             plate_info = db.get_plate_info(id)
-            plate_info = {key: value for key, value in plate_info.items()
-                          if value}
-            for i in plate_info:
+            # plate_info = {key: value for key, value in plate_info.items()
+            #              if value}
+            for i in range(len(plate_info)):
+                if plate_info[i] is None:
+                    plate_info[i] = ''
                 if type(plate_info[i]) is long:
                     plate_info[i] = int(plate_info[i])
         self.render("pm_plate_map.html", currentuser=self.current_user,

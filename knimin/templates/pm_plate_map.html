@@ -76,6 +76,7 @@
 </style>
 <script type="text/javascript">
   var id;
+  var info;
   var type;
   var map = {};  // col_row => sample_id
 
@@ -89,44 +90,46 @@
   window.onload = function() {
     id = {{id}};
     type = {{type}};
-    if (id > 0) {
-      map0 = {{map}};
+    info = {{info}};
+    var fields = ['Plate ID', 'Name', 'Plated by', 'Plate type',
+                  'Barcode sequence template', 'Liner sequence',
+                  'Extraction kit lot', 'Extraction robot', 'TM1000-8 tool',
+                  'Master mix lot', 'Water lot', 'Processing robot',
+                  'TM300-8 tool', 'TM50-8 tool', 'Notes'];
+    currentuser = "{{currentuser}}";
+    if (id > 0) {  // View/edit an existing plate
+      // The plate map is represented as map[col_row] => sample
+      var map0 = {{map}};
       for (var i = 0; i < map0.length; i++) {
         map[map0[i][0] + "_" + map0[i][1]] = map0[i][2];
       }
+      $("#plate_id").html("Plate # " + id.toString() + ": ");
+      $("#plate_name").val(info[1]);
+      $("#plated_by").val(info[2]);
+    } else {  // Create a new plate
+      $("#plated_by").val(currentuser);
     }
 
+    // Generate plate title
+    var name = info[1];
+    var email = info[2]
+
     // Generate plate info
-    var fields = [
-      ['name', 'Name'],
-      ['email', 'Plated by'],
-      ['template_id', 'Barcode sequence template'],
-      ['linker_seq', 'Liner sequence'],
-      ['extraction_kit_lot_id', 'Extraction kit lot'],
-      ['extraction_robot_id', 'Extraction robot'],
-      ['tm1000_8_tool_id', 'TM1000-8 tool'],
-      ['master_mix_lot_id', 'Master mix lot'],
-      ['water_lot_id', 'Water lot'],
-      ['processing_robot_id', 'Processing robot'],
-      ['tm300_8_tool_id', 'TM300-8 tool'],
-      ['tm50_8_tool_id', 'TM50-8 tool'],
-      ['notes', 'Notes']
-    ];
-    var info = {{info}};
+
     var table = document.getElementById("plate_info");
-    for (var i = 0; i < fields.length; i++) {
+    for (var i = 4; i < fields.length; i++) {
       // table.innerHTML = "";
       var row = table.insertRow();
       // row.innerHTML = "";
       var cell = row.insertCell(0);
-      cell.innerHTML = fields[i][1];
+      cell.innerHTML = fields[i];
       var cell = row.insertCell(1);
       var field = fields[i][0];
-      var value = "";
-      if (info.hasOwnProperty(field)) {
-        value = info[field].toString();
-      }
-      cell.innerHTML = "<input class='field', type='text', value='" + value + "', data-field='" + fields[i][0] + "'>";
+      // var value = "";
+      // if (info[i] is not none) {
+      //  value = info[field].toString();
+      //}
+      cell.innerHTML = "<input class='field', type='text', id='field_" + i.toString() + "', value='" + info[i] + "'>";
     }
 
     // Generate plate map
@@ -167,6 +170,12 @@
 
 {% block content %}
 <h3>Plate Editor</h3>
+<p>
+  <label id="plate_id">Create new plate: </label>
+  <input type="text", id="plate_name", data-plate-id=0>
+  <label> by: </label>
+  <input type="text", id="plated_by", data-plated-by="">
+</p>
 <p><button onclick="$('#div_plate_info').toggle();">Plate Info</button></p>
 <div id="div_plate_info">
   <table id="plate_info"></table>
