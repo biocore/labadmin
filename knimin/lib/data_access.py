@@ -2400,7 +2400,6 @@ class KniminAccess(object):
         sql = """SELECT project FROM project"""
         return [x[0] for x in self._con.execute_fetchall(sql)]
 
-<<<<<<< HEAD
     def get_id_by_name(self, field, name):
         """Converts a field option name to its corresponding id
 
@@ -2449,10 +2448,6 @@ class KniminAccess(object):
 
     def delete_sample(self, sample_ids):
         """Delete samples by id
-=======
-    def get_plate_info(self, plate_id):
-        """Gets attributes of a plate by id
->>>>>>> 089a92844b668dcbfa9abd240295fc484482dc3d
 
         Parameters
         ----------
@@ -2689,7 +2684,6 @@ class KniminAccess(object):
             sql_args = [1]
         return self._con.execute_fetchdict(sql, sql_args)[0]
 
-<<<<<<< HEAD
     def get_plate_count(self):
         """Gets total number of plates
 
@@ -2735,8 +2729,6 @@ class KniminAccess(object):
             sql_args.append(offset)
         return [tuple(x) for x in self._con.execute_fetchall(sql, sql_args)]
 
-=======
->>>>>>> 089a92844b668dcbfa9abd240295fc484482dc3d
     def set_deposited_ebi(self):
         """Updates barcode deposited status by checking EBI"""
         accession = 'ERP012803'
@@ -2763,41 +2755,3 @@ class KniminAccess(object):
                  SET results_ready = NULL
                  WHERE barcode IN %s"""
         self._con.execute(sql, [tuple(barcodes)])
-<<<<<<< HEAD
-=======
-
-    def _add_new_samples(self, sample_ids):
-        """Test helper to create new samples to test with
-
-        Parameters
-        ----------
-        sample_ids : list of str
-            Sample ids to create
-        """
-        sql = """INSERT INTO pm.sample (sample_id) VALUES (%s)"""
-        self._con.executemany(sql, [[x] for x in sample_ids])
-
-    def _delete_new_samples(self, sample_ids):
-        """Test helper to delete the samples that were just created
-
-        Parameters
-        ----------
-        sample_ids : list of str
-            Sample ids to delete
-        """
-        sql = """DELETE FROM pm.sample WHERE sample_id = %s"""
-        self._con.executemany(sql, [[x] for x in sample_ids])
-
-    def _delete_new_plate(self, plate_id):
-        """Test helper to delete the plate that was just created
-
-        Parameters
-        ----------
-        plate_id : int
-            Plate id to delete
-        """
-        sql = """DELETE FROM pm.plate_sample WHERE plate_id = %s"""
-        self._con.execute(sql, [plate_id])
-        sql = """DELETE FROM pm.plate WHERE plate_id = %s"""
-        self._con.execute(sql, [plate_id])
->>>>>>> 089a92844b668dcbfa9abd240295fc484482dc3d
