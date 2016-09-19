@@ -36,3 +36,18 @@ Initial default test login credentials are:
 
 **Password:** password 
 
+Testing
+-------
+
+To run the webserver locally, first run the following commands to insert a user with administrative access::
+
+    INSERT INTO ag.labadmin_users (email, password) VALUES ('master', '$2a$10$2.6Y9HmBqUFmSvKCjWmBte70WF.zd3h4VqbhLMQK1xP67Aj3rei86');
+    
+    INSERT INTO ag.labadmin_users_access (access_id, email) VALUES (7, 'master');
+    
+Then you should be able to login with the following credentials
+
+**User:** master
+
+**Password:** password 
+    
