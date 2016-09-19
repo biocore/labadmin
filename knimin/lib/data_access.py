@@ -15,7 +15,6 @@ from future.utils import viewitems
 
 from psycopg2 import connect, Error as PostgresError
 from psycopg2.extras import DictCursor
-from psycopg2.extensions import AsIs
 
 from mail import send_email
 from util import (make_valid_kit_ids, make_verification_code, make_passwd,
