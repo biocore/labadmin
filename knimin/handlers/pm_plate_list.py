@@ -12,7 +12,8 @@ class PMPlateListHandler(BaseHandler):
         items = self.get_argument("items", default=10)
         pageno = self.get_argument("pageno", default=1)
         total = db.get_plate_count()
-        plates = db.get_plate_list(items, int(items)*(int(pageno)-1))
+        plates = [list(x) for x in db.get_plate_list(items,
+                  int(items)*(int(pageno)-1))]
         for i in range(len(plates)):
             for j in range(len(plates[i])):
                 if type(plates[i][j]) is long:

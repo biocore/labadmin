@@ -14,23 +14,23 @@
   button {
     padding: 5px 10px 5px 10px;
     text-decoration: none;
-    font-size: 100%;
+    font-size: 80%;
   }
   #plate_info {
-    border-collapse: collapse;
+    /*border-collapse: collapse;*/
   }
   #plate_info td {
     margin: 0;
     padding: 0;
   }
-  #plate_info td:nth-child(1) {
-    width: 200px;
+  #plate_info td:nth-child(odd) {
+    width: 150px;
     text-align: right;
     padding-right: 20px;
     font-size: 80%;
     vertical-align: middle;
   }
-  #plate_info td:nth-child(2) {
+  #plate_info td:nth-child(even) {
     width: 300px;
     border: 1px solid black;
   }
@@ -43,6 +43,13 @@
     width: 100%;
     border-radius: 0;
     line-height: 2.5;
+    background-color: rgba(255,247,188,0.25);
+  }
+  input.field:focus {
+    outline: none;
+    border-color: #719ECE;
+    box-shadow: 0 0 20px #719ECE;
+    background-color: white;
   }
   #plate_map {
     width: 100%;
@@ -55,7 +62,7 @@
     border: 1px solid black;
     margin: 0;
     padding: 0;
-    background-color: rgba(255,255,0,0.5);
+    background-color: rgba(255,247,188,0.75);
   }
   input.cell {
     display: block;
@@ -69,8 +76,8 @@
   }
   input.cell:focus {
     outline: none;
-    border-color: #719ECE;
-    box-shadow: 0 0 10px #719ECE;
+    /*border-color: #719ECE;*/
+    box-shadow: inset 0 0 5px rgb(44,127,184); /*#719ECE;*/
     background-color: white;
   }
 </style>
@@ -78,9 +85,19 @@
   var id;
   var info;
   var type;
+  var currentuser;
   var map = {};  // col_row => sample_id
+  var fields = ['Plate ID', 'Name', 'Plated by', 'Plate type',
+                'Barcode template', 'Liner sequence', 'Extraction kit lot',
+                'Extraction robot', 'TM1000-8 tool', 'Master mix lot',
+                'Water lot', 'Processing robot', 'TM300-8 tool',
+                'TM50-8 tool', 'Notes'];
 
   $(document).ready(function(){
+    id = {{id}};
+    type = {{type}};
+    info = {{info}};
+    currentuser = "{{currentuser}}";
     $("input.cell").on("click", function () {
       alert("wahhhhh");
       // alert($(this).value());
@@ -88,15 +105,6 @@
   });
 
   window.onload = function() {
-    id = {{id}};
-    type = {{type}};
-    info = {{info}};
-    var fields = ['Plate ID', 'Name', 'Plated by', 'Plate type',
-                  'Barcode sequence template', 'Liner sequence',
-                  'Extraction kit lot', 'Extraction robot', 'TM1000-8 tool',
-                  'Master mix lot', 'Water lot', 'Processing robot',
-                  'TM300-8 tool', 'TM50-8 tool', 'Notes'];
-    currentuser = "{{currentuser}}";
     if (id > 0) {  // View/edit an existing plate
       // The plate map is represented as map[col_row] => sample
       var map0 = {{map}};
@@ -117,18 +125,18 @@
     // Generate plate info
 
     var table = document.getElementById("plate_info");
-    for (var i = 4; i < fields.length; i++) {
-      // table.innerHTML = "";
-      var row = table.insertRow();
-      // row.innerHTML = "";
-      var cell = row.insertCell(0);
+    var row;
+    for (var i = 4; i < 15; i++) {
+      if (i % 2 == 0) {
+        row = table.insertRow();
+      }
+      var cell = row.insertCell(-1);
       cell.innerHTML = fields[i];
-      var cell = row.insertCell(1);
+      var cell = row.insertCell(-1);
+      if (i == 14) {
+        cell.colSpan = "3";
+      }
       var field = fields[i][0];
-      // var value = "";
-      // if (info[i] is not none) {
-      //  value = info[field].toString();
-      //}
       cell.innerHTML = "<input class='field', type='text', id='field_" + i.toString() + "', value='" + info[i] + "'>";
     }
 
@@ -170,11 +178,20 @@
 
 {% block content %}
 <h3>Plate Editor</h3>
+<div style="padding-left:20px;padding-right:20px;">
 <p>
   <label id="plate_id">Create new plate: </label>
-  <input type="text", id="plate_name", data-plate-id=0>
-  <label> by: </label>
-  <input type="text", id="plated_by", data-plated-by="">
+  <input type="text", id="plate_name", style="width:200px", data-plate-id=0>
+  <label> by </label>
+  <input type="text", id="plated_by", style="width:100px", data-plated-by="" readonly>
+  <span style="float:right">
+    <button onclick="location.href='/pm_plate_map/?id=1';">&lt;&lt;</button>
+    <button onclick="location.href='/pm_plate_map/?id='+(id-1).toString();">&lt;</button>
+    <button onclick="location.href='/pm_plate_map/?id='+(id+1).toString();">&gt;</button>
+    <button onclick="location.href='/pm_plate_map/?id=-1';">&gt;&gt;</button>
+    |
+    <button onclick="location.href='/pm_plate_map/?id=0';">Create new plate</button>
+  </span>
 </p>
 <p><button onclick="$('#div_plate_info').toggle();">Plate Info</button></p>
 <div id="div_plate_info">
@@ -184,5 +201,6 @@
 <div id="div_plate_map">
   <table id="plate_map"></table>
 </div>
-<hr>
+<p><button>Save changes</button></p>
+</div>
 {% end %}
