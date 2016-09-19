@@ -82,7 +82,50 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
                               'numbarcodes': num_barcodes,
                               'projects': ",".join(projects)})
 
-        # print()
+        # check assignment of barcodes
+        # check that error is raised if project(s) cannot be found in DB
+        response = self.post('/ag_new_barcode/',
+                             {'action': 'assign',
+                              'numbarcodes': num_barcodes,
+                              'projects': ",".join(projects),
+                              'newproject': ""})
+        self.assertEqual(response.code, 200)
+        self.assertIn(('<h3>ERROR! Project(s) given don\'t exist in database: '
+                       '%s</h3>') % (",".join(projects)), response.body)
+
+        # check correct assignment report on HTML side
+        response = self.post('/ag_new_barcode/',
+                             {'action': 'assign',
+                              'numbarcodes': num_barcodes,
+                              'projects': projects,
+                              'newproject': ""})
+        self.assertEqual(response.code, 200)
+        self.assertIn("%i barcodes assigned to %s, please wait for download." %
+                      (num_barcodes, ", ".join(projects)), response.body)
+
+        # check if SQL error is thrown if number of barcodes is 0.
+        # See issue: #107
+        response = self.post('/ag_new_barcode/',
+                             {'action': 'assign',
+                              'numbarcodes': 0,
+                              'projects': projects,
+                              'newproject': ""})
+        self.assertEqual(response.code, 200)
+        self.assertIn("Error running SQL query: UPDATE barcodes.barcode",
+                      response.body)
+
+        # check recognition of existing projects
+        response = self.post('/ag_new_barcode/',
+                             {'action': 'assign',
+                              'numbarcodes': num_barcodes,
+                              'newproject': projects[0]})
+        self.assertEqual(response.code, 200)
+        self.assertIn("ERROR! Project %s already exists!" % projects[0],
+                      response.body)
+
+        # check recognition of unkown action
+        response = self.post('/ag_new_barcode/', {'action': 'unkown'})
+        self.assertEqual(response.code, 400)
 
 if __name__ == "__main__":
     main()
