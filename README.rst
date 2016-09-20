@@ -53,4 +53,4 @@ Then you should be able to login with the following credentials
 
 **Password:** password 
 
-Note that whenever a unittest is run, the user `test` is granted admin rights, which is reset once the unittest is completed.
+Note that whenever a unittest is run, the user `test` is granted admin rights, which is reset once the unittest is completed if `mock_admin_login` is called.
