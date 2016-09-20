@@ -34,12 +34,12 @@ class testAGEditParticipantHandler(TestHandlerBase):
 
         # check what happens if user with email does not exist.
         # TODO: we should create a better error message in the handler to be
-        # displayed.
+        # displayed, see issue: #115
         response = self.get('/ag_edit_participant/?email=notInDB')
         self.assertIn('AN ERROR HAS OCCURED!', response.body)
         self.assertEqual(response.code, 500)
 
-        # TODO: similarly if no email, i.e. user, is given
+        # TODO: similarly if no email, i.e. user, is given. Issue: #115
         response = self.get('/ag_edit_participant/?email=')
         self.assertIn('AN ERROR HAS OCCURED!', response.body)
         self.assertEqual(response.code, 500)
@@ -98,4 +98,3 @@ class testAGEditParticipantHandler(TestHandlerBase):
 
 if __name__ == "__main__":
     main()
-# http://localhost:8889/ag_edit_participant/?email=xjztuew@wbfznvoyxb.com
