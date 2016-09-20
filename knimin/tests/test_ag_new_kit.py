@@ -14,9 +14,6 @@ class TestAGNewKitDLHandler(TestHandlerBase):
 
     def test_post(self):
         self.mock_login_admin()
-        kits = [1, 2]
-        swabs = [2, 2]
-        tag = 'abc'
 
         # fake kitinfo data structure
         kitinfo = [["xxx_pggwy", "96812490", "23577",
@@ -89,10 +86,12 @@ class TestAGNewKitHandler(TestHandlerBase):
                               'swabs': swabs,
                               'kits': kits,
                               })
+        # TODO: we should find more speaking ways to report an error to the
+        # user, see issue: #113
         self.assertEqual(response.code, 500)
         self.assertIn("Tag must be 4 or less characters", response.body)
 
-        # check project existens
+        # test that non existing projects are recognized.
         response = self.post('/ag_new_kit/',
                              {'tag': 'abc',
                               'projects': ['doesNotExist', 'PROJECT5'],
