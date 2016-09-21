@@ -1,7 +1,5 @@
 from unittest import main
 
-from tornado.escape import url_escape
-
 from knimin.tests.tornado_test_base import TestHandlerBase
 from knimin import db
 
