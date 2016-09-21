@@ -1,5 +1,7 @@
 from unittest import main
 import os
+from random import choice
+from string import ascii_letters
 
 from tornado.escape import url_escape
 
@@ -41,16 +43,33 @@ class AGThirdPartyHandler(TestHandlerBase):
     #     self.mock_login_admin()
     #     form = ThirdPartyData()
     #     tpsurveys = db.list_external_surveys()
-    #     response = self.post('/ag_third_party/data/',
+    #     response = self.multipart_post('/ag_third_party/data/',
     #                          {'survey': tpsurveys[0],
-    #                           'file_in': ,
     #                           'seperator': ',',
-    #                           'survey_id': 'SRVID',
-    #                           'trim': ''})
-    #     print("post")
+    #                           'survey_id': 'SN',
+    #                           'trim': ''},
+    #                           {'file_in': 'knimin/tests/data/mod_external_survey_data.csv',
+    #                           })
+    #     print(response.body)
+    # #     print("post")
 
 
 class AGNewThirdPartyHandler(TestHandlerBase):
+    def setUp(self):
+        # Make sure vioscreen survey exists in DB
+        try:
+            db.add_external_survey('Vioscreen', 'FFQ', 'http://vioscreen.com')
+        except ValueError:
+            pass
+        super(AGNewThirdPartyHandler, self).setUp()
+
+    def test_post_not_authed(self):
+        name = ''.join([choice(ascii_letters) for x in range(15)])
+        response = self.post('/ag_third_party/add/',
+                             data={'name': name, 'description': 'TEST',
+                                   'url': 'test.fake'})
+        self.assertEqual(response.code, 403)
+
     def test_get_not_authed(self):
         response = self.get('/ag_third_party/add/')
         self.assertEqual(response.code, 200)
@@ -58,6 +77,38 @@ class AGNewThirdPartyHandler(TestHandlerBase):
         self.assertEqual(response.effective_url,
                          'http://localhost:%d/login/?next=%s' %
                          (port, url_escape('/ag_third_party/add/')))
+
+    def test_post_data(self):
+        self.mock_login()
+        db.alter_access_levels('test', [4])
+        name = ''.join([choice(ascii_letters) for x in range(15)])
+        response = self.post('/ag_third_party/add/',
+                             data={'name': name, 'description': 'TEST',
+                                   'url': 'test.fake'})
+        self.assertEqual(response.code, 200)
+        self.assertIn("Added '%s' successfully" % name, response.body)
+
+    def test_post_missing_data(self):
+        self.mock_login()
+        db.alter_access_levels('test', [4])
+        name = ''.join([choice(ascii_letters) for x in range(15)])
+        data = {'name': name, 'description': 'TEST', 'url': ''}
+
+        response = self.post('/ag_third_party/add/', data)
+        self.assertEqual(response.code, 200)
+        self.assertIn('Survey URL</label>\n\n<ul class="errors"><li>'
+                      'Required field', response.body)
+        db._clear_table('external_survey_answers', 'ag')
+
+    def test_post_existing_survey(self):
+        self.mock_login()
+        db.alter_access_levels('test', [4])
+        data = {'name': 'Vioscreen', 'description': 'TEST', 'url': 'test.fake'}
+
+        response = self.post('/ag_third_party/add/', data)
+        self.assertEqual(response.code, 200)
+        self.assertIn("Survey 'Vioscreen' already exists", response.body)
+        db._clear_table('external_survey_answers', 'ag')
 
     def test_get(self):
         self.mock_login_admin()
