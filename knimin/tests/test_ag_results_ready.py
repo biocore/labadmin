@@ -39,6 +39,8 @@ class TestAGResultsReadyHandler(TestHandlerBase):
         response = self.post('/update_ready/', {})
         self.assertEqual(response.code, 500)
         self.assertIn('<p>Unknown folder', response.body)
+        self.assertRaises(IOError)
+        self.assertRaises(Exception)
 
         # test what happens if no barcode PDFs are available in the system dir
         fakeDir = tempfile.mkdtemp()
