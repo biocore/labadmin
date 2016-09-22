@@ -21,8 +21,9 @@ class AGPulldownHandler(BaseHandler):
         if 'barcodes' not in self.request.files:
             surveys = db.list_external_surveys()
             self.render("ag_pulldown.html", currentuser=self.current_user,
-                        barcodes='', blanks='', external='', surveys=surveys, 
-                        errors="No barcode file given, thus nothing could be pulled down.")
+                        barcodes='', blanks='', external='', surveys=surveys,
+                        errors=("No barcode file given, thus nothing could ",
+                                 "be pulled down."))
             return
         # Get file information, ignoring commented out lines
         fileinfo = self.request.files['barcodes'][0]['body']
