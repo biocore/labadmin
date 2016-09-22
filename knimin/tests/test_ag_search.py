@@ -22,7 +22,7 @@ class testAGSearchHandler(TestHandlerBase):
         self.assertEqual(response.code, 200)
         self.assertIn('Find stuff.', response.body)
 
-    def test_post(self):
+    def test_post_user(self):
         self.mock_login_admin()
 
         # search participant info
@@ -37,6 +37,9 @@ class testAGSearchHandler(TestHandlerBase):
                     else:
                         self.assertIn(l[field], response.body)
 
+    def test_post_kit(self):
+        self.mock_login_admin()
+
         search_term = 'tst_zpdIN'
         response = self.post('/ag_search/', {'search_term': search_term})
         self.assertEqual(response.code, 200)
@@ -45,6 +48,9 @@ class testAGSearchHandler(TestHandlerBase):
                 for field in kit.keys():
                     if (field != 'ag_kit_id') and (field != 'ag_login_id'):
                         self.assertIn(str(kit[field]), response.body)
+
+    def test_post_barcode(self):
+        self.mock_login_admin()
 
         search_term = '000028538'
         response = self.post('/ag_search/', {'search_term': search_term})
