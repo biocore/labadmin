@@ -14,7 +14,7 @@ class AGResultsReadyHandler(BaseHandler):
             self.write('ERROR: No barcode results available')
             return
 
-        msg = 'Sucessfully updated barcodes to results ready status.'
+        msg = 'Successfully updated barcodes to results ready status.'
         try:
             db.mark_results_ready(barcodes)
         except Exception as e:
