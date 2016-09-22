@@ -208,7 +208,6 @@ class AGNewThirdPartyHandler(TestHandlerBase):
 
     def test_post(self):
         self.mock_login_admin()
-        # form = NewThirdParty()
         name = 'testNewTPSurvey_' + str(os.getpid())
 
         # add a new Survey
