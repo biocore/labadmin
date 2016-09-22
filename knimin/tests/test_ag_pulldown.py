@@ -105,7 +105,7 @@ class testAGPulldownDLHandler(TestHandlerBase):
                               'external': db.list_external_surveys()[:1]})
         self.assertEqual(response.headers['Content-Disposition'],
                          'attachment; filename=metadata.zip')
-        self.assertIn('failures.txt', responsadde.body)
+        self.assertIn('failures.txt', response.body)
         self.assertIn('survey_1_md.txt', response.body)
 
 if __name__ == "__main__":
