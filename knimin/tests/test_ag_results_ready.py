@@ -1,3 +1,5 @@
+import tempfile
+import os
 from unittest import main
 
 from knimin.tests.tornado_test_base import TestHandlerBase
@@ -32,6 +34,19 @@ class TestAGResultsReadyHandler(TestHandlerBase):
             result = cur.fetchone()[0]
             self.assertEqual(result, 'Y')
 
+        # test that error is raised if pdf directory does not exist
+        db.config.base_data_dir = 'phantasy_path'
+        response = self.post('/update_ready/', {})
+        self.assertEqual(response.code, 500)
+        self.assertIn('<p>Unknown folder', response.body)
+
+        # test what happens if no barcode PDFs are available in the system dir
+        fakeDir = tempfile.mkdtemp()
+        os.makedirs(fakeDir + "/pdfs/")
+        db.config.base_data_dir = fakeDir
+        response = self.post('/update_ready/', {})
+        self.assertEqual(response.code, 200)
+        self.assertIn('ERROR: No barcode results available', response.body)
 
 if __name__ == '__main__':
     main()
