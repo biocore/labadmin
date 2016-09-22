@@ -53,4 +53,4 @@ Then you should be able to login with the following credentials
 
 **Password:** password 
 
-Note that whenever a unittest is run, the user `test` is granted admin rights, which is reset once the unittest is completed if `mock_admin_login` is called.
+After executing our existing unit test suite, access level for the user 'test' will be reset to '', i.e. they won't be able to see most of the main menu items. Thus, adding a second user 'master' with admin privileges is quite useful.
