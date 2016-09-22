@@ -122,6 +122,24 @@ class AGThirdPartyHandler(TestHandlerBase):
                       response.body)
         self.assertEqual(response.code, 200)
 
+        data = {'survey': 'Vioscreen',
+                'seperator': 'comma',
+                'survey_id': 'Subject__Id',
+                'trim': '-160'}
+        files = {'file_in': self.ext_survey_fp}
+        response = self.multipart_post('/ag_third_party/data/', data, files)
+        self.assertIn('Header column not found', response.body)
+
+        # test reporting error messages
+        data = {'survey': 'NotInDB',
+                'seperator': 'comma',
+                'survey_id': 'Subject__Id',
+                'trim': '-160'}
+        files = {'file_in': self.ext_survey_fp}
+        response = self.multipart_post('/ag_third_party/data/', data, files)
+        self.assertIn('<ul class="errors"><li>Not a valid choice</li></ul>',
+                      response.body)
+
 
 class AGNewThirdPartyHandler(TestHandlerBase):
     def setUp(self):
