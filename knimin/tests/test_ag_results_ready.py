@@ -27,6 +27,7 @@ class TestAGResultsReadyHandler(TestHandlerBase):
         msg = 'Successfully updated barcodes to results ready status.'
         self.assertIn(msg, response.body)
 
+        os.environ["ASYNC_TEST_TIMEOUT"] = "30"
         with db._con.cursor() as cur:
             cur.execute("""SELECT results_ready
                            FROM ag.ag_kit_barcodes
