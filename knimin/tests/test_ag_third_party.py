@@ -1,5 +1,6 @@
 from unittest import main
 import os
+from os.path import dirname, realpath, join
 from random import choice
 from string import ascii_letters
 
@@ -11,6 +12,17 @@ from knimin.handlers.ag_third_party import ThirdPartyData, NewThirdParty
 
 
 class AGThirdPartyHandler(TestHandlerBase):
+    ext_survey_fp = join(dirname(realpath(__file__)), 'data',
+                         'external_survey_data.csv')
+
+    def setUp(self):
+        # Make sure vioscreen survey exists in DB
+        try:
+            db.add_external_survey('Vioscreen', 'FFQ', 'http://vioscreen.com')
+        except ValueError:
+            pass
+        super(AGThirdPartyHandler, self).setUp()
+
     def test_get_not_authed(self):
         response = self.get('/ag_third_party/data/')
         self.assertEqual(response.code, 200)
@@ -18,6 +30,24 @@ class AGThirdPartyHandler(TestHandlerBase):
         self.assertEqual(response.effective_url,
                          'http://localhost:%d/login/?next=%s' %
                          (port, url_escape('/ag_third_party/data/')))
+        self.mock_login()
+        response = self.get('/ag_third_party/data/')
+        self.assertEqual(response.code, 403)
+
+    def test_post_not_authed(self):
+        self.mock_login()
+        response = self.post('/ag_third_party/data/',
+                             data={'survey': '', 'seperator': 'comma',
+                                   'survey_id': '', 'trim': ''})
+        self.assertEqual(response.code, 403)
+
+    def test_post_not_logged_in(self):
+        db.alter_access_levels('test', [4])
+        data = {'survey': 'Vioscreen', 'seperator': 'comma',
+                'survey_id': 'SubjectId', 'trim': '-160'}
+        files = {'file_in': self.ext_survey_fp}
+        response = self.post('/ag_third_party/data/', data, files)
+        self.assertEqual(response.code, 403)
 
     def test_get(self):
         self.mock_login_admin()
@@ -39,19 +69,58 @@ class AGThirdPartyHandler(TestHandlerBase):
             self.assertIn('<option value="%s">%s</option>' % (survey, survey),
                           response.body)
 
-    # def test_post(self):
-    #     self.mock_login_admin()
-    #     form = ThirdPartyData()
-    #     tpsurveys = db.list_external_surveys()
-    #     response = self.multipart_post('/ag_third_party/data/',
-    #                          {'survey': tpsurveys[0],
-    #                           'seperator': ',',
-    #                           'survey_id': 'SN',
-    #                           'trim': ''},
-    #                           {'file_in': 'knimin/tests/data/mod_external_survey_data.csv',
-    #                           })
-    #     print(response.body)
-    # #     print("post")
+    def test_post_data(self):
+        self.mock_login_admin()
+        data = {'survey': 'Vioscreen', 'seperator': 'comma',
+                'survey_id': 'SubjectId', 'trim': '-160'}
+        files = {'file_in': self.ext_survey_fp}
+
+        response = self.multipart_post('/ag_third_party/data/', data, files)
+        self.assertEqual(response.code, 200)
+        self.assertIn("3 surveys added to 'Vioscreen' successfully",
+                      response.body)
+
+        # Grab one of the inserted surveys for testing
+        id = '14f508185c954721'
+        obs = db.get_external_survey('Vioscreen', [id])
+        self.assertTrue(len(obs[id]) == 274)
+        self.assertIn('HEI2010_Greens_Beans', obs['14f508185c954721'].keys())
+        db._clear_table('external_survey_answers', 'ag')
+
+    def test_post_missing_data(self):
+        self.mock_login()
+        db.alter_access_levels('test', [4])
+        data = {'seperator': 'comma', 'survey_id': 'SubjectId', 'trim': ''}
+        files = {'file_in': self.ext_survey_fp}
+
+        response = self.multipart_post('/ag_third_party/data/', data, files)
+        self.assertEqual(response.code, 200)
+        self.assertIn('Third Party survey</label>\n\n<ul class="errors">'
+                      '<li>Not a valid choice', response.body)
+        db._clear_table('external_survey_answers', 'ag')
+
+    def test_post_wrong_arguments(self):
+        self.mock_login_admin()
+        data = {'survey': 'NotInDB',
+                'seperator': 'comma',
+                'survey_id': 'SubjectId',
+                'trim': '-160'}
+        files = {'file_in': self.ext_survey_fp}
+        response = self.multipart_post('/ag_third_party/data/', data, files)
+        self.assertIn('<ul class="errors"><li>Not a valid choice</li></ul>',
+                      response.body)
+        self.assertEqual(response.code, 200)
+
+        data = {'survey': 'Vioscreen',
+                'seperator': 'blub',
+                'survey_id': 'SubjectId',
+                'trim': '-160'}
+        files = {'file_in': self.ext_survey_fp}
+        response = self.multipart_post('/ag_third_party/data/', data, files)
+        response = self.multipart_post('/ag_third_party/data/', data, files)
+        self.assertIn('<ul class="errors"><li>Not a valid choice</li></ul>',
+                      response.body)
+        self.assertEqual(response.code, 200)
 
 
 class AGNewThirdPartyHandler(TestHandlerBase):
