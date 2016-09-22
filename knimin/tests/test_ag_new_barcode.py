@@ -1,6 +1,8 @@
 from unittest import main
+import os
 
 from tornado.escape import url_escape
+from tornado.httpclient import HTTPError
 
 from knimin.tests.tornado_test_base import TestHandlerBase
 from knimin import db
@@ -64,14 +66,20 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
 
     def test_post(self):
         self.mock_login_admin()
-        # check that unkown action results in a response code 400
-        response = self.post('/ag_new_barcode/', {'action': 'unkown'})
-        self.assertEqual(response.code, 400)
-
-        # TODO: test if exception for 0 barcodes to create is raised issue #105
-
+        action = 'unknown'
         num_barcodes = 4
         projects = ["American Gut Project", "Autism Spectrum Disorder"]
+        newProject = 'newProject' + str(os.getpid())
+
+        # check that unkown action results in a response code 400
+        response = self.post('/ag_new_barcode/', {'action': action,
+                                                  'numbarcodes': num_barcodes})
+        self.assertRaises(HTTPError)
+        self.assertEqual(response.code, 400)
+        self.assertIn("HTTPError: HTTP %i: Bad Request (Unknown action: %s)"
+                      % (400, action), response.body)
+
+        # TODO: test if exception for 0 barcodes to create is raised issue #105
 
         # check creation of new barcodes
         response = self.post('/ag_new_barcode/', {'action': 'create',
@@ -128,6 +136,18 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
         # check recognition of unkown action
         response = self.post('/ag_new_barcode/', {'action': 'unkown'})
         self.assertEqual(response.code, 400)
+        self.assertRaises(HTTPError)
+
+        # test that new project is appended to list of projects
+        response = self.post('/ag_new_barcode/',
+                             {'action': 'assign',
+                              'numbarcodes': num_barcodes,
+                              'projects': projects,
+                              'newproject': newProject})
+        self.assertEqual(response.code, 200)
+        self.assertIn("%i barcodes assigned to %s, please wait for download." %
+                      (num_barcodes, ", ".join(projects + [newProject])),
+                      response.body)
 
 if __name__ == "__main__":
     main()
