@@ -164,7 +164,7 @@ def make_valid_kit_ids(num_ids, obs_kit_ids, kit_id_length=5, tag=None):
     else:
         tag = ''
 
-    if kit_id_length > len(KIT_ALPHA)**kit_id_length:
+    if num_ids > len(KIT_ALPHA)**kit_id_length:
         raise ValueError("More kits requested than possible kit ID combos!")
 
     def make_kit_id(kit_id_length, tag):
