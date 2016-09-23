@@ -2428,8 +2428,8 @@ class KniminAccess(object):
         if not plates:
             return 1
         for plate in plates:
-            sql = """INSERT INTO pm.plate (name, email, plate_type_id)
-                     VALUES (%s, 'test', 1) RETURNING plate_id"""
+            sql = """INSERT INTO pm.sample_plate (name, email, plate_type_id)
+                     VALUES (%s, 'test', 1) RETURNING sample_plate_id"""
             id = self._con.execute_fetchone(sql, [plate[1]])[0]
             sql = """SELECT barcode FROM barcodes.plate_barcode
                      WHERE plate_id = %s ORDER BY barcode"""
@@ -2441,10 +2441,10 @@ class KniminAccess(object):
             (ncol, nrow) = (12, 8)
             for i in range(ncol):
                 for j in range(nrow):
-                    sql = """INSERT INTO pm.plate_sample (plate_id, col,
-                                row, sample_id)
+                    sql = """INSERT INTO pm.sample_plate_layout (
+                                sample_plate_id, sample_id, col, row)
                              VALUES (%s, %s, %s, %s)"""
-                    self._con.execute(sql, [id, i+1, j+1, barcodes[count]])
+                    self._con.execute(sql, [id, barcodes[count], i+1, j+1])
                     count += 1
                     if count == nbarcode:
                         break
@@ -2515,56 +2515,218 @@ class KniminAccess(object):
         self._con.executemany(sql, [[x] for x in sample_ids])
         return True
 
-    def create_plate(self, name, email, plate_type):
-        """Creates a new plate and sets values for mandatory fields
+    def create_sample_plate(self, sample_plate_info):
+        """Creates a new sample plate and sets values for mandatory fields
+
+        Parameters
+        ----------
+        sample_plate_info: tuple of (str x2, datetime, str x2)
+            name, email, creation_timestamp, notes, plate_type
+
+        Returns
+        -------
+        int
+            ID of the created sample plate
+        """
+        sql = """INSERT INTO pm.sample_plate (name, email, creation_timestamp,
+                 notes, plate_type_id) VALUES (%s, %s, %s, %s,
+                 (SELECT plate_type_id FROM pm.plate_type WHERE name = %s))
+                 RETURNING sample_plate_id"""
+        sql_args = list(sample_plate_info)
+        for i in range(1, 4):
+            sql_args[i] = sql_args[i] or None
+        return self._con.execute_fetchone(sql, sql_args)[0]
+
+    def set_sample_plate_info(self, sample_plate_id, sample_plate_info):
+        """Sets attributes of a sample plate by ID
+
+        Parameters
+        ----------
+        sample_plate_id : int
+            ID of the sample plate to set attributes to
+        sample_plate_info: tuple of (str x2, datetime, str x2)
+            name, email, creation_timestamp, notes, plate_type
+
+        Returns
+        -------
+        bool
+            True if successful
+        """
+        sql = """UPDATE pm.sample_plate
+                 SET name = %s, email = %s, creation_timestamp = %s,
+                    notes = %s, plate_type_id = (SELECT plate_type_id
+                    FROM pm.plate_type WHERE name = %s)
+                 WHERE sample_plate_id = %s"""
+        sql_args = list(sample_plate_info + (sample_plate_id,))
+        for i in range(1, 4):
+            sql_args[i] = sql_args[i] or None
+        self._con.execute(sql, sql_args)
+        return True
+
+    def get_sample_plate_info(self, sample_plate_id):
+        """Gets attributes of a sample plate by ID
+
+        Parameters
+        ----------
+        sample_plate_id : int
+            ID of the sample plate to get attributes from
+
+        Returns
+        -------
+        tuple of (str x2, datetime, str x2)
+            name, email, creation_timestamp, notes, plate_type
+        """
+        sql = """SELECT p.name, p.email, p.creation_timestamp, p.notes,
+                    pm.plate_type.name
+                 FROM pm.sample_plate p
+                 JOIN pm.plate_type USING (plate_type_id)
+                 WHERE sample_plate_id = %s"""
+#        sql = """SELECT pm.plate.plate_id,
+#                    pm.plate.name,
+#                    pm.plate.email,
+#                    pm.plate_type.name,
+#                    pm.template.name,
+#                    pm.plate.linker_seq,
+#                    pm.extraction_kit_lot.name,
+#                    pm.extraction_robot.name,
+#                    pm.tm1000_8_tool.name,
+#                    pm.master_mix_lot.name,
+#                    pm.water_lot.name,
+#                    pm.processing_robot.name,
+#                    pm.tm300_8_tool.name,
+#                    pm.tm50_8_tool.name,
+#                    pm.plate.notes
+#                 FROM pm.plate
+#                 JOIN pm.plate_type USING (plate_type_id)
+#                 LEFT JOIN pm.template USING (template_id)
+#                 LEFT JOIN pm.extraction_kit_lot USING (extraction_kit_lot_id)
+#                 LEFT JOIN pm.extraction_robot USING (extraction_robot_id)
+#                 LEFT JOIN pm.tm1000_8_tool USING (tm1000_8_tool_id)
+#                 LEFT JOIN pm.master_mix_lot USING (master_mix_lot_id)
+#                 LEFT JOIN pm.water_lot USING (water_lot_id)
+#                 LEFT JOIN pm.processing_robot USING (processing_robot_id)
+#                 LEFT JOIN pm.tm300_8_tool USING (tm300_8_tool_id)
+#                 LEFT JOIN pm.tm50_8_tool USING (tm50_8_tool_id)
+#                 WHERE pm.plate.plate_id = %s"""
+        return tuple(self._con.execute_fetchone(sql, [sample_plate_id]))
+
+    def delete_sample_plate(self, sample_plate_ids):
+        """Deletes sample plates and corresponding plate-to-sample maps
+
+        Parameters
+        ----------
+        sample_plate_ids : list of int
+            Sample plate IDs to delete
+
+        Returns
+        -------
+        bool
+            True if successful
+        """
+        sql = """DELETE FROM pm.sample_plate_layout
+                 WHERE sample_plate_id = %s"""
+        self._con.executemany(sql, [[x] for x in sample_plate_ids])
+        sql = """DELETE FROM pm.sample_plate
+                 WHERE sample_plate_id = %s"""
+        self._con.executemany(sql, [[x] for x in sample_plate_ids])
+        return True
+
+    def set_sample_plate_layout(self, sample_plate_id, sample_plate_layout):
+        """Sets sample plate layout by ID
+
+        Parameters
+        ----------
+        sample_plate_id : int
+            Sample plate ID
+        sample_plate_layout : list of tuple of (str, int, int, str, str)
+            Sample ID, column ID, row ID, name, notes
+
+        Returns
+        -------
+        bool
+            True if successful
+        """
+        sql = """DELETE FROM pm.sample_plate_layout
+                 WHERE sample_plate_id = %s"""
+        self._con.execute(sql, [sample_plate_id])
+        sql = """INSERT INTO pm.sample_plate_layout (sample_plate_id,
+                    sample_id, col, row, name, notes)
+                 VALUES (%s, %s, %s, %s, %s, %s)"""
+        sql_args_list = [[sample_plate_id] + list(x)
+                         for x in sample_plate_layout]
+        for i in range(len(sql_args_list)):
+            for j in (4, 5):
+                sql_args_list[i][j] = sql_args_list[i][j] or None
+        self._con.executemany(sql, sql_args_list)
+        return True
+
+    def get_sample_plate_layout(self, sample_plate_id):
+        """Gets sample plate layout by ID
+
+        Parameters
+        ----------
+        sample_plate_id : int
+            Sample plate ID
+
+        Returns
+        -------
+        list of tuple of (str, int, int, str, str)
+            Sample ID, column ID, row ID, name, notes
+        """
+        sql = """SELECT sample_id, col, row, name, notes
+                 FROM pm.sample_plate_layout
+                 WHERE sample_plate_id = %s
+                 ORDER BY col, row"""
+        return [tuple(x) for x in self._con.execute_fetchall(sql,
+                [sample_plate_id])]
+
+    def create_dna_plate(self, name, email, sample_plate_id):
+        """Creates a new DNA plate and sets values for mandatory fields
 
         Parameters
         ----------
         name : str
         email : str
-        plate_type : str
+        sample_plate_id : int
 
         Returns
         -------
         int
-            Id of the created plate
+            ID of the created DNA plate
         """
-        sql = """INSERT INTO pm.plate (name, email, plate_type_id)
-                 VALUES (%s, %s, (SELECT plate_type_id FROM pm.plate_type
-                 WHERE name = %s)) RETURNING plate_id"""
-        sql_args = [name, email, plate_type]
+        sql = """INSERT INTO pm.dna_plate (name, email, sample_plate_id)
+                 VALUES (%s, %s, %s) RETURNING dna_plate_id"""
+        sql_args = [name, email, sample_plate_id]
         return self._con.execute_fetchone(sql, sql_args)[0]
 
-    def delete_plate(self, plate_ids):
-        """Deletes plates and corresponding plate-to-sample maps
+    def delete_dna_plate(self, dna_plate_ids):
+        """Deletes DNA plates
 
         Parameters
         ----------
-        plate_ids : list of int
-            Plate ids to delete
+        dna_plate_ids : list of int
+            DNA plate IDs to delete
 
         Returns
         -------
-        int
-            Number of plates deleted
+        bool
+            True if successful
         """
-        sql = """DELETE FROM pm.plate_sample WHERE plate_id = %s"""
-        self._con.executemany(sql, [[x] for x in plate_ids])
-        sql = """DELETE FROM pm.plate WHERE plate_id = %s"""
-        self._con.executemany(sql, [[x] for x in plate_ids])
-        return len(plate_ids)
+        sql = """DELETE FROM pm.dna_plate
+                 WHERE dna_plate_id = %s"""
+        self._con.executemany(sql, [[x] for x in dna_plate_ids])
+        return True
 
-    def set_plate_info(self, plate_id, plate_info):
-        """Sets attributes of a plate by id
+    def set_dna_plate_info(self, dna_plate_id, dna_plate_info):
+        """Sets attributes of a DNA plate by ID
 
         Parameters
         ----------
-        plate_id : int
-            Id of the plate to set attributes to
-        plate_info: tuple of (str x 12)
-            name, template, linker_seq, extraction_kit_lot, extraction_robot,
-            tm1000_8_tool, master_mix_lot, water_lot_id, processing_robot_id,
-            tm300_8_tool_id, tm50_8_tool_id, notes
+        dna_plate_id : int
+            ID of the DNA plate to set attributes to
+        dna_plate_info: tuple of (str x 6)
+            name, email, notes, extraction_robot, extraction_kit_lot,
+            extraction_tool
 
         Returns
         -------
@@ -2575,30 +2737,16 @@ class KniminAccess(object):
         -----
         Empty string or None values set corresponding columns to NULL
         """
-        sql = """UPDATE pm.plate
-                 SET name = %s,
-                     template_id = (SELECT template_id
-                        FROM pm.template WHERE name = %s),
-                     linker_seq = %s,
+        sql = """UPDATE pm.dna_plate
+                 SET name = %s, email = %s, notes = %s,
                      extraction_kit_lot_id = (SELECT extraction_kit_lot_id
                         FROM pm.extraction_kit_lot WHERE name = %s),
                      extraction_robot_id = (SELECT extraction_robot_id
                         FROM pm.extraction_robot WHERE name = %s),
-                     tm1000_8_tool_id = (SELECT tm1000_8_tool_id
-                        FROM pm.tm1000_8_tool WHERE name = %s),
-                     master_mix_lot_id = (SELECT master_mix_lot_id
-                        FROM pm.master_mix_lot WHERE name = %s),
-                     water_lot_id = (SELECT water_lot_id
-                        FROM pm.water_lot WHERE name = %s),
-                     processing_robot_id = (SELECT processing_robot_id
-                        FROM pm.processing_robot WHERE name = %s),
-                     tm300_8_tool_id = (SELECT tm300_8_tool_id
-                        FROM pm.tm300_8_tool WHERE name = %s),
-                     tm50_8_tool_id = (SELECT tm50_8_tool_id
-                        FROM pm.tm50_8_tool WHERE name = %s),
-                     notes = %s
-                 WHERE plate_id = %s"""
-        sql_args = plate_info + (plate_id,)
+                     extraction_tool_id = (SELECT extraction_tool_id
+                        FROM pm.extraction_tool WHERE name = %s)
+                 WHERE dna_plate_id = %s"""
+        sql_args = dna_plate_info + (dna_plate_id,)
         self._con.execute(sql, sql_args)
         return True
 
@@ -2647,69 +2795,6 @@ class KniminAccess(object):
                  WHERE pm.plate.plate_id = %s"""
         return tuple(self._con.execute_fetchone(sql, [plate_id]))
 
-    def set_plate_map(self, plate_id, plate_map):
-        """Sets plate map by id
-
-        Parameters
-        ----------
-        plate_id : int
-            Plate id
-        plate_map : list of tuple of (int, int, str)
-            Column id, row id, sample id
-
-        Returns
-        -------
-        tuple (int, int, int)
-            Numbers of samples added / modified / deleted
-
-        Notes
-        -----
-        An empty sample_id represents an empty well, in which case, the record
-        will be deleted if exists.
-        """
-        (nadd, nmod, ndel) = (0, 0, 0)
-        for (col, row, sample_id) in plate_map:
-            sql = """SELECT sample_id FROM pm.plate_sample WHERE plate_id = %s
-                     AND col = %s AND row = %s LIMIT 1"""
-            old_rec = self._con.execute_fetchone(sql, [plate_id, col, row])
-            if old_rec is None:  # Create new record
-                sql_args = [plate_id, col, row, sample_id]
-                sql = """INSERT INTO pm.plate_sample (plate_id, col, row,
-                         sample_id) VALUES (%s, %s, %s, %s)"""
-                self._con.execute(sql, sql_args)
-                nadd += 1
-            elif sample_id != '':
-                if old_rec[0] != sample_id:  # Modify existing record
-                    sql_args = [sample_id, plate_id, col, row]
-                    sql = """UPDATE pm.plate_sample SET sample_id = %s
-                             WHERE plate_id = %s AND col = %s AND row = %s"""
-                    self._con.execute(sql, sql_args)
-                    nmod += 1
-            else:  # Delete existing record
-                sql_args = [plate_id, col, row]
-                sql = """DELETE FROM pm.plate_sample WHERE plate_id = %s
-                         AND col = %s AND row = %s"""
-                self._con.execute(sql, sql_args)
-                ndel += 1
-        return (nadd, nmod, ndel)
-
-    def get_plate_map(self, plate_id):
-        """Gets plate map by id
-
-        Parameters
-        ----------
-        plate_id : int
-            Plate id
-
-        Returns
-        -------
-        list of tuple of (int, int, str)
-            Column id, row id, sample id
-        """
-        sql = """SELECT col, row, sample_id FROM pm.plate_sample
-                 WHERE plate_id = %s ORDER BY col, row"""
-        return [tuple(x) for x in self._con.execute_fetchall(sql, [plate_id])]
-
     def get_plate_type(self, plate_id):
         """Gets plate type attributes
 
@@ -2744,7 +2829,7 @@ class KniminAccess(object):
         int
             Number of existing plates
         """
-        sql = """SELECT COUNT(*) FROM pm.plate"""
+        sql = """SELECT COUNT(*) FROM pm.sample_plate"""
         return self._con.execute_fetchone(sql)[0]
 
     def get_plate_list(self, limit=0, offset=0):
@@ -2765,14 +2850,15 @@ class KniminAccess(object):
             Plate id, plate name, plate type name, number of samples, email
         """
         sql_args = []
-        sql = """SELECT plate_id, plate.name, plate_type.name,
-                    (SELECT COUNT(*) FROM pm.plate_sample
-                     WHERE pm.plate_sample.plate_id = pm.plate.plate_id),
+        sql = """SELECT sample_plate_id, sample_plate.name, plate_type.name,
+                    (SELECT COUNT(*) FROM pm.sample_plate_layout
+                     WHERE pm.sample_plate_layout.sample_plate_id
+                        = pm.sample_plate.sample_plate_id),
                      email
-                 FROM pm.plate
+                 FROM pm.sample_plate
                  JOIN pm.plate_type
                  USING (plate_type_id)
-                 ORDER BY plate_id"""
+                 ORDER BY sample_plate_id"""
         if limit:
             sql += " LIMIT %s"
             sql_args.append(limit)
