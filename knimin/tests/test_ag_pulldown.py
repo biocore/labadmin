@@ -9,8 +9,9 @@ from knimin import db
 
 
 class testUpdateEBIStatusHandler(TestHandlerBase):
+    os.environ["ASYNC_TEST_TIMEOUT"] = "30"
+
     def test_get_not_authed(self):
-        os.environ["ASYNC_TEST_TIMEOUT"] = "30"
         response = self.get('/update_ebi/')
         self.assertEqual(response.code, 200)
         port = self.get_http_port()
@@ -36,7 +37,6 @@ class testAGPulldownHandler(TestHandlerBase):
     file_empty = join(dirname(realpath(__file__)), 'data', 'barcodes.txt')
 
     def test_get_not_authed(self):
-        # os.environ["ASYNC_TEST_TIMEOUT"] = "30"
         response = self.get('/ag_pulldown/')
         self.assertEqual(response.code, 200)
         port = self.get_http_port()
@@ -76,7 +76,6 @@ class testAGPulldownHandler(TestHandlerBase):
 
 class testAGPulldownDLHandler(TestHandlerBase):
     def test_get_not_authed(self):
-        # os.environ["ASYNC_TEST_TIMEOUT"] = "30"
         response = self.get('/ag_pulldown/download/')
         self.assertEqual(response.code, 405)
 
