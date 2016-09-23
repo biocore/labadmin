@@ -28,7 +28,7 @@ class TestAGUpdateGeocodeHandler(TestHandlerBase):
                                                      'limit': '-1'})
         self.assertEqual(response.code, 200)
         for stat in db.getGeocodeStats():
-            self.assertIn("<td>%s</td><td>%s</td>", stat, response.body)
+            self.assertIn("<td>%s</td><td>%s</td>" % stat, response.body)
 
 
 if __name__ == '__main__':
