@@ -19,10 +19,64 @@ class TestDataAccess(TestCase):
             db.add_external_survey('Vioscreen', 'FFQ', 'http://vioscreen.com')
         except ValueError:
             pass
+        # Populate some field options
+        sql = """INSERT INTO pm.plate_type (name, cols, rows, notes)
+                 VALUES ('96-well', 12, 8, 'Standard 96-well plate')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.extraction_robot (name) VALUES ('HOWE_KF1')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.extraction_robot (name) VALUES ('HOWE_KF2')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.extraction_robot (name) VALUES ('HOWE_KF3')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.extraction_robot (name) VALUES ('HOWE_KF4')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.extraction_tool (name) VALUES ('108379Z')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.processing_robot (name) VALUES ('ROBE')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.processing_robot (name) VALUES ('RIKE')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.processing_robot (name) VALUES ('JERE')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.processing_robot (name) VALUES ('CARMEN')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.tm300_8_tool (name) VALUES ('208484Z')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.tm300_8_tool (name) VALUES ('311318B')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.tm300_8_tool (name) VALUES ('109375A')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.tm300_8_tool (name) VALUES ('3076189')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.tm50_8_tool (name) VALUES ('108364Z')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.tm50_8_tool (name) VALUES ('311426B')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.tm50_8_tool (name) VALUES ('311441B')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.tm50_8_tool (name) VALUES ('409172Z')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.extraction_kit_lot (name) VALUES ('PM16B11')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.master_mix_lot (name) VALUES ('14459')"""
+        db._execute_sql(sql)
+        sql = """INSERT INTO pm.water_lot (name) VALUES ('RNBD9959')"""
+        db._execute_sql(sql)
 
     def tearDown(self):
         db._clear_table('external_survey_answers', 'ag')
         db._revert_ready(['000023299'])
+        # Remove populated field options
+        db._clear_table('plate_type', 'pm')
+        db._clear_table('extraction_robot', 'pm')
+        db._clear_table('extraction_tool', 'pm')
+        db._clear_table('processing_robot', 'pm')
+        db._clear_table('tm300_8_tool', 'pm')
+        db._clear_table('tm50_8_tool', 'pm')
+        db._clear_table('extraction_kit_lot', 'pm')
+        db._clear_table('master_mix_lot', 'pm')
+        db._clear_table('water_lot', 'pm')
 
     def test_pulldown_third_party(self):
         # Add survey answers

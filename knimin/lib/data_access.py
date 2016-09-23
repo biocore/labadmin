@@ -2893,3 +2893,7 @@ class KniminAccess(object):
                  SET results_ready = NULL
                  WHERE barcode IN %s"""
         self._con.execute(sql, [tuple(barcodes)])
+
+    def _execute_sql(self, sql, sql_args=None):
+        """Test helper to execute an SQL command"""
+        self._con.execute(sql, sql_args)
