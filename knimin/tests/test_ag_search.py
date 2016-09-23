@@ -31,7 +31,7 @@ class testAGSearchHandler(TestHandlerBase):
         self.assertEqual(response.code, 200)
         for login in db.search_participant_info(search_term):
             for l in db.get_login_info(login):
-                for field in l.keys():
+                for field in l:
                     if field == 'ag_login_id':
                         self.assertNotIn(l[field], response.body)
                     else:
@@ -45,7 +45,7 @@ class testAGSearchHandler(TestHandlerBase):
         self.assertEqual(response.code, 200)
         for kit_id in db.search_kits(search_term):
             for kit in db.get_kit_info_by_login(kit_id):
-                for field in kit.keys():
+                for field in kit:
                     if (field != 'ag_kit_id') and (field != 'ag_login_id'):
                         self.assertIn(str(kit[field]), response.body)
 
@@ -58,7 +58,7 @@ class testAGSearchHandler(TestHandlerBase):
         for barcode in db.search_barcodes(search_term):
             kit_id = db.get_kit_info_by_login(barcode)[0]['ag_kit_id']
             for sample in db.get_barcode_info_by_kit_id(kit_id):
-                for field in sample.keys():
+                for field in sample:
                     if sample[field] is not None:
                         if (field == 'ag_kit_id') or (
                              field == 'ag_kit_barcode_id'):
