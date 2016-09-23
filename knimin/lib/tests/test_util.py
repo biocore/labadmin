@@ -69,7 +69,7 @@ class UtilTests(TestCase):
         self.assertEqual('70+', categorize_age(122))
         self.assertEqual('Unspecified', categorize_age(123))
         self.assertEqual('Unspecified', categorize_age(123564))
-        self.assertEqual('Unspecified', 'Unspecified')
+        self.assertEqual('Unspecified', categorize_age('Unspecified'))
 
     def test_categorize_etoh(self):
         with self.assertRaises(TypeError):
@@ -186,7 +186,7 @@ class UtilTests(TestCase):
             self.assertIn("\t\t\t%s" % ', '.join(kit[3][5:]), result)
 
     def test_fetch_url(self):
-        # test unkown address
+        # test unknown address
         self.assertRaisesRegexp(gaierror,
                                 'Name or service not known',
                                 fetch_url,
