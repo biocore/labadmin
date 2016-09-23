@@ -33,6 +33,8 @@ class AGEditAccessHandler(BaseHandler):
 
         all_levels = db.get_access_levels()
         user_levels = db.get_access_levels_user(user)
+        # TODO: I think the condition must check the access level of the logged
+        # in user, not the user that shall be edited. See issue: #125
         if [7, 'Admin'] not in user_levels:
             self.redirect('/logged_in_index/')
         else:
