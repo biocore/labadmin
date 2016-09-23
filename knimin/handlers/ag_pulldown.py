@@ -13,14 +13,17 @@ class AGPulldownHandler(BaseHandler):
     def get(self):
         surveys = db.list_external_surveys()
         self.render("ag_pulldown.html", currentuser=self.current_user,
-                    barcodes=[], surveys=surveys)
+                    barcodes=[], surveys=surveys, errors='')
 
     @authenticated
     def post(self):
         # Do nothing if no file given
         if 'barcodes' not in self.request.files:
+            surveys = db.list_external_surveys()
             self.render("ag_pulldown.html", currentuser=self.current_user,
-                        barcodes='', blanks='', external='')
+                        barcodes='', blanks='', external='', surveys=surveys,
+                        errors="No barcode file given, thus nothing could "
+                               "be pulled down.")
             return
         # Get file information, ignoring commented out lines
         fileinfo = self.request.files['barcodes'][0]['body']
@@ -38,7 +41,7 @@ class AGPulldownHandler(BaseHandler):
         surveys = db.list_external_surveys()
         self.render("ag_pulldown.html", currentuser=self.current_user,
                     barcodes=",".join(barcodes), blanks=",".join(blanks),
-                    surveys=surveys, external=external)
+                    surveys=surveys, external=external, errors='')
 
 
 @set_access(['Metadata Pulldown'])
@@ -79,6 +82,7 @@ class AGPulldownDLHandler(BaseHandler):
 
 @set_access(['Metadata Pulldown'])
 class UpdateEBIStatusHandler(BaseHandler):
+    @authenticated
     def get(self):
         try:
             db.set_deposited_ebi()
