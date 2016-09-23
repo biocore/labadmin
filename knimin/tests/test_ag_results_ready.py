@@ -36,6 +36,7 @@ class TestAGResultsReadyHandler(TestHandlerBase):
             self.assertEqual(result, 'Y')
 
         # test that error is raised if pdf directory does not exist
+        # TODO: refactor for clear message to the user, see issue: #126
         db.config.base_data_dir = 'phantasy_path'
         response = self.post('/update_ready/', {})
         self.assertEqual(response.code, 500)
