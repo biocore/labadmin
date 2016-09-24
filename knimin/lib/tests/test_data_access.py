@@ -35,7 +35,7 @@ class TestDataAccess(TestCase):
         sql = """INSERT INTO pm.tm50_8_tool (name) VALUES ('108364Z'),
                  ('311426B'), ('311441B'), ('409172Z')"""
         db._con.execute(sql)
-       sql = """INSERT INTO pm.extraction_kit_lot (name) VALUES ('PM16B11')"""
+        sql = """INSERT INTO pm.extraction_kit_lot (name) VALUES ('PM16B11')"""
         db._con.execute(sql)
         sql = """INSERT INTO pm.master_mix_lot (name) VALUES ('14459')"""
         db._con.execute(sql)
