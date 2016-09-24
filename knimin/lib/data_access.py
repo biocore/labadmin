@@ -2399,178 +2399,6 @@ class KniminAccess(object):
         sql = """SELECT project FROM project"""
         return [x[0] for x in self._con.execute_fetchall(sql)]
 
-    def create_sample(self, sample_ids):
-        """Creates samples by ID
-
-        Parameters
-        ----------
-        sample_ids : list of str
-            Sample IDs to create
-
-        Returns
-        -------
-        bool
-            True if successful
-        """
-        sql = """INSERT INTO pm.sample (sample_id) VALUES (%s)"""
-        self._con.executemany(sql, [[x] for x in sample_ids])
-        return True
-
-    def delete_sample(self, sample_ids):
-        """Delete samples by ID
-
-        Parameters
-        ----------
-        sample_ids : list of str
-            Sample IDs to delete
-
-        Returns
-        -------
-        bool
-            True if successful
-        """
-        sql = """DELETE FROM pm.sample WHERE sample_id = %s"""
-        self._con.executemany(sql, [[x] for x in sample_ids])
-        return True
-
-    def create_sample_plate(self, sample_plate_info):
-        """Creates a new sample plate and sets values for mandatory fields
-
-        Parameters
-        ----------
-        sample_plate_info: tuple of (str, str, datetime, str, str)
-            name, email, creation_timestamp, notes, plate_type
-
-        Returns
-        -------
-        int
-            ID of the created sample plate
-        """
-        sql = """INSERT INTO pm.sample_plate (name, email, creation_timestamp,
-                 notes, plate_type_id) VALUES (%s, %s, %s, %s,
-                 (SELECT plate_type_id FROM pm.plate_type WHERE name = %s))
-                 RETURNING sample_plate_id"""
-        sql_args = list(sample_plate_info)
-        for i in range(1, 4):
-            sql_args[i] = sql_args[i] or None
-        return self._con.execute_fetchone(sql, sql_args)[0]
-
-    def set_sample_plate_info(self, sample_plate_id, sample_plate_info):
-        """Sets attributes of a sample plate by ID
-
-        Parameters
-        ----------
-        sample_plate_id : int
-            ID of the sample plate to set attributes to
-        sample_plate_info: tuple of (str x2, datetime, str x2)
-            name, email, creation_timestamp, notes, plate_type
-
-        Returns
-        -------
-        bool
-            True if successful
-        """
-        sql = """UPDATE pm.sample_plate
-                 SET name = %s, email = %s, creation_timestamp = %s,
-                    notes = %s, plate_type_id = (SELECT plate_type_id
-                    FROM pm.plate_type WHERE name = %s)
-                 WHERE sample_plate_id = %s"""
-        sql_args = list(sample_plate_info + (sample_plate_id,))
-        for i in range(1, 4):
-            sql_args[i] = sql_args[i] or None
-        self._con.execute(sql, sql_args)
-        return True
-
-    def get_sample_plate_info(self, sample_plate_id):
-        """Gets attributes of a sample plate by ID
-
-        Parameters
-        ----------
-        sample_plate_id : int
-            ID of the sample plate to get attributes from
-
-        Returns
-        -------
-        tuple of (str x2, datetime, str x2)
-            name, email, creation_timestamp, notes, plate_type
-        """
-        sql = """SELECT p.name, p.email, p.creation_timestamp, p.notes,
-                    pm.plate_type.name
-                 FROM pm.sample_plate p
-                 JOIN pm.plate_type USING (plate_type_id)
-                 WHERE sample_plate_id = %s"""
-        return tuple(self._con.execute_fetchone(sql, [sample_plate_id]))
-
-    def delete_sample_plate(self, sample_plate_ids):
-        """Deletes sample plates and corresponding plate-to-sample maps
-
-        Parameters
-        ----------
-        sample_plate_ids : list of int
-            Sample plate IDs to delete
-
-        Returns
-        -------
-        bool
-            True if successful
-        """
-        sql = """DELETE FROM pm.sample_plate_layout
-                 WHERE sample_plate_id = %s"""
-        self._con.executemany(sql, [[x] for x in sample_plate_ids])
-        sql = """DELETE FROM pm.sample_plate
-                 WHERE sample_plate_id = %s"""
-        self._con.executemany(sql, [[x] for x in sample_plate_ids])
-        return True
-
-    def set_sample_plate_layout(self, sample_plate_id, sample_plate_layout):
-        """Sets sample plate layout by ID
-
-        Parameters
-        ----------
-        sample_plate_id : int
-            Sample plate ID
-        sample_plate_layout : list of tuple of (str, int, int, str, str)
-            Sample ID, column ID, row ID, name, notes
-
-        Returns
-        -------
-        bool
-            True if successful
-        """
-        sql = """DELETE FROM pm.sample_plate_layout
-                 WHERE sample_plate_id = %s"""
-        self._con.execute(sql, [sample_plate_id])
-        sql = """INSERT INTO pm.sample_plate_layout (sample_plate_id,
-                    sample_id, col, row, name, notes)
-                 VALUES (%s, %s, %s, %s, %s, %s)"""
-        sql_args_list = [[sample_plate_id] + list(x)
-                         for x in sample_plate_layout]
-        for i in range(len(sql_args_list)):
-            for j in (4, 5):
-                sql_args_list[i][j] = sql_args_list[i][j] or None
-        self._con.executemany(sql, sql_args_list)
-        return True
-
-    def get_sample_plate_layout(self, sample_plate_id):
-        """Gets sample plate layout by ID
-
-        Parameters
-        ----------
-        sample_plate_id : int
-            Sample plate ID
-
-        Returns
-        -------
-        list of tuple of (str, int, int, str, str)
-            Sample ID, column ID, row ID, name, notes
-        """
-        sql = """SELECT sample_id, col, row, name, notes
-                 FROM pm.sample_plate_layout
-                 WHERE sample_plate_id = %s
-                 ORDER BY col, row"""
-        return [tuple(x) for x in self._con.execute_fetchall(sql,
-                [sample_plate_id])]
-
     def set_deposited_ebi(self):
         """Updates barcode deposited status by checking EBI"""
         accession = 'ERP012803'
@@ -2586,6 +2414,144 @@ class KniminAccess(object):
                  SET deposited = TRUE
                  WHERE barcode IN %s"""
         self._con.execute(sql, [barcodes])
+
+    def create_study(self, study_id, title=None, alias=None, notes=None):
+        """Creates a study
+
+        Parameters
+        ----------
+        study_id : int
+            Positive if it is a Qiita study ID, negative if others
+        title : str
+        alias : str
+        notes : str
+
+        Returns
+        -------
+        bool
+            True if successful
+
+        Raises
+        ------
+        ValueError
+            If there is error creating the study
+        """
+        with self._con.cursor() as cur:
+            cur.execute('BEGIN')
+            sql = """SELECT study_id, title FROM pm.study WHERE study_id = %s
+                     OR title = %s"""
+            sql_args = [study_id, title or None]
+            qry = self._con.execute_fetchone(sql, sql_args)
+            if qry is not None:
+                raise ValueError('Study ID or title conflicts with exisiting '
+                                 'study %s: %s.' % (qry[0], qry[1]))
+            sql = """INSERT INTO pm.study (study_id, title, alias, notes)
+                     VALUES (%s, %s, %s, %s) RETURNING study_id"""
+            sql_args = [study_id, title or None, alias or None, notes or None]
+            if self._con.execute_fetchone(sql, sql_args) is None:
+                raise ValueError('Creation of study %s failed.' % study_id)
+            cur.execute('COMMIT')
+        return True
+
+    def edit_study(self, study_id, title=None, alias=None, notes=None):
+        """Edits properties of an existing study
+
+        Parameters
+        ----------
+        study_id : int
+        title : str
+        alias : str
+        notes : str
+
+        Returns
+        -------
+        bool
+            True if successful
+
+        Raises
+        ------
+        ValueError
+            If there is error editing the study's properties
+        """
+        with self._con.cursor() as cur:
+            cur.execute('BEGIN')
+            sql = """SELECT * FROM pm.study WHERE study_id = %s LIMIT 1"""
+            sql_args = [study_id]
+            if self._con.execute_fetchone(sql, sql_args) is None:
+                raise ValueError('Study ID %s does not exist.' % study_id)
+            if title:
+                sql = """SELECT study_id FROM pm.study WHERE study_id <> %s
+                         AND title = %s LIMIT 1"""
+                sql_args = [study_id, title]
+                qry = self._con.execute_fetchone(sql, sql_args)
+                if qry is not None:
+                    raise ValueError('Study title "%s" conflicts with another '
+                                     'study: %s.' % (title, qry[0]))
+            sql = """UPDATE pm.study SET title = %s, alias = %s, notes = %s
+                     WHERE study_id = %s RETURNING study_id"""
+            sql_args = [title or None, alias or None, notes or None, study_id]
+            if self._con.execute_fetchone(sql, sql_args) is None:
+                raise ValueError('Editing study %s failed.' % study_id)
+            cur.execute('COMMIT')
+        return True
+
+    def read_study(self, study_id):
+        """Read properties of an existing study
+
+        Parameters
+        ----------
+        study_id : int
+
+        Returns
+        -------
+        dict
+            {title : str, alias : str, notes : str}
+
+        Raises
+        ------
+        ValueError
+            If there is error reading the study's properties
+        """
+        with self._con.cursor() as cur:
+            cur.execute('BEGIN')
+            sql = """SELECT title, alias, notes FROM pm.study
+                     WHERE study_id = %s LIMIT 1"""
+            sql_args = [study_id]
+            qry = self._con.execute_fetchone(sql, sql_args)
+            if qry is None:
+                raise ValueError('Study ID %s does not exist.' % study_id)
+            cur.execute('COMMIT')
+        return {'title': qry[0], 'alias': qry[1], 'notes': qry[2]}
+
+    def delete_study(self, study_id):
+        """Deletes an existing study
+
+        Parameters
+        ----------
+        study_id : int
+
+        Returns
+        -------
+        bool
+            True if successful
+
+        Raises
+        ------
+        ValueError
+            If there is error deleting the study
+        """
+        with self._con.cursor() as cur:
+            cur.execute('BEGIN')
+            sql = """SELECT * FROM pm.study WHERE study_id = %s LIMIT 1"""
+            sql_args = [study_id]
+            if self._con.execute_fetchone(sql, sql_args) is None:
+                raise ValueError('Study ID %s does not exist.' % study_id)
+            sql = """DELETE FROM pm.study WHERE study_id = %s
+                     RETURNING study_id"""
+            if self._con.execute_fetchone(sql, sql_args) is None:
+                raise ValueError('Deletion of study %s failed.' % study_id)
+            cur.execute('COMMIT')
+        return True
 
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""
