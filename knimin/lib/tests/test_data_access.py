@@ -20,63 +20,41 @@ class TestDataAccess(TestCase):
         except ValueError:
             pass
         # Populate some field options
-        sql = """INSERT INTO pm.plate_type (name, cols, rows, notes)
-                 VALUES ('96-well', 12, 8, 'Standard 96-well plate')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.extraction_robot (name) VALUES ('HOWE_KF1')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.extraction_robot (name) VALUES ('HOWE_KF2')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.extraction_robot (name) VALUES ('HOWE_KF3')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.extraction_robot (name) VALUES ('HOWE_KF4')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.extraction_tool (name) VALUES ('108379Z')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.processing_robot (name) VALUES ('ROBE')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.processing_robot (name) VALUES ('RIKE')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.processing_robot (name) VALUES ('JERE')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.processing_robot (name) VALUES ('CARMEN')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.tm300_8_tool (name) VALUES ('208484Z')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.tm300_8_tool (name) VALUES ('311318B')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.tm300_8_tool (name) VALUES ('109375A')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.tm300_8_tool (name) VALUES ('3076189')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.tm50_8_tool (name) VALUES ('108364Z')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.tm50_8_tool (name) VALUES ('311426B')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.tm50_8_tool (name) VALUES ('311441B')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.tm50_8_tool (name) VALUES ('409172Z')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.extraction_kit_lot (name) VALUES ('PM16B11')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.master_mix_lot (name) VALUES ('14459')"""
-        db._execute_sql(sql)
-        sql = """INSERT INTO pm.water_lot (name) VALUES ('RNBD9959')"""
-        db._execute_sql(sql)
+#        sql = """INSERT INTO pm.plate_type (name, cols, rows, notes)
+#                 VALUES ('96-well', 12, 8, 'Standard 96-well plate')"""
+#        db._con.execute(sql)
+#        sql = """INSERT INTO pm.extraction_robot (name) VALUES ('HOWE_KF1'),
+#                 ('HOWE_KF2'), ('HOWE_KF3'), ('HOWE_KF4')"""
+#        db._con.execute(sql)
+#        sql = """INSERT INTO pm.extraction_tool (name) VALUES ('108379Z')"""
+#        db._con.execute(sql)
+#        sql = """INSERT INTO pm.processing_robot (name) VALUES ('ROBE'),
+#                 ('RIKE'), ('JERE'), ('CARMEN')"""
+#        sql = """INSERT INTO pm.tm300_8_tool (name) VALUES ('208484Z'),
+#                 ('311318B'), ('109375A'), ('3076189')"""
+#        sql = """INSERT INTO pm.tm50_8_tool (name) VALUES ('108364Z'),
+#                 ('311426B'), ('311441B'), ('409172Z')"""
+#        db._con.execute(sql)
+#       sql = """INSERT INTO pm.extraction_kit_lot (name) VALUES ('PM16B11')"""
+#        db._con.execute(sql)
+#        sql = """INSERT INTO pm.master_mix_lot (name) VALUES ('14459')"""
+#        db._con.execute(sql)
+#        sql = """INSERT INTO pm.water_lot (name) VALUES ('RNBD9959')"""
+#        db._con.execute(sql)
 
     def tearDown(self):
         db._clear_table('external_survey_answers', 'ag')
         db._revert_ready(['000023299'])
         # Remove populated field options
-        db._clear_table('plate_type', 'pm')
-        db._clear_table('extraction_robot', 'pm')
-        db._clear_table('extraction_tool', 'pm')
-        db._clear_table('processing_robot', 'pm')
-        db._clear_table('tm300_8_tool', 'pm')
-        db._clear_table('tm50_8_tool', 'pm')
-        db._clear_table('extraction_kit_lot', 'pm')
-        db._clear_table('master_mix_lot', 'pm')
-        db._clear_table('water_lot', 'pm')
+#        db._clear_table('plate_type', 'pm')
+#        db._clear_table('extraction_robot', 'pm')
+#        db._clear_table('extraction_tool', 'pm')
+#        db._clear_table('processing_robot', 'pm')
+#        db._clear_table('tm300_8_tool', 'pm')
+#        db._clear_table('tm50_8_tool', 'pm')
+#        db._clear_table('extraction_kit_lot', 'pm')
+#        db._clear_table('master_mix_lot', 'pm')
+#        db._clear_table('water_lot', 'pm')
 
     def test_pulldown_third_party(self):
         # Add survey answers
@@ -352,36 +330,130 @@ class TestDataAccess(TestCase):
         self.assertEqual(obs, exp)
 
     def test_get_id_by_name(self):
-        """"""
         obs = db.get_id_by_name('extraction_robot', 'HOWE_KF1')
         exp = 1
         self.assertEqual(obs, exp)
         with self.assertRaises(ValueError):
             db.get_id_by_name('extraction_robot', 'an_invalid_name')
 
+    def test_create_study(self):
+        # Create a study with title
+        obs = db.create_study(123, title='Test study 1')
+        self.assertTrue(obs)
+        obs = db.read_study(123)
+        exp = {'title': 'Test study 1', 'alias': None, 'notes': None}
+        self.assertDictEqual(obs, exp)
+        # Create a study with empty title
+        obs = db.create_study(456, title='', alias='the study')
+        self.assertTrue(obs)
+        obs = db.read_study(456)
+        exp = {'title': None, 'alias': 'the study', 'notes': None}
+        self.assertDictEqual(obs, exp)
+        # Attempt to create a study with duplicate ID
+        with self.assertRaises(ValueError) as context:
+            db.create_study(123, title='Test study 2')
+        err = ('Study ID or title conflicts with exisiting study 123: '
+               'Test study 1.')
+        self.assertEqual(str(context.exception), err)
+        obs = db.read_study(123)['title']
+        exp = 'Test study 2'
+        self.assertNotEqual(obs, exp)
+        # Attempt to create a study with duplicate title
+        with self.assertRaises(ValueError) as context:
+            db.create_study(789, title='Test study 1')
+        err = ('Study ID or title conflicts with exisiting study 123: '
+               'Test study 1.')
+        self.assertEqual(str(context.exception), err)
+        with self.assertRaises(ValueError) as context:
+            db.read_study(789)
+        err = 'Study ID 789 does not exist.'
+        self.assertEqual(str(context.exception), err)
+        db.delete_study(123)
+        db.delete_study(456)
+
+    def test_edit_study(self):
+        # Edit properties of a study
+        db.create_study(123, title='Test study 1')
+        obs = db.read_study(123)
+        exp = {'title': 'Test study 1', 'alias': None, 'notes': None}
+        self.assertDictEqual(obs, exp)
+        obs = db.edit_study(123, title='Test study 1', alias='the study',
+                            notes='Say something.')
+        self.assertTrue(obs)
+        obs = db.read_study(123)
+        exp = {'title': 'Test study 1', 'alias': 'the study',
+               'notes': 'Say something.'}
+        self.assertDictEqual(obs, exp)
+        # Attempt to assign a duplicate title to a study
+        obs = db.create_study(456)
+        self.assertIsNotNone(obs)
+        with self.assertRaises(ValueError) as context:
+            db.edit_study(456, title='Test study 1')
+        err = 'Study title "Test study 1" conflicts with another study: 123.'
+        self.assertEqual(str(context.exception), err)
+        db.delete_study(123)
+        db.delete_study(456)
+        # Attempt to edit properties of a non-existing study
+        with self.assertRaises(ValueError) as context:
+            db.read_study(123)
+        err = 'Study ID 123 does not exist.'
+        self.assertEqual(str(context.exception), err)
+
+    def test_read_study(self):
+        # Read properties of a study
+        db.create_study(123, title='Test study 1', alias='the study',
+                        notes='There is nothing to say.')
+        obs = db.read_study(123)
+        exp = {'title': 'Test study 1', 'alias': 'the study',
+               'notes': 'There is nothing to say.'}
+        self.assertDictEqual(obs, exp)
+        db.delete_study(123)
+        # Attempt to read properties of a non-existing study
+        with self.assertRaises(ValueError) as context:
+            db.read_study(123)
+        err = 'Study ID 123 does not exist.'
+        self.assertEqual(str(context.exception), err)
+
+    def test_delete_study(self):
+        # Delete a study
+        db.create_study(123, title='Test study 1')
+        obs = db.read_study(123)
+        self.assertIsNotNone(obs)
+        obs = db.delete_study(123)
+        self.assertTrue(obs)
+        with self.assertRaises(ValueError):
+            db.read_study(123)
+        # Attempt to delete a non-existing study
+        with self.assertRaises(ValueError) as context:
+            db.delete_study(123)
+        err = 'Study ID 123 does not exist.'
+        self.assertEqual(str(context.exception), err)
+
+    def test_delete_sample(self):
+        sample_ids = ['test_sample_1']
+        db.create_sample(sample_ids)
+        obs = db.delete_sample(sample_ids)
+        self.assertTrue(obs)
+
     def test_create_sample(self):
-        """"""
         sample_ids = ['test_sample_1']
         obs = db.create_sample(sample_ids)
         self.assertTrue(obs)
         db.delete_sample(sample_ids)
 
     def test_delete_sample(self):
-        """"""
         sample_ids = ['test_sample_1']
         db.create_sample(sample_ids)
         obs = db.delete_sample(sample_ids)
         self.assertTrue(obs)
 
     def test_create_sample_plate(self):
-        """"""
         spinfo = ('test_plate', 'test', datetime.date.today(), '', '96-well')
         obs = db.create_sample_plate(spinfo)
         self.assertGreater(obs, 0)
         db.delete_sample_plate([obs])
 
     def test_set_sample_plate_info(self):
-        """"""
         spid = db.create_sample_plate(('test_plate', '', None, '', '96-well'))
         spinfo = ('test_plate', 'test', datetime.date.today(), '', '96-well')
         obs = db.set_sample_plate_info(spid, spinfo)
@@ -389,7 +461,6 @@ class TestDataAccess(TestCase):
         db.delete_sample_plate([spid])
 
     def test_get_sample_plate_info(self):
-        """"""
         timestamp = datetime.datetime(2016, 8, 15, 0, 0)
         spinfo = ('test_plate', 'test', timestamp, 'Test notes', '96-well')
         spid = db.create_sample_plate(spinfo)
@@ -399,7 +470,6 @@ class TestDataAccess(TestCase):
         db.delete_sample_plate([spid])
 
     def test_set_sample_plate_layout(self):
-        """"""
         sample_ids = ['test_sample_1', 'test_sample_2', 'test_sample_3']
         db.create_sample(sample_ids)
         spid = db.create_sample_plate(('test_plate', '', None, '', '96-well'))
@@ -414,7 +484,6 @@ class TestDataAccess(TestCase):
         db.delete_sample(sample_ids)
 
     def test_get_sample_plate_layout(self):
-        """"""
         sample_ids = ['test_sample_1', 'test_sample_2', 'test_sample_3']
         db.create_sample(sample_ids)
         spid = db.create_sample_plate(('test_plate', '', None, '', '96-well'))
@@ -431,14 +500,12 @@ class TestDataAccess(TestCase):
         db.delete_sample(sample_ids)
 
     def test_delete_sample_plate(self):
-        """"""
         spinfo = ('test_plate', 'test', datetime.date.today(), '', '96-well')
         spid = db.create_sample_plate(spinfo)
         obs = db.delete_sample_plate([spid])
         self.assertTrue(obs)
 
     def test_create_dna_plate(self):
-        """"""
         spid = db.create_sample_plate('test_sample_plate', 'test', '96-well')
         obs = db.create_dna_plate('test_dna_plate', 'test', spid)
         self.assertGreater(obs, 0)
@@ -446,7 +513,6 @@ class TestDataAccess(TestCase):
         db.delete_sample_plate([spid])
 
     def test_delete_dna_plate(self):
-        """"""
         spid = db.create_sample_plate('test_sample_plate', 'test', '96-well')
         dpid = db.create_dna_plate('test_dna_plate', 'test', spid)
         obs = db.delete_dna_plate([dpid])
@@ -454,7 +520,6 @@ class TestDataAccess(TestCase):
         db.delete_sample_plate([spid])
 
     def test_get_plate_type(self):
-        """"""
         obs = db.get_plate_type(0)
         exp = {'plate_type_id': 1,
                'name': '96-well',
@@ -464,14 +529,12 @@ class TestDataAccess(TestCase):
         self.assertDictEqual(obs, exp)
 
     def test_get_plate_count(self):
-        """"""
         plate_id = db.create_plate('test_plate_1', 'test', '96-well')
         obs = db.get_plate_count()
         self.assertGreater(obs, 0)
         db.delete_plate([plate_id])
 
     def test_get_plate_list(self):
-        """"""
         sample_ids = ['test_sample_1', 'test_sample_2', 'test_sample_3']
         db.create_sample(sample_ids)
         n_plate = db.get_plate_count()
