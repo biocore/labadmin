@@ -166,6 +166,7 @@ def code128_format(data):
                 codes.append(charset['CodeB'])
                 charset = CODE128B
         elif text[pos:pos+4].isdigit() and length - pos >= 4:
+            print("here")
             # Switch to Code C
             codes.append(charset['CodeC'])
             charset = CODE128C
