@@ -21,7 +21,7 @@ class SquashBarcodesTests(TestCase):
                                     thickness=2, show_text=True,
                                     quiet_zone=False)
         m.get_image = mock_get_image1
-        self.assertIn('Length 10943', m.build_barcodes_pdf(['000000011']))
+        self.assertIn('%PDF-1.4\n%', m.build_barcodes_pdf(['000000011']))
 
         # replace get_image method to change behaviour
         def mock_get_image2(barcodes):
