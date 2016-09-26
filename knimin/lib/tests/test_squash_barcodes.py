@@ -1,7 +1,6 @@
 from unittest import TestCase, main
 from os.path import join, dirname, realpath
 from os import mkdir, path
-import sys
 import random
 
 from knimin.lib.code128 import code128_image
@@ -46,7 +45,6 @@ class SquashBarcodesTests(TestCase):
         if not path.exists(fake_tmp_dir):
             mkdir(fake_tmp_dir)
         self.assertTrue(m.build_barcodes_pdf(['000000011']))
-
 
     def test_get_image(self):
         barcodes = ['008675309', '314159265']
