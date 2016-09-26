@@ -2426,11 +2426,6 @@ class KniminAccess(object):
         alias : str
         notes : str
 
-        Returns
-        -------
-        bool
-            True if successful
-
         Raises
         ------
         ValueError
@@ -2451,7 +2446,6 @@ class KniminAccess(object):
             if self._con.execute_fetchone(sql, sql_args) is None:
                 raise ValueError('Creation of study %s failed.' % study_id)
             cur.execute('COMMIT')
-        return True
 
     def edit_study(self, study_id, title=None, alias=None, notes=None):
         """Edits properties of an existing study
@@ -2462,11 +2456,6 @@ class KniminAccess(object):
         title : str
         alias : str
         notes : str
-
-        Returns
-        -------
-        bool
-            True if successful
 
         Raises
         ------
@@ -2493,7 +2482,6 @@ class KniminAccess(object):
             if self._con.execute_fetchone(sql, sql_args) is None:
                 raise ValueError('Editing study %s failed.' % study_id)
             cur.execute('COMMIT')
-        return True
 
     def read_study(self, study_id):
         """Read properties of an existing study
@@ -2530,11 +2518,6 @@ class KniminAccess(object):
         ----------
         study_id : int
 
-        Returns
-        -------
-        bool
-            True if successful
-
         Raises
         ------
         ValueError
@@ -2551,7 +2534,6 @@ class KniminAccess(object):
             if self._con.execute_fetchone(sql, sql_args) is None:
                 raise ValueError('Deletion of study %s failed.' % study_id)
             cur.execute('COMMIT')
-        return True
 
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""
@@ -2563,7 +2545,3 @@ class KniminAccess(object):
                  SET results_ready = NULL
                  WHERE barcode IN %s"""
         self._con.execute(sql, [tuple(barcodes)])
-
-    def _execute_sql(self, sql, sql_args=None):
-        """Test helper to execute an SQL command"""
-        self._con.execute(sql, sql_args)
