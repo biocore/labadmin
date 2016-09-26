@@ -15,15 +15,17 @@ class SquashBarcodesTests(TestCase):
 
         # replace get_image method to change behaviour
         def mock_get_image1(barcodes):
+            font = join(dirname(realpath(knimin.lib.__file__)), 'FreeSans.ttf')
             for b in barcodes:
-                yield code128_image(b, height=150, width=300, thickness=2,
-                                    show_text=True, quiet_zone=False)
+                yield code128_image(b, height=150, width=300, font=font
+                                    thickness=2, show_text=True,
+                                    quiet_zone=False)
         m.get_image = mock_get_image1
         self.assertIn('Length 10943', m.build_barcodes_pdf(['000000011']))
 
         # replace get_image method to change behaviour
         def mock_get_image2(barcodes):
-            font = join(dirname(realpath(__file__)), 'FreeSans.ttf')
+            font = join(dirname(realpath(knimin.lib.__file__)), 'FreeSans.ttf')
             for b in barcodes:
                 yield code128_image(b, height=150, width=303, font=font,
                                     thickness=2, show_text=True,
