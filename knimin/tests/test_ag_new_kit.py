@@ -124,5 +124,17 @@ class TestAGNewKitHandler(TestHandlerBase):
         self.assertIn("SET assigned_on = NOW() WHERE barcode IN ()",
                       response.body)
 
+        # what if tag is None
+        response = self.post('/ag_new_kit/',
+                             {'tag': '',
+                              'projects': ['PROJECT2', 'PROJECT5'],
+                              'swabs': swabs,
+                              'kits': kits,
+                              })
+        self.assertEqual(response.code, 200)
+        kitinfo = loads(response.body)
+        self.assertNotIn('_', kitinfo['kitinfo'][0][0])
+
+
 if __name__ == "__main__":
     main()
