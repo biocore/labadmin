@@ -62,7 +62,7 @@ p {
 {% block content %}
 <h3>Update EBI status of barcodes</h3>
 <p><button onclick="updateEBI()" id="ebi-button">Click Here to update EBI</button><span id="ebi-msg"></span></p>
-<h3>Update reasults ready for barcodes</h3>
+<h3>Update results ready for barcodes</h3>
 <p><button onclick="updateReady()" id="ready-button">Click Here to update db for new results ready</button><span id="ready-msg"></span></p>
 {% if barcodes %}
 <h3 style="color:red">Pulldown Processing, please wait for file download. It may take a while with many barcodes.</h3>
@@ -79,5 +79,6 @@ p {
   </select>
 </p>
 <p><input type="submit" {%if barcodes%}disabled{% end %}></p>
+<div style='color:red;'>{% raw errors %}</div>
 </form>
 {% end %}

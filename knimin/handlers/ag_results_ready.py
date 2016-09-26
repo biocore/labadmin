@@ -18,5 +18,6 @@ class AGResultsReadyHandler(BaseHandler):
         try:
             db.mark_results_ready(barcodes)
         except Exception as e:
+            # TODO: refactor for clear message to the user, see issue: #126
             msg = 'ERROR: ' + str(e)
         self.write(msg)
