@@ -338,14 +338,12 @@ class TestDataAccess(TestCase):
 
     def test_create_study(self):
         # Create a study with title
-        obs = db.create_study(123, title='Test study 1')
-        self.assertTrue(obs)
+        db.create_study(123, title='Test study 1')
         obs = db.read_study(123)
         exp = {'title': 'Test study 1', 'alias': None, 'notes': None}
         self.assertDictEqual(obs, exp)
         # Create a study with empty title
-        obs = db.create_study(456, title='', alias='the study')
-        self.assertTrue(obs)
+        db.create_study(456, title='', alias='the study')
         obs = db.read_study(456)
         exp = {'title': None, 'alias': 'the study', 'notes': None}
         self.assertDictEqual(obs, exp)
@@ -377,15 +375,15 @@ class TestDataAccess(TestCase):
         obs = db.read_study(123)
         exp = {'title': 'Test study 1', 'alias': None, 'notes': None}
         self.assertDictEqual(obs, exp)
-        obs = db.edit_study(123, title='Test study 1', alias='the study',
-                            notes='Say something.')
-        self.assertTrue(obs)
+        db.edit_study(123, title='Test study 1', alias='the study',
+                      notes='Say something.')
         obs = db.read_study(123)
         exp = {'title': 'Test study 1', 'alias': 'the study',
                'notes': 'Say something.'}
         self.assertDictEqual(obs, exp)
         # Attempt to assign a duplicate title to a study
-        obs = db.create_study(456)
+        db.create_study(456)
+        obs = db.read_study(456)
         self.assertIsNotNone(obs)
         with self.assertRaises(ValueError) as context:
             db.edit_study(456, title='Test study 1')
@@ -419,8 +417,7 @@ class TestDataAccess(TestCase):
         db.create_study(123, title='Test study 1')
         obs = db.read_study(123)
         self.assertIsNotNone(obs)
-        obs = db.delete_study(123)
-        self.assertTrue(obs)
+        db.delete_study(123)
         with self.assertRaises(ValueError):
             db.read_study(123)
         # Attempt to delete a non-existing study

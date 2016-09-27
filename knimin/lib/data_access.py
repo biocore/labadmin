@@ -2492,11 +2492,6 @@ class KniminAccess(object):
         alias : str
         notes : str
 
-        Returns
-        -------
-        bool
-            True if successful
-
         Raises
         ------
         ValueError
@@ -2507,17 +2502,18 @@ class KniminAccess(object):
             sql = """SELECT study_id, title FROM pm.study WHERE study_id = %s
                      OR title = %s"""
             sql_args = [study_id, title or None]
-            qry = self._con.execute_fetchone(sql, sql_args)
+            cur.execute(sql, sql_args)
+            qry = cur.fetchone()
             if qry is not None:
                 raise ValueError('Study ID or title conflicts with exisiting '
                                  'study %s: %s.' % (qry[0], qry[1]))
             sql = """INSERT INTO pm.study (study_id, title, alias, notes)
                      VALUES (%s, %s, %s, %s) RETURNING study_id"""
             sql_args = [study_id, title or None, alias or None, notes or None]
-            if self._con.execute_fetchone(sql, sql_args) is None:
+            cur.execute(sql, sql_args)
+            if cur.fetchone() is None:
                 raise ValueError('Creation of study %s failed.' % study_id)
             cur.execute('COMMIT')
-        return True
 
     def edit_study(self, study_id, title=None, alias=None, notes=None):
         """Edits properties of an existing study
@@ -2529,11 +2525,6 @@ class KniminAccess(object):
         alias : str
         notes : str
 
-        Returns
-        -------
-        bool
-            True if successful
-
         Raises
         ------
         ValueError
@@ -2543,23 +2534,25 @@ class KniminAccess(object):
             cur.execute('BEGIN')
             sql = """SELECT * FROM pm.study WHERE study_id = %s LIMIT 1"""
             sql_args = [study_id]
-            if self._con.execute_fetchone(sql, sql_args) is None:
+            cur.execute(sql, sql_args)
+            if cur.fetchone() is None:
                 raise ValueError('Study ID %s does not exist.' % study_id)
             if title:
                 sql = """SELECT study_id FROM pm.study WHERE study_id <> %s
                          AND title = %s LIMIT 1"""
                 sql_args = [study_id, title]
-                qry = self._con.execute_fetchone(sql, sql_args)
+                cur.execute(sql, sql_args)
+                qry = cur.fetchone()
                 if qry is not None:
                     raise ValueError('Study title "%s" conflicts with another '
                                      'study: %s.' % (title, qry[0]))
             sql = """UPDATE pm.study SET title = %s, alias = %s, notes = %s
                      WHERE study_id = %s RETURNING study_id"""
             sql_args = [title or None, alias or None, notes or None, study_id]
-            if self._con.execute_fetchone(sql, sql_args) is None:
+            cur.execute(sql, sql_args)
+            if cur.fetchone() is None:
                 raise ValueError('Editing study %s failed.' % study_id)
             cur.execute('COMMIT')
-        return True
 
     def read_study(self, study_id):
         """Read properties of an existing study
@@ -2578,15 +2571,12 @@ class KniminAccess(object):
         ValueError
             If there is error reading the study's properties
         """
-        with self._con.cursor() as cur:
-            cur.execute('BEGIN')
-            sql = """SELECT title, alias, notes FROM pm.study
-                     WHERE study_id = %s LIMIT 1"""
-            sql_args = [study_id]
-            qry = self._con.execute_fetchone(sql, sql_args)
-            if qry is None:
-                raise ValueError('Study ID %s does not exist.' % study_id)
-            cur.execute('COMMIT')
+        sql = """SELECT title, alias, notes FROM pm.study
+                 WHERE study_id = %s LIMIT 1"""
+        sql_args = [study_id]
+        qry = self._con.execute_fetchone(sql, sql_args)
+        if qry is None:
+            raise ValueError('Study ID %s does not exist.' % study_id)
         return {'title': qry[0], 'alias': qry[1], 'notes': qry[2]}
 
     def delete_study(self, study_id):
@@ -2595,11 +2585,6 @@ class KniminAccess(object):
         Parameters
         ----------
         study_id : int
-
-        Returns
-        -------
-        bool
-            True if successful
 
         Raises
         ------
@@ -2610,14 +2595,15 @@ class KniminAccess(object):
             cur.execute('BEGIN')
             sql = """SELECT * FROM pm.study WHERE study_id = %s LIMIT 1"""
             sql_args = [study_id]
-            if self._con.execute_fetchone(sql, sql_args) is None:
+            cur.execute(sql, sql_args)
+            if cur.fetchone() is None:
                 raise ValueError('Study ID %s does not exist.' % study_id)
             sql = """DELETE FROM pm.study WHERE study_id = %s
                      RETURNING study_id"""
-            if self._con.execute_fetchone(sql, sql_args) is None:
+            cur.execute(sql, sql_args)
+            if cur.fetchone() is None:
                 raise ValueError('Deletion of study %s failed.' % study_id)
             cur.execute('COMMIT')
-        return True
 
     def create_sample(self, sample_ids):
         """Creates samples by ID
