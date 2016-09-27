@@ -330,93 +330,103 @@ class TestDataAccess(TestCase):
         self.assertEqual(obs, exp)
 
     def test_create_study(self):
-        # Create a study with title
-        db.create_study(123, title='Test study 1')
-        obs = db.read_study(123)
-        exp = {'title': 'Test study 1', 'alias': None, 'notes': None}
+        # Create a study without properties
+        sid = db.create_study()
+        self.assertGreater(sid, 0)
+        obs = db.read_study(sid)
+        exp = {'qiita_study_id': None, 'title': None, 'alias': None,
+               'notes': None}
         self.assertDictEqual(obs, exp)
-        # Create a study with empty title
-        db.create_study(456, title='', alias='the study')
-        obs = db.read_study(456)
-        exp = {'title': None, 'alias': 'the study', 'notes': None}
+        db.delete_study(sid)
+        # Create a study with all properties
+        sid = db.create_study(qiita_study_id=123, title='Test study 1',
+                              alias='the study', notes='hi there')
+        self.assertGreater(sid, 0)
+        obs = db.read_study(sid)
+        exp = {'qiita_study_id': 123, 'title': 'Test study 1',
+               'alias': 'the study', 'notes': 'hi there'}
         self.assertDictEqual(obs, exp)
-        # Attempt to create a study with duplicate ID
-        with self.assertRaises(ValueError) as context:
-            db.create_study(123, title='Test study 2')
-        err = ('Study ID or title conflicts with exisiting study 123: '
-               'Test study 1.')
-        self.assertEqual(str(context.exception), err)
-        obs = db.read_study(123)['title']
-        exp = 'Test study 2'
-        self.assertNotEqual(obs, exp)
         # Attempt to create a study with duplicate title
         with self.assertRaises(ValueError) as context:
-            db.create_study(789, title='Test study 1')
-        err = ('Study ID or title conflicts with exisiting study 123: '
-               'Test study 1.')
+            db.create_study(qiita_study_id=456, title='Test study 1')
+        err = ('Qiita study ID 456 or title "Test study 1" conflicts with '
+               'exisiting study ' + str(sid) + '.')
         self.assertEqual(str(context.exception), err)
+        obs = db.read_study(sid)['qiita_study_id']
+        exp = 456
+        self.assertNotEqual(obs, exp)
+        # Attempt to create a study with duplicate Qiita study ID
         with self.assertRaises(ValueError) as context:
-            db.read_study(789)
-        err = 'Study ID 789 does not exist.'
+            db.create_study(qiita_study_id=123, title='Test study 2')
+        err = ('Qiita study ID 123 or title "Test study 2" conflicts with '
+               'exisiting study ' + str(sid) + '.')
         self.assertEqual(str(context.exception), err)
-        db.delete_study(123)
-        db.delete_study(456)
+        obs = db.read_study(sid)['title']
+        exp = 'Test study 2'
+        self.assertNotEqual(obs, exp)
+        db.delete_study(sid)
 
     def test_edit_study(self):
         # Edit properties of a study
-        db.create_study(123, title='Test study 1')
-        obs = db.read_study(123)
-        exp = {'title': 'Test study 1', 'alias': None, 'notes': None}
+        sid1 = db.create_study(qiita_study_id=123, title='Test study 1')
+        obs = db.read_study(sid1)
+        exp = {'qiita_study_id': 123, 'title': 'Test study 1', 'alias': None,
+               'notes': None}
         self.assertDictEqual(obs, exp)
-        db.edit_study(123, title='Test study 1', alias='the study',
-                      notes='Say something.')
-        obs = db.read_study(123)
-        exp = {'title': 'Test study 1', 'alias': 'the study',
-               'notes': 'Say something.'}
+        db.edit_study(sid1, qiita_study_id=456, title='Test study 2',
+                      alias='the study', notes='Say something.')
+        obs = db.read_study(sid1)
+        exp = {'qiita_study_id': 456, 'title': 'Test study 2',
+               'alias': 'the study', 'notes': 'Say something.'}
         self.assertDictEqual(obs, exp)
         # Attempt to assign a duplicate title to a study
-        db.create_study(456)
-        obs = db.read_study(456)
-        self.assertIsNotNone(obs)
+        sid2 = db.create_study(qiita_study_id=123, title='Test study 1')
         with self.assertRaises(ValueError) as context:
-            db.edit_study(456, title='Test study 1')
-        err = 'Study title "Test study 1" conflicts with another study: 123.'
+            db.edit_study(sid2, qiita_study_id=123, title='Test study 2')
+        err = ('Qiita study ID 123 or title "Test study 2" conflicts with '
+               'another study ' + str(sid1) + '.')
         self.assertEqual(str(context.exception), err)
-        db.delete_study(123)
-        db.delete_study(456)
+        # Attempt to assign a duplicate Qiita study ID to a study
+        with self.assertRaises(ValueError) as context:
+            db.edit_study(sid2, qiita_study_id=456, title='Test study 1')
+        err = ('Qiita study ID 456 or title "Test study 1" conflicts with '
+               'another study ' + str(sid1) + '.')
+        self.assertEqual(str(context.exception), err)
+        db.delete_study(sid2)
+        db.delete_study(sid1)
         # Attempt to edit properties of a non-existing study
         with self.assertRaises(ValueError) as context:
-            db.read_study(123)
-        err = 'Study ID 123 does not exist.'
+            db.edit_study(sid1, qiita_study_id=789, title='Test study 3')
+        err = 'Study ID ' + str(sid1) + ' does not exist.'
         self.assertEqual(str(context.exception), err)
 
     def test_read_study(self):
         # Read properties of a study
-        db.create_study(123, title='Test study 1', alias='the study',
-                        notes='There is nothing to say.')
-        obs = db.read_study(123)
-        exp = {'title': 'Test study 1', 'alias': 'the study',
-               'notes': 'There is nothing to say.'}
+        sid = db.create_study(qiita_study_id=123, title='Test study 1',
+                              alias='the study', notes='Say something.')
+        obs = db.read_study(sid)
+        exp = {'qiita_study_id': 123, 'title': 'Test study 1',
+               'alias': 'the study', 'notes': 'Say something.'}
         self.assertDictEqual(obs, exp)
-        db.delete_study(123)
+        db.delete_study(sid)
         # Attempt to read properties of a non-existing study
         with self.assertRaises(ValueError) as context:
-            db.read_study(123)
-        err = 'Study ID 123 does not exist.'
+            db.read_study(sid)
+        err = 'Study ID ' + str(sid) + ' does not exist.'
         self.assertEqual(str(context.exception), err)
 
     def test_delete_study(self):
         # Delete a study
-        db.create_study(123, title='Test study 1')
-        obs = db.read_study(123)
+        sid = db.create_study(qiita_study_id=123, title='Test study 1')
+        obs = db.read_study(sid)
         self.assertIsNotNone(obs)
-        db.delete_study(123)
+        db.delete_study(sid)
         with self.assertRaises(ValueError):
-            db.read_study(123)
+            db.read_study(sid)
         # Attempt to delete a non-existing study
         with self.assertRaises(ValueError) as context:
-            db.delete_study(123)
-        err = 'Study ID 123 does not exist.'
+            db.delete_study(sid)
+        err = 'Study ID ' + str(sid) + ' does not exist.'
         self.assertEqual(str(context.exception), err)
 
 
