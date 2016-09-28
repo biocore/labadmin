@@ -13,7 +13,7 @@ install:
   - pip install click natsort coverage coveralls
   - travis_retry pip install .[test]
 script:
-  - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
+  - git clone -b plate-mapper-kiwi https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
   - cd /home/travis/build/biocore/american-gut-web
   - export AG_CONFIG=`pwd`/ag_config.txt.example
   - export PYTHONPATH=/home/travis/build/biocore/american-gut-web:$PYTHONPATH

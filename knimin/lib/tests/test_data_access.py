@@ -19,10 +19,42 @@ class TestDataAccess(TestCase):
             db.add_external_survey('Vioscreen', 'FFQ', 'http://vioscreen.com')
         except ValueError:
             pass
+        # Populate some field options
+        sql = """INSERT INTO pm.plate_type (name, cols, rows, notes)
+                 VALUES ('96-well', 12, 8, 'Standard 96-well plate')"""
+        db._con.execute(sql)
+        sql = """INSERT INTO pm.extraction_robot (name) VALUES ('HOWE_KF1'),
+                 ('HOWE_KF2'), ('HOWE_KF3'), ('HOWE_KF4')"""
+        db._con.execute(sql)
+        sql = """INSERT INTO pm.extraction_tool (name) VALUES ('108379Z')"""
+        db._con.execute(sql)
+        sql = """INSERT INTO pm.processing_robot (name) VALUES ('ROBE'),
+                 ('RIKE'), ('JERE'), ('CARMEN')"""
+        sql = """INSERT INTO pm.tm300_8_tool (name) VALUES ('208484Z'),
+                 ('311318B'), ('109375A'), ('3076189')"""
+        sql = """INSERT INTO pm.tm50_8_tool (name) VALUES ('108364Z'),
+                 ('311426B'), ('311441B'), ('409172Z')"""
+        db._con.execute(sql)
+        sql = """INSERT INTO pm.extraction_kit_lot (name) VALUES ('PM16B11')"""
+        db._con.execute(sql)
+        sql = """INSERT INTO pm.master_mix_lot (name) VALUES ('14459')"""
+        db._con.execute(sql)
+        sql = """INSERT INTO pm.water_lot (name) VALUES ('RNBD9959')"""
+        db._con.execute(sql)
 
     def tearDown(self):
         db._clear_table('external_survey_answers', 'ag')
         db._revert_ready(['000023299'])
+        # Remove populated field options
+        db._clear_table('plate_type', 'pm')
+        db._clear_table('extraction_robot', 'pm')
+        db._clear_table('extraction_tool', 'pm')
+        db._clear_table('processing_robot', 'pm')
+        db._clear_table('tm300_8_tool', 'pm')
+        db._clear_table('tm50_8_tool', 'pm')
+        db._clear_table('extraction_kit_lot', 'pm')
+        db._clear_table('master_mix_lot', 'pm')
+        db._clear_table('water_lot', 'pm')
 
     def test_pulldown_third_party(self):
         # Add survey answers
@@ -243,59 +275,159 @@ class TestDataAccess(TestCase):
     def test_get_ag_barcode_details(self):
         obs = db.get_ag_barcode_details(['000018046'])
         exp = {'000018046': {
-                'ag_kit_barcode_id': '0060a301-e5c1-6a4e-e050-8a800c5d49b7',
-                'verification_email_sent': 'n',
-                'pass_reset_code': None,
-                'vioscreen_status': 3,
-                'sample_barcode_file': '000018046.jpg',
-                'environment_sampled': None,
-                'supplied_kit_id': 'tst_nVEyP',
-                'withdrawn': None,
-                'kit_verified': 'y',
-                'city': 'REMOVED',
-                'ag_kit_id': '0060a301-e5c0-6a4e-e050-8a800c5d49b7',
-                'zip': 'REMOVED',
-                'ag_login_id': '0060a301-e5bf-6a4e-e050-8a800c5d49b7',
-                'state': 'REMOVED',
-                'results_ready': 'Y',
-                'moldy': 'N',
-                # The key 'registered_on' is a time stamp when the database is
-                # created. It is unique per deployment.
-                # 'registered_on': datetime.datetime(2016, 8, 17, 10, 47, 2,
-                #                                   713292),
-                'participant_name': 'REMOVED-0',
-                'kit_password': ('$2a$12$LiakUCHOpAMvEp9Wxehw5OIlD/TIIP0Bs3blw'
-                                 '18ePcmKHWWAePrQ.'),
-                'deposited': False,
-                'sample_date': datetime.date(2014, 8, 13),
-                'email': 'REMOVED',
-                'print_results': False,
-                'open_humans_token': None,
-                'elevation': 0.0,
-                'refunded': None,
-                'other_text': 'REMOVED',
-                'barcode': '000018046',
-                'swabs_per_kit': 1L,
-                'kit_verification_code': '60260',
-                'latitude': 0.0,
-                'cannot_geocode': None,
-                'address': 'REMOVED',
-                'date_of_last_email': datetime.date(2014, 8, 15),
-                'site_sampled': 'Stool',
-                'name': 'REMOVED',
-                'sample_time': datetime.time(11, 15),
-                'notes': 'REMOVED',
-                'overloaded': 'N',
-                'longitude': 0.0,
-                'pass_reset_time': None,
-                'country': 'REMOVED',
-                'survey_id': '084532330aca5885',
-                'other': 'N',
-                'sample_barcode_file_md5': None
-        }}
+               'ag_kit_barcode_id': '0060a301-e5c1-6a4e-e050-8a800c5d49b7',
+               'verification_email_sent': 'n',
+               'pass_reset_code': None,
+               'vioscreen_status': 3,
+               'sample_barcode_file': '000018046.jpg',
+               'environment_sampled': None,
+               'supplied_kit_id': 'tst_nVEyP',
+               'withdrawn': None,
+               'kit_verified': 'y',
+               'city': 'REMOVED',
+               'ag_kit_id': '0060a301-e5c0-6a4e-e050-8a800c5d49b7',
+               'zip': 'REMOVED',
+               'ag_login_id': '0060a301-e5bf-6a4e-e050-8a800c5d49b7',
+               'state': 'REMOVED',
+               'results_ready': 'Y',
+               'moldy': 'N',
+               # The key 'registered_on' is a time stamp when the database is
+               # created. It is unique per deployment.
+               # 'registered_on': datetime.datetime(2016, 8, 17, 10, 47, 2,
+               #                                   713292),
+               'participant_name': 'REMOVED-0',
+               'kit_password': ('$2a$12$LiakUCHOpAMvEp9Wxehw5OIlD/TIIP0Bs3blw'
+                                '18ePcmKHWWAePrQ.'),
+               'deposited': False,
+               'sample_date': datetime.date(2014, 8, 13),
+               'email': 'REMOVED',
+               'print_results': False,
+               'open_humans_token': None,
+               'elevation': 0.0,
+               'refunded': None,
+               'other_text': 'REMOVED',
+               'barcode': '000018046',
+               'swabs_per_kit': 1L,
+               'kit_verification_code': '60260',
+               'latitude': 0.0,
+               'cannot_geocode': None,
+               'address': 'REMOVED',
+               'date_of_last_email': datetime.date(2014, 8, 15),
+               'site_sampled': 'Stool',
+               'name': 'REMOVED',
+               'sample_time': datetime.time(11, 15),
+               'notes': 'REMOVED',
+               'overloaded': 'N',
+               'longitude': 0.0,
+               'pass_reset_time': None,
+               'country': 'REMOVED',
+               'survey_id': '084532330aca5885',
+               'other': 'N',
+               'sample_barcode_file_md5': None
+               }}
         for key in obs:
             del(obs[key]['registered_on'])
         self.assertEqual(obs, exp)
+
+    def test_create_study(self):
+        # Create a study without properties
+        sid = db.create_study()
+        self.assertGreater(sid, 0)
+        obs = db.read_study(sid)
+        exp = {'qiita_study_id': None, 'title': None, 'alias': None,
+               'notes': None}
+        self.assertDictEqual(obs, exp)
+        db.delete_study(sid)
+        # Create a study with all properties
+        sid = db.create_study(qiita_study_id=123, title='Test study 1',
+                              alias='the study', notes='hi there')
+        self.assertGreater(sid, 0)
+        obs = db.read_study(sid)
+        exp = {'qiita_study_id': 123, 'title': 'Test study 1',
+               'alias': 'the study', 'notes': 'hi there'}
+        self.assertDictEqual(obs, exp)
+        # Attempt to create a study with duplicate title
+        with self.assertRaises(ValueError) as context:
+            db.create_study(qiita_study_id=456, title='Test study 1')
+        err = ('Qiita study ID 456 or title "Test study 1" conflicts with '
+               'exisiting study ' + str(sid) + '.')
+        self.assertEqual(str(context.exception), err)
+        obs = db.read_study(sid)['qiita_study_id']
+        exp = 456
+        self.assertNotEqual(obs, exp)
+        # Attempt to create a study with duplicate Qiita study ID
+        with self.assertRaises(ValueError) as context:
+            db.create_study(qiita_study_id=123, title='Test study 2')
+        err = ('Qiita study ID 123 or title "Test study 2" conflicts with '
+               'exisiting study ' + str(sid) + '.')
+        self.assertEqual(str(context.exception), err)
+        obs = db.read_study(sid)['title']
+        exp = 'Test study 2'
+        self.assertNotEqual(obs, exp)
+        db.delete_study(sid)
+
+    def test_edit_study(self):
+        # Edit properties of a study
+        sid1 = db.create_study(qiita_study_id=123, title='Test study 1')
+        obs = db.read_study(sid1)
+        exp = {'qiita_study_id': 123, 'title': 'Test study 1', 'alias': None,
+               'notes': None}
+        self.assertDictEqual(obs, exp)
+        db.edit_study(sid1, qiita_study_id=456, title='Test study 2',
+                      alias='the study', notes='Say something.')
+        obs = db.read_study(sid1)
+        exp = {'qiita_study_id': 456, 'title': 'Test study 2',
+               'alias': 'the study', 'notes': 'Say something.'}
+        self.assertDictEqual(obs, exp)
+        # Attempt to assign a duplicate title to a study
+        sid2 = db.create_study(qiita_study_id=123, title='Test study 1')
+        with self.assertRaises(ValueError) as context:
+            db.edit_study(sid2, qiita_study_id=123, title='Test study 2')
+        err = ('Qiita study ID 123 or title "Test study 2" conflicts with '
+               'another study ' + str(sid1) + '.')
+        self.assertEqual(str(context.exception), err)
+        # Attempt to assign a duplicate Qiita study ID to a study
+        with self.assertRaises(ValueError) as context:
+            db.edit_study(sid2, qiita_study_id=456, title='Test study 1')
+        err = ('Qiita study ID 456 or title "Test study 1" conflicts with '
+               'another study ' + str(sid1) + '.')
+        self.assertEqual(str(context.exception), err)
+        db.delete_study(sid2)
+        db.delete_study(sid1)
+        # Attempt to edit properties of a non-existing study
+        with self.assertRaises(ValueError) as context:
+            db.edit_study(sid1, qiita_study_id=789, title='Test study 3')
+        err = 'Study ID ' + str(sid1) + ' does not exist.'
+        self.assertEqual(str(context.exception), err)
+
+    def test_read_study(self):
+        # Read properties of a study
+        sid = db.create_study(qiita_study_id=123, title='Test study 1',
+                              alias='the study', notes='Say something.')
+        obs = db.read_study(sid)
+        exp = {'qiita_study_id': 123, 'title': 'Test study 1',
+               'alias': 'the study', 'notes': 'Say something.'}
+        self.assertDictEqual(obs, exp)
+        db.delete_study(sid)
+        # Attempt to read properties of a non-existing study
+        with self.assertRaises(ValueError) as context:
+            db.read_study(sid)
+        err = 'Study ID ' + str(sid) + ' does not exist.'
+        self.assertEqual(str(context.exception), err)
+
+    def test_delete_study(self):
+        # Delete a study
+        sid = db.create_study(qiita_study_id=123, title='Test study 1')
+        obs = db.read_study(sid)
+        self.assertIsNotNone(obs)
+        db.delete_study(sid)
+        with self.assertRaises(ValueError):
+            db.read_study(sid)
+        # Attempt to delete a non-existing study
+        with self.assertRaises(ValueError) as context:
+            db.delete_study(sid)
+        err = 'Study ID ' + str(sid) + ' does not exist.'
+        self.assertEqual(str(context.exception), err)
 
 
 if __name__ == "__main__":

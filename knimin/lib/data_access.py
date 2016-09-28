@@ -1619,7 +1619,7 @@ class KniminAccess(object):
             barcodes in each project is returned)
         limit : int, optional
             Number of barcodes to return, starting with most recent
-            (defult all)
+            (default all)
 
         Returns
         -------
@@ -2381,7 +2381,7 @@ class KniminAccess(object):
         if add_projects:
             sql = """INSERT INTO barcodes.project_barcode
                       SELECT project_id, %s FROM (
-                        SELECT project_id from barcodes.project
+                        SELECT project_id FROM barcodes.project
                         WHERE project in %s)
                      AS P"""
 
@@ -2414,6 +2414,146 @@ class KniminAccess(object):
                  SET deposited = TRUE
                  WHERE barcode IN %s"""
         self._con.execute(sql, [barcodes])
+
+    def create_study(self, qiita_study_id=None, title=None, alias=None,
+                     notes=None):
+        """Creates a study
+
+        Parameters
+        ----------
+        qiita_study_id : int
+        title : str
+        alias : str
+        notes : str
+
+        Returns
+        -------
+        int
+            ID of the study created
+
+        Raises
+        ------
+        ValueError
+            If there is error creating the study
+        """
+        with self._con.cursor() as cur:
+            cur.execute('BEGIN')
+            sql = """SELECT study_id FROM pm.study WHERE qiita_study_id = %s
+                     OR title = %s LIMIT 1"""
+            sql_args = [qiita_study_id or None, title or None]
+            cur.execute(sql, sql_args)
+            qry = cur.fetchone()
+            if qry is not None:
+                raise ValueError('Qiita study ID %s or title "%s" conflicts '
+                                 'with exisiting study %s.'
+                                 % (qiita_study_id, title, qry[0]))
+            sql = """INSERT INTO pm.study (qiita_study_id, title, alias, notes)
+                     VALUES (%s, %s, %s, %s) RETURNING study_id"""
+            sql_args = [qiita_study_id or None, title or None, alias or None,
+                        notes or None]
+            cur.execute(sql, sql_args)
+            qry = cur.fetchone()
+            if qry is None:
+                raise ValueError('Creation of study failed.')
+            cur.execute('COMMIT')
+        return qry[0]
+
+    def edit_study(self, study_id, qiita_study_id=None, title=None, alias=None,
+                   notes=None):
+        """Edits properties of an existing study
+
+        Parameters
+        ----------
+        study_id : int
+            ID of the study to edit
+        qiita_study_id : int
+        title : str
+        alias : str
+        notes : str
+
+        Raises
+        ------
+        ValueError
+            If there is error editing the study's properties
+        """
+        with self._con.cursor() as cur:
+            cur.execute('BEGIN')
+            sql = """SELECT * FROM pm.study WHERE study_id = %s LIMIT 1"""
+            sql_args = [study_id]
+            cur.execute(sql, sql_args)
+            if cur.fetchone() is None:
+                raise ValueError('Study ID %s does not exist.' % study_id)
+            if qiita_study_id or title:
+                sql = """SELECT study_id FROM pm.study WHERE study_id <> %s
+                         AND (qiita_study_id = %s OR title = %s) LIMIT 1"""
+                sql_args = [study_id, qiita_study_id, title]
+                cur.execute(sql, sql_args)
+                qry = cur.fetchone()
+                if qry is not None:
+                    raise ValueError('Qiita study ID %s or title "%s" '
+                                     'conflicts with another study %s.'
+                                     % (qiita_study_id, title, qry[0]))
+            sql = """UPDATE pm.study SET qiita_study_id = %s, title = %s,
+                                         alias = %s, notes = %s
+                     WHERE study_id = %s RETURNING study_id"""
+            sql_args = [qiita_study_id or None, title or None, alias or None,
+                        notes or None, study_id]
+            cur.execute(sql, sql_args)
+            if cur.fetchone() is None:
+                raise ValueError('Editing study %s failed.' % study_id)
+            cur.execute('COMMIT')
+
+    def read_study(self, study_id):
+        """Read properties of an existing study
+
+        Parameters
+        ----------
+        study_id : int
+
+        Returns
+        -------
+        dict
+            {qiita_study_id : int, title : str, alias : str, notes : str}
+
+        Raises
+        ------
+        ValueError
+            If there is error reading the study's properties
+        """
+        sql = """SELECT qiita_study_id, title, alias, notes FROM pm.study
+                 WHERE study_id = %s LIMIT 1"""
+        sql_args = [study_id]
+        qry = self._con.execute_fetchone(sql, sql_args)
+        if qry is None:
+            raise ValueError('Study ID %s does not exist.' % study_id)
+        return {'qiita_study_id': qry[0], 'title': qry[1], 'alias': qry[2],
+                'notes': qry[3]}
+
+    def delete_study(self, study_id):
+        """Deletes an existing study
+
+        Parameters
+        ----------
+        study_id : int
+
+        Raises
+        ------
+        ValueError
+            If there is error deleting the study
+        """
+        with self._con.cursor() as cur:
+            cur.execute('BEGIN')
+            sql = """SELECT * FROM pm.study WHERE study_id = %s LIMIT 1"""
+            sql_args = [study_id]
+            cur.execute(sql, sql_args)
+            if cur.fetchone() is None:
+                raise ValueError('Study ID %s does not exist.' % study_id)
+            sql = """DELETE FROM pm.study WHERE study_id = %s
+                     RETURNING study_id"""
+            cur.execute(sql, sql_args)
+            if cur.fetchone() is None:
+                raise ValueError('Deletion of study %s failed.' % study_id)
+            cur.execute('COMMIT')
 
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""
