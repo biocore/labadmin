@@ -100,6 +100,8 @@ class TestAGEditBarcodeHandler(TestHandlerBase):
                               'withdrawn': 'N',
                               'environment_sampled': None,
                               })
+        # TODO: think about returning a non-OK status code to better report
+        # this error, see issue #139
         self.assertEqual(response.code, 200)
         self.assertIn("Error Updating Barcode Info", response.body)
 
