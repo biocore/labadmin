@@ -370,14 +370,14 @@ class TestDataAccess(TestCase):
 
     def test_edit_study(self):
         # Edit properties of a study
-        sid1 = db.create_study(qiita_study_id=123, title='Test study 1')
-        obs = db.read_study(sid1)
+        sid = db.create_study(qiita_study_id=123, title='Test study 1')
+        obs = db.read_study(sid)
         exp = {'qiita_study_id': 123, 'title': 'Test study 1', 'alias': None,
                'notes': None}
         self.assertDictEqual(obs, exp)
-        db.edit_study(sid1, qiita_study_id=456, title='Test study 2',
+        db.edit_study(sid, qiita_study_id=456, title='Test study 2',
                       alias='the study', notes='Say something.')
-        obs = db.read_study(sid1)
+        obs = db.read_study(sid)
         exp = {'qiita_study_id': 456, 'title': 'Test study 2',
                'alias': 'the study', 'notes': 'Say something.'}
         self.assertDictEqual(obs, exp)
@@ -385,19 +385,19 @@ class TestDataAccess(TestCase):
         sid2 = db.create_study(qiita_study_id=123, title='Test study 1')
         with self.assertRaises(ValueError) as context:
             db.edit_study(sid2, qiita_study_id=123, title='Test study 2')
-        err = 'Title \'Test study 2\' conflicts with exisiting study %s.' % sid1
+        err = 'Title \'Test study 2\' conflicts with exisiting study %s.' % sid
         self.assertEqual(str(context.exception), err)
         # Attempt to assign a duplicate Qiita study ID to a study
         with self.assertRaises(ValueError) as context:
             db.edit_study(sid2, qiita_study_id=456, title='Test study 1')
-        err = 'Qiita study ID 456 conflicts with exisiting study %s.' % sid1
+        err = 'Qiita study ID 456 conflicts with exisiting study %s.' % sid
         self.assertEqual(str(context.exception), err)
         db.delete_study(sid2)
-        db.delete_study(sid1)
+        db.delete_study(sid)
         # Attempt to edit properties of a non-existing study
         with self.assertRaises(ValueError) as context:
-            db.edit_study(sid1, qiita_study_id=789, title='Test study 3')
-        err = 'Study ID %s does not exist.' % sid1
+            db.edit_study(sid, qiita_study_id=789, title='Test study 3')
+        err = 'Study ID %s does not exist.' % sid
         self.assertEqual(str(context.exception), err)
 
     def test_read_study(self):
