@@ -1,0 +1,96 @@
+<!-- The Plate Mapper module -->
+<!-- Plate list -->
+<!-- Qiyun Zhu -->
+
+{% extends logged_in_index.html %}
+{% block head %}
+{% from json import dumps %}
+<script type="text/javascript" src="/static/js/labmin.js"></script>
+<script type="text/javascript" src="/static/vendor/js/jquery.validate.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.10.12/js/jquery.dataTables.min.js"></script>
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.12/css/jquery.dataTables.min.css">
+<style>
+  p {
+    font-weight: bold;
+  }
+  button {
+    padding: 5px 10px 5px 10px;
+    text-decoration: none;
+    font-size: 80%;
+  }
+  table {
+    border-top: 1px solid black;
+  }
+  th {
+    margin: 0;
+  }
+  td {
+      margin: 0;
+  }
+  tbody.list tr {
+    line-height: 0;
+  }
+  tbody.list {
+    cursor: pointer;
+  }
+  tbody.list tr:hover {
+    background-color: lightgray;
+  }
+</style>
+<script type="text/javascript">
+  $(document).ready(function(){
+    var plates = {{plates}};
+    $("#btnNew").click(function(){
+        // alert("button");
+        alert(this.innerHTML);
+        alert($(this).text());
+    });
+    $('#plate_list').DataTable();
+  });
+  window.onload = function() {
+    // items=items, pageno=pageno, total=total, plates=plates
+  }
+</script>
+{% end %}
+
+{% block content %}
+<h3>Plate List</h3>
+<p id="title"></p>
+
+<p>
+  <!--span style="float:right"><button id="btnNew">Create new plate</button></span-->
+  <button id="btnNew">Create new</button>
+  <button id="btnNew">Delete selected</button>
+  <button id="btnNew">Batch-edit selected</button>
+  <button id="btnNew">Convert to DNA plate</button>
+</p>
+
+<table id="plate_list" width="100%">
+  <thead>
+    <tr width="100%">
+      <th width="10%">ID</th>
+      <th width="50%">Name</th>
+      <th width="10%">Type</th>
+      <th width="10%">Samples</th>
+      <th width="20%">Person</th>
+    </tr>
+  </thead>
+  <tbody class="list" id="plate_list">
+    {% for plate in plates %}
+    <tr>
+      <th><input type="checkbox" class="chkPlate" value="{{plate[0]}}">{{plate[0]}}</th>
+      <th>{{plate[1]}}</th>
+      <th>{{plate[2]}}</th>
+      <th>{{plate[3]}}</th>
+      <th>{{plate[4]}}</th>
+    </tr>
+    {% end %}
+  </tbody>
+</table>
+<hr>
+
+<form method="post" action="/pm_plate_list/" name="migrate_form" id="migrate_form">
+  <input type="hidden" name="action" value="migrate">
+  <p>Migrate data: <input type="submit"></p>
+</form>
+{% end %}

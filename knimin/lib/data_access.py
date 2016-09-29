@@ -25,6 +25,7 @@ from constants import (md_lookup, month_int_lookup, month_str_lookup,
                        ebi_remove, env_lookup)
 from geocoder import geocode, Location, GoogleAPILimitExceeded
 from string_converter import converter
+from sql_connection import TRN
 
 
 class IncorrectEmailError(Exception):
@@ -1619,7 +1620,7 @@ class KniminAccess(object):
             barcodes in each project is returned)
         limit : int, optional
             Number of barcodes to return, starting with most recent
-            (defult all)
+            (default all)
 
         Returns
         -------
@@ -2370,7 +2371,7 @@ class KniminAccess(object):
         if add_projects:
             sql = """INSERT INTO barcodes.project_barcode
                       SELECT project_id, %s FROM (
-                        SELECT project_id from barcodes.project
+                        SELECT project_id FROM barcodes.project
                         WHERE project in %s)
                      AS P"""
 
@@ -2387,6 +2388,774 @@ class KniminAccess(object):
         """
         sql = """SELECT project FROM project"""
         return [x[0] for x in self._con.execute_fetchall(sql)]
+
+    def migrate_data(self):
+        """This command is only temporary. It migrates existing data from
+        schema "barcodes" into the newly created schema "pm".
+        """
+        # barcode => sample
+        sql = """INSERT INTO pm.sample (sample_id)
+                 SELECT barcode
+                 FROM barcodes.barcode;"""
+        self._con.execute(sql)
+        sql = """UPDATE pm.sample SET barcode = sample_id"""
+        self._con.execute(sql)
+        # project => study
+        sql = """INSERT INTO pm.study (qiita_study_id, title)
+                 SELECT project_id, project
+                 FROM barcodes.project;"""
+        self._con.execute(sql)
+        # project_barcode => study_sample
+        sql = """INSERT INTO pm.study_sample (study_id, sample_id)
+                 SELECT study_id, barcode
+                 FROM barcodes.project_barcode
+                 JOIN pm.study ON (project_id = qiita_study_id)
+                 ORDER BY study_id, barcode;"""
+        self._con.execute(sql)
+        # plate => plate
+        sql = """SELECT plate_id, plate FROM barcodes.plate
+                 ORDER BY plate_id"""
+        plates = [(x[0], x[1]) for x in self._con.execute_fetchall(sql)]
+        if not plates:
+            return 1
+        for plate in plates:
+            sql = """INSERT INTO pm.sample_plate (name, email, plate_type_id)
+                     VALUES (%s, 'test', 1) RETURNING sample_plate_id"""
+            id = self._con.execute_fetchone(sql, [plate[1]])[0]
+            sql = """SELECT barcode FROM barcodes.plate_barcode
+                     WHERE plate_id = %s ORDER BY barcode"""
+            barcodes = [x[0] for x in self._con.execute_fetchall(sql, [id])]
+            if not barcodes:
+                continue
+            count = 0
+            nbarcode = len(barcodes)
+            (ncol, nrow) = (12, 8)
+            for i in range(ncol):
+                for j in range(nrow):
+                    sql = """INSERT INTO pm.sample_plate_layout (
+                                sample_plate_id, sample_id, col, row)
+                             VALUES (%s, %s, %s, %s)"""
+                    self._con.execute(sql, [id, barcodes[count], i+1, j+1])
+                    count += 1
+                    if count == nbarcode:
+                        break
+                if count == nbarcode:
+                    break
+        return 0
+
+    def get_id_by_name(self, field, name):
+        """Converts a field option name to its corresponding id
+
+        Parameters
+        ----------
+        field : str
+            Field name, i.e., table name under schema "pm"
+        name : str
+            Name of the option
+
+        Returns
+        -------
+        int
+            Id of the option
+
+        Raises
+        ------
+        ValueError
+            If name is not found in the table
+        """
+        sql = "SELECT {} FROM {} WHERE name = %s".format(field + '_id',
+                                                         'pm.' + field)
+        sql_args = [name]
+        id = self._con.execute_fetchone(sql, sql_args)
+        if id is None:
+            raise ValueError('"%s" is not a pre-defined option for %s.'
+                             % (name, field))
+        return id[0]
+
+    def _study_exists(self, study_id):
+        """Confirms that a study ID exists
+
+        Parameters
+        ----------
+        study_id : int
+
+        Raises
+        ------
+        ValueError
+            If the study ID does not exist
+        """
+        sql = """SELECT EXISTS (SELECT 1 FROM pm.study WHERE study_id = %s)"""
+        if not self._con.execute_fetchone(sql, [study_id])[0]:
+            raise ValueError('Study ID %s does not exist.' % study_id)
+
+    def _study_is_unique(self, qiita_study_id=None, title=None, study_id=None):
+        """Confirms that a Qiita study ID and/or a title is not duplicate
+
+        Parameters
+        ----------
+        qiita_study_id : int
+        title : str
+            Search for these values to make sure they don't already exist
+        study_id : int
+            Skip this ID in searching
+
+        Raises
+        ------
+        ValueError
+            If neither value is given, or either value already exists
+        """
+        cols = ((qiita_study_id, 'qiita_study_id', 'Qiita study ID'),
+                (title, 'title', 'Title'))
+        if not (cols[0][0] or cols[1][0]):
+            raise ValueError('Either %s or %s must be given.'
+                             % (cols[0][2], cols[1][2]))
+        errs = []
+        for col in cols:
+            if col[0]:
+                sql = """SELECT study_id
+                         FROM pm.study
+                         WHERE {} = %s
+                         AND study_id IS DISTINCT FROM %s""".format(col[1])
+                sql_args = [col[0], study_id]
+                res = self._con.execute_fetchone(sql, sql_args)
+                if res:
+                    errs.append('%s %s conflicts with exisiting study %s.'
+                                % (col[2], repr(col[0]), res[0]))
+        if errs:
+            raise ValueError(' '.join(errs))
+#        if qiita_study_id:
+#            sql = """SELECT study_id
+#                     FROM pm.study
+#                     WHERE qiita_study_id = %s
+#                     AND study_id IS DISTINCT FROM %s"""
+#            sql_args = [qiita_study_id, study_id]
+#            res = self._con.execute_fetchone(sql, sql_args)
+#            if res:
+#                errs.append('Qiita study ID %s conflicts with exisiting '
+#                            'study %s.' % (qiita_study_id, res[0]))
+#        if title:
+#            sql = """SELECT study_id
+#                     FROM pm.study
+#                     WHERE title = %s
+#                     AND study_id IS DISTINCT FROM %s"""
+#            sql_args = [title, study_id]
+#            res = self._con.execute_fetchone(sql, sql_args)
+#            if res:
+#                errs.append('Title "%s" conflicts with exisiting '
+#                            'study %s.' % (title, res[0]))
+
+    def create_study(self, qiita_study_id=None, title=None, alias=None,
+                     notes=None):
+        """Creates a study
+
+        Parameters
+        ----------
+        qiita_study_id : int
+        title : str
+        alias : str
+        notes : str
+
+        Returns
+        -------
+        int
+            ID of the study created
+
+        Raises
+        ------
+        ValueError
+            If there is error creating the study
+        """
+        self._study_is_unique(qiita_study_id, title)
+        with TRN:
+            sql = """INSERT INTO pm.study (qiita_study_id, title, alias, notes)
+                     VALUES (%s, %s, %s, %s)
+                     RETURNING study_id"""
+            sql_args = [qiita_study_id or None, title or None, alias or None,
+                        notes or None]
+            TRN.add(sql, sql_args)
+            return TRN.execute_fetchlast()
+
+    def edit_study(self, study_id, qiita_study_id=None, title=None, alias=None,
+                   notes=None):
+        """Edits properties of an existing study
+
+        Parameters
+        ----------
+        study_id : int
+            ID of the study to edit
+        qiita_study_id : int
+        title : str
+        alias : str
+        notes : str
+
+        Raises
+        ------
+        ValueError
+            If there is error editing the study's properties
+        """
+        self._study_exists(study_id)
+        self._study_is_unique(qiita_study_id, title, study_id)
+        with TRN:
+            sql = """UPDATE pm.study
+                     SET qiita_study_id = %s, title = %s, alias = %s,
+                         notes = %s
+                     WHERE study_id = %s
+                     RETURNING study_id"""
+            sql_args = [qiita_study_id, title, alias, notes, study_id]
+            TRN.add(sql, sql_args)
+
+    def read_study(self, study_id):
+        """Read properties of an existing study
+
+        Parameters
+        ----------
+        study_id : int
+
+        Returns
+        -------
+        dict
+            {qiita_study_id : int, title : str, alias : str, notes : str}
+
+        Raises
+        ------
+        ValueError
+            If there is error reading the study's properties
+        """
+        sql = """SELECT qiita_study_id, title, alias, notes
+                 FROM pm.study
+                 WHERE study_id = %s"""
+        res = self._con.execute_fetchone(sql, [study_id])
+        if res is None:
+            raise ValueError('Study ID %s does not exist.' % study_id)
+        return {'qiita_study_id': res[0], 'title': res[1], 'alias': res[2],
+                'notes': res[3]}
+
+    def delete_study(self, study_id):
+        """Deletes an existing study
+
+        Parameters
+        ----------
+        study_id : int
+
+        Raises
+        ------
+        ValueError
+            If there is error deleting the study
+        """
+        self._study_exists(study_id)
+        with TRN:
+            sql = """DELETE FROM pm.study
+                     WHERE study_id = %s
+                     RETURNING study_id"""
+            TRN.add(sql, [study_id])
+
+    def _sample_exists(self, sample_id):
+        """Checks whether a sample ID exists
+
+        Parameters
+        ----------
+        sample_id : str
+
+        Returns
+        ------
+        bool
+        """
+        sql = """SELECT EXISTS (SELECT 1 FROM pm.sample
+                                WHERE sample_id = %s)"""
+        return self._con.execute_fetchone(sql, [sample_id])[0]
+
+    def _barcode_exists(self, barcode):
+        """Confirms that a barcode exists
+
+        Parameters
+        ----------
+        barcode : str
+
+        Raises
+        ------
+        ValueError
+            If the barcode does not exist
+        """
+        sql = """SELECT EXISTS (SELECT 1 FROM barcodes.barcode
+                                WHERE barcode = %s)"""
+        if not self._con.execute_fetchone(sql, [barcode])[0]:
+            raise ValueError('Barcode %s does not exist.' % barcode)
+
+    def create_samples(self, samples):
+        """Creates samples
+
+        Parameters
+        ----------
+        samples : list of dict
+            {
+             id : str (mandatory),
+             is_blank : bool (optional, default: False),
+             barcode : str (optional),
+             notes : str (optional)
+            }
+
+        Raises
+        ------
+        ValueError
+            If there is error creating the samples
+        """
+        with TRN:
+            for sample in samples:
+                sample_id = sample['id']
+                if self._sample_exists(sample_id):
+                    raise ValueError('Sample ID %s already exists.'
+                                     % sample_id)
+                barcode = sample.get('barcode') or None
+                if barcode:
+                    self._barcode_exists(barcode)
+                is_blank = sample.get('is_blank') or False
+                notes = sample.get('notes') or None
+                sql = """INSERT INTO pm.sample (sample_id, is_blank, barcode,
+                                                notes)
+                         VALUES (%s, %s, %s, %s)
+                         RETURNING sample_id"""
+                TRN.add(sql, [sample_id, is_blank, barcode, notes])
+
+    def edit_samples(self, samples):
+        """Edits properties of existing samples
+
+        Parameters
+        ----------
+        samples : list of dict
+            {
+             id : str,
+                ID of the sample to edit
+             is_blank : bool (optional, default: False),
+             barcode : str (optional),
+             notes : str (optional)
+            }
+
+        Raises
+        ------
+        ValueError
+            If there is error editing the samples' properties
+        """
+        with TRN:
+            for sample in samples:
+                sample_id = sample['id']
+                if not self._sample_exists(sample_id):
+                    raise ValueError('Sample ID %s does not exist.'
+                                     % sample_id)
+                barcode = sample.get('barcode') or None
+                if barcode:
+                    self._barcode_exists(barcode)
+                is_blank = sample.get('is_blank') or False
+                notes = sample.get('notes') or None
+                sql = """UPDATE pm.sample
+                         SET is_blank = %s, barcode = %s, notes = %s
+                         WHERE sample_id = %s
+                         RETURNING sample_id"""
+                TRN.add(sql, [is_blank, barcode, notes, sample_id])
+
+    def read_samples(self, ids):
+        """Read properties of existing samples
+
+        Parameters
+        ----------
+        ids : list of str
+            Sample IDs to read
+
+        Returns
+        -------
+        list of dict
+            {is_blank : bool, barcode : str, notes : str}
+            In the same order as sample IDs
+
+        Raises
+        ------
+        ValueError
+            If there is error reading the samples' properties
+        """
+        samples = []
+        for sample_id in ids:
+            sql = """SELECT is_blank, barcode, notes FROM pm.sample
+                     WHERE sample_id = %s LIMIT 1"""
+            sql_args = [sample_id]
+            res = self._con.execute_fetchone(sql, sql_args)
+            if res is None:
+                raise ValueError('Sample ID %s does not exist.' % sample_id)
+            samples.append({'is_blank': res[0], 'barcode': res[1],
+                            'notes': res[2]})
+        return samples
+
+    def delete_samples(self, ids):
+        """Deletes existing samples
+
+        Parameters
+        ----------
+        ids : list of str
+            Sample IDs to delete
+
+        Raises
+        ------
+        ValueError
+            If there is error deleting the samples
+        """
+        with TRN:
+            for sample_id in ids:
+                if not self._sample_exists(sample_id):
+                    raise ValueError('Sample ID %s does not exist.'
+                                     % sample_id)
+                sql = """DELETE FROM pm.sample WHERE sample_id = %s
+                         RETURNING sample_id"""
+                TRN.add(sql, [sample_id])
+
+    def create_sample_plate(self, sample_plate_info):
+        """Creates a new sample plate and sets values for mandatory fields
+
+        Parameters
+        ----------
+        sample_plate_info: tuple of (str x2, datetime, str x2)
+            name, email, creation_timestamp, notes, plate_type
+
+        Returns
+        -------
+        int
+            ID of the created sample plate
+        """
+        sql = """INSERT INTO pm.sample_plate (name, email, creation_timestamp,
+                 notes, plate_type_id) VALUES (%s, %s, %s, %s,
+                 (SELECT plate_type_id FROM pm.plate_type WHERE name = %s))
+                 RETURNING sample_plate_id"""
+        sql_args = list(sample_plate_info)
+        for i in range(1, 4):
+            sql_args[i] = sql_args[i] or None
+        return self._con.execute_fetchone(sql, sql_args)[0]
+
+    def set_sample_plate_info(self, sample_plate_id, sample_plate_info):
+        """Sets attributes of a sample plate by ID
+
+        Parameters
+        ----------
+        sample_plate_id : int
+            ID of the sample plate to set attributes to
+        sample_plate_info: tuple of (str x2, datetime, str x2)
+            name, email, creation_timestamp, notes, plate_type
+
+        Returns
+        -------
+        bool
+            True if successful
+        """
+        sql = """UPDATE pm.sample_plate
+                 SET name = %s, email = %s, creation_timestamp = %s,
+                    notes = %s, plate_type_id = (SELECT plate_type_id
+                    FROM pm.plate_type WHERE name = %s)
+                 WHERE sample_plate_id = %s"""
+        sql_args = list(sample_plate_info + (sample_plate_id,))
+        for i in range(1, 4):
+            sql_args[i] = sql_args[i] or None
+        self._con.execute(sql, sql_args)
+        return True
+
+    def get_sample_plate_info(self, sample_plate_id):
+        """Gets attributes of a sample plate by ID
+
+        Parameters
+        ----------
+        sample_plate_id : int
+            ID of the sample plate to get attributes from
+
+        Returns
+        -------
+        tuple of (str x2, datetime, str x2)
+            name, email, creation_timestamp, notes, plate_type
+        """
+        sql = """SELECT p.name, p.email, p.creation_timestamp, p.notes,
+                    pm.plate_type.name
+                 FROM pm.sample_plate p
+                 JOIN pm.plate_type USING (plate_type_id)
+                 WHERE sample_plate_id = %s"""
+#        sql = """SELECT pm.plate.plate_id,
+#                    pm.plate.name,
+#                    pm.plate.email,
+#                    pm.plate_type.name,
+#                    pm.template.name,
+#                    pm.plate.linker_seq,
+#                    pm.extraction_kit_lot.name,
+#                    pm.extraction_robot.name,
+#                    pm.tm1000_8_tool.name,
+#                    pm.master_mix_lot.name,
+#                    pm.water_lot.name,
+#                    pm.processing_robot.name,
+#                    pm.tm300_8_tool.name,
+#                    pm.tm50_8_tool.name,
+#                    pm.plate.notes
+#                 FROM pm.plate
+#                 JOIN pm.plate_type USING (plate_type_id)
+#                 LEFT JOIN pm.template USING (template_id)
+#                 LEFT JOIN pm.extraction_kit_lot USING (extraction_kit_lot_id)
+#                 LEFT JOIN pm.extraction_robot USING (extraction_robot_id)
+#                 LEFT JOIN pm.tm1000_8_tool USING (tm1000_8_tool_id)
+#                 LEFT JOIN pm.master_mix_lot USING (master_mix_lot_id)
+#                 LEFT JOIN pm.water_lot USING (water_lot_id)
+#                 LEFT JOIN pm.processing_robot USING (processing_robot_id)
+#                 LEFT JOIN pm.tm300_8_tool USING (tm300_8_tool_id)
+#                 LEFT JOIN pm.tm50_8_tool USING (tm50_8_tool_id)
+#                 WHERE pm.plate.plate_id = %s"""
+        return tuple(self._con.execute_fetchone(sql, [sample_plate_id]))
+
+    def delete_sample_plate(self, sample_plate_ids):
+        """Deletes sample plates and corresponding plate-to-sample maps
+
+        Parameters
+        ----------
+        sample_plate_ids : list of int
+            Sample plate IDs to delete
+
+        Returns
+        -------
+        bool
+            True if successful
+        """
+        sql = """DELETE FROM pm.sample_plate_layout
+                 WHERE sample_plate_id = %s"""
+        self._con.executemany(sql, [[x] for x in sample_plate_ids])
+        sql = """DELETE FROM pm.sample_plate
+                 WHERE sample_plate_id = %s"""
+        self._con.executemany(sql, [[x] for x in sample_plate_ids])
+        return True
+
+    def set_sample_plate_layout(self, sample_plate_id, sample_plate_layout):
+        """Sets sample plate layout by ID
+
+        Parameters
+        ----------
+        sample_plate_id : int
+            Sample plate ID
+        sample_plate_layout : list of tuple of (str, int, int, str, str)
+            Sample ID, column ID, row ID, name, notes
+
+        Returns
+        -------
+        bool
+            True if successful
+        """
+        sql = """DELETE FROM pm.sample_plate_layout
+                 WHERE sample_plate_id = %s"""
+        self._con.execute(sql, [sample_plate_id])
+        sql = """INSERT INTO pm.sample_plate_layout (sample_plate_id,
+                    sample_id, col, row, name, notes)
+                 VALUES (%s, %s, %s, %s, %s, %s)"""
+        sql_args_list = [[sample_plate_id] + list(x)
+                         for x in sample_plate_layout]
+        for i in range(len(sql_args_list)):
+            for j in (4, 5):
+                sql_args_list[i][j] = sql_args_list[i][j] or None
+        self._con.executemany(sql, sql_args_list)
+        return True
+
+    def get_sample_plate_layout(self, sample_plate_id):
+        """Gets sample plate layout by ID
+
+        Parameters
+        ----------
+        sample_plate_id : int
+            Sample plate ID
+
+        Returns
+        -------
+        list of tuple of (str, int, int, str, str)
+            Sample ID, column ID, row ID, name, notes
+        """
+        sql = """SELECT sample_id, col, row, name, notes
+                 FROM pm.sample_plate_layout
+                 WHERE sample_plate_id = %s
+                 ORDER BY col, row"""
+        return [tuple(x) for x in self._con.execute_fetchall(sql,
+                [sample_plate_id])]
+
+    def create_dna_plate(self, name, email, sample_plate_id):
+        """Creates a new DNA plate and sets values for mandatory fields
+
+        Parameters
+        ----------
+        name : str
+        email : str
+        sample_plate_id : int
+
+        Returns
+        -------
+        int
+            ID of the created DNA plate
+        """
+        sql = """INSERT INTO pm.dna_plate (name, email, sample_plate_id)
+                 VALUES (%s, %s, %s) RETURNING dna_plate_id"""
+        sql_args = [name, email, sample_plate_id]
+        return self._con.execute_fetchone(sql, sql_args)[0]
+
+    def delete_dna_plate(self, dna_plate_ids):
+        """Deletes DNA plates
+
+        Parameters
+        ----------
+        dna_plate_ids : list of int
+            DNA plate IDs to delete
+
+        Returns
+        -------
+        bool
+            True if successful
+        """
+        sql = """DELETE FROM pm.dna_plate
+                 WHERE dna_plate_id = %s"""
+        self._con.executemany(sql, [[x] for x in dna_plate_ids])
+        return True
+
+    def set_dna_plate_info(self, dna_plate_id, dna_plate_info):
+        """Sets attributes of a DNA plate by ID
+
+        Parameters
+        ----------
+        dna_plate_id : int
+            ID of the DNA plate to set attributes to
+        dna_plate_info: tuple of (str x 6)
+            name, email, notes, extraction_robot, extraction_kit_lot,
+            extraction_tool
+
+        Returns
+        -------
+        bool
+            True if successful
+
+        Notes
+        -----
+        Empty string or None values set corresponding columns to NULL
+        """
+        sql = """UPDATE pm.dna_plate
+                 SET name = %s, email = %s, notes = %s,
+                     extraction_kit_lot_id = (SELECT extraction_kit_lot_id
+                        FROM pm.extraction_kit_lot WHERE name = %s),
+                     extraction_robot_id = (SELECT extraction_robot_id
+                        FROM pm.extraction_robot WHERE name = %s),
+                     extraction_tool_id = (SELECT extraction_tool_id
+                        FROM pm.extraction_tool WHERE name = %s)
+                 WHERE dna_plate_id = %s"""
+        sql_args = dna_plate_info + (dna_plate_id,)
+        self._con.execute(sql, sql_args)
+        return True
+
+    def get_plate_info(self, plate_id):
+        """Gets attributes of a plate by id
+
+        Parameters
+        ----------
+        plate_id : int
+            Id of the plate to get attributes from
+
+        Returns
+        -------
+        tuple of (long, str x 14)
+            plate_id, name, email, plate_type, template, linker_seq,
+            extraction_kit, extraction_robot, tm1000_8_tool,
+            master_mix_lot, water_lot, processing_robot,
+            tm300_8_tool, tm50_8_tool, notes
+        """
+        sql = """SELECT pm.plate.plate_id,
+                    pm.plate.name,
+                    pm.plate.email,
+                    pm.plate_type.name,
+                    pm.template.name,
+                    pm.plate.linker_seq,
+                    pm.extraction_kit_lot.name,
+                    pm.extraction_robot.name,
+                    pm.tm1000_8_tool.name,
+                    pm.master_mix_lot.name,
+                    pm.water_lot.name,
+                    pm.processing_robot.name,
+                    pm.tm300_8_tool.name,
+                    pm.tm50_8_tool.name,
+                    pm.plate.notes
+                 FROM pm.plate
+                 JOIN pm.plate_type USING (plate_type_id)
+                 LEFT JOIN pm.template USING (template_id)
+                 LEFT JOIN pm.extraction_kit_lot USING (extraction_kit_lot_id)
+                 LEFT JOIN pm.extraction_robot USING (extraction_robot_id)
+                 LEFT JOIN pm.tm1000_8_tool USING (tm1000_8_tool_id)
+                 LEFT JOIN pm.master_mix_lot USING (master_mix_lot_id)
+                 LEFT JOIN pm.water_lot USING (water_lot_id)
+                 LEFT JOIN pm.processing_robot USING (processing_robot_id)
+                 LEFT JOIN pm.tm300_8_tool USING (tm300_8_tool_id)
+                 LEFT JOIN pm.tm50_8_tool USING (tm50_8_tool_id)
+                 WHERE pm.plate.plate_id = %s"""
+        return tuple(self._con.execute_fetchone(sql, [plate_id]))
+
+    def get_plate_type(self, plate_id):
+        """Gets plate type attributes
+
+        Parameters
+        ----------
+        plate_id : int
+            0: first plate type in the table (96-well)
+            >0: plate type of an exisiting plate by id
+
+        Returns
+        -------
+        dict
+            Attributes of a plate type, currently including: plate_type_id,
+            name, cols, rows, notes
+        """
+        sql = ''
+        sql_args = []
+        if plate_id > 0:
+            sql = """SELECT pm.plate_type.* FROM pm.plate_type JOIN pm.plate
+                     USING (plate_type_id) WHERE plate_id = %s"""
+            sql_args = [plate_id]
+        else:
+            sql = """SELECT * FROM pm.plate_type WHERE plate_type_id = %s"""
+            sql_args = [1]
+        return self._con.execute_fetchdict(sql, sql_args)[0]
+
+    def get_plate_count(self):
+        """Gets total number of plates
+
+        Returns
+        -------
+        int
+            Number of existing plates
+        """
+        sql = """SELECT COUNT(*) FROM pm.sample_plate"""
+        return self._con.execute_fetchone(sql)[0]
+
+    def get_plate_list(self, limit=0, offset=0):
+        """Gets basic information of a range of plates
+
+        Parameters
+        ----------
+        limit : int, optional
+            Number of plates to return
+            Default 0 (all)
+        offset : int, optional
+            Number of plates to skip before returning
+            Default 0 (none)
+
+        Returns
+        -------
+        list of tuple of (int, str, str, int, str)
+            Plate id, plate name, plate type name, number of samples, email
+        """
+        sql_args = []
+        sql = """SELECT sample_plate_id, sample_plate.name, plate_type.name,
+                    (SELECT COUNT(*) FROM pm.sample_plate_layout
+                     WHERE pm.sample_plate_layout.sample_plate_id
+                        = pm.sample_plate.sample_plate_id),
+                     email
+                 FROM pm.sample_plate
+                 JOIN pm.plate_type
+                 USING (plate_type_id)
+                 ORDER BY sample_plate_id"""
+        if limit:
+            sql += " LIMIT %s"
+            sql_args.append(limit)
+        if offset:
+            sql += " OFFSET %s"
+            sql_args.append(offset)
+        return [tuple(x) for x in self._con.execute_fetchall(sql, sql_args)]
 
     def set_deposited_ebi(self):
         """Updates barcode deposited status by checking EBI"""
