@@ -28,7 +28,7 @@ Examples
 In order to perform any query in the database you first need to import the
 `TRN` variable available in this module:
 
->>> from qiita_db.sql_connection import TRN
+>>> from sql_connection import TRN
 
 The `TRN` variable is an instance of the `Transaction` object. All queries
 should be executed through this object to ensure atomicity. To perform any

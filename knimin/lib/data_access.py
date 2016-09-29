@@ -2484,7 +2484,7 @@ class KniminAccess(object):
         return id[0]
 
     def _study_exists(self, study_id):
-        """Cofirms that a study ID exists
+        """Confirms that a study ID exists
 
         Parameters
         ----------
@@ -2660,60 +2660,72 @@ class KniminAccess(object):
                      RETURNING study_id"""
             TRN.add(sql, [study_id])
 
+    def _sample_exists(self, sample_id):
+        """Checks whether a sample ID exists
+
+        Parameters
+        ----------
+        sample_id : str
+
+        Returns
+        ------
+        bool
+        """
+        sql = """SELECT EXISTS (SELECT 1 FROM pm.sample
+                                WHERE sample_id = %s)"""
+        return self._con.execute_fetchone(sql, [sample_id])[0]
+
+    def _barcode_exists(self, barcode):
+        """Confirms that a barcode exists
+
+        Parameters
+        ----------
+        barcode : str
+
+        Raises
+        ------
+        ValueError
+            If the barcode does not exist
+        """
+        sql = """SELECT EXISTS (SELECT 1 FROM barcodes.barcode
+                                WHERE barcode = %s)"""
+        if not self._con.execute_fetchone(sql, [barcode])[0]:
+            raise ValueError('Barcode %s does not exist.' % barcode)
+
     def create_samples(self, samples):
         """Creates samples
 
         Parameters
         ----------
         samples : list of dict
-            {id : str,
-             is_blank : bool (default: False),
-             barcode : str,
-             notes : str}
+            {
+             id : str (mandatory),
+             is_blank : bool (optional, default: False),
+             barcode : str (optional),
+             notes : str (optional)
+            }
 
         Raises
         ------
         ValueError
             If there is error creating the samples
         """
-        # cur = self._con._connection.cursor()
-        # with self._con.cursor() as cur:
         with TRN:
-            # cur.execute('BEGIN')
             for sample in samples:
-                sample_id = sample.get('id')
-                if not sample_id:
-                    # cur.execute('ROLLBACK')
-                    # self._con._connection.rollback()
-                    raise ValueError('Missing sample ID.')
-                sql = """SELECT EXISTS (SELECT 1 FROM pm.sample
-                         WHERE sample_id = %s)"""
-                sql_args = [sample_id]
-                # cur.execute(sql, sql_args)
-                TRN.add(sql, sql_args)
-                # if cur.fetchone() is not None:
-                if TRN.execute_fetchlast():
+                sample_id = sample['id']
+                if self._sample_exists(sample_id):
                     raise ValueError('Sample ID %s already exists.'
                                      % sample_id)
                 barcode = sample.get('barcode') or None
                 if barcode:
-                    sql = """SELECT EXISTS (SELECT 1 FROM barcodes.barcode
-                             WHERE barcode = %s)"""
-                    sql_args = [barcode]
-                    TRN.add(sql, sql_args)
-                    if not TRN.execute_fetchlast():
-                        raise ValueError('Barcode %s does not exist.'
-                                         % barcode)
+                    self._barcode_exists(barcode)
                 is_blank = sample.get('is_blank') or False
                 notes = sample.get('notes') or None
                 sql = """INSERT INTO pm.sample (sample_id, is_blank, barcode,
                                                 notes)
-                         VALUES (%s, %s, %s, %s) RETURNING sample_id"""
-                sql_args = [sample_id, is_blank, barcode, notes]
-                TRN.add(sql, sql_args)
-            # self._con._connection.commit()
-            # cur.close()
-            # cur.execute('COMMIT')
+                         VALUES (%s, %s, %s, %s)
+                         RETURNING sample_id"""
+                TRN.add(sql, [sample_id, is_blank, barcode, notes])
 
     def edit_samples(self, samples):
         """Edits properties of existing samples
@@ -2721,50 +2733,35 @@ class KniminAccess(object):
         Parameters
         ----------
         samples : list of dict
-            {id : str,
+            {
+             id : str,
                 ID of the sample to edit
-             is_blank : bool (default: False),
-             barcode : str,
-             notes : str}
+             is_blank : bool (optional, default: False),
+             barcode : str (optional),
+             notes : str (optional)
+            }
 
         Raises
         ------
         ValueError
             If there is error editing the samples' properties
         """
-        with self._con.cursor() as cur:
-            cur.execute('BEGIN')
+        with TRN:
             for sample in samples:
-                sample_id = sample.get('id')
-                if not sample_id:
-                    raise ValueError('Missing sample ID.')
-                sql = """SELECT * FROM pm.sample WHERE sample_id = %s
-                         LIMIT 1"""
-                sql_args = [sample_id]
-                cur.execute(sql, sql_args)
-                if cur.fetchone() is None:
+                sample_id = sample['id']
+                if not self._sample_exists(sample_id):
                     raise ValueError('Sample ID %s does not exist.'
                                      % sample_id)
                 barcode = sample.get('barcode') or None
                 if barcode:
-                    sql = """SELECT * FROM barcodes.barcode WHERE barcode = %s
-                             LIMIT 1"""
-                    sql_args = [barcode]
-                    cur.execute(sql, sql_args)
-                    if cur.fetchone() is None:
-                        raise ValueError('Barcode %s does not exist.'
-                                         % barcode)
+                    self._barcode_exists(barcode)
                 is_blank = sample.get('is_blank') or False
                 notes = sample.get('notes') or None
-                sql = """UPDATE pm.sample SET is_blank = %s, barcode = %s,
-                                              notes = %s
-                         WHERE sample_id = %s RETURNING sample_id"""
-                sql_args = [is_blank, barcode, notes, sample_id]
-                cur.execute(sql, sql_args)
-                if cur.fetchone() is None:
-                    raise ValueError('Editing sample %s failed.'
-                                     % sample_id)
-            cur.execute('COMMIT')
+                sql = """UPDATE pm.sample
+                         SET is_blank = %s, barcode = %s, notes = %s
+                         WHERE sample_id = %s
+                         RETURNING sample_id"""
+                TRN.add(sql, [is_blank, barcode, notes, sample_id])
 
     def read_samples(self, ids):
         """Read properties of existing samples
@@ -2790,11 +2787,11 @@ class KniminAccess(object):
             sql = """SELECT is_blank, barcode, notes FROM pm.sample
                      WHERE sample_id = %s LIMIT 1"""
             sql_args = [sample_id]
-            qry = self._con.execute_fetchone(sql, sql_args)
-            if qry is None:
+            res = self._con.execute_fetchone(sql, sql_args)
+            if res is None:
                 raise ValueError('Sample ID %s does not exist.' % sample_id)
-            samples.append({'is_blank': qry[0], 'barcode': qry[1],
-                            'notes': qry[2]})
+            samples.append({'is_blank': res[0], 'barcode': res[1],
+                            'notes': res[2]})
         return samples
 
     def delete_samples(self, ids):
@@ -2810,23 +2807,14 @@ class KniminAccess(object):
         ValueError
             If there is error deleting the samples
         """
-        with self._con.cursor() as cur:
-            cur.execute('BEGIN')
+        with TRN:
             for sample_id in ids:
-                sql = """SELECT * FROM pm.sample WHERE sample_id = %s
-                         LIMIT 1"""
-                sql_args = [sample_id]
-                cur.execute(sql, sql_args)
-                if cur.fetchone() is None:
+                if not self._sample_exists(sample_id):
                     raise ValueError('Sample ID %s does not exist.'
                                      % sample_id)
                 sql = """DELETE FROM pm.sample WHERE sample_id = %s
                          RETURNING sample_id"""
-                cur.execute(sql, sql_args)
-                if cur.fetchone() is None:
-                    raise ValueError('Deletion of sample %s failed.'
-                                     % sample_id)
-            cur.execute('COMMIT')
+                TRN.add(sql, [sample_id])
 
     def create_sample_plate(self, sample_plate_info):
         """Creates a new sample plate and sets values for mandatory fields
