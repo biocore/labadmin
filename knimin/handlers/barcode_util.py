@@ -41,8 +41,7 @@ class BarcodeUtilHelper(object):
                 message = "Cannot retrieve metadata: %s" % failures[barcode]
                 ag_details['email_type'] = "-1"
             elif (survey_id is None and ag_details['environment_sampled']) \
-                    or survey_type[survey_id] == 'Human' \
-                    or survey_type[survey_id] == 'Animal':
+                    or survey_id in survey_type:
                 div_id = "verified"
                 message = "All good"
                 ag_details['email_type'] = "1"

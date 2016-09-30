@@ -1,8 +1,11 @@
 from unittest import TestCase, main
 from StringIO import StringIO
+from random import seed
+from socket import gaierror
 
 from knimin.lib.util import (combine_barcodes, categorize_age, categorize_etoh,
-                             categorize_bmi, correct_bmi)
+                             categorize_bmi, correct_bmi, correct_age,
+                             make_valid_kit_ids, get_printout_data, fetch_url)
 
 
 __author__ = "Adam Robbins-Pianka"
@@ -66,6 +69,7 @@ class UtilTests(TestCase):
         self.assertEqual('70+', categorize_age(122))
         self.assertEqual('Unspecified', categorize_age(123))
         self.assertEqual('Unspecified', categorize_age(123564))
+        self.assertEqual('Unspecified', categorize_age('Unspecified'))
 
     def test_categorize_etoh(self):
         with self.assertRaises(TypeError):
@@ -83,6 +87,7 @@ class UtilTests(TestCase):
         self.assertEqual('Unspecified', correct_bmi(200))
         self.assertEqual('8.00', correct_bmi(8))
         self.assertEqual('79.00', correct_bmi(79))
+        self.assertEqual('Unspecified', correct_bmi('Unspecified'))
 
     def test_categorize_bmi(self):
         self.assertEqual('Unspecified', categorize_bmi(-2))
@@ -97,7 +102,99 @@ class UtilTests(TestCase):
         self.assertEqual('Obese', categorize_bmi(79.9))
         self.assertEqual('Unspecified', categorize_bmi(80))
         self.assertEqual('Unspecified', categorize_bmi(210))
+        self.assertEqual('Unspecified', categorize_bmi('Unspecified'))
 
+    def test_correct_age(self):
+        self.assertEqual('Unspecified', correct_age('Unspecified', 56, 5.36,
+                                                    'Every day'))
+        self.assertEqual('Unspecified', correct_age(18, 'Unspecified', 5.36,
+                                                    'Every day'))
+        self.assertEqual('Unspecified', correct_age(18, 56, 'Unspecified',
+                                                    'Every day'))
+        self.assertEqual('Unspecified', correct_age(18, 56, 5.36,
+                                                    'Unspecified'))
+        self.assertEqual('Unspecified', correct_age('Unspecified',
+                                                    'Unspecified',
+                                                    5.36,
+                                                    'Every day'))
+        self.assertEqual('Unspecified', correct_age('Unspecified',
+                                                    56,
+                                                    'Unspecified',
+                                                    'Every day'))
+        self.assertEqual('Unspecified', correct_age('Unspecified',
+                                                    56,
+                                                    5.36,
+                                                    'Unspecified'))
+        self.assertEqual('Unspecified', correct_age('Unspecified',
+                                                    'Unspecified',
+                                                    'Unspecified',
+                                                    'Unspecified'))
+        self.assertEqual('Unspecified', correct_age(-2, 56, 5.36, 'Every day'))
+        self.assertEqual('Unspecified', correct_age(123, 56, 5.36,
+                                                    'Every day'))
+        self.assertEqual('Unspecified', correct_age(2, 92.0, 5.36,
+                                                    'Every day'))
+        self.assertEqual('Unspecified', correct_age(2, 56, 17, 'Every day'))
+        self.assertEqual('Unspecified', correct_age(2, 56, 5.36, 'Ever'))
+        self.assertEqual(2.0, correct_age(2, 56, 5.36, 'Never'))
+
+    def test_make_valid_kit_ids(self):
+        # fix random seed
+        seed(7)
+        existing_kit_ids = set(['knut_fxwz', 'knut_sjwg', 'knut_xuee'])
+
+        # positive test
+        result = make_valid_kit_ids(3, existing_kit_ids, 5, 'knut')
+        self.assertEqual(result, ['knut_hdrb', 'knut_pjbn', 'knut_akbc'])
+
+        # test exceptions
+        self.assertRaisesRegexp(ValueError,
+                                "Tag must be 4 or less characters",
+                                make_valid_kit_ids, 3, existing_kit_ids, 5,
+                                'toolongtag')
+        self.assertRaisesRegexp(ValueError,
+                                "More kits requested than possible kit ID com",
+                                make_valid_kit_ids, 23**8, existing_kit_ids, 5,
+                                'knut')
+
+        # test exclusion of already existing ids
+        existing_id = 'knut_kwcf'
+        result = make_valid_kit_ids(3, set([existing_id]), 5, 'knut')
+        self.assertEqual(result, ['knut_ryqk', 'knut_zbwg', 'knut_dchv'])
+        self.assertNotIn(existing_id, result)
+
+    def test_get_printout_data(self):
+        kitinfo = [["xxx_pggwy", "96812490", "23577",
+                    ["000033914", "000033915"]],
+                   ["xxx_drcrv", "33422033", "56486",
+                    ["000033916", "000033917"]]]
+        result = get_printout_data(kitinfo)
+        for kit in kitinfo:
+            self.assertIn("Sample Barcodes:\t%s" % ', '.join(kit[3]), result)
+            self.assertIn("Kit ID:\t\t%s" % kit[0], result)
+            self.assertIn("Password:\t\t%s" % kit[1], result)
+        self.assertIn('http://www.microbio.me/AmericanGut', result)
+
+        # test proper line break for lengthy barcode lists
+        kitinfo = [["xxx_pggwy", "96812490", "23577",
+                    ["000033914", "000033915", "000033916", "000033917",
+                     "100033914", "100033915", "100033916", "100033917"]]]
+        result = get_printout_data(kitinfo)
+        for kit in kitinfo:
+            self.assertIn("Sample Barcodes:\t%s" % ', '.join(kit[3][:5]),
+                          result)
+            self.assertIn("\t\t\t%s" % ', '.join(kit[3][5:]), result)
+
+    def test_fetch_url(self):
+        # test unknown address
+        self.assertRaisesRegexp(gaierror,
+                                'Name or service not known',
+                                fetch_url,
+                                'http://askdfjhSKJDF.com')
+
+        # test positive result
+        self.assertTrue(isinstance(fetch_url('http://www.google.com'),
+                                   StringIO))
 
 if __name__ == '__main__':
     main()

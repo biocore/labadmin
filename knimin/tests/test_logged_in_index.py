@@ -1,4 +1,5 @@
 from unittest import main
+
 from knimin.tests.tornado_test_base import TestHandlerBase
 
 
@@ -18,6 +19,17 @@ class TestLoggedInIndex(TestHandlerBase):
         self.mock_login_admin()
         response = self.post('/logged_in_index/', {})
         self.assertEqual(response.code, 200)
+
+    def test_get(self):
+        self.mock_login_admin()
+        response = self.get('/logged_in_index/')
+        self.assertEqual(response.code, 200)
+        port = self.get_http_port()
+        self.assertEqual(
+            'http://localhost:%d/%s' %
+            (port, 'logged_in_index/'),
+            response.effective_url
+        )
 
 
 if __name__ == '__main__':
