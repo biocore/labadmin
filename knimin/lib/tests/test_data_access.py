@@ -330,14 +330,6 @@ class TestDataAccess(TestCase):
         self.assertEqual(obs, exp)
 
     def test_create_study(self):
-        # Create a study without properties
-        sid = db.create_study()
-        self.assertGreater(sid, 0)
-        obs = db.read_study(sid)
-        exp = {'qiita_study_id': None, 'title': None, 'alias': None,
-               'notes': None}
-        self.assertDictEqual(obs, exp)
-        db.delete_study(sid)
         # Create a study with all properties
         sid = db.create_study(qiita_study_id=123, title='Test study 1',
                               alias='the study', notes='hi there')
@@ -346,11 +338,15 @@ class TestDataAccess(TestCase):
         exp = {'qiita_study_id': 123, 'title': 'Test study 1',
                'alias': 'the study', 'notes': 'hi there'}
         self.assertDictEqual(obs, exp)
+        # Attempt to create a study without identifier
+        with self.assertRaises(ValueError) as context:
+            db.create_study()
+        err = 'Either Qiita study ID or Title must be given.'
+        self.assertEqual(str(context.exception), err)
         # Attempt to create a study with duplicate title
         with self.assertRaises(ValueError) as context:
             db.create_study(qiita_study_id=456, title='Test study 1')
-        err = ('Qiita study ID 456 or title "Test study 1" conflicts with '
-               'exisiting study ' + str(sid) + '.')
+        err = 'Title \'Test study 1\' conflicts with exisiting study %s.' % sid
         self.assertEqual(str(context.exception), err)
         obs = db.read_study(sid)['qiita_study_id']
         exp = 456
@@ -358,8 +354,7 @@ class TestDataAccess(TestCase):
         # Attempt to create a study with duplicate Qiita study ID
         with self.assertRaises(ValueError) as context:
             db.create_study(qiita_study_id=123, title='Test study 2')
-        err = ('Qiita study ID 123 or title "Test study 2" conflicts with '
-               'exisiting study ' + str(sid) + '.')
+        err = 'Qiita study ID 123 conflicts with exisiting study %s.' % sid
         self.assertEqual(str(context.exception), err)
         obs = db.read_study(sid)['title']
         exp = 'Test study 2'
@@ -368,14 +363,14 @@ class TestDataAccess(TestCase):
 
     def test_edit_study(self):
         # Edit properties of a study
-        sid1 = db.create_study(qiita_study_id=123, title='Test study 1')
-        obs = db.read_study(sid1)
+        sid = db.create_study(qiita_study_id=123, title='Test study 1')
+        obs = db.read_study(sid)
         exp = {'qiita_study_id': 123, 'title': 'Test study 1', 'alias': None,
                'notes': None}
         self.assertDictEqual(obs, exp)
-        db.edit_study(sid1, qiita_study_id=456, title='Test study 2',
+        db.edit_study(sid, qiita_study_id=456, title='Test study 2',
                       alias='the study', notes='Say something.')
-        obs = db.read_study(sid1)
+        obs = db.read_study(sid)
         exp = {'qiita_study_id': 456, 'title': 'Test study 2',
                'alias': 'the study', 'notes': 'Say something.'}
         self.assertDictEqual(obs, exp)
@@ -383,21 +378,19 @@ class TestDataAccess(TestCase):
         sid2 = db.create_study(qiita_study_id=123, title='Test study 1')
         with self.assertRaises(ValueError) as context:
             db.edit_study(sid2, qiita_study_id=123, title='Test study 2')
-        err = ('Qiita study ID 123 or title "Test study 2" conflicts with '
-               'another study ' + str(sid1) + '.')
+        err = 'Title \'Test study 2\' conflicts with exisiting study %s.' % sid
         self.assertEqual(str(context.exception), err)
         # Attempt to assign a duplicate Qiita study ID to a study
         with self.assertRaises(ValueError) as context:
             db.edit_study(sid2, qiita_study_id=456, title='Test study 1')
-        err = ('Qiita study ID 456 or title "Test study 1" conflicts with '
-               'another study ' + str(sid1) + '.')
+        err = 'Qiita study ID 456 conflicts with exisiting study %s.' % sid
         self.assertEqual(str(context.exception), err)
         db.delete_study(sid2)
-        db.delete_study(sid1)
+        db.delete_study(sid)
         # Attempt to edit properties of a non-existing study
         with self.assertRaises(ValueError) as context:
-            db.edit_study(sid1, qiita_study_id=789, title='Test study 3')
-        err = 'Study ID ' + str(sid1) + ' does not exist.'
+            db.edit_study(sid, qiita_study_id=789, title='Test study 3')
+        err = 'Study ID %s does not exist.' % sid
         self.assertEqual(str(context.exception), err)
 
     def test_read_study(self):
@@ -412,7 +405,7 @@ class TestDataAccess(TestCase):
         # Attempt to read properties of a non-existing study
         with self.assertRaises(ValueError) as context:
             db.read_study(sid)
-        err = 'Study ID ' + str(sid) + ' does not exist.'
+        err = 'Study ID %s does not exist.' % sid
         self.assertEqual(str(context.exception), err)
 
     def test_delete_study(self):
@@ -426,8 +419,100 @@ class TestDataAccess(TestCase):
         # Attempt to delete a non-existing study
         with self.assertRaises(ValueError) as context:
             db.delete_study(sid)
-        err = 'Study ID ' + str(sid) + ' does not exist.'
+        err = 'Study ID %s does not exist.' % sid
         self.assertEqual(str(context.exception), err)
+
+    def test_create_samples(self):
+        # Create three samples with sample ID only
+        samples = [{'id': '123'}, {'id': '456'}, {'id': '789'}]
+        db.create_samples(samples)
+        obs = db.read_samples(['123', '456', '789'])
+        exp = [{'is_blank': False, 'barcode': None, 'notes': None}] * 3
+        self.assertListEqual(obs, exp)
+        # Create a sample with barcode and without is_blank
+        sql = """SELECT barcode FROM barcodes.barcode LIMIT 1"""
+        barcode = db._con.execute_fetchone(sql)[0]
+        samples = [{'id': '135', 'barcode': barcode, 'notes': 'Hi!'}]
+        db.create_samples(samples)
+        obs = db.read_samples(['135'])
+        exp = [{'is_blank': False, 'barcode': barcode, 'notes': 'Hi!'}]
+        self.assertListEqual(obs, exp)
+        # Attempt to create a sample with an invalid barcode
+        samples = [{'id': '357', 'barcode': 'I-dont-exist'}]
+        with self.assertRaises(ValueError) as context:
+            db.create_samples(samples)
+        err = 'Barcode I-dont-exist does not exist.'
+        self.assertEqual(str(context.exception), err)
+        # Attempt to create two samples, one with duplicate ID
+        with self.assertRaises(ValueError) as context:
+            db.create_samples([{'id': '321'}, {'id': '135'}])
+        err = 'Sample ID 135 already exists.'
+        self.assertEqual(str(context.exception), err)
+        # Test if one duplicate ID fails the creation of all samples
+        with self.assertRaises(ValueError) as context:
+            db.read_samples(['321'])
+        err = 'Sample ID 321 does not exist.'
+        self.assertEqual(str(context.exception), err)
+        db.delete_samples(['123', '456', '789', '135'])
+
+    def test_edit_samples(self):
+        # Assign properties to a sample
+        db.create_samples([{'id': '123'}])
+        obs = db.read_samples(['123'])
+        exp = [{'is_blank': False, 'barcode': None, 'notes': None}]
+        self.assertListEqual(obs, exp)
+        sql = """SELECT barcode FROM barcodes.barcode LIMIT 1"""
+        barcode = db._con.execute_fetchone(sql)[0]
+        db.edit_samples([{'id': '123', 'is_blank': True, 'barcode': barcode,
+                          'notes': 'Some notes.'}])
+        obs = db.read_samples(['123'])
+        exp = [{'is_blank': True, 'barcode': barcode, 'notes': 'Some notes.'}]
+        self.assertListEqual(obs, exp)
+        # Attempt to assign an invalid barcode to a sample
+        with self.assertRaises(ValueError) as context:
+            db.edit_samples([{'id': '123', 'barcode': 'I-dont-exist'}])
+        err = 'Barcode I-dont-exist does not exist.'
+        self.assertEqual(str(context.exception), err)
+        # Attempt to edit a non-existing sample
+        with self.assertRaises(ValueError) as context:
+            db.edit_samples([{'id': '456', 'is_blank': True}])
+        err = 'Sample ID 456 does not exist.'
+        self.assertEqual(str(context.exception), err)
+        db.delete_samples(['123'])
+
+    def test_read_samples(self):
+        # Read properties of a sample
+        sql = """SELECT barcode FROM barcodes.barcode LIMIT 1"""
+        barcode = db._con.execute_fetchone(sql)[0]
+        samples = [{'id': '123', 'barcode': barcode, 'notes': 'Hi!'}]
+        db.create_samples(samples)
+        obs = db.read_samples(['123'])
+        exp = [{'is_blank': False, 'barcode': barcode, 'notes': 'Hi!'}]
+        self.assertListEqual(obs, exp)
+        # Attempt to read two samples, one of which does not exist
+        with self.assertRaises(ValueError) as context:
+            db.read_samples(['123', '456'])
+        err = 'Sample ID 456 does not exist.'
+        self.assertEqual(str(context.exception), err)
+        db.delete_samples(['123'])
+
+    def test_delete_samples(self):
+        # Delete three samples
+        samples = [{'id': '123'}, {'id': '456'}, {'id': '789'}]
+        db.create_samples(samples)
+        obs = db.read_samples(['123', '456', '789'])
+        self.assertIsNotNone(obs)
+        db.delete_samples(['123', '456', '789'])
+        for sample_id in ('123', '456', '789'):
+            with self.assertRaises(ValueError) as context:
+                db.read_samples([sample_id])
+            err = 'Sample ID %s does not exist.' % sample_id
+            self.assertEqual(str(context.exception), err)
+        # Attempt to delete a sample that does not exist
+        with self.assertRaises(ValueError) as context:
+            db.delete_samples(['123'])
+            err = 'Sample ID 123 does not exist.'
+            self.assertEqual(str(context.exception), err)
 
 
 if __name__ == "__main__":
