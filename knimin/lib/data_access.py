@@ -2428,34 +2428,44 @@ class KniminAccess(object):
         ----------
         qiita_study_id : int
         title : str
-            Search for these values to make sure they don't already exist
         study_id : int
             Skip this ID in searching
 
         Raises
         ------
         ValueError
-            If neither value is given, or either value already exists
+            If neither value is specified, or
+            If either value already exists
         """
-        cols = ((qiita_study_id, 'qiita_study_id', 'Qiita study ID'),
-                (title, 'title', 'Title'))
-        if not (cols[0][0] or cols[1][0]):
-            raise ValueError('Either %s or %s must be given.'
-                             % (cols[0][2], cols[1][2]))
-        errs = []
-        for col in cols:
-            if col[0]:
+        tags = ['Qiita study ID', 'Title']
+        cols = [tag.lower().replace(' ', '_') for tag in tags]
+        vals = [vars()[col] for col in cols]
+        if all(val is None for val in vals):
+            raise ValueError('Either %s or %s must be specified.'
+                             % (tags[0], tags[1]))
+        dups = [0 for tag in tags]
+        for i in range(len(vals)):
+            if tags[i]:
                 sql = """SELECT study_id
                          FROM pm.study
                          WHERE {} = %s
-                         AND study_id IS DISTINCT FROM %s""".format(col[1])
-                sql_args = [col[0], study_id]
+                         AND study_id IS DISTINCT FROM %s""".format(cols[i])
+                sql_args = [vals[i], study_id]
                 res = self._con.execute_fetchone(sql, sql_args)
                 if res:
+                    dups[i] = res[0]
+        if dups[0] and len(set(dups)) <= 1:
+            raise ValueError('%s %s and %s %s conflict with exisiting study '
+                             '%s.' % (tags[0], repr(vals[0]), tags[1],
+                                      repr(vals[1]), dups[0]))
+        else:
+            errs = []
+            for i in range(len(tags)):
+                if dups[i]:
                     errs.append('%s %s conflicts with exisiting study %s.'
-                                % (col[2], repr(col[0]), res[0]))
-        if errs:
-            raise ValueError(' '.join(errs))
+                                % (tags[i], repr(vals[i]), dups[i]))
+            if errs:
+                raise ValueError(' '.join(errs))
 
     def create_study(self, qiita_study_id=None, title=None, alias=None,
                      notes=None):
@@ -2617,11 +2627,11 @@ class KniminAccess(object):
                 if self._sample_exists(sample_id):
                     raise ValueError('Sample ID %s already exists.'
                                      % sample_id)
-                barcode = sample.get('barcode') or None
+                barcode = sample.get('barcode')
                 if barcode:
                     self._barcode_exists(barcode)
-                is_blank = sample.get('is_blank') or False
-                notes = sample.get('notes') or None
+                is_blank = sample.get('is_blank', False)
+                notes = sample.get('notes')
                 sql = """INSERT INTO pm.sample (sample_id, is_blank, barcode,
                                                 notes)
                          VALUES (%s, %s, %s, %s)
@@ -2653,11 +2663,11 @@ class KniminAccess(object):
                 if not self._sample_exists(sample_id):
                     raise ValueError('Sample ID %s does not exist.'
                                      % sample_id)
-                barcode = sample.get('barcode') or None
+                barcode = sample.get('barcode')
                 if barcode:
                     self._barcode_exists(barcode)
-                is_blank = sample.get('is_blank') or False
-                notes = sample.get('notes') or None
+                is_blank = sample.get('is_blank', False)
+                notes = sample.get('notes')
                 sql = """UPDATE pm.sample
                          SET is_blank = %s, barcode = %s, notes = %s
                          WHERE sample_id = %s
