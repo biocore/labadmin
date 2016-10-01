@@ -341,24 +341,24 @@ class TestDataAccess(TestCase):
         # Attempt to create a study without identifier
         with self.assertRaises(ValueError) as context:
             db.create_study()
-        err = 'Either Qiita study ID or Title must be given.'
+        err = 'Either Qiita study ID or Title must be specified.'
         self.assertEqual(str(context.exception), err)
         # Attempt to create a study with duplicate title
         with self.assertRaises(ValueError) as context:
             db.create_study(qiita_study_id=456, title='Test study 1')
         err = 'Title \'Test study 1\' conflicts with exisiting study %s.' % sid
         self.assertEqual(str(context.exception), err)
-        obs = db.read_study(sid)['qiita_study_id']
-        exp = 456
-        self.assertNotEqual(obs, exp)
         # Attempt to create a study with duplicate Qiita study ID
         with self.assertRaises(ValueError) as context:
             db.create_study(qiita_study_id=123, title='Test study 2')
         err = 'Qiita study ID 123 conflicts with exisiting study %s.' % sid
         self.assertEqual(str(context.exception), err)
-        obs = db.read_study(sid)['title']
-        exp = 'Test study 2'
-        self.assertNotEqual(obs, exp)
+        # Attempt to create a study with duplicate Qiita study ID and title
+        with self.assertRaises(ValueError) as context:
+            db.create_study(qiita_study_id=123, title='Test study 1')
+        err = ('Qiita study ID 123 and Title \'Test study 1\' conflict with '
+               'exisiting study %s.' % sid)
+        self.assertEqual(str(context.exception), err)
         db.delete_study(sid)
 
     def test_edit_study(self):
