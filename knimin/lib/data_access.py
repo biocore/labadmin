@@ -25,6 +25,7 @@ from constants import (md_lookup, month_int_lookup, month_str_lookup,
                        ebi_remove, env_lookup)
 from geocoder import geocode, Location, GoogleAPILimitExceeded
 from string_converter import converter
+from sql_connection import TRN
 
 
 class IncorrectEmailError(Exception):
@@ -2404,6 +2405,58 @@ class KniminAccess(object):
                  WHERE barcode IN %s"""
         self._con.execute(sql, [barcodes])
 
+    def _study_exists(self, study_id):
+        """Confirms that a study ID exists
+
+        Parameters
+        ----------
+        study_id : int
+
+        Raises
+        ------
+        ValueError
+            If the study ID does not exist
+        """
+        sql = """SELECT EXISTS (SELECT 1 FROM pm.study WHERE study_id = %s)"""
+        if not self._con.execute_fetchone(sql, [study_id])[0]:
+            raise ValueError('Study ID %s does not exist.' % study_id)
+
+    def _study_is_unique(self, qiita_study_id=None, title=None, study_id=None):
+        """Confirms that a Qiita study ID and/or a title is not duplicate
+
+        Parameters
+        ----------
+        qiita_study_id : int
+        title : str
+            Search for these values to make sure they don't already exist
+        study_id : int
+            Skip this ID in searching
+
+        Raises
+        ------
+        ValueError
+            If neither value is given, or either value already exists
+        """
+        cols = ((qiita_study_id, 'qiita_study_id', 'Qiita study ID'),
+                (title, 'title', 'Title'))
+        if not (cols[0][0] or cols[1][0]):
+            raise ValueError('Either %s or %s must be given.'
+                             % (cols[0][2], cols[1][2]))
+        errs = []
+        for col in cols:
+            if col[0]:
+                sql = """SELECT study_id
+                         FROM pm.study
+                         WHERE {} = %s
+                         AND study_id IS DISTINCT FROM %s""".format(col[1])
+                sql_args = [col[0], study_id]
+                res = self._con.execute_fetchone(sql, sql_args)
+                if res:
+                    errs.append('%s %s conflicts with exisiting study %s.'
+                                % (col[2], repr(col[0]), res[0]))
+        if errs:
+            raise ValueError(' '.join(errs))
+
     def create_study(self, qiita_study_id=None, title=None, alias=None,
                      notes=None):
         """Creates a study
@@ -2425,27 +2478,14 @@ class KniminAccess(object):
         ValueError
             If there is error creating the study
         """
-        with self._con.cursor() as cur:
-            cur.execute('BEGIN')
-            sql = """SELECT study_id FROM pm.study WHERE qiita_study_id = %s
-                     OR title = %s LIMIT 1"""
-            sql_args = [qiita_study_id or None, title or None]
-            cur.execute(sql, sql_args)
-            qry = cur.fetchone()
-            if qry is not None:
-                raise ValueError('Qiita study ID %s or title "%s" conflicts '
-                                 'with exisiting study %s.'
-                                 % (qiita_study_id, title, qry[0]))
+        self._study_is_unique(qiita_study_id, title)
+        with TRN:
             sql = """INSERT INTO pm.study (qiita_study_id, title, alias, notes)
-                     VALUES (%s, %s, %s, %s) RETURNING study_id"""
-            sql_args = [qiita_study_id or None, title or None, alias or None,
-                        notes or None]
-            cur.execute(sql, sql_args)
-            qry = cur.fetchone()
-            if qry is None:
-                raise ValueError('Creation of study failed.')
-            cur.execute('COMMIT')
-        return qry[0]
+                     VALUES (%s, %s, %s, %s)
+                     RETURNING study_id"""
+            sql_args = [qiita_study_id, title, alias, notes]
+            TRN.add(sql, sql_args)
+            return TRN.execute_fetchlast()
 
     def edit_study(self, study_id, qiita_study_id=None, title=None, alias=None,
                    notes=None):
@@ -2465,32 +2505,16 @@ class KniminAccess(object):
         ValueError
             If there is error editing the study's properties
         """
-        with self._con.cursor() as cur:
-            cur.execute('BEGIN')
-            sql = """SELECT * FROM pm.study WHERE study_id = %s LIMIT 1"""
-            sql_args = [study_id]
-            cur.execute(sql, sql_args)
-            if cur.fetchone() is None:
-                raise ValueError('Study ID %s does not exist.' % study_id)
-            if qiita_study_id or title:
-                sql = """SELECT study_id FROM pm.study WHERE study_id <> %s
-                         AND (qiita_study_id = %s OR title = %s) LIMIT 1"""
-                sql_args = [study_id, qiita_study_id, title]
-                cur.execute(sql, sql_args)
-                qry = cur.fetchone()
-                if qry is not None:
-                    raise ValueError('Qiita study ID %s or title "%s" '
-                                     'conflicts with another study %s.'
-                                     % (qiita_study_id, title, qry[0]))
-            sql = """UPDATE pm.study SET qiita_study_id = %s, title = %s,
-                                         alias = %s, notes = %s
-                     WHERE study_id = %s RETURNING study_id"""
-            sql_args = [qiita_study_id or None, title or None, alias or None,
-                        notes or None, study_id]
-            cur.execute(sql, sql_args)
-            if cur.fetchone() is None:
-                raise ValueError('Editing study %s failed.' % study_id)
-            cur.execute('COMMIT')
+        self._study_exists(study_id)
+        self._study_is_unique(qiita_study_id, title, study_id)
+        with TRN:
+            sql = """UPDATE pm.study
+                     SET qiita_study_id = %s, title = %s, alias = %s,
+                         notes = %s
+                     WHERE study_id = %s
+                     RETURNING study_id"""
+            sql_args = [qiita_study_id, title, alias, notes, study_id]
+            TRN.add(sql, sql_args)
 
     def read_study(self, study_id):
         """Read properties of an existing study
@@ -2509,14 +2533,14 @@ class KniminAccess(object):
         ValueError
             If there is error reading the study's properties
         """
-        sql = """SELECT qiita_study_id, title, alias, notes FROM pm.study
-                 WHERE study_id = %s LIMIT 1"""
-        sql_args = [study_id]
-        qry = self._con.execute_fetchone(sql, sql_args)
-        if qry is None:
+        sql = """SELECT qiita_study_id, title, alias, notes
+                 FROM pm.study
+                 WHERE study_id = %s"""
+        res = self._con.execute_fetchone(sql, [study_id])
+        if res is None:
             raise ValueError('Study ID %s does not exist.' % study_id)
-        return {'qiita_study_id': qry[0], 'title': qry[1], 'alias': qry[2],
-                'notes': qry[3]}
+        return {'qiita_study_id': res[0], 'title': res[1], 'alias': res[2],
+                'notes': res[3]}
 
     def delete_study(self, study_id):
         """Deletes an existing study
@@ -2530,19 +2554,168 @@ class KniminAccess(object):
         ValueError
             If there is error deleting the study
         """
-        with self._con.cursor() as cur:
-            cur.execute('BEGIN')
-            sql = """SELECT * FROM pm.study WHERE study_id = %s LIMIT 1"""
-            sql_args = [study_id]
-            cur.execute(sql, sql_args)
-            if cur.fetchone() is None:
-                raise ValueError('Study ID %s does not exist.' % study_id)
-            sql = """DELETE FROM pm.study WHERE study_id = %s
+        self._study_exists(study_id)
+        with TRN:
+            sql = """DELETE FROM pm.study
+                     WHERE study_id = %s
                      RETURNING study_id"""
-            cur.execute(sql, sql_args)
-            if cur.fetchone() is None:
-                raise ValueError('Deletion of study %s failed.' % study_id)
-            cur.execute('COMMIT')
+            TRN.add(sql, [study_id])
+
+    def _sample_exists(self, sample_id):
+        """Checks whether a sample ID exists
+
+        Parameters
+        ----------
+        sample_id : str
+
+        Returns
+        ------
+        bool
+        """
+        sql = """SELECT EXISTS (SELECT 1 FROM pm.sample
+                                WHERE sample_id = %s)"""
+        return self._con.execute_fetchone(sql, [sample_id])[0]
+
+    def _barcode_exists(self, barcode):
+        """Confirms that a barcode exists
+
+        Parameters
+        ----------
+        barcode : str
+
+        Raises
+        ------
+        ValueError
+            If the barcode does not exist
+        """
+        sql = """SELECT EXISTS (SELECT 1 FROM barcodes.barcode
+                                WHERE barcode = %s)"""
+        if not self._con.execute_fetchone(sql, [barcode])[0]:
+            raise ValueError('Barcode %s does not exist.' % barcode)
+
+    def create_samples(self, samples):
+        """Creates samples
+
+        Parameters
+        ----------
+        samples : list of dict
+            {
+             id : str (mandatory),
+             is_blank : bool (optional, default: False),
+             barcode : str (optional),
+             notes : str (optional)
+            }
+
+        Raises
+        ------
+        ValueError
+            If there is error creating the samples
+        """
+        with TRN:
+            for sample in samples:
+                sample_id = sample['id']
+                if self._sample_exists(sample_id):
+                    raise ValueError('Sample ID %s already exists.'
+                                     % sample_id)
+                barcode = sample.get('barcode') or None
+                if barcode:
+                    self._barcode_exists(barcode)
+                is_blank = sample.get('is_blank') or False
+                notes = sample.get('notes') or None
+                sql = """INSERT INTO pm.sample (sample_id, is_blank, barcode,
+                                                notes)
+                         VALUES (%s, %s, %s, %s)
+                         RETURNING sample_id"""
+                TRN.add(sql, [sample_id, is_blank, barcode, notes])
+
+    def edit_samples(self, samples):
+        """Edits properties of existing samples
+
+        Parameters
+        ----------
+        samples : list of dict
+            {
+             id : str,
+                ID of the sample to edit
+             is_blank : bool (optional, default: False),
+             barcode : str (optional),
+             notes : str (optional)
+            }
+
+        Raises
+        ------
+        ValueError
+            If there is error editing the samples' properties
+        """
+        with TRN:
+            for sample in samples:
+                sample_id = sample['id']
+                if not self._sample_exists(sample_id):
+                    raise ValueError('Sample ID %s does not exist.'
+                                     % sample_id)
+                barcode = sample.get('barcode') or None
+                if barcode:
+                    self._barcode_exists(barcode)
+                is_blank = sample.get('is_blank') or False
+                notes = sample.get('notes') or None
+                sql = """UPDATE pm.sample
+                         SET is_blank = %s, barcode = %s, notes = %s
+                         WHERE sample_id = %s
+                         RETURNING sample_id"""
+                TRN.add(sql, [is_blank, barcode, notes, sample_id])
+
+    def read_samples(self, ids):
+        """Read properties of existing samples
+
+        Parameters
+        ----------
+        ids : list of str
+            Sample IDs to read
+
+        Returns
+        -------
+        list of dict
+            {is_blank : bool, barcode : str, notes : str}
+            In the same order as sample IDs
+
+        Raises
+        ------
+        ValueError
+            If there is error reading the samples' properties
+        """
+        samples = []
+        for sample_id in ids:
+            sql = """SELECT is_blank, barcode, notes FROM pm.sample
+                     WHERE sample_id = %s LIMIT 1"""
+            sql_args = [sample_id]
+            res = self._con.execute_fetchone(sql, sql_args)
+            if res is None:
+                raise ValueError('Sample ID %s does not exist.' % sample_id)
+            samples.append({'is_blank': res[0], 'barcode': res[1],
+                            'notes': res[2]})
+        return samples
+
+    def delete_samples(self, ids):
+        """Deletes existing samples
+
+        Parameters
+        ----------
+        ids : list of str
+            Sample IDs to delete
+
+        Raises
+        ------
+        ValueError
+            If there is error deleting the samples
+        """
+        with TRN:
+            for sample_id in ids:
+                if not self._sample_exists(sample_id):
+                    raise ValueError('Sample ID %s does not exist.'
+                                     % sample_id)
+                sql = """DELETE FROM pm.sample WHERE sample_id = %s
+                         RETURNING sample_id"""
+                TRN.add(sql, [sample_id])
 
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""
