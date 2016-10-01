@@ -2434,7 +2434,8 @@ class KniminAccess(object):
         Raises
         ------
         ValueError
-            If neither value is given, or either value already exists
+            If neither value is specified, or
+            If either value already exists
         """
         tags = ['Qiita study ID', 'Title']
         cols = [tag.lower().replace(' ', '_') for tag in tags]
