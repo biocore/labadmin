@@ -2426,16 +2426,18 @@ class KniminAccess(object):
 
         Parameters
         ----------
-        qiita_study_id : int
-        title : str
-        skip_id : int
-            Skip this ID in searching
+        qiita_study_id : int, optional
+        title : str, optional
+            Either qiita_study_id or title must be given to identify a study
+        skip_id : int, optional
+            Skip this study ID in searching
+            In function create_study, this is not used
+            In function edit_study, this is the current study to be edited
 
         Raises
         ------
         ValueError
-            If neither value is specified, or
-            If either value already exists
+            If neither value is given, or either value already exists
         """
         tags = ['Qiita study ID', 'Title']
         cols = [tag.lower().replace(' ', '_') for tag in tags]
@@ -2473,10 +2475,11 @@ class KniminAccess(object):
 
         Parameters
         ----------
-        qiita_study_id : int
-        title : str
-        alias : str
-        notes : str
+        qiita_study_id : int, optional
+        title : str, optional
+            Either qiita_study_id or title must be specified
+        alias : str, optional
+        notes : str, optional
 
         Returns
         -------
@@ -2500,10 +2503,11 @@ class KniminAccess(object):
         ----------
         study_id : int
             ID of the study to edit
-        qiita_study_id : int
-        title : str
-        alias : str
-        notes : str
+        qiita_study_id : int, optional
+        title : str, optional
+            Either qiita_study_id or title must be specified
+        alias : str, optional
+        notes : str, optional
         """
         self._study_exists(study_id)
         self._study_is_unique(qiita_study_id, title, study_id)
@@ -2595,10 +2599,10 @@ class KniminAccess(object):
         ----------
         samples : list of dict
             {
-             id : str (mandatory),
-             is_blank : bool (optional, default: False),
-             barcode : str (optional),
-             notes : str (optional)
+             id : str,
+             is_blank : bool, optional, default: False,
+             barcode : str, optional,
+             notes : str, optional
             }
 
         Raises
@@ -2632,9 +2636,9 @@ class KniminAccess(object):
             {
              id : str,
                 ID of the sample to edit
-             is_blank : bool (optional, default: False),
-             barcode : str (optional),
-             notes : str (optional)
+             is_blank : bool, optional, default: False,
+             barcode : str, optional,
+             notes : str, optional
             }
 
         Raises
@@ -2746,7 +2750,7 @@ class KniminAccess(object):
         Parameters
         ----------
         name : str
-        skip_id : int
+        skip_id : int, optional
             Skip this ID in searching
 
         Raises
@@ -2768,7 +2772,7 @@ class KniminAccess(object):
 
         Parameters
         ----------
-        barcode : str
+        email : str
 
         Raises
         ------
@@ -2780,14 +2784,13 @@ class KniminAccess(object):
         if not self._con.execute_fetchone(sql, [email])[0]:
             raise ValueError('Email %s does not exist.' % email)
 
-    def _plate_type_name_to_id(self, name):
+    def _plate_type_name_to_id(self, name=None):
         """Gets plate type ID by name
 
         Parameters
         ----------
-        name : str
-            Name of the plate type. If None, ID of the first plate type (i.e.,
-            96-well) will return
+        name : str, optional
+            Plate type name. If None, the first plate type will be selected
 
         Returns
         -------
@@ -2821,11 +2824,11 @@ class KniminAccess(object):
         Parameters
         ----------
         name : str
-        email : str
-        created_on: datetime
-        notes : str
-        plate_type : str
-            If None, the first plate type (i.e., 96-well) will be used
+        email : str, optional
+        created_on: datetime, optional
+        notes : str, optional
+        plate_type : str, optional
+            If None, the first plate type will be used
 
         Returns
         -------
@@ -2854,14 +2857,16 @@ class KniminAccess(object):
         id : int
             ID of the sample plate to edit
         name : str
-        email : str
-        created_on: datetime
-        notes : str
-        plate_type : str
-            If None, the first plate type (i.e., 96-well) will be used
+        email : str, optional
+        created_on: datetime, optional
+        notes : str, optional
+        plate_type : str, optional
+            If None, the first plate type will be used
         """
         self._sample_plate_exists(id)
         self._sample_plate_is_unique(name, id)
+        if email:
+            self._email_exists(email)
         plate_type_id = self._plate_type_name_to_id(plate_type)
         with TRN:
             sql = """UPDATE pm.sample_plate
