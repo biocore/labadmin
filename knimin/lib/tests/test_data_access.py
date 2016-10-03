@@ -586,7 +586,7 @@ class TestDataAccess(TestCase):
         db.delete_sample_plate(spid2)
         # Attempt to assign an invalid email to a sample plate
         with self.assertRaises(ValueError) as context:
-            db.edit_sample_plate(spid, email='not-an-email')
+            db.edit_sample_plate(spid, name='test_plate', email='not-an-email')
         err = 'Email not-an-email does not exist.'
         self.assertEqual(str(context.exception), err)
         # Attempt to edit a sample plate that does not exist
