@@ -543,6 +543,14 @@ class TestDataAccess(TestCase):
         self.assertGreater(spid, 0)
         obs = db.read_sample_plate(spid)
         self.assertDictEqual(obs, spinfo)
+        # Create a sample plate with the default plate type
+        spid2 = db.create_sample_plate('test_plate_2')
+        self.assertGreater(spid2, 0)
+        obs = db.read_sample_plate(spid2)
+        exp = {'name': 'test_plate_2', 'email': None, 'created_on': None,
+               'notes': None, 'plate_type': plate_type}
+        self.assertDictEqual(obs, exp)
+        db.delete_sample_plate(spid2)
         # Attempt to create a sample plate with a duplicate name
         with self.assertRaises(ValueError) as context:
             db.create_sample_plate(name='test_plate')
@@ -553,6 +561,12 @@ class TestDataAccess(TestCase):
         with self.assertRaises(ValueError) as context:
             db.create_sample_plate(name='test_plate_2', email='not-an-email')
         err = 'Email not-an-email does not exist.'
+        self.assertEqual(str(context.exception), err)
+        # Attempt to create a sample plate with an invalid plate type
+        with self.assertRaises(ValueError) as context:
+            db.create_sample_plate(name='test_plate_2',
+                                   plate_type='not-a-plate-type')
+        err = 'Plate type \'not-a-plate-type\' does not exist.'
         self.assertEqual(str(context.exception), err)
         db.delete_sample_plate(spid)
 
