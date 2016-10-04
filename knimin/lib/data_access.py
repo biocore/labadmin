@@ -2561,7 +2561,7 @@ class KniminAccess(object):
                 'notes': res[3]}
 
     def delete_study(self, study_id):
-        """Deletes an existing study
+        """Deletes an existing study and dissociates samples from it
 
         Parameters
         ----------
@@ -2570,6 +2570,7 @@ class KniminAccess(object):
         """
         self._study_exists(study_id)
         with TRN:
+            self._dissociate_all_samples_from_study(study_id)
             sql = """DELETE FROM pm.study
                      WHERE study_id = %s
                      RETURNING study_id"""
@@ -2735,9 +2736,10 @@ class KniminAccess(object):
         ------
         ValueError
             If at least one sample ID does not exist
-            If at least one sample is associated with a sample plate (in which
-            case, the sample plate has to be deleted prior to the deletion of
-            the sample)
+            If at least one sample is associated with a study
+            If at least one sample is associated with a sample plate
+            In the above two cases, the study / sample plate has to be deleted
+            prior to the deletion of the sample)
         """
         with TRN:
             for sample_id in ids:
