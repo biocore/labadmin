@@ -513,8 +513,18 @@ class TestDataAccess(TestCase):
             db.delete_samples(['123'])
             err = 'Sample ID 123 does not exist.'
             self.assertEqual(str(context.exception), err)
-        # Attempt to delete a sample that is associated with a sample plate
+        # Attempt to delete a sample that is associated with a study
         db.create_samples([{'id': '321'}])
+        study_id = db.create_study(title='Test study 1')
+        db.associate_samples_with_study(study_id, ['321'])
+        with self.assertRaises(ValueError) as context:
+            db.delete_samples(['321'])
+        err = ('Sample ID 321 cannot be deleted because it is associated with '
+               'studi(es) %s.' % study_id)
+        self.assertEqual(str(context.exception), err)
+        db.dissociate_samples_from_study(study_id, ['321'])
+        db.delete_study(study_id)
+        # Attempt to delete a sample that is associated with a sample plate
         spid = db.create_sample_plate(name='test_plate')
         splayout = [{'sample_id': '321', 'col': 1, 'row': 1}]
         db.write_sample_plate_layout(spid, splayout)
@@ -525,6 +535,94 @@ class TestDataAccess(TestCase):
         self.assertEqual(str(context.exception), err)
         db.delete_sample_plate(spid)
         db.delete_samples(['321'])
+
+    def test_associate_samples_with_study(self):
+        # Associate three samples with a study
+        study_id = db.create_study(title='Test study 1')
+        sample_ids = ['123', '456', '789']
+        db.create_samples([{'id': x} for x in sample_ids])
+        db.associate_samples_with_study(study_id, sample_ids)
+        obs = db.get_samples_associated_with_study(study_id)
+        self.assertListEqual(obs, sample_ids)
+        # Attempt to associate a non-existing sample with a study
+        with self.assertRaises(ValueError) as context:
+            db.associate_samples_with_study(study_id, ['321'])
+        err = 'Sample ID 321 does not exist.'
+        self.assertEqual(str(context.exception), err)
+        # Attempt to create an association that already exists
+        with self.assertRaises(ValueError) as context:
+            db.associate_samples_with_study(study_id, ['123'])
+        err = ('Study ID %s and sample ID 123 are already associated.'
+               % study_id)
+        self.assertEqual(str(context.exception), err)
+        # Attempt to associate a sample with a non-existing study
+        db._dissociate_all_samples_from_study(study_id)
+        db.delete_study(study_id)
+        with self.assertRaises(ValueError) as context:
+            db.associate_samples_with_study(study_id, ['123'])
+        err = 'Study ID %s does not exist.' % study_id
+        self.assertEqual(str(context.exception), err)
+        db.delete_samples(sample_ids)
+
+    def test_dissociate_samples_with_study(self):
+        # Dissociate three samples from a study
+        study_id = db.create_study(title='Test study 1')
+        sample_ids = ['123', '456', '789']
+        db.create_samples([{'id': x} for x in sample_ids])
+        db.associate_samples_with_study(study_id, sample_ids)
+        obs = db.get_samples_associated_with_study(study_id)
+        self.assertTrue(obs)
+        db.dissociate_samples_from_study(study_id, sample_ids)
+        obs = db.get_samples_associated_with_study(study_id)
+        self.assertListEqual(obs, [])
+        # Attempt to delete a non-existing association
+        with self.assertRaises(ValueError) as context:
+            db.dissociate_samples_from_study(study_id, ['123'])
+        err = 'Study ID %s and sample ID 123 are not associated.' % study_id
+        self.assertEqual(str(context.exception), err)
+        db.delete_study(study_id)
+        db.delete_samples(sample_ids)
+
+    def test_get_samples_associated_with_study(self):
+        # Retrieve three samples associated with a study
+        study_id = db.create_study(title='Test study 1')
+        sample_ids = ['123', '456', '789']
+        db.create_samples([{'id': x} for x in sample_ids])
+        db.associate_samples_with_study(study_id, sample_ids)
+        obs = db.get_samples_associated_with_study(study_id)
+        self.assertListEqual(obs, sample_ids)
+        db._dissociate_all_samples_from_study(study_id)
+        # Retrieve empty association with a study
+        obs = db.get_samples_associated_with_study(study_id)
+        self.assertListEqual(obs, [])
+        db.delete_study(study_id)
+        db.delete_samples(sample_ids)
+
+    def test_get_studies_associated_with_samples(self):
+        # Retrieve one study associated with one sample
+        study_ids = []
+        for title in ('Test study 1', 'Test study 2', 'Test study 3'):
+            study_ids.append(db.create_study(title=title))
+        sample_ids = ['123', '456', '789']
+        db.create_samples([{'id': x} for x in sample_ids])
+        db.associate_samples_with_study(study_ids[0], ['123'])
+        obs = db.get_studies_associated_with_samples(['123'])
+        self.assertListEqual(obs, [[study_ids[0]]])
+        # Retrieve two studies associated with two samples, respectively
+        db.associate_samples_with_study(study_ids[1], ['456'])
+        obs = db.get_studies_associated_with_samples(['123', '456'])
+        self.assertListEqual(obs, [[study_ids[0]], [study_ids[1]]])
+        # Retrieve two studies associated with one sample
+        db.associate_samples_with_study(study_ids[1], ['123'])
+        obs = db.get_studies_associated_with_samples(['123'])
+        self.assertListEqual(obs, [[study_ids[0], study_ids[1]]])
+        # Retrieve empty association with a sample
+        for study_id in study_ids:
+            db._dissociate_all_samples_from_study(study_id)
+            db.delete_study(study_id)
+        obs = db.get_studies_associated_with_samples(['123'])
+        self.assertListEqual(obs, [[]])
+        db.delete_samples(sample_ids)
 
     def test_create_sample_plate(self):
         # Create a sample plate
