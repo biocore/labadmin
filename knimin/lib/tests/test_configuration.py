@@ -23,12 +23,12 @@ class ConfigurationTests(TestCase):
             KniminConfig('does not exist')
 
         # test that expection is raised if not all sections are specified
-        self.config = tempfile.NamedTemporaryFile()
-        self.config.write(test_config[:100])
-        self.config.seek(0)
-        self.config_fp = self.config.name
+        config = tempfile.NamedTemporaryFile()
+        config.write(test_config[:100])
+        config.seek(0)
+        config_fp = config.name
         with self.assertRaises(ValueError):
-            KniminConfig(self.config_fp)
+            KniminConfig(config_fp)
 
     def test_get_main(self):
         config = KniminConfig(self.config_fp)
