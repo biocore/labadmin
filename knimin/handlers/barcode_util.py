@@ -76,7 +76,7 @@ class BarcodeUtilHelper(object):
                 email_msg = ("Sent email successfully to kit owner %s" %
                              login_email)
                 try:
-                    send_email(body_message, subject, login_email)
+                    send_email(body_message, subject, login_email, html=True)
                 except:
                     email_msg = ("Email sending to (%s) failed (barcode: %s)!"
                                  "<br/>" % (login_email, barcode))
@@ -105,66 +105,59 @@ class BarcodeUtilHelper(object):
         if email_type in ('0', '-1'):
             subject = u'ACTION REQUIRED - Assign your samples in American Gut'
             body_message = u"""
-Dear {name},
-
-We have recently received your sample barcode: {barcode}, but we cannot process
-your sample until the following steps have been completed online. Please ensure
-that you have completed both steps outlined below:
-
-1. Submit your consent form and survey
-
-Consent and survey depend on sample type. For human samples, the consent form
+<html>
+<body>
+<p>Dear {name},</p>
+<p>We have recently received your sample barcode: {barcode}, but we cannot
+process your sample until the following steps have been completed online.
+Please ensure that you have completed <b>both</b> steps outlined below:</p>
+<ol>
+<li><b>Submit your consent form and survey-<i>if you have already done these
+please proceed to step 2 below.</i></b><br/>For human samples, the consent form
 is mandatory. Even if you elect not to answer the questions on the survey,
 please click through and submit the survey in order to ensure we receive your
-completed consent form.
-For pet samples, we ask that you fill out a short survey. No consent form is
-necessary.
-For environmental samples, the consent form and survey are not necessary.
-
-To begin the consent/survey process:
-  * Click on the "Add Source Survey" tab on the main page.
-  * Select the appropriate category (human, animal, or environmental) for your
-   sample.
-
-2. Associate your sample(s) with your survey(s)
-
-This step is important as it connects your consent form to your sample. We
-cannot legally work with your sample until this step has been completed. For
-human and pet samples, the survey must be completed before doing this step.
-
-To associate your sample with your survey:
-  * Log into your account and click the "Associate/Log Sample" button at the
-   bottom of the left-hand navigation menu. This will bring you to a screen
-   with the heading "Choose your sample source".
-  * Click on the name of the participant that the sample belongs to.
-  * Fill out the required fields and submit.
-
-The American Gut participant website is located at
-https://microbio.me/americangut
-The British Gut participant website is located at
-https://microbio.me/britishgut
-If you have any questions, please contact us at info@americangut.org.
-
-Thank you,
-American Gut Team
-"""
+completed consent form.</li>
+<li><b>Assign your sample(s) to your survey(s)</b><br/>This step is critical as
+it connects your consent form to your sample. We cannot legally work with your
+sample until this step has been completed.</li>
+</ol>
+<p>To assign your sample to your survey:</p>
+<ul>
+<li>Log into your account and click the &quot;Assign&quot; button at the bottom
+of the left-hand navigation menu. This will bring you to a screen with the
+heading &quot;Choose your sample source&quot;.</li>
+<li>Click on the name of the participant that the sample belongs to.</li>
+<li>Fill out the required fields and submit.</li>
+</ul>
+<p>
+The American Gut participant website is located at<br/>
+<a href='https://microbio.me/americangut'>https://microbio.me/americangut</a>
+<br/>The British Gut participant website is located at<br/>
+<a href='https://microbio.me/britishgut'>https://microbio.me/britishgut</a>
+<br/>If you have any questions, please contact us at
+<a href='mailto:info@americangut.org'>info@americangut.org</a>.</p>
+<p>Thank you,<br/>
+American Gut Team</p>
+</body>
+</html>"""
 
             body_message = body_message.format(name=login_user,
                                                barcode=barcode)
         elif email_type == '1':
             subject = (u'American Gut Sample with Barcode %s is Received.'
                        % barcode)
-            body_message = u"""
-Dear {name},
+            body_message = u"""<html><body><p>
+Dear {name},</p>
 
-We have recently received your sample with barcode {barcode} dated
+<p>We have recently received your sample with barcode {barcode} dated
 {sample_date} {sample_time} and we have begun processing it.  Please see our
-FAQ section for when you can expect results.
-(https://microbio.me/AmericanGut/faq/#faq4)
+FAQ section for when you can expect results.<br/>
+(<a href='https://microbio.me/AmericanGut/faq/#faq4'
+>https://microbio.me/AmericanGut/faq/#faq4</a>)</p>
 
-Thank you for your participation!
+<p>Thank you for your participation!</p>
 
---American Gut Team--
+<p>--American Gut Team--</p></body></html>
 """
             body_message = body_message.format(name=login_user,
                                                barcode=barcode,
