@@ -28,9 +28,10 @@ class testAGEditParticipantHandler(TestHandlerBase):
                 key = 'zipcode'
             elif key == 'ag_login_id':
                 continue
+            value = value.decode('utf-8')
             self.assertIn(('</td><td><input type="text" name="%s" id="%s" '
                            'value="%s"></td></tr>') % (key, key, value),
-                          response.body)
+                          response.body.decode('utf-8'))
 
         # check what happens if user with email does not exist.
         # TODO: we should create a better error message in the handler to be
@@ -51,7 +52,7 @@ class testAGEditParticipantHandler(TestHandlerBase):
         name = 'TESTDUDE'
         address = '123 fake test street'
         city = 'testcity'
-        state = 'teststate'
+        state = '\xc3\x8ele-de-France'
         zipcode = '1L2 2G3'
         country = 'United Kingdom'
         ag_login_id = '4cc7c201-7301-4088-98b7-8ff6351fd452'
@@ -62,12 +63,27 @@ class testAGEditParticipantHandler(TestHandlerBase):
                               'name': name,
                               'address': address,
                               'city': city,
-                              'state': state,
+                              'state': state.decode('utf-8'),
                               'zipcode': zipcode,
                               'country': country,
                               'ag_login_id': ag_login_id})
         self.assertEqual(response.code, 200)
         self.assertIn('Participant was updated successfully', response.body)
+
+        # pull it back out and verify
+        response = self.get('/ag_edit_participant/?email=%s' % email)
+        self.assertEqual(response.code, 200)
+        # check that all relevant user information is rendered on HTML side
+        login = db.get_login_by_email(email)
+        for key, value in login.items():
+            if key == 'zip':
+                key = 'zipcode'
+            elif key == 'ag_login_id':
+                continue
+            value = value.decode('utf-8')
+            self.assertIn(('</td><td><input type="text" name="%s" id="%s" '
+                           'value="%s"></td></tr>') % (key, key, value),
+                          response.body.decode('utf-8'))
 
         # wrong ag_login_id
         response = self.post('/ag_edit_participant/',
@@ -75,7 +91,7 @@ class testAGEditParticipantHandler(TestHandlerBase):
                               'name': name,
                               'address': address,
                               'city': city,
-                              'state': state,
+                              'state': state.decode('utf-8'),
                               'zipcode': zipcode,
                               'country': country,
                               'ag_login_id': 'wrongID'})
@@ -87,7 +103,7 @@ class testAGEditParticipantHandler(TestHandlerBase):
                              {'email': email,
                               'name': name,
                               'city': city,
-                              'state': state,
+                              'state': state.decode('utf-8'),
                               'zipcode': zipcode,
                               'country': country,
                               'ag_login_id': ag_login_id})
