@@ -698,6 +698,7 @@ class KniminAccess(object):
                                  round(elevation::numeric, 1), state
                              FROM zipcodes"""
         zip_lookup = defaultdict(dict)
+
         def _decode_zip_lookup(item):
             if item is None:
                 return 'Unspecified'
