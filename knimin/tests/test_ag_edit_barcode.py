@@ -21,7 +21,6 @@ class TestAGEditBarcodeHandler(TestHandlerBase):
         # check that error is raised for unknown barcode
         response = self.get('/ag_edit_barcode/', {'barcode': 'unknown'})
         self.assertEqual(response.code, 500)
-        self.assertRaises(KeyError)
 
         # make sure return code 400 is returned, if barcode is not given
         response = self.get('/ag_edit_barcode/', {})
