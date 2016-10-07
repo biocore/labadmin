@@ -698,9 +698,15 @@ class KniminAccess(object):
                                  round(elevation::numeric, 1), state
                              FROM zipcodes"""
         zip_lookup = defaultdict(dict)
+
+        def _decode_zip_lookup(item):
+            if item is None:
+                return 'Unspecified'
+            else:
+                return item.decode('utf-8')
+
         for row in self._con.execute_fetchall(zipcode_sql):
-            zip_lookup[row[0]][row[1]] = map(
-                lambda x: x if x is not None else 'Unspecified', row[2:])
+            zip_lookup[row[0]][row[1]] = map(_decode_zip_lookup, row[2:])
 
         country_sql = "SELECT country, EBI from ag.iso_country_lookup"
         country_lookup = dict(self._con.execute_fetchall(country_sql))
