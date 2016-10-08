@@ -713,34 +713,35 @@ class TestDataAccess(TestCase):
 
     def test_write_sample_plate_layout(self):
         # Populate a sample plate with two samples
-        samples = [{'id': '123'}, {'id': '456'}, {'id': '789'}]
+        sid = db.create_study(title='study')
+        samples = [{'id': x, 'study_ids': [sid]} for x in ('1', '2', '3')]
         db.create_samples(samples)
         spid = db.create_sample_plate(name='test_plate')
         splayout = [
-            {'sample_id': '123', 'col': 1, 'row': 1},
-            {'sample_id': '456', 'col': 1, 'row': 2, 'name': 'B'}
+            {'sample_id': '1', 'col': 1, 'row': 1},
+            {'sample_id': '2', 'col': 1, 'row': 2, 'name': 'B'}
         ]
         db.write_sample_plate_layout(spid, splayout)
         obs = db.read_sample_plate_layout(spid)
         exp = [
-            {'sample_id': '123', 'col': 1, 'row': 1, 'name': None,
+            {'sample_id': '1', 'col': 1, 'row': 1, 'name': None,
              'notes': None},
-            {'sample_id': '456', 'col': 1, 'row': 2, 'name': 'B',
+            {'sample_id': '2', 'col': 1, 'row': 2, 'name': 'B',
              'notes': None}
         ]
         self.assertListEqual(obs, exp)
         # Clear the exisiting layout and add one sample
-        splayout = [{'sample_id': '789', 'col': 1, 'row': 3, 'notes': 'Hi!'}]
+        splayout = [{'sample_id': '3', 'col': 1, 'row': 3, 'notes': 'Hi!'}]
         db.write_sample_plate_layout(spid, splayout)
         obs = db.read_sample_plate_layout(spid)
-        exp = [{'sample_id': '789', 'col': 1, 'row': 3, 'name': None,
+        exp = [{'sample_id': '3', 'col': 1, 'row': 3, 'name': None,
                 'notes': 'Hi!'}]
         self.assertListEqual(obs, exp)
         # Attempt to populate a sample plate with a non-existing sample
-        splayout = [{'sample_id': '321', 'col': 2, 'row': 1}]
+        splayout = [{'sample_id': '4', 'col': 2, 'row': 1}]
         with self.assertRaises(ValueError) as context:
             db.write_sample_plate_layout(spid, splayout)
-        err = 'Sample ID 321 does not exist.'
+        err = 'Sample ID 4 does not exist.'
         self.assertEqual(str(context.exception), err)
         # Attempt to populate a sample plate that does not exist
         db.delete_sample_plate(spid)
@@ -749,25 +750,27 @@ class TestDataAccess(TestCase):
         err = 'Sample plate ID %s does not exist.' % spid
         self.assertEqual(str(context.exception), err)
         db.delete_samples([x['id'] for x in samples])
+        db.delete_study(sid)
 
     def test_read_sample_plate_layout(self):
         # Read a sample plate's layout containing three sample
-        samples = [{'id': '123'}, {'id': '456'}, {'id': '789'}]
+        sid = db.create_study(title='study')
+        samples = [{'id': x, 'study_ids': [sid]} for x in ('1', '2', '3')]
         db.create_samples(samples)
         spid = db.create_sample_plate(name='test_plate')
         splayout = [
-            {'sample_id': '123', 'col': 1, 'row': 1},
-            {'sample_id': '456', 'col': 1, 'row': 2, 'name': 'B'},
-            {'sample_id': '789', 'col': 1, 'row': 3, 'notes': 'Hi!'}
+            {'sample_id': '1', 'col': 1, 'row': 1},
+            {'sample_id': '2', 'col': 1, 'row': 2, 'name': 'B'},
+            {'sample_id': '3', 'col': 1, 'row': 3, 'notes': 'Hi!'}
         ]
         db.write_sample_plate_layout(spid, splayout)
         obs = db.read_sample_plate_layout(spid)
         exp = [
-            {'sample_id': '123', 'col': 1, 'row': 1, 'name': None,
+            {'sample_id': '1', 'col': 1, 'row': 1, 'name': None,
              'notes': None},
-            {'sample_id': '456', 'col': 1, 'row': 2, 'name': 'B',
+            {'sample_id': '2', 'col': 1, 'row': 2, 'name': 'B',
              'notes': None},
-            {'sample_id': '789', 'col': 1, 'row': 3, 'name': None,
+            {'sample_id': '3', 'col': 1, 'row': 3, 'name': None,
              'notes': 'Hi!'}
         ]
         self.assertListEqual(obs, exp)
@@ -782,14 +785,16 @@ class TestDataAccess(TestCase):
         err = 'Sample plate ID %s does not exist.' % spid
         self.assertEqual(str(context.exception), err)
         db.delete_samples([x['id'] for x in samples])
+        db.delete_study(sid)
 
     def test_delete_sample_plate(self):
         # Delete a sample plate and its layout
         spid = db.create_sample_plate(name='test_plate')
         obs = db.read_sample_plate(spid)
         self.assertIsNotNone(obs)
-        db.create_samples([{'id': '123'}])
-        splayout = [{'sample_id': '123', 'col': 1, 'row': 1}]
+        sid = db.create_study(title='study')
+        db.create_samples([{'id': '1', 'study_ids': [sid]}])
+        splayout = [{'sample_id': '1', 'col': 1, 'row': 1}]
         db.write_sample_plate_layout(spid, splayout)
         obs = db.read_sample_plate_layout(spid)
         self.assertTrue(obs)
@@ -800,7 +805,8 @@ class TestDataAccess(TestCase):
         self.assertEqual(str(context.exception), err)
         obs = db._sample_plate_layout_exists(spid)
         self.assertFalse(obs)
-        db.delete_samples(['123'])
+        db.delete_samples(['1'])
+        db.delete_study(sid)
         # Attempt to delete a sample plate that does not exist
         with self.assertRaises(ValueError) as context:
             db.delete_sample_plate(spid)
