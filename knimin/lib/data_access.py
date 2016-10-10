@@ -2426,7 +2426,10 @@ class KniminAccess(object):
                 raise ValueError('Study ID %s does not exist.' % study_id)
 
     def _study_is_unique(self, qiita_study_id=None, title=None, skip_id=None):
-        """Confirms that a Qiita study ID and/or a title is not duplicate
+        """Confirms that a study is unique
+
+        Confirms that the Qiita study ID and/or the title to be assigned to a
+        study is not duplicate.
 
         Parameters
         ----------
@@ -2446,38 +2449,29 @@ class KniminAccess(object):
         ValueError
             If neither value is given, or either value already exists
         """
+        cols = ['qiita_study_id', 'title']
+        vals = [vars()[col] for col in cols]
+        tags = [x.capitalize().replace('_', ' ').replace(' id', ' ID')
+                for x in cols]
+        if all(val is None for val in vals):
+            raise ValueError('Either %s or %s must be specified.'
+                             % (tags[0], tags[1]))
+        dups = [0 for tag in tags]
         with TRN:
-            tags = ['Qiita study ID', 'Title']
-            cols = [tag.lower().replace(' ', '_') for tag in tags]
-            vals = [vars()[col] for col in cols]
-            if all(val is None for val in vals):
-                raise ValueError('Either %s or %s must be specified.'
-                                 % (tags[0], tags[1]))
-            dups = [0 for tag in tags]
-            for i in range(len(vals)):
-                if tags[i]:
-                    sql = """SELECT study_id
-                             FROM pm.study
-                             WHERE {} = %s
-                             AND study_id IS DISTINCT FROM %s
-                             """.format(cols[i])
-                    TRN.add(sql, [vals[i], skip_id])
+            sql = """SELECT study_id
+                     FROM pm.study
+                     WHERE {} = %s
+                     AND study_id IS DISTINCT FROM %s"""
+            errs = []
+            err_msg = "%s %s conflicts with exisiting study %s."
+            for col, val, tag in zip(cols, vals, tags):
+                if val:
+                    TRN.add(sql.format(col), [val, skip_id])
                     res = TRN.execute_fetchflatten()
                     if res:
-                        dups[i] = res[0]
-            if dups[0] and len(set(dups)) <= 1:
-                raise ValueError('%s %s and %s %s conflict with exisiting '
-                                 'study %s.' % (tags[0], repr(vals[0]),
-                                                tags[1], repr(vals[1]),
-                                                dups[0]))
-            else:
-                errs = []
-                for i in range(len(tags)):
-                    if dups[i]:
-                        errs.append('%s %s conflicts with exisiting study %s.'
-                                    % (tags[i], repr(vals[i]), dups[i]))
-                if errs:
-                    raise ValueError(' '.join(errs))
+                        errs.append(err_msg % (tag, repr(val), res[0]))
+            if errs:
+                raise ValueError('\n'.join(errs))
 
     def create_study(self, qiita_study_id=None, title=None, alias=None,
                      notes=None):
@@ -2569,9 +2563,10 @@ class KniminAccess(object):
             return dict(res[0])
 
     def delete_study(self, study_id):
-        """Deletes an existing study, deletes samples that are exclusively
-        associated with it, and dissociates samples that are associated with it
-        and one or more other studies
+        """Deletes an existing study
+
+        Samples exclusively associated with the study will be deleted. Samples
+        associated with it but also with other studies will be disassociated.
 
         Parameters
         ----------
@@ -2655,42 +2650,46 @@ class KniminAccess(object):
                                      ', '.join(sorted(res)))
 
     def _validate_samples(self, samples):
-        """Confirms that the samples to be created or edited have valid
-        barcodes and study IDs
+        """Validate sample properties
+
+        Confirms that the barcodes and study IDs to be assigned to samples are
+        valid.
 
         Parameters
         ----------
         samples : list of dict
             {barcode : str, optional,
-                Assigns a barcode to the sample
+                Barcode to be assigned to the sample
              study_ids : list of int, optional
-                Associates the sample with one or more studies}
+                One or more study IDs to be associateed with the sample}
 
         Raises
         ------
         ValueError
-            If at least on study ID does not exist
+            If one or more study IDs do not exist
             If one or more sample barcodes do not exist
         """
         with TRN:
             study_ids = set().union(*[x['study_ids'] for x in samples
                                       if 'study_ids' in x])
-            for study_id in study_ids:
-                self._study_exists(study_id)
-            barcodes = [x['barcode'] for x in samples if 'barcode' in x]
-            if barcodes:
-                sql = """SELECT barcode
-                         FROM barcodes.barcode
-                         WHERE barcode IN %s"""
-                TRN.add(sql, [tuple(barcodes)])
-                res = set(barcodes) - set([x[0] for x in
-                                          TRN.execute_fetchindex()])
-                if res:
-                    raise ValueError('Barcode(s) %s do not exist.' %
-                                     ', '.join(sorted(res)))
+            barcodes = set([x['barcode'] for x in samples if 'barcode' in x])
+            cols = ['barcode', 'study_id']
+            tabs = ['barcodes.barcode', 'pm.study']
+            vals = [vars()[col + 's'] for col in cols]
+            tags = [x.capitalize().replace('_', ' ').replace(' id', ' ID') +
+                    '(s)' for x in cols]
+            sql = """SELECT {} FROM {} WHERE {} IN %s"""
+            err_msg = '%s %s do not exist.'
+            for col, tab, val, tag in zip(cols, tabs, vals, tags):
+                if val:
+                    TRN.add(sql.format(col, tab, col), [tuple(val)])
+                    res = val - set([x[0] for x in TRN.execute_fetchindex()])
+                    if res:
+                        val_str = ', '.join(str(x) for x in sorted(res))
+                        raise ValueError(err_msg % (tag, val_str))
 
     def create_samples(self, samples):
-        """Creates samples and associate them with studies
+        """Creates samples and associates them with studies
 
         Parameters
         ----------
@@ -2717,16 +2716,16 @@ class KniminAccess(object):
             sample_ids = [x['id'] for x in samples]
             self._samples_exist(sample_ids, exist=False)
             self._validate_samples(samples)
+            sql1 = """INSERT INTO pm.sample (sample_id, is_blank, barcode,
+                                             notes)
+                      VALUES (%s, %s, %s, %s)"""
+            sql2 = """INSERT INTO pm.study_sample (study_id, sample_id)
+                      SELECT study_ids, %s
+                      FROM unnest(%s) study_ids"""
             for sample in samples:
-                sql = """INSERT INTO pm.sample (sample_id, is_blank, barcode,
-                                                notes)
-                         VALUES (%s, %s, %s, %s)"""
-                TRN.add(sql, [sample['id'], sample.get('is_blank', False),
-                              sample.get('barcode'), sample.get('notes')])
-                sql = """INSERT INTO pm.study_sample (study_id, sample_id)
-                         SELECT study_ids, %s
-                         FROM unnest(%s) study_ids"""
-                TRN.add(sql, [sample['id'], sample['study_ids']])
+                TRN.add(sql1, [sample['id'], sample.get('is_blank', False),
+                               sample.get('barcode'), sample.get('notes')])
+                TRN.add(sql2, [sample['id'], sample['study_ids']])
             TRN.execute()
 
     def edit_samples(self, samples):
@@ -2757,22 +2756,22 @@ class KniminAccess(object):
             sample_ids = [x['id'] for x in samples]
             self._samples_exist(sample_ids)
             self._validate_samples(samples)
+            sql1 = """UPDATE pm.sample
+                      SET is_blank = %s, barcode = %s, notes = %s
+                      WHERE sample_id = %s"""
+            sql2 = """DELETE FROM pm.study_sample
+                      WHERE sample_id = %s"""
+            sql3 = """INSERT INTO pm.study_sample (study_id, sample_id)
+                      SELECT study_ids, %s
+                      FROM unnest(%s) study_ids"""
             for sample in samples:
                 if any(x in sample for x in ['is_blank', 'barcode', 'notes']):
-                    sql = """UPDATE pm.sample
-                             SET is_blank = %s, barcode = %s, notes = %s
-                             WHERE sample_id = %s"""
-                    TRN.add(sql, [sample.get('is_blank', False),
-                                  sample.get('barcode'), sample.get('notes'),
-                                  sample['id']])
+                    TRN.add(sql1, [sample.get('is_blank', False),
+                                   sample.get('barcode'), sample.get('notes'),
+                                   sample['id']])
                 if 'study_ids' in sample:
-                    sql = """DELETE FROM pm.study_sample
-                             WHERE sample_id = %s"""
-                    TRN.add(sql, [sample['id']])
-                    sql = """INSERT INTO pm.study_sample (study_id, sample_id)
-                             SELECT study_ids, %s
-                             FROM unnest(%s) study_ids"""
-                    TRN.add(sql, [sample['id'], sample['study_ids']])
+                    TRN.add(sql2, [sample['id']])
+                    TRN.add(sql3, [sample['id'], sample['study_ids']])
             TRN.execute()
 
     def read_samples(self, ids):
@@ -2851,8 +2850,10 @@ class KniminAccess(object):
             TRN.execute()
 
     def get_samples_by_study(self, study_id):
-        """Retrieves IDs of all samples associated with a study, and whether
-        they are also associated with one or more other studies
+        """Gets samples associated with a study
+
+        Retrieves IDs of all samples associated with a study, and whether
+        they are also associated with other studies.
 
         Parameters
         ----------
@@ -3058,7 +3059,7 @@ class KniminAccess(object):
             TRN.execute()
 
     def read_sample_plate(self, id):
-        """Reads properties of an existing a sample plate
+        """Reads properties of a sample plate
 
         Parameters
         ----------
@@ -3084,8 +3085,10 @@ class KniminAccess(object):
             return dict(TRN.execute_fetchindex()[0])
 
     def _sample_plate_layout_exists(self, id):
-        """Checks whether the layout of a sample plate by ID (at least one
-        sample-to-well record) exists
+        """Checks whether the layout of a sample plate exists
+
+        The layout of a sample plate exists when at least one sample-to-well
+        record exists.
 
         Parameters
         ----------
@@ -3173,7 +3176,7 @@ class KniminAccess(object):
             return [dict(x) for x in TRN.execute_fetchindex()]
 
     def delete_sample_plate(self, id):
-        """Deletes an existing sample plate and its layout
+        """Deletes a sample plate and its layout
 
         Parameters
         ----------
