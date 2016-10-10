@@ -356,8 +356,9 @@ class TestDataAccess(TestCase):
         # Attempt to create a study with duplicate Qiita study ID and title
         with self.assertRaises(ValueError) as context:
             db.create_study(qiita_study_id=123, title='Test study 1')
-        err = ('Qiita study ID 123 and Title \'Test study 1\' conflict with '
-               'exisiting study %s.' % sid)
+        err = ('Qiita study ID 123 conflicts with exisiting study %s.\n'
+               'Title \'Test study 1\' conflicts with exisiting study %s.'
+               % (sid, sid))
         self.assertEqual(str(context.exception), err)
         db.delete_study(sid)
 
@@ -515,7 +516,7 @@ class TestDataAccess(TestCase):
         db.delete_study(sid)
         with self.assertRaises(ValueError) as context:
             db.edit_samples([{'id': '1', 'study_ids': [sid]}])
-        err = 'Study ID %s does not exist.' % sid
+        err = 'Study ID(s) %s do not exist.' % sid
         self.assertEqual(str(context.exception), err)
         # Attempt to edit a non-existing sample
         db.delete_samples(['1'])
