@@ -2456,7 +2456,6 @@ class KniminAccess(object):
         if all(val is None for val in vals):
             raise ValueError('Either %s or %s must be specified.'
                              % (tags[0], tags[1]))
-        dups = [0 for tag in tags]
         with TRN:
             sql = """SELECT study_id
                      FROM pm.study
@@ -2675,7 +2674,7 @@ class KniminAccess(object):
             barcodes = set([x['barcode'] for x in samples if 'barcode' in x])
             cols = ['barcode', 'study_id']
             tabs = ['barcodes.barcode', 'pm.study']
-            vals = [vars()[col + 's'] for col in cols]
+            vals = [barcodes, study_ids]
             tags = [x.capitalize().replace('_', ' ').replace(' id', ' ID') +
                     '(s)' for x in cols]
             sql = """SELECT {} FROM {} WHERE {} IN %s"""
