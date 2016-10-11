@@ -2450,7 +2450,7 @@ class KniminAccess(object):
             If neither value is given, or either value already exists
         """
         cols = ['qiita_study_id', 'title']
-        vals = [vars()[col] for col in cols]
+        vals = [qiita_study_id, title]
         tags = [x.capitalize().replace('_', ' ').replace(' id', ' ID')
                 for x in cols]
         if all(val is None for val in vals):
@@ -2637,7 +2637,7 @@ class KniminAccess(object):
                      FROM pm.sample
                      WHERE sample_id IN %s"""
             TRN.add(sql, [tuple(sample_ids)])
-            res = [x[0] for x in TRN.execute_fetchindex()]
+            res = TRN.execute_fetchflatten()
             if exist:
                 res = set(sample_ids) - set(res)
                 if res:
@@ -2682,7 +2682,7 @@ class KniminAccess(object):
             for col, tab, val, tag in zip(cols, tabs, vals, tags):
                 if val:
                     TRN.add(sql.format(col, tab, col), [tuple(val)])
-                    res = val - set([x[0] for x in TRN.execute_fetchindex()])
+                    res = val - set(TRN.execute_fetchflatten())
                     if res:
                         val_str = ', '.join(str(x) for x in sorted(res))
                         raise ValueError(err_msg % (tag, val_str))
