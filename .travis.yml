@@ -24,5 +24,6 @@ script:
   - cp $TRAVIS_BUILD_DIR/knimin/config.txt.example $TRAVIS_BUILD_DIR/knimin/config.txt
   - nosetests --with-doctest --with-coverage
   - flake8 knimin setup.py scripts
+  - phantomjs kinimi/tests/javascript/runner.js kinimi/tests/javascript/index.html
 after_success:
   - coveralls
