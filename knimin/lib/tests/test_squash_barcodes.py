@@ -9,11 +9,11 @@ import knimin.lib.squash_barcodes as m
 
 class SquashBarcodesTests(TestCase):
     def test_build_barcodes_pdf(self):
-        self.assertIn('Length 10559', m.build_barcodes_pdf(['000000011']))
+        self.assertIn('%PDF-1.4\n%', m.build_barcodes_pdf(['000000011']))
 
         old_get_image = m.get_image
 
-        # replace get_image method to change behaviour
+        # replace get_image method to change behaviour.
         def mock_get_image1(barcodes):
             font = join(dirname(realpath(__file__)), '../', 'FreeSans.ttf')
             for b in barcodes:
