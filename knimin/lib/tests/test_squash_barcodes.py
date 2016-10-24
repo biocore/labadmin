@@ -13,7 +13,7 @@ class SquashBarcodesTests(TestCase):
 
         old_get_image = m.get_image
 
-        # replace get_image method to change behaviour
+        # replace get_image method to change behaviour.
         def mock_get_image1(barcodes):
             font = join(dirname(realpath(__file__)), '../', 'FreeSans.ttf')
             for b in barcodes:
