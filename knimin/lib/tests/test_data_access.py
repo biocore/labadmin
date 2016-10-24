@@ -19,42 +19,10 @@ class TestDataAccess(TestCase):
             db.add_external_survey('Vioscreen', 'FFQ', 'http://vioscreen.com')
         except ValueError:
             pass
-        # Populate some field options
-        sql = """INSERT INTO pm.plate_type (name, cols, rows, notes)
-                 VALUES ('96-well', 12, 8, 'Standard 96-well plate')"""
-        db._con.execute(sql)
-        sql = """INSERT INTO pm.extraction_robot (name) VALUES ('HOWE_KF1'),
-                 ('HOWE_KF2'), ('HOWE_KF3'), ('HOWE_KF4')"""
-        db._con.execute(sql)
-        sql = """INSERT INTO pm.extraction_tool (name) VALUES ('108379Z')"""
-        db._con.execute(sql)
-        sql = """INSERT INTO pm.processing_robot (name) VALUES ('ROBE'),
-                 ('RIKE'), ('JERE'), ('CARMEN')"""
-        sql = """INSERT INTO pm.tm300_8_tool (name) VALUES ('208484Z'),
-                 ('311318B'), ('109375A'), ('3076189')"""
-        sql = """INSERT INTO pm.tm50_8_tool (name) VALUES ('108364Z'),
-                 ('311426B'), ('311441B'), ('409172Z')"""
-        db._con.execute(sql)
-        sql = """INSERT INTO pm.extraction_kit_lot (name) VALUES ('PM16B11')"""
-        db._con.execute(sql)
-        sql = """INSERT INTO pm.master_mix_lot (name) VALUES ('14459')"""
-        db._con.execute(sql)
-        sql = """INSERT INTO pm.water_lot (name) VALUES ('RNBD9959')"""
-        db._con.execute(sql)
 
     def tearDown(self):
         db._clear_table('external_survey_answers', 'ag')
         db._revert_ready(['000023299'])
-        # Remove populated field options
-        db._clear_table('plate_type', 'pm')
-        db._clear_table('extraction_robot', 'pm')
-        db._clear_table('extraction_tool', 'pm')
-        db._clear_table('processing_robot', 'pm')
-        db._clear_table('tm300_8_tool', 'pm')
-        db._clear_table('tm50_8_tool', 'pm')
-        db._clear_table('extraction_kit_lot', 'pm')
-        db._clear_table('master_mix_lot', 'pm')
-        db._clear_table('water_lot', 'pm')
 
     def test_pulldown_third_party(self):
         # Add survey answers
@@ -565,7 +533,9 @@ class TestDataAccess(TestCase):
             err = 'Sample ID(s) 1 do not exist.'
             self.assertEqual(str(context.exception), err)
         # Attempt to delete a sample that is associated with a sample plate
-        spid = db.create_sample_plate(name='plate')
+        sql = """SELECT plate_type_id FROM pm.plate_type LIMIT 1"""
+        ptid = db._con.execute_fetchone(sql)[0]
+        spid = db.create_sample_plate('test_plate', ptid)
         splayout = [{'sample_id': '3', 'col': 1, 'row': 1}]
         db.write_sample_plate_layout(spid, splayout)
         with self.assertRaises(ValueError) as context:
@@ -608,79 +578,85 @@ class TestDataAccess(TestCase):
 
     def test_create_sample_plate(self):
         # Create a sample plate
+        sql = """SELECT plate_type_id FROM pm.plate_type LIMIT 1"""
+        ptid = db._con.execute_fetchone(sql)[0]
         sql = """SELECT email FROM ag.labadmin_users LIMIT 1"""
         email = db._con.execute_fetchone(sql)[0]
         created_on = datetime.datetime.combine(datetime.date.today(),
                                                datetime.time.min)
-        sql = """SELECT name FROM pm.plate_type LIMIT 1"""
-        plate_type = db._con.execute_fetchone(sql)[0]
         spinfo = {'name': 'test_plate',
+                  'plate_type_id': ptid,
                   'email': email,
                   'created_on': created_on,
-                  'notes': 'Hi!',
-                  'plate_type': plate_type}
+                  'notes': 'Hi!'}
         spid = db.create_sample_plate(**spinfo)
         self.assertGreater(spid, 0)
         obs = db.read_sample_plate(spid)
         self.assertDictEqual(obs, spinfo)
         # Create a sample plate with the default plate type
-        spid2 = db.create_sample_plate('test_plate_2')
+        spid2 = db.create_sample_plate('test_plate_2', ptid)
         self.assertGreater(spid2, 0)
         obs = db.read_sample_plate(spid2)
-        exp = {'name': 'test_plate_2', 'email': None, 'created_on': None,
-               'notes': None, 'plate_type': plate_type}
+        exp = {'name': 'test_plate_2',
+               'plate_type_id': ptid,
+               'email': None,
+               'created_on': None,
+               'notes': None}
         self.assertDictEqual(obs, exp)
         db.delete_sample_plate(spid2)
         # Attempt to create a sample plate with a duplicate name
         with self.assertRaises(ValueError) as context:
-            db.create_sample_plate(name='test_plate')
+            db.create_sample_plate('test_plate', ptid)
         err = ('Name \'test_plate\' conflicts with exisiting sample plate %s.'
                % spid)
         self.assertEqual(str(context.exception), err)
         # Attempt to create a sample plate with an invalid email
         with self.assertRaises(ValueError) as context:
-            db.create_sample_plate(name='test_plate_2', email='not-an-email')
+            db.create_sample_plate('test_plate_2', ptid, email='not-an-email')
         err = 'Email not-an-email does not exist.'
         self.assertEqual(str(context.exception), err)
         # Attempt to create a sample plate with an invalid plate type
         with self.assertRaises(ValueError) as context:
-            db.create_sample_plate(name='test_plate_2',
-                                   plate_type='not-a-plate-type')
-        err = 'Plate type \'not-a-plate-type\' does not exist.'
+            db.create_sample_plate('test_plate_2', 12345)
+        err = 'Plate type ID 12345 does not exist.'
         self.assertEqual(str(context.exception), err)
         db.delete_sample_plate(spid)
 
     def test_edit_sample_plate(self):
         # Assign properties to a sample plate
-        spid = db.create_sample_plate(name='test_plate')
-        sql = """SELECT name FROM pm.plate_type LIMIT 1"""
-        plate_type = db._con.execute_fetchone(sql)[0]
+        sql = """SELECT plate_type_id FROM pm.plate_type LIMIT 1"""
+        ptid = db._con.execute_fetchone(sql)[0]
+        spid = db.create_sample_plate('test_plate', ptid)
         obs = db.read_sample_plate(spid)
-        exp = {'name': 'test_plate', 'email': None, 'created_on': None,
-               'notes': None, 'plate_type': plate_type}
+        exp = {'name': 'test_plate',
+               'plate_type_id': ptid,
+               'email': None,
+               'created_on': None,
+               'notes': None}
         self.assertDictEqual(obs, exp)
         sql = """SELECT email FROM ag.labadmin_users LIMIT 1"""
         email = db._con.execute_fetchone(sql)[0]
         created_on = datetime.datetime(2016, 8, 15, 0, 0)
         spinfo = {'name': 'test_plate',
+                  'plate_type_id': ptid,
                   'email': email,
                   'created_on': created_on,
-                  'notes': 'Hi!',
-                  'plate_type': plate_type}
+                  'notes': 'Hi!'}
         db.edit_sample_plate(spid, **spinfo)
         obs = db.read_sample_plate(spid)
         self.assertDictEqual(obs, spinfo)
         # Attempt to assign a duplicate name to a sample plate
-        spid2 = db.create_sample_plate(name='test_plate_2')
+        spid2 = db.create_sample_plate('test_plate_2', ptid)
         with self.assertRaises(ValueError) as context:
-            db.edit_sample_plate(spid, name='test_plate_2')
+            db.edit_sample_plate(spid, 'test_plate_2', ptid)
         err = ('Name \'test_plate_2\' conflicts with exisiting sample plate %s'
                '.' % spid2)
         self.assertEqual(str(context.exception), err)
         db.delete_sample_plate(spid2)
         # Attempt to assign an invalid email to a sample plate
         with self.assertRaises(ValueError) as context:
-            db.edit_sample_plate(spid, name='test_plate', email='not-an-email')
+            db.edit_sample_plate(spid, 'test_plate', ptid,
+                                 email='not-an-email')
         err = 'Email not-an-email does not exist.'
         self.assertEqual(str(context.exception), err)
         # Attempt to edit a sample plate that does not exist
@@ -692,16 +668,16 @@ class TestDataAccess(TestCase):
 
     def test_read_sample_plate(self):
         # Read properties of a sample plate
-        sql = """SELECT name FROM pm.plate_type LIMIT 1"""
-        plate_type = db._con.execute_fetchone(sql)[0]
+        sql = """SELECT plate_type_id FROM pm.plate_type LIMIT 1"""
+        ptid = db._con.execute_fetchone(sql)[0]
         sql = """SELECT email FROM ag.labadmin_users LIMIT 1"""
         email = db._con.execute_fetchone(sql)[0]
         created_on = datetime.datetime(2016, 8, 15, 0, 0)
         spinfo = {'name': 'test_plate',
+                  'plate_type_id': ptid,
                   'email': email,
                   'created_on': created_on,
-                  'notes': 'Hi!',
-                  'plate_type': plate_type}
+                  'notes': 'Hi!'}
         spid = db.create_sample_plate(**spinfo)
         obs = db.read_sample_plate(spid)
         self.assertDictEqual(obs, spinfo)
@@ -717,7 +693,9 @@ class TestDataAccess(TestCase):
         sid = db.create_study(title='study')
         samples = [{'id': x, 'study_ids': [sid]} for x in ('1', '2', '3')]
         db.create_samples(samples)
-        spid = db.create_sample_plate(name='test_plate')
+        sql = """SELECT plate_type_id FROM pm.plate_type LIMIT 1"""
+        ptid = db._con.execute_fetchone(sql)[0]
+        spid = db.create_sample_plate('test_plate', ptid)
         splayout = [
             {'sample_id': '1', 'col': 1, 'row': 1},
             {'sample_id': '2', 'col': 1, 'row': 2, 'name': 'B'}
@@ -758,7 +736,9 @@ class TestDataAccess(TestCase):
         sid = db.create_study(title='study')
         samples = [{'id': x, 'study_ids': [sid]} for x in ('1', '2', '3')]
         db.create_samples(samples)
-        spid = db.create_sample_plate(name='test_plate')
+        sql = """SELECT plate_type_id FROM pm.plate_type LIMIT 1"""
+        ptid = db._con.execute_fetchone(sql)[0]
+        spid = db.create_sample_plate('test_plate', ptid)
         splayout = [
             {'sample_id': '1', 'col': 1, 'row': 1},
             {'sample_id': '2', 'col': 1, 'row': 2, 'name': 'B'},
@@ -790,7 +770,9 @@ class TestDataAccess(TestCase):
 
     def test_delete_sample_plate(self):
         # Delete a sample plate and its layout
-        spid = db.create_sample_plate(name='test_plate')
+        sql = """SELECT plate_type_id FROM pm.plate_type LIMIT 1"""
+        ptid = db._con.execute_fetchone(sql)[0]
+        spid = db.create_sample_plate('test_plate', ptid)
         obs = db.read_sample_plate(spid)
         self.assertIsNotNone(obs)
         sid = db.create_study(title='study')
@@ -813,6 +795,69 @@ class TestDataAccess(TestCase):
             db.delete_sample_plate(spid)
         err = 'Sample plate ID %s does not exist.' % spid
         self.assertEqual(str(context.exception), err)
+
+    def test_get_property_options(self):
+        # Get available extraction robots
+        obs = db.get_property_options("extraction_robot")
+        exp = [{'id': 1, 'name': 'HOWE_KF1', 'notes': None},
+               {'id': 2, 'name': 'HOWE_KF2', 'notes': None},
+               {'id': 3, 'name': 'HOWE_KF3', 'notes': None},
+               {'id': 4, 'name': 'HOWE_KF4', 'notes': None}]
+        self.assertListEqual(obs, exp)
+
+    def test_get_plate_types(self):
+        # Get available plate types
+        obs = db.get_plate_types()
+        exp = [{'id': 1, 'name': '96-well', 'notes': 'Standard 96-well plate',
+                'cols': 12, 'rows': 8}]
+        self.assertListEqual(obs, exp)
+
+    def test_get_emails(self):
+        # Get available emails
+        obs = db.get_emails()
+        exp = ['test']
+        self.assertListEqual(obs, exp)
+
+    def test_get_sample_plate_ids(self):
+        sql = """SELECT plate_type_id FROM pm.plate_type LIMIT 1"""
+        ptid = db._con.execute_fetchone(sql)[0]
+        spid = db.create_sample_plate('test_plate', ptid)
+        obs = db.get_sample_plate_ids()[-1]
+        self.assertEqual(obs, spid)
+        db.delete_sample_plate(spid)
+
+    def test_get_sample_plate_list(self):
+        # Create a sample plate
+        sql = """SELECT plate_type_id FROM pm.plate_type LIMIT 1"""
+        ptid = db._con.execute_fetchone(sql)[0]
+        sql = """SELECT email FROM ag.labadmin_users LIMIT 1"""
+        email = db._con.execute_fetchone(sql)[0]
+        created_on = datetime.datetime.combine(datetime.date.today(),
+                                               datetime.time.min)
+        spinfo = {'name': 'test_plate',
+                  'plate_type_id': ptid,
+                  'email': email,
+                  'created_on': created_on,
+                  'notes': 'A test plate'}
+        spid = db.create_sample_plate(**spinfo)
+        sid = db.create_study(title='test_study')
+        samples = [{'id': x, 'study_ids': [sid]} for x in ('1', '2', '3')]
+        db.create_samples(samples)
+        splayout = [{'sample_id': str(x), 'col': 1, 'row': x}
+                    for x in (1, 2, 3)]
+        db.write_sample_plate_layout(spid, splayout)
+        obs = db.get_sample_plate_list()[-1]
+        exp = {'id': spid,
+               'name': 'test_plate',
+               'type': ['96-well', 96],
+               'person': email,
+               'date': created_on.strftime('%m/%d/%Y'),
+               'fill': [3, 0.031],
+               'study': [1, sid, None, 'test_study']}
+        self.assertDictEqual(obs, exp)
+        db.delete_sample_plate(spid)
+        db.delete_samples(['1', '2', '3'])
+        db.delete_study(sid)
 
 
 if __name__ == "__main__":
