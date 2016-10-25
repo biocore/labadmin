@@ -702,8 +702,10 @@ class KniminAccess(object):
         def _decode_zip_lookup(item):
             if item is None:
                 return 'Unspecified'
-            else:
+            elif isinstance(item, (str, unicode)):
                 return item.decode('utf-8')
+            else:
+                return item
 
         for row in self._con.execute_fetchall(zipcode_sql):
             zip_lookup[row[0]][row[1]] = map(_decode_zip_lookup, row[2:])
