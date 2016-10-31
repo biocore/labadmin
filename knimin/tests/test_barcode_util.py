@@ -2,6 +2,7 @@
 from unittest import main
 from random import choice
 from string import ascii_letters
+from datetime import date
 
 from tornado.escape import url_escape
 
@@ -517,6 +518,142 @@ class BarcodeUtilHandler(TestHandlerBase):
                             {'barcode': barcode_AGP})
         self.assertEqual(response.code, 200)
         self.assertIn('All good</h2>', response.body)
+
+    def test_get_not_authed(self):
+        response = self.get('/barcode_util/')
+        self.assertEqual(response.code, 200)
+        port = self.get_http_port()
+        self.assertEqual(response.effective_url,
+                         'http://localhost:%d/login/?next=%s' %
+                         (port, url_escape('/barcode_util/')))
+
+    def test_post(self):
+        data = {
+            'barcode': '000029153',
+            'parent_project': 'American+Gut',
+            'postmark_date': '2015-06-25',
+            'scan_date': '2015-07-01',
+            'bstatus': 'Recieved',
+            'biomass_remaining': 'Unknown',
+            'sequencing_status': 'WAITING',
+            'obsolete_status': 'N',
+            'sent_date': '2015-01-07',
+            'login_user': 'REMOVED',
+            'login_email': 'REMOVED',
+            'email_type': '1',
+            'sample_date': '2015-06-24',
+            'sample_time': '22%3A50%3A00',
+            'sample_site': 'Stool',
+            'other_text': 'REMOVED',
+            'send_mail': 'send_mail',
+        }
+
+        self.mock_login_admin()
+
+        # check normal behaviour
+        response = self.post('/barcode_util/', data)
+        self.assertEqual(response.code, 200)
+        self.assertIn('Barcode %s general details updated' % data['barcode'],
+                      response.body)
+        self.assertIn('Project successfully changed', response.body)
+        dbInfo = db.get_barcode_details(data['barcode'])
+        self.assertEqual(date(2015, 6, 25), dbInfo['sample_postmark_date'])
+        self.assertEqual(date(2015, 7, 1), dbInfo['scan_date'])
+
+        # check that postmark_date and scan_date is set to None
+        # if missed as an argument
+        del data['postmark_date']
+        del data['scan_date']
+        response = self.post('/barcode_util/', data)
+        self.assertEqual(response.code, 200)
+        dbInfo = db.get_barcode_details(data['barcode'])
+        self.assertEqual(None, dbInfo['sample_postmark_date'])
+        self.assertEqual(None, dbInfo['scan_date'])
+        data['postmark_date'] = '2015-06-25'
+        data['scan_date'] = '2015-07-01'
+
+        # TODO: Stefan Janssen: looks like we can successfully update a non
+        # existing barcode!!
+        data['barcode'] = 'rdskjmxykgrlyh'
+        response = self.post('/barcode_util/', data)
+        self.assertEqual(response.code, 200)
+        self.assertTrue('<p> Barcode %s general details updated </p>'
+                        % data['barcode'], response.body)
+        data['barcode'] = '000029153'
+
+        # check that update failes for wrong data types
+        data['postmark_date'] = 'invalid date'
+        response = self.post('/barcode_util/', data)
+        self.assertEqual(response.code, 200)
+        self.assertIn("Barcode %s general details failed" % data['barcode'],
+                      response.body)
+
+        # test changing the barcode's project to a non existing one
+        # TODO: Stefan Janssen: I think this should not result in a positive
+        # message like 'Project successfully changed', because this does not
+        # trigger the creation of a new project!
+        data['project'] = 'NotAProject'
+        response = self.post('/barcode_util/', data)
+        self.assertEqual(response.code, 200)
+        self.assertTrue('<p> Barcode %s general details updated </p>'
+                        % data['barcode'], response.body)
+        self.assertIn('Project successfully changed', response.body)
+
+        # check updating a AGP barcode
+        del data['project']
+        response = self.post('/barcode_util/', data)
+        self.assertEqual(response.code, 200)
+        self.assertIn("Barcode %s AG info was successfully updated"
+                      % data['barcode'], response.body)
+
+        # check updating a non-AGP barcode
+        data = {
+            'barcode': '000033786',
+            'parent_project': 'PROJECT4',
+            'scan_date': '2016-10-31',
+            'bstatus': 'Recieved',
+            'biomass_remaining': 'Unknown',
+            'sequencing_status': 'WAITING',
+            'obsolete_status': 'N',
+            'project': 'UNKNOWN',
+        }
+        response = self.post('/barcode_util/', data)
+        self.assertEqual(response.code, 200)
+        self.assertNotIn("Barcode %s AG info was successfully updated"
+                         % data['barcode'], response.body)
+        self.assertTrue('<p> Barcode %s general details updated </p>'
+                        % data['barcode'], response.body)
+
+    def test_get_ag_details(self):
+        self.mock_login_admin()
+
+        # test if AGP data are rendered correctly
+        barcode = '000029153'
+        response = self.get('/barcode_util/', {'barcode': barcode})
+        self.assertEqual(response.code, 200)
+        self.assertIn('<h2>%s Details</h2>' % 'American Gut', response.body)
+        ag_details = db.getAGBarcodeDetails(barcode)
+        self.assertIn('<tr><td>Sample Date</td><td>%s</td></tr>'
+                      % ag_details['sample_date'], response.body)
+        self.assertIn('<tr><td>Sample Time</td><td>%s</td></tr>'
+                      % ag_details['sample_time'], response.body)
+        self.assertIn('<tr><td>Sample Site</td><td>%s</td></tr>'
+                      % ag_details['site_sampled'], response.body)
+
+        self.assertIn('<label for="moldy"> moldy (current: %s) </label> <br />'
+                      % ag_details['moldy'], response.body)
+        self.assertIn(('<label for="overloaded"> overloaded (current: %s) '
+                       '</label> <br />') % ag_details['overloaded'],
+                      response.body)
+        self.assertIn(('<label for="other"> other (current: %s) '
+                       '</label> <br />') % ag_details['other'], response.body)
+
+        self.assertIn(('<textarea name="other_text" onclick="this.select()'
+                       '">%s</textarea>') % ag_details['notes'], response.body)
+        self.assertIn(('<label for="send_mail" style="display:block;">send kit'
+                       ' owner %s (%s) an email </label>')
+                      % (ag_details['name'], ag_details['email']),
+                      response.body)
 
 
 if __name__ == '__main__':
