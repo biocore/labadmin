@@ -317,7 +317,7 @@ class BarcodeUtilHandler(TestHandlerBase):
         self.assertIn('Barcode: %s' % barcode, response.body)
 
         # TODO: I think we have a problem with spelling the word 'received'!
-        barcode_status_received = '000000001'
+        # barcode_status_received = '000000001'
 
         # check that neighter option from the combobox is selected, if status
         # is empty
@@ -517,6 +517,7 @@ class BarcodeUtilHandler(TestHandlerBase):
                             {'barcode': barcode_AGP})
         self.assertEqual(response.code, 200)
         self.assertIn('All good</h2>', response.body)
+
 
 if __name__ == '__main__':
     main()
