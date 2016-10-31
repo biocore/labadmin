@@ -519,14 +519,6 @@ class BarcodeUtilHandler(TestHandlerBase):
         self.assertEqual(response.code, 200)
         self.assertIn('All good</h2>', response.body)
 
-    def test_get_not_authed(self):
-        response = self.get('/barcode_util/')
-        self.assertEqual(response.code, 200)
-        port = self.get_http_port()
-        self.assertEqual(response.effective_url,
-                         'http://localhost:%d/login/?next=%s' %
-                         (port, url_escape('/barcode_util/')))
-
     def test_post(self):
         data = {
             'barcode': '000029153',
