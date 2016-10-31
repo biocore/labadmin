@@ -201,6 +201,9 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
         project_names = db.getProjectNames()
 
         # barcode exists get general info
+        # TODO (Stefan Janssen): check spelling of "received", i.e. tests in
+        # the template check for 'Recieved'. I think the logic is broken due
+        # to that.
         if barcode_details['status'] is None:
             barcode_details['status'] = 'Received'
         if barcode_details['biomass_remaining'] is None:
@@ -213,6 +216,8 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
         if (barcode_details['obsolete'] == "Y"):
                 # the barcode is obsolete
                 div_id = "obsolete"
+                # TODO: Stefan: why is that set here, as far as I see, this
+                # message will in all cases be overwritten!
                 message = "Barcode is Obsolete"
         # get project info for div
         ag_details = []

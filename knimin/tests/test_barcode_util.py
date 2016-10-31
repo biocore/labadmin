@@ -2,6 +2,9 @@
 from unittest import main
 from random import choice
 from string import ascii_letters
+
+from tornado.escape import url_escape
+
 from knimin import db
 from knimin.tests.tornado_test_base import TestHandlerBase
 from knimin.handlers.barcode_util import BarcodeUtilHelper
@@ -280,6 +283,240 @@ FAQ section for when you can expect results.<br/>
             BarcodeUtilHelper()._build_email(
                 u'persøn', '000001018', 'UNKNOWN', '2016-12-14', '6:52 pm')
 
+
+class BarcodeUtilHandler(TestHandlerBase):
+    def test_get_not_authed(self):
+        response = self.get('/barcode_util/')
+        self.assertEqual(response.code, 200)
+        port = self.get_http_port()
+        self.assertEqual(response.effective_url,
+                         'http://localhost:%d/login/?next=%s' %
+                         (port, url_escape('/barcode_util/')))
+
+    def test_get(self):
+        self.mock_login_admin()
+
+        # test that only textbox for barcode is show, if no barcode is given.
+        response = self.get('/barcode_util/')
+        self.assertEqual(response.code, 200)
+        self.assertNotIn('<h2 class="verification_text">', response.body)
+        self.assertNotIn('<form action="/barcode_util/" method="post"',
+                         response.body)
+
+        # test display of non existing barcode on website
+        barcode = 'NotInDB'
+        response = self.get('/barcode_util/', {'barcode': barcode})
+        self.assertEqual(response.code, 200)
+        self.assertIn('Barcode %s does not exist in the database' % barcode,
+                      response.body)
+        self.assertIn('<h2 class="verification_text">', response.body)
+        self.assertNotIn('<form action="/barcode_util/" method="post"',
+                         response.body)
+        self.assertIn('Project type: None', response.body)
+        self.assertIn('Subprojects: []', response.body)
+        self.assertIn('Barcode: %s' % barcode, response.body)
+
+        # TODO: I think we have a problem with spelling the word 'received'!
+        barcode_status_received = '000000001'
+
+        # check that neighter option from the combobox is selected, if status
+        # is empty
+        barcode_status_empty = "000001003"
+        response = self.get('/barcode_util/',
+                            {'barcode': barcode_status_empty})
+        self.assertEqual(response.code, 200)
+        self.assertIn('<option value="Recieved">Recieved</option>',
+                      response.body)
+        self.assertIn('<option value=""></option>', response.body)
+
+        # check that neighter option from the combobox is selected, if status
+        # is an empty quote
+        barcode_status_quote = "000001420"
+        response = self.get('/barcode_util/',
+                            {'barcode': barcode_status_quote})
+        self.assertEqual(response.code, 200)
+        self.assertIn('<option value="Recieved">Recieved</option>',
+                      response.body)
+        self.assertIn('<option value="" selected></option>', response.body)
+
+        # test correct option is set for barcodes with biomass remainings
+        barcode_biomass_Y = "000003336"
+        response = self.get('/barcode_util/',
+                            {'barcode': barcode_biomass_Y})
+        self.assertEqual(response.code, 200)
+        self.assertIn('<option value="N" >No</option>', response.body)
+        self.assertIn('<option value="Y" selected>Yes</option>',
+                      response.body)
+        self.assertIn('<option value="Unknown" >Unknown</option>',
+                      response.body)
+
+        # test correct option is set for barcodes without biomass remainings
+        barcode_biomass_N = "000004244"
+        response = self.get('/barcode_util/',
+                            {'barcode': barcode_biomass_N})
+        self.assertEqual(response.code, 200)
+        self.assertIn('<option value="N" selected>No</option>', response.body)
+        self.assertIn('<option value="Y" >Yes</option>', response.body)
+        self.assertIn('<option value="Unknown" >Unknown</option>',
+                      response.body)
+
+        # test correct option is set for barcodes without info about biomass
+        # remainings
+        barcode_biomass_empty = "000004242"
+        response = self.get('/barcode_util/',
+                            {'barcode': barcode_biomass_empty})
+        self.assertEqual(response.code, 200)
+        self.assertIn('<option value="N" >No</option>', response.body)
+        self.assertIn('<option value="Y" >Yes</option>', response.body)
+        self.assertIn('<option value="Unknown" selected>Unknown</option>',
+                      response.body)
+
+        # check if sequencing status is set to ''
+        # (TODO: currently it is set to WAITING, which seems to be wrong!)
+        barcode_seqstatus_quote = "000012397"  # ''
+        response = self.get('/barcode_util/',
+                            {'barcode': barcode_seqstatus_quote})
+        self.assertEqual(response.code, 200)
+        self.assertIn('<option value="WAITING" >WAITING</option>',
+                      response.body)
+        self.assertIn('<option value="SUCCESS" >SUCCESS</option>',
+                      response.body)
+        self.assertIn('<option value="FAILED_SEQUENCING" >%s</option>' %
+                      'FAILED_SEQUENCING',
+                      response.body)
+        self.assertIn('<option value="" selected></option>',
+                      response.body)
+
+        # check if sequencing status is set to ''
+        # (TODO: currently it is set to WAITING, which seems to be wrong!)
+        barcode_seqstatus_empty = "000001131"  #
+        response = self.get('/barcode_util/',
+                            {'barcode': barcode_seqstatus_empty})
+        self.assertEqual(response.code, 200)
+        self.assertIn('<option value="WAITING" >WAITING</option>',
+                      response.body)
+        self.assertIn('<option value="SUCCESS" >SUCCESS</option>',
+                      response.body)
+        self.assertIn('<option value="FAILED_SEQUENCING" >%s</option>' %
+                      'FAILED_SEQUENCING',
+                      response.body)
+        self.assertIn('<option value="" ></option>',
+                      response.body)
+
+        # check if sequencing status is set to 'FAILED_SEQUENCING'
+        barcode_seqstatus_fail = "000001139"  # FAILED_SEQUENCING
+        response = self.get('/barcode_util/',
+                            {'barcode': barcode_seqstatus_fail})
+        self.assertEqual(response.code, 200)
+        self.assertIn('<option value="WAITING" >WAITING</option>',
+                      response.body)
+        self.assertIn('<option value="SUCCESS" >SUCCESS</option>',
+                      response.body)
+        self.assertIn('<option value="FAILED_SEQUENCING" selected>%s</option>'
+                      % 'FAILED_SEQUENCING',
+                      response.body)
+        self.assertIn('<option value="" ></option>',
+                      response.body)
+
+        # check if sequencing status is set to 'FAILED_SEQUENCING'
+        # (TODO: currently it is set to nothing, which seems to be wrong!)
+        barcode_seqstatus_fail1 = "000004053"  # FAILED_SEQUENCING_1
+        response = self.get('/barcode_util/',
+                            {'barcode': barcode_seqstatus_fail1})
+        self.assertEqual(response.code, 200)
+        self.assertIn('<option value="WAITING" >WAITING</option>',
+                      response.body)
+        self.assertIn('<option value="SUCCESS" >SUCCESS</option>',
+                      response.body)
+        self.assertIn('<option value="FAILED_SEQUENCING" >%s</option>' %
+                      'FAILED_SEQUENCING',
+                      response.body)
+        self.assertIn('<option value="" ></option>',
+                      response.body)
+
+        # check if sequencing status is set to 'FAILED_SEQUENCING'
+        # (TODO: currently it is set to nothing, which seems to be wrong!)
+        barcode_seqstatus_fail2 = "000004244"  # FAILED_SEQUENCING_2
+        response = self.get('/barcode_util/',
+                            {'barcode': barcode_seqstatus_fail2})
+        self.assertEqual(response.code, 200)
+        self.assertIn('<option value="WAITING" >WAITING</option>',
+                      response.body)
+        self.assertIn('<option value="SUCCESS" >SUCCESS</option>',
+                      response.body)
+        self.assertIn('<option value="FAILED_SEQUENCING" >%s</option>' %
+                      'FAILED_SEQUENCING',
+                      response.body)
+        self.assertIn('<option value="" ></option>',
+                      response.body)
+
+        # check if sequencing status is set to 'SUCCESS'
+        barcode_seqstatus_succ = "000004234"  # SUCCESS
+        response = self.get('/barcode_util/',
+                            {'barcode': barcode_seqstatus_succ})
+        self.assertEqual(response.code, 200)
+        self.assertIn('<option value="WAITING" >WAITING</option>',
+                      response.body)
+        self.assertIn('<option value="SUCCESS" selected>SUCCESS</option>',
+                      response.body)
+        self.assertIn('<option value="FAILED_SEQUENCING" >%s</option>' %
+                      'FAILED_SEQUENCING',
+                      response.body)
+        self.assertIn('<option value="" ></option>',
+                      response.body)
+        # check if sequencing status is set to 'WAITING'
+        barcode_seqstatus_wait = "000004247"  # WAITING
+        response = self.get('/barcode_util/',
+                            {'barcode': barcode_seqstatus_wait})
+        self.assertEqual(response.code, 200)
+        self.assertIn('<option value="WAITING" selected>WAITING</option>',
+                      response.body)
+        self.assertIn('<option value="SUCCESS" >SUCCESS</option>',
+                      response.body)
+        self.assertIn('<option value="FAILED_SEQUENCING" >%s</option>' %
+                      'FAILED_SEQUENCING',
+                      response.body)
+        self.assertIn('<option value="" ></option>',
+                      response.body)
+
+        # check if barcode is marked as obsolete
+        # TODO: is that correct if the info in DB is ''?
+        barcode_obsolete_empty = "000012395"  #
+        response = self.get('/barcode_util/',
+                            {'barcode': barcode_obsolete_empty})
+        self.assertEqual(response.code, 200)
+        self.assertIn('<option value="N" selected>No</option>', response.body)
+        self.assertIn('<option value="Y" >Yes</option>', response.body)
+
+        # check if barcode is marked as obsolete
+        barcode_obsolete_N = "000012397"  # "N"
+        response = self.get('/barcode_util/',
+                            {'barcode': barcode_obsolete_N})
+        self.assertEqual(response.code, 200)
+        self.assertIn('<option value="N" selected>No</option>', response.body)
+        self.assertIn('<option value="Y" >Yes</option>', response.body)
+
+        # check if barcode is marked as obsolete
+        barcode_obsolete_Y = "000012412"  # "Y"
+        response = self.get('/barcode_util/',
+                            {'barcode': barcode_obsolete_Y})
+        self.assertEqual(response.code, 200)
+        self.assertIn('<option value="N" >No</option>', response.body)
+        self.assertIn('<option value="Y" selected>Yes</option>', response.body)
+
+        # test display of non american gut barcode
+        barcode_nonAGP = "000004369"
+        response = self.get('/barcode_util/',
+                            {'barcode': barcode_nonAGP})
+        self.assertEqual(response.code, 200)
+        self.assertIn('Barcode Info is correct</h2>', response.body)
+
+        # test display of american gut barcode
+        barcode_AGP = "000001001"
+        response = self.get('/barcode_util/',
+                            {'barcode': barcode_AGP})
+        self.assertEqual(response.code, 200)
+        self.assertIn('All good</h2>', response.body)
 
 if __name__ == '__main__':
     main()
