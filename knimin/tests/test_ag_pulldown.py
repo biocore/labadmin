@@ -21,7 +21,7 @@ class testUpdateEBIStatusHandler(TestHandlerBase):
 
     def test_get(self):
         self.mock_login_admin()
-        os.environ["ASYNC_TEST_TIMEOUT"] = "30"
+        os.environ["ASYNC_TEST_TIMEOUT"] = "60"
 
         # test successful query
         response = self.get('/update_ebi/')
