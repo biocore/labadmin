@@ -57,6 +57,8 @@ class BarcodeUtilHelper(object):
                            "someone on the database crew.")
                 ag_details['email_type'] = "-1"
         else:
+            # TODO: Stefan Janssen: I cannot see how this case should ever be reached,
+            # since failures will be set to 'Unknown reason' at the outmost.
             div_id = "not_assigned"
             message = ("In American Gut project group but no "
                        "American Gut info for barcode")
