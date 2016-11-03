@@ -305,7 +305,7 @@ FAQ section for when you can expect results.<br/>
                           'environment_sampled': '', 'withdrawn': '',
                           'ag_kit_id': 'd8592c74-7ddb-2135-e040-8a80115d6401',
                           'overloaded_checked': '', 'other': 'N',
-                          'deposited': True, 'participant_name': 'REMOVED-0',
+                          'deposited': False, 'participant_name': 'REMOVED-0',
                           'ag_kit_barcode_id':
                           'd8592c74-7ddc-2135-e040-8a80115d6401',
                           'sample_date': date(2013, 4, 18),
@@ -332,7 +332,7 @@ FAQ section for when you can expect results.<br/>
 
         # check that overloaded is set to 'checked' instead of DB values,
         # which is 'Y'
-        barcode = 000001066
+        barcode = '000001066'
         div_id, message, ag_details = h.get_ag_details(barcode)
         self.assertNotEqual(ag_details['overloaded_checked'], 'Y')
         self.assertEqual(ag_details['overloaded_checked'], 'checked')
