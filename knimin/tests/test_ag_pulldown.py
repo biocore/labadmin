@@ -73,7 +73,7 @@ class testAGPulldownHandler(TestHandlerBase):
                        ' for file download. It may take a while with many '
                        'barcodes.</h3>'), response.body)
 
-        data = {'external': 'ab', 'external': 'cd'}
+        data = {'external': 'cd'}
         response = self.multipart_post('/ag_pulldown/', data, files)
         self.assertEqual(response.code, 200)
         self.assertIn("dummy.addParameter('external', 'cd');", response.body)
