@@ -300,6 +300,7 @@ FAQ section for when you can expect results.<br/>
         div_id, message, ag_details = h.get_ag_details(barcode)
         self.assertEqual(div_id, 'verified')
         self.assertEqual(message, "All good")
+        self.maxDiff = None
         self.assertEqual(ag_details,
                          {'moldy': 'N', 'login_user': 'REMOVED',
                           'environment_sampled': '', 'withdrawn': '',
