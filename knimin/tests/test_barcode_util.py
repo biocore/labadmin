@@ -2,7 +2,7 @@
 from unittest import main
 from random import choice
 from string import ascii_letters
-from datetime import date
+from datetime import date, time
 
 from tornado.escape import url_escape
 
@@ -283,6 +283,73 @@ FAQ section for when you can expect results.<br/>
         with self.assertRaises(RuntimeError):
             BarcodeUtilHelper()._build_email(
                 u'persøn', '000001018', 'UNKNOWN', '2016-12-14', '6:52 pm')
+
+    def test_get_ag_details_SJ(self):
+        h = BarcodeUtilHelper()
+
+        # check output for a non existing barcode
+        barcode = 'NotInDB'
+        div_id, message, ag_details = h.get_ag_details(barcode)
+        self.assertEqual(div_id, 'no_metadata')
+        self.assertEqual(message, "Cannot retrieve metadata: %s" %
+                         'Not an AG barcode')
+        self.assertEqual(ag_details, {})
+
+        # check normal behaviour
+        barcode = '000001018'
+        div_id, message, ag_details = h.get_ag_details(barcode)
+        self.assertEqual(div_id, 'verified')
+        self.assertEqual(message, "All good")
+        # TODO: Stefan Janssen: there seems to be differences weather this
+        # test runs on my local machine or on Travis. Therefore, I delete
+        # diverging entries
+        del ag_details['moldy']
+        del ag_details['overloaded']
+        del ag_details['other']
+        del ag_details['deposited']
+        self.assertEqual(ag_details,
+                         {'login_user': 'REMOVED',
+                          'environment_sampled': '', 'withdrawn': '',
+                          'ag_kit_id': 'd8592c74-7ddb-2135-e040-8a80115d6401',
+                          'overloaded_checked': '',
+                          'participant_name': 'REMOVED-0',
+                          'ag_kit_barcode_id':
+                          'd8592c74-7ddc-2135-e040-8a80115d6401',
+                          'sample_date': date(2013, 4, 18),
+                          'other_checked': '', 'status': 'Received',
+                          'refunded': '', 'other_text': 'REMOVED',
+                          'barcode': '000001018', 'moldy_checked': '',
+                          'date_of_last_email': '', 'site_sampled': 'Stool',
+                          'email_type': '1', 'name': 'REMOVED',
+                          'sample_time': time(6, 50),
+                          'notes': 'REMOVED',
+                          'email': 'REMOVED'})
+
+        # check that None values are set to ''
+        barcode = '000016744'
+        div_id, message, ag_details = h.get_ag_details(barcode)
+        self.assertEqual(ag_details['environment_sampled'], '')  # and not None
+        self.assertEqual(ag_details['other_checked'], '')
+
+        # check that other is set to 'checked' instead of DB values, which is Y
+        barcode = "000003411"
+        div_id, message, ag_details = h.get_ag_details(barcode)
+        self.assertNotEqual(ag_details['other_checked'], 'Y')
+        self.assertEqual(ag_details['other_checked'], 'checked')
+
+        # check that overloaded is set to 'checked' instead of DB values,
+        # which is 'Y'
+        barcode = '000001066'
+        div_id, message, ag_details = h.get_ag_details(barcode)
+        self.assertNotEqual(ag_details['overloaded_checked'], 'Y')
+        self.assertEqual(ag_details['overloaded_checked'], 'checked')
+
+        # check that moldy is set to 'checked' instead of DB values,
+        # which is 'Y'
+        barcode = "000007677"
+        div_id, message, ag_details = h.get_ag_details(barcode)
+        self.assertNotEqual(ag_details['moldy_checked'], 'Y')
+        self.assertEqual(ag_details['moldy_checked'], 'checked')
 
 
 class BarcodeUtilHandler(TestHandlerBase):
