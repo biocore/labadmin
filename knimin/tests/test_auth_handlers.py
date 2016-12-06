@@ -72,5 +72,6 @@ class TestAuthLogoutHandler(TestHandlerBase):
         self.assertTrue(response.effective_url.endswith(
             '/login/?next=%2Fprojects%2Fsummary%2F'))
 
+
 if __name__ == "__main__":
     main()

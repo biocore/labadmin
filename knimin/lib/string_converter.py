@@ -59,4 +59,5 @@ class Converter(object):
             camelCasedStr = components[0]
         return preffix + camelCasedStr + suffix
 
+
 converter = Converter()

@@ -98,6 +98,7 @@ class TestGeocode(TestCase):
                        None)
         self.assertEqual(obs, exp)
 
+
 # Results copied from Google API responses on 2015-10-25
 ok = '''{
    "results" : [
