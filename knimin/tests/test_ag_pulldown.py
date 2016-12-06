@@ -77,7 +77,8 @@ class testAGPulldownHandler(TestHandlerBase):
         data = {'external': 'cd,ef'}
         response = self.multipart_post('/ag_pulldown/', data, files)
         self.assertEqual(response.code, 200)
-        self.assertIn("dummy.addParameter('external', 'cd,ef');", response.body)
+        self.assertIn("dummy.addParameter('external', 'cd,ef');",
+                      response.body)
 
 
 class testAGPulldownDLHandler(TestHandlerBase):
