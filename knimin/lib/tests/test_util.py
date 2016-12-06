@@ -196,5 +196,6 @@ class UtilTests(TestCase):
         self.assertTrue(isinstance(fetch_url('http://www.google.com'),
                                    StringIO))
 
+
 if __name__ == '__main__':
     main()

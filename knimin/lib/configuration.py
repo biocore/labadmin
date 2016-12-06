@@ -89,4 +89,5 @@ class KniminConfig(object):
         self.smtp_user = config.get('email', 'USERNAME')
         self.smtp_password = config.get('email', 'PASSWORD')
 
+
 config = KniminConfig()

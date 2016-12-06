@@ -50,5 +50,6 @@ class TestInMemoryZip(unittest.TestCase):
         res_contents = zhandle.read(self.test_fname)
         self.assertEqual(res_contents, exp_contents)
 
+
 if __name__ == '__main__':
     unittest.main()

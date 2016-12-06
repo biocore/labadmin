@@ -21,5 +21,6 @@ class TestAGStatsHandler(TestHandlerBase):
             stat = '' if stat is None else stat
             self.assertIn('%s</td><td>%s' % (item, stat), response.body)
 
+
 if __name__ == '__main__':
     main()

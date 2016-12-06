@@ -149,5 +149,6 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
                       (num_barcodes, ", ".join(projects + [newProject])),
                       response.body)
 
+
 if __name__ == "__main__":
     main()

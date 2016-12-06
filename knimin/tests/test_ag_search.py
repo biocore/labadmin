@@ -66,5 +66,6 @@ class testAGSearchHandler(TestHandlerBase):
                         else:
                             self.assertIn(sample[field], response.body)
 
+
 if __name__ == '__main__':
     main()

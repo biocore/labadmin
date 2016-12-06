@@ -47,6 +47,7 @@ class ConfigurationTests(TestCase):
         config = KniminConfig(self.config_fp)
         self.assertEqual(config.http_port, 8888)
 
+
 test_config = """[main]
 debug = True
 help_email = help@email.com

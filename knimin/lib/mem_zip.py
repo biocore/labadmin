@@ -60,6 +60,7 @@ class InMemoryZip(object):
         self.in_memory_zip.close()
         return self.in_memory_data.getvalue()
 
+
 if __name__ == "__main__":
     # Run a test
     imz = InMemoryZip()
