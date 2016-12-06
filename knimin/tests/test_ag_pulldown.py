@@ -23,7 +23,7 @@ class testUpdateEBIStatusHandler(TestHandlerBase):
         self.mock_login_admin()
         os.environ["ASYNC_TEST_TIMEOUT"] = "30"
 
-        # test successful query
+        # test successful query.
         response = self.get('/update_ebi/')
         self.assertIn(response.code, [200, 599])  # either success, or time out
         if response.code == 200:
