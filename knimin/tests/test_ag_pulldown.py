@@ -74,6 +74,12 @@ class testAGPulldownHandler(TestHandlerBase):
                        ' for file download. It may take a while with many '
                        'barcodes.</h3>'), response.body)
 
+        data = {'external': 'cd,ef'}
+        response = self.multipart_post('/ag_pulldown/', data, files)
+        self.assertEqual(response.code, 200)
+        self.assertIn("dummy.addParameter('external', 'cd,ef');",
+                      response.body)
+
 
 class testAGPulldownDLHandler(TestHandlerBase):
     def test_get_not_authed(self):
@@ -107,6 +113,56 @@ class testAGPulldownDLHandler(TestHandlerBase):
                          'attachment; filename=metadata.zip')
         self.assertIn('failures.txt', response.body)
         self.assertIn('survey_1_md.txt', response.body)
+
+        # no blanks
+        response = self.post('/ag_pulldown/download/',
+                             {'barcodes': ['000001445',
+                                           '000001446',
+                                           '000001447',
+                                           '000001448',
+                                           '100001449',
+                                           '000016180',
+                                           '000015296',
+                                           '000015297',
+                                           '000015298',
+                                           '000015299',
+                                           '000015300',
+                                           '000016280',
+                                           '000016281',
+                                           '000016282',
+                                           '000016283',
+                                           '000016284'],
+                              'blanks': '',
+                              'external': db.list_external_surveys()[:1]})
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response.headers['Content-Disposition'],
+                         'attachment; filename=metadata.zip')
+
+        # no externals
+        response = self.post('/ag_pulldown/download/',
+                             {'barcodes': ['000001445',
+                                           '000001446',
+                                           '000001447',
+                                           '000001448',
+                                           '100001449',
+                                           '000016180',
+                                           '000015296',
+                                           '000015297',
+                                           '000015298',
+                                           '000015299',
+                                           '000015300',
+                                           '000016280',
+                                           '000016281',
+                                           '000016282',
+                                           '000016283',
+                                           '000016284'],
+                              'blanks': ['BLANK000001449',
+                                         'BLANK000001453',
+                                         'BLANK100001453'],
+                              'external': ''})
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response.headers['Content-Disposition'],
+                         'attachment; filename=metadata.zip')
 
 
 if __name__ == "__main__":
