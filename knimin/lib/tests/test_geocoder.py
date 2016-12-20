@@ -86,8 +86,8 @@ class TestGeocode(TestCase):
         self.assertEqual(obs.country, exp.country)
 
         # Test for unicode
-        obs = geocode('12 Erlangen')
-        exp = Location('12 Erlangen', 59.36121550000001, 16.4908829,
+        obs = geocode('Erlangengatan 12')
+        exp = Location('Erlangengatan 12', 59.36121550000001, 16.4908829,
                        38.21769714355469, 'Eskilstuna',
                        u'S\xf6dermanlands l\xe4n', '632 30', 'Sweden')
         self.assertEqual(obs, exp)
