@@ -20,6 +20,7 @@ from mail import send_email
 from util import (make_valid_kit_ids, make_verification_code, make_passwd,
                   categorize_age, categorize_etoh, categorize_bmi, correct_age,
                   fetch_url, correct_bmi)
+from tornado.escape import xhtml_escape
 from constants import (md_lookup, month_int_lookup, month_str_lookup,
                        regions_by_state, blanks_values, season_lookup,
                        ebi_remove, env_lookup)
@@ -1499,7 +1500,8 @@ class KniminAccess(object):
         sql = "SELECT EXISTS(SELECT * FROM project WHERE project = %s)"
         exists = self._con.execute_fetchone(sql, [name])[0]
         if exists:
-                raise ValueError("Project %s already exists!" % name)
+                raise ValueError("Project %s already exists!" %
+                                 xhtml_escape(name))
 
         sql = """INSERT INTO project (project_id, project)
                  SELECT max(project_id)+1, %s FROM project"""
@@ -1567,7 +1569,7 @@ class KniminAccess(object):
         not_exist = {p for p in projects if p not in existing}
         if not_exist:
             raise ValueError("Project(s) given don't exist in database: %s"
-                             % ', '.join(not_exist))
+                             % ', '.join(map(xhtml_escape, not_exist)))
 
         # Get unassigned barcode list and make sure we have enough barcodes
         barcodes = self.get_unassigned_barcodes(num_barcodes)

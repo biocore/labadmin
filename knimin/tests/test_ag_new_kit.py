@@ -1,6 +1,6 @@
 from unittest import main
 
-from tornado.escape import url_escape
+from tornado.escape import url_escape, xhtml_escape
 from json import loads, dumps
 
 from knimin.tests.tornado_test_base import TestHandlerBase
@@ -45,7 +45,7 @@ class TestAGNewKitHandler(TestHandlerBase):
         self.assertEqual(response.code, 200)
         for project in db.getProjectNames():
             self.assertIn("<option value='%s'>%s</option>" %
-                          (project, project), response.body)
+                          ((xhtml_escape(project),) * 2), response.body)
         self.assertIn("%i</span> unassigned barcodes" %
                       len(db.get_unassigned_barcodes()), response.body)
 

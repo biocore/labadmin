@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from tornado.web import authenticated
+from tornado.escape import xhtml_escape
 from knimin.handlers.base import BaseHandler
 from datetime import datetime
 
@@ -202,6 +203,12 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
         barcode_projects, parent_project = db.getBarcodeProjType(
             barcode)
         project_names = db.getProjectNames()
+        # xhtml escape project names
+        barcode_projects = ", ".join(map(xhtml_escape,
+                                         barcode_projects.split(', ')))
+        parent_project = ", ".join(map(xhtml_escape,
+                                       parent_project.split(', ')))
+        project_names = list(map(xhtml_escape, project_names))
 
         # barcode exists get general info
         # TODO (Stefan Janssen): check spelling of "received", i.e. tests in

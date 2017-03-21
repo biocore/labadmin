@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from tornado.web import authenticated, HTTPError
+from tornado.escape import xhtml_escape
 from knimin.handlers.base import BaseHandler
 from knimin.handlers.access_decorators import set_access
 
@@ -27,9 +28,10 @@ class AGBarcodePrintoutHandler(BaseHandler):
 class AGBarcodeAssignedHandler(BaseHandler):
     @authenticated
     def post(self):
-        barcodes = self.get_argument('barcodes').split(",")
-        projects = self.get_argument('projects')
-        text = "".join(["%s\t%s\n" % (b, projects) for b in barcodes])
+        barcodes = self.get_arguments('barcodes')
+        projects = self.get_arguments('projects')
+        text = "".join(["%s\t%s\n" % (b, ",".join(projects))
+                        for b in barcodes])
         self.add_header('Content-type',  'plain/text')
         self.add_header('Content-Transfer-Encoding', 'binary')
         self.add_header('Accept-Ranges', 'bytes')
@@ -45,7 +47,7 @@ class AGBarcodeAssignedHandler(BaseHandler):
 class AGNewBarcodeHandler(BaseHandler):
     @authenticated
     def get(self):
-        project_names = db.getProjectNames()
+        project_names = list(map(xhtml_escape, db.getProjectNames()))
         remaining = len(db.get_unassigned_barcodes())
         self.render("ag_new_barcode.html", currentuser=self.current_user,
                     projects=project_names, barcodes=[], remaining=remaining,
@@ -79,14 +81,14 @@ class AGNewBarcodeHandler(BaseHandler):
             else:
                 tmp = "%d barcodes assigned to %s, please wait for download."
                 msg = tmp % (
-                    num_barcodes, ", ".join(projects))
+                    num_barcodes, ", ".join(map(xhtml_escape, projects)))
 
         else:
             raise HTTPError(400, 'Unknown action: %s' % action)
 
-        project_names = db.getProjectNames()
+        project_names = list(map(xhtml_escape, db.getProjectNames()))
         remaining = len(db.get_unassigned_barcodes())
         self.render("ag_new_barcode.html", currentuser=self.current_user,
-                    projects=project_names, remaining=remaining, msg=msg,
-                    newbc=newbc, assignedbc=assignedbc,
-                    assign_projects=", ".join(projects))
+                    projects=project_names, remaining=remaining,
+                    msg=msg, newbc=newbc, assignedbc=assignedbc,
+                    assign_projects=", ".join(map(xhtml_escape, projects)))
