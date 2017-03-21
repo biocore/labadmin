@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from tornado.web import authenticated, HTTPError
+from tornado.escape import xhtml_escape, url_unescape
 from knimin.handlers.base import BaseHandler
 from knimin.handlers.access_decorators import set_access
 
@@ -28,7 +29,8 @@ class AGBarcodeAssignedHandler(BaseHandler):
     @authenticated
     def post(self):
         barcodes = self.get_argument('barcodes').split(",")
-        projects = self.get_argument('projects')
+        projects = ",".join(map(url_unescape,
+                                self.get_argument('projects').split(',')))
         text = "".join(["%s\t%s\n" % (b, projects) for b in barcodes])
         self.add_header('Content-type',  'plain/text')
         self.add_header('Content-Transfer-Encoding', 'binary')
@@ -45,7 +47,7 @@ class AGBarcodeAssignedHandler(BaseHandler):
 class AGNewBarcodeHandler(BaseHandler):
     @authenticated
     def get(self):
-        project_names = db.getProjectNames()
+        project_names = list(map(xhtml_escape, db.getProjectNames()))
         remaining = len(db.get_unassigned_barcodes())
         self.render("ag_new_barcode.html", currentuser=self.current_user,
                     projects=project_names, barcodes=[], remaining=remaining,
@@ -67,8 +69,11 @@ class AGNewBarcodeHandler(BaseHandler):
                    % num_barcodes)
 
         elif action == "assign":
-            projects = self.get_arguments('projects')
-            new_project = self.get_argument('newproject').strip()
+            prj = self.get_argument('projects')
+            print('ARGUMENT', prj, type(prj))
+            projects = map(url_unescape,
+                           self.get_argument('projects').split(','))
+            new_project = url_unescape(self.get_argument('newproject').strip())
             try:
                 if new_project:
                     db.create_project(new_project)
@@ -84,9 +89,9 @@ class AGNewBarcodeHandler(BaseHandler):
         else:
             raise HTTPError(400, 'Unknown action: %s' % action)
 
-        project_names = db.getProjectNames()
+        project_names = list(map(xhtml_escape, db.getProjectNames()))
         remaining = len(db.get_unassigned_barcodes())
         self.render("ag_new_barcode.html", currentuser=self.current_user,
-                    projects=project_names, remaining=remaining, msg=msg,
-                    newbc=newbc, assignedbc=assignedbc,
-                    assign_projects=", ".join(projects))
+                    projects=project_names, remaining=remaining,
+                    msg=xhtml_escape(msg), newbc=newbc, assignedbc=assignedbc,
+                    assign_projects=", ".join(map(xhtml_escape, projects)))

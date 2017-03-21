@@ -1,6 +1,6 @@
 from unittest import main
 
-from tornado.escape import url_escape
+from tornado.escape import url_escape, xhtml_escape
 from json import loads, dumps
 
 from knimin.tests.tornado_test_base import TestHandlerBase
@@ -45,7 +45,7 @@ class TestAGNewKitHandler(TestHandlerBase):
         self.assertEqual(response.code, 200)
         for project in db.getProjectNames():
             self.assertIn("<option value='%s'>%s</option>" %
-                          (project, project), response.body)
+                          ((xhtml_escape(project),) * 2), response.body)
         self.assertIn("%i</span> unassigned barcodes" %
                       len(db.get_unassigned_barcodes()), response.body)
 
@@ -58,7 +58,8 @@ class TestAGNewKitHandler(TestHandlerBase):
         # check for correct results
         response = self.post('/ag_new_kit/',
                              {'tag': tag,
-                              'projects': ['PROJECT2', 'PROJECT5'],
+                              'projects': list(map(url_escape,
+                                                   ['PROJECT2', 'PROJECT5'])),
                               'swabs': swabs,
                               'kits': kits,
                               })
@@ -73,7 +74,8 @@ class TestAGNewKitHandler(TestHandlerBase):
 
         # missing argument
         response = self.post('/ag_new_kit/',
-                             {'projects': ['PROJECT2', 'PROJECT5'],
+                             {'projects': list(map(url_escape,
+                                                   ['PROJECT2', 'PROJECT5'])),
                               'swabs': swabs,
                               'kits': kits,
                               })
@@ -82,7 +84,8 @@ class TestAGNewKitHandler(TestHandlerBase):
         # too long tag
         response = self.post('/ag_new_kit/',
                              {'tag': 'toolongtag',
-                              'projects': ['PROJECT2', 'PROJECT5'],
+                              'projects': list(map(url_escape,
+                                                   ['PROJECT2', 'PROJECT5'])),
                               'swabs': swabs,
                               'kits': kits,
                               })
@@ -94,7 +97,9 @@ class TestAGNewKitHandler(TestHandlerBase):
         # test that non existing projects are recognized.
         response = self.post('/ag_new_kit/',
                              {'tag': 'abc',
-                              'projects': ['doesNotExist', 'PROJECT5'],
+                              'projects': list(map(url_escape,
+                                                   ['doesNotExist',
+                                                    'PROJECT5'])),
                               'swabs': swabs,
                               'kits': kits,
                               })
@@ -105,7 +110,8 @@ class TestAGNewKitHandler(TestHandlerBase):
         # check for empty swabs list
         response = self.post('/ag_new_kit/',
                              {'tag': tag,
-                              'projects': ['PROJECT2', 'PROJECT5'],
+                              'projects': list(map(url_escape,
+                                                   ['PROJECT2', 'PROJECT5'])),
                               'swabs': [],
                               'kits': kits,
                               })
@@ -116,7 +122,8 @@ class TestAGNewKitHandler(TestHandlerBase):
         # no kits given
         response = self.post('/ag_new_kit/',
                              {'tag': tag,
-                              'projects': ['PROJECT2', 'PROJECT5'],
+                              'projects': list(map(url_escape,
+                                                   ['PROJECT2', 'PROJECT5'])),
                               'swabs': swabs,
                               'kits': [],
                               })
@@ -127,7 +134,8 @@ class TestAGNewKitHandler(TestHandlerBase):
         # what if tag is None
         response = self.post('/ag_new_kit/',
                              {'tag': '',
-                              'projects': ['PROJECT2', 'PROJECT5'],
+                              'projects': list(map(url_escape,
+                                                   ['PROJECT2', 'PROJECT5'])),
                               'swabs': swabs,
                               'kits': kits,
                               })

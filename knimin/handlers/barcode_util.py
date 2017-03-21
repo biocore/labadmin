@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from tornado.web import authenticated
+from tornado.escape import xhtml_escape, url_unescape
 from knimin.handlers.base import BaseHandler
 from datetime import datetime
 
@@ -202,6 +203,12 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
         barcode_projects, parent_project = db.getBarcodeProjType(
             barcode)
         project_names = db.getProjectNames()
+        # xhtml escape project names
+        barcode_projects = ", ".join(map(xhtml_escape,
+                                         barcode_projects.split(', ')))
+        parent_project = ", ".join(map(xhtml_escape,
+                                       parent_project.split(', ')))
+        project_names = list(map(xhtml_escape, project_names))
 
         # barcode exists get general info
         # TODO (Stefan Janssen): check spelling of "received", i.e. tests in
@@ -248,7 +255,7 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
                                                     None)
         sequencing_status = self.get_argument('sequencing_status', None)
         obsolete_status = self.get_argument('obsolete_status', None)
-        projects = set(self.get_arguments('project'))
+        projects = set(map(url_unescape, self.get_arguments('project')))
         sent_date = self.get_argument('sent_date', None)
         login_user = self.get_argument('login_user',
                                        'American Gut participant')
