@@ -8,7 +8,6 @@ addons:
   postgresql: "9.3"
 before_install:
   - redis-server --version
-  - conda list
 install:
   - pip install --upgrade pip
   - pip install click natsort coverage coveralls
