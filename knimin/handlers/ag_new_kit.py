@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from json import loads
 from tornado.web import authenticated, HTTPError
-from tornado.escape import url_unescape, xhtml_escape
+from tornado.escape import xhtml_escape
 from knimin.handlers.base import BaseHandler
 from knimin.handlers.access_decorators import set_access
 from knimin import db
