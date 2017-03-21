@@ -136,16 +136,28 @@ class TestDataAccess(TestCase):
         self.assertEqual(obs['000001072']['results_ready'], 'Y')
 
     def test_get_access_levels_user(self):
-        obs = db.get_access_levels_user('test')
-        self.assertEqual(obs, [])
+        # insert a fresh new user into DB.
+        email = 'testmail@testdomain.com'
+        password = ('$2a$10$2.6Y9HmBqUFmSvKCjWmBte70'
+                    'WF.zd3h4VqbhLMQK1xP67Aj3rei86')
+        sql = """INSERT INTO ag.labadmin_users (email, password)
+                 VALUES (%s, %s)"""
+        db._con.execute(sql, [email, password])
 
-        db.alter_access_levels('test', [1, 6])
-        obs = db.get_access_levels_user('test')
-        self.assertEqual(obs, [[1, 'Barcodes'], [6, 'Search']])
+        obs = db.get_access_levels_user(email)
+        self.assertItemsEqual(obs, [])
 
-        db.alter_access_levels('test', [])
-        obs = db.get_access_levels_user('test')
-        self.assertEqual(obs, [])
+        db.alter_access_levels(email, [1, 6])
+        obs = db.get_access_levels_user(email)
+        self.assertItemsEqual(obs, [[1, 'Barcodes'], [6, 'Search']])
+
+        db.alter_access_levels(email, [])
+        obs = db.get_access_levels_user(email)
+        self.assertItemsEqual(obs, [])
+
+        # Remove test user from DB.
+        sql = """DELETE FROM ag.labadmin_users WHERE email=%s"""
+        db._con.execute(sql, [email])
 
     def test_get_users(self):
         obs = db.get_users()
@@ -192,7 +204,8 @@ class TestDataAccess(TestCase):
                'notes': 'REMOVED',
                'overloaded': 'N',
                'withdrawn': None, 'email': 'REMOVED',
-               'other': 'N', 'deposited': False,
+               'other': 'N',
+               'deposited': False,
                'participant_name': 'REMOVED-0',
                'refunded': None, 'moldy': 'N',
                'sample_date': datetime.date(2014, 8, 13),
