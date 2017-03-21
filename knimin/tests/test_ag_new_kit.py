@@ -58,12 +58,10 @@ class TestAGNewKitHandler(TestHandlerBase):
         # check for correct results
         response = self.post('/ag_new_kit/',
                              {'tag': tag,
-                              'projects': list(map(url_escape,
-                                                   ['PROJECT2', 'PROJECT5'])),
+                              'projects': ['PROJECT2', 'PROJECT5'],
                               'swabs': swabs,
                               'kits': kits,
                               })
-        print(response.body)
         kitinfo = loads(response.body)
         self.assertEqual(len(kitinfo['kitinfo']), sum(kits))
         for k in kitinfo['kitinfo']:
@@ -75,8 +73,7 @@ class TestAGNewKitHandler(TestHandlerBase):
 
         # missing argument
         response = self.post('/ag_new_kit/',
-                             {'projects': list(map(url_escape,
-                                                   ['PROJECT2', 'PROJECT5'])),
+                             {'projects': ['PROJECT2', 'PROJECT5'],
                               'swabs': swabs,
                               'kits': kits,
                               })
@@ -85,8 +82,7 @@ class TestAGNewKitHandler(TestHandlerBase):
         # too long tag
         response = self.post('/ag_new_kit/',
                              {'tag': 'toolongtag',
-                              'projects': list(map(url_escape,
-                                                   ['PROJECT2', 'PROJECT5'])),
+                              'projects': ['PROJECT2', 'PROJECT5'],
                               'swabs': swabs,
                               'kits': kits,
                               })
@@ -98,9 +94,7 @@ class TestAGNewKitHandler(TestHandlerBase):
         # test that non existing projects are recognized.
         response = self.post('/ag_new_kit/',
                              {'tag': 'abc',
-                              'projects': list(map(url_escape,
-                                                   ['doesNotExist',
-                                                    'PROJECT5'])),
+                              'projects': ['doesNotExist', 'PROJECT5'],
                               'swabs': swabs,
                               'kits': kits,
                               })
@@ -111,8 +105,7 @@ class TestAGNewKitHandler(TestHandlerBase):
         # check for empty swabs list
         response = self.post('/ag_new_kit/',
                              {'tag': tag,
-                              'projects': list(map(url_escape,
-                                                   ['PROJECT2', 'PROJECT5'])),
+                              'projects': ['PROJECT2', 'PROJECT5'],
                               'swabs': [],
                               'kits': kits,
                               })
@@ -123,8 +116,7 @@ class TestAGNewKitHandler(TestHandlerBase):
         # no kits given
         response = self.post('/ag_new_kit/',
                              {'tag': tag,
-                              'projects': list(map(url_escape,
-                                                   ['PROJECT2', 'PROJECT5'])),
+                              'projects': ['PROJECT2', 'PROJECT5'],
                               'swabs': swabs,
                               'kits': [],
                               })
@@ -135,8 +127,7 @@ class TestAGNewKitHandler(TestHandlerBase):
         # what if tag is None
         response = self.post('/ag_new_kit/',
                              {'tag': '',
-                              'projects': list(map(url_escape,
-                                                   ['PROJECT2', 'PROJECT5'])),
+                              'projects': ['PROJECT2', 'PROJECT5'],
                               'swabs': swabs,
                               'kits': kits,
                               })

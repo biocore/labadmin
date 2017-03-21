@@ -48,8 +48,6 @@ class AGNewKitHandler(BaseHandler):
         if not tag:
             tag = None
         projects = self.get_arguments("projects")
-        if projects != []:
-            projects = list(map(url_unescape, projects))
         num_swabs = map(int, self.get_arguments("swabs"))
         num_kits = map(int, self.get_arguments("kits"))
         kits = []
