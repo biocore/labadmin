@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from tornado.web import authenticated
-from tornado.escape import xhtml_escape, url_unescape
+from tornado.escape import xhtml_escape
 from knimin.handlers.base import BaseHandler
 from datetime import datetime
 
@@ -255,7 +255,7 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
                                                     None)
         sequencing_status = self.get_argument('sequencing_status', None)
         obsolete_status = self.get_argument('obsolete_status', None)
-        projects = set(map(url_unescape, self.get_arguments('project')))
+        projects = set(self.get_arguments('project'))
         sent_date = self.get_argument('sent_date', None)
         login_user = self.get_argument('login_user',
                                        'American Gut participant')
