@@ -93,9 +93,11 @@ class TestGeocode(TestCase):
         self.assertEqual(obs, exp)
 
     def test_geocode_bad_address(self):
-        obs = geocode('SomeRandomPlace')
-        exp = Location('SomeRandomPlace', None, None, None, None, None, None,
-                       None)
+        # google always tried to find something, thus make sure this is really
+        # not a word or something that can be matched somehow.
+        loc_name = 'SomeRdfkcmolzscrmilxsrhi,luxrg,zshandomPlace'
+        obs = geocode(loc_name)
+        exp = Location(loc_name, None, None, None, None, None, None, None)
         self.assertEqual(obs, exp)
 
 

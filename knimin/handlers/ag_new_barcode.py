@@ -69,10 +69,9 @@ class AGNewBarcodeHandler(BaseHandler):
                    % num_barcodes)
 
         elif action == "assign":
-            prj = self.get_argument('projects')
-            print('ARGUMENT', prj, type(prj))
-            projects = map(url_unescape,
-                           self.get_argument('projects').split(','))
+            projects = self.get_arguments('projects')
+            if projects != []:
+                projects = list(map(url_unescape, projects[0].split(',')))
             new_project = url_unescape(self.get_argument('newproject').strip())
             try:
                 if new_project:

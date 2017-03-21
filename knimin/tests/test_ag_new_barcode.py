@@ -136,29 +136,28 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
                              {'action': 'assign',
                               'numbarcodes': num_barcodes,
                               'newproject': url_escape(projects[0])})
-        print(response.body)
-        # self.assertEqual(response.code, 200)
-        # self.assertIn("ERROR! Project %s already exists!" %
-        #               xhtml_escape(projects[0]),
-        #               response.body)
-        #
-        # # check recognition of unkown action
-        # response = self.post('/ag_new_barcode/', {'action': 'unkown'})
-        # self.assertEqual(response.code, 400)
-        # self.assertRaises(HTTPError)
-        #
-        # # test that new project is appended to list of projects
-        # response = self.post('/ag_new_barcode/',
-        #                      {'action': 'assign',
-        #                       'numbarcodes': num_barcodes,
-        #                       'projects': ','.join(
-        #                         list(map(url_escape, projects))),
-        #                       'newproject': url_escape(newProject)})
-        # self.assertEqual(response.code, 200)
-        # self.assertIn("%i barcodes assigned to %s, please wait for download." %
-        #               (num_barcodes, ", ".join(map(xhtml_escape,
-        #                                            projects + [newProject]))),
-        #               response.body)
+        self.assertEqual(response.code, 200)
+        self.assertIn("ERROR! Project %s already exists!" %
+                      xhtml_escape(projects[0]),
+                      response.body)
+
+        # check recognition of unkown action
+        response = self.post('/ag_new_barcode/', {'action': 'unkown'})
+        self.assertEqual(response.code, 400)
+        self.assertRaises(HTTPError)
+
+        # test that new project is appended to list of projects
+        response = self.post('/ag_new_barcode/',
+                             {'action': 'assign',
+                              'numbarcodes': num_barcodes,
+                              'projects': ','.join(
+                                list(map(url_escape, projects))),
+                              'newproject': url_escape(newProject)})
+        self.assertEqual(response.code, 200)
+        self.assertIn("%i barcodes assigned to %s, please wait for download." %
+                      (num_barcodes, ", ".join(map(xhtml_escape,
+                                                   projects + [newProject]))),
+                      response.body)
 
 
 if __name__ == "__main__":
