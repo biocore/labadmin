@@ -63,6 +63,7 @@ class TestAGNewKitHandler(TestHandlerBase):
                               'swabs': swabs,
                               'kits': kits,
                               })
+        print(response.body)
         kitinfo = loads(response.body)
         self.assertEqual(len(kitinfo['kitinfo']), sum(kits))
         for k in kitinfo['kitinfo']:
