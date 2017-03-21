@@ -28,10 +28,10 @@ class AGBarcodePrintoutHandler(BaseHandler):
 class AGBarcodeAssignedHandler(BaseHandler):
     @authenticated
     def post(self):
-        barcodes = self.get_argument('barcodes').split(",")
-        projects = ",".join(map(url_unescape,
-                                self.get_argument('projects').split(',')))
-        text = "".join(["%s\t%s\n" % (b, projects) for b in barcodes])
+        barcodes = self.get_arguments('barcodes')
+        projects = self.get_arguments('projects')
+        text = "".join(["%s\t%s\n" % (b, ",".join(projects))
+                        for b in barcodes])
         self.add_header('Content-type',  'plain/text')
         self.add_header('Content-Transfer-Encoding', 'binary')
         self.add_header('Accept-Ranges', 'bytes')
@@ -70,9 +70,7 @@ class AGNewBarcodeHandler(BaseHandler):
 
         elif action == "assign":
             projects = self.get_arguments('projects')
-            if projects != []:
-                projects = list(map(url_unescape, projects[0].split(',')))
-            new_project = url_unescape(self.get_argument('newproject').strip())
+            new_project = self.get_argument('newproject').strip()
             try:
                 if new_project:
                     db.create_project(new_project)
@@ -83,7 +81,7 @@ class AGNewBarcodeHandler(BaseHandler):
             else:
                 tmp = "%d barcodes assigned to %s, please wait for download."
                 msg = tmp % (
-                    num_barcodes, ", ".join(projects))
+                    num_barcodes, ", ".join(map(xhtml_escape, projects)))
 
         else:
             raise HTTPError(400, 'Unknown action: %s' % action)
@@ -92,5 +90,5 @@ class AGNewBarcodeHandler(BaseHandler):
         remaining = len(db.get_unassigned_barcodes())
         self.render("ag_new_barcode.html", currentuser=self.current_user,
                     projects=project_names, remaining=remaining,
-                    msg=xhtml_escape(msg), newbc=newbc, assignedbc=assignedbc,
+                    msg=msg, newbc=newbc, assignedbc=assignedbc,
                     assign_projects=", ".join(map(xhtml_escape, projects)))

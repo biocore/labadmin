@@ -36,10 +36,11 @@ class TestAGBarcodeAssignedHandler(TestHandlerBase):
         projects = ["American Gut Project", "Autism Spectrum Disorder"]
         barcodes = ["1111", "222", "33", "4"]
         response = self.post('/ag_new_barcode/assigned/',
-                             {'barcodes': ",".join(barcodes),
-                              'projects': ",".join(map(url_escape, projects))})
+                             {'barcodes': barcodes,
+                              'projects': projects})
         self.assertEqual(response.code, 200)
-        text = "".join(["%s\t%s\n" % (b, ",".join(map(xhtml_escape, projects)))
+        text = "".join(["%s\t%s\n" % (xhtml_escape(b),
+                                      ",".join(map(xhtml_escape, projects)))
                         for b in barcodes])
         self.assertEqual(response.body, text)
 
@@ -90,7 +91,7 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
         response = self.post('/ag_new_barcode/',
                              {'action': 'assign',
                               'numbarcodes': num_barcodes,
-                              'projects': ",".join(map(url_escape, projects))})
+                              'projects': projects})
 
         # check assignment of barcodes
         # check that error is raised if project(s) cannot be found in DB
@@ -98,9 +99,7 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
         response = self.post('/ag_new_barcode/',
                              {'action': 'assign',
                               'numbarcodes': num_barcodes,
-                              'projects': ","
-                              .join(map(url_escape,
-                                        projects + [prj_nonexist])),
+                              'projects': projects + [prj_nonexist],
                               'newproject': ""})
         self.assertEqual(response.code, 200)
         exp = ('<h3>ERROR! Project(s) given don\'t exist in database: '
@@ -111,8 +110,7 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
         response = self.post('/ag_new_barcode/',
                              {'action': 'assign',
                               'numbarcodes': num_barcodes,
-                              'projects': ','.join(
-                                list(map(url_escape, projects))),
+                              'projects': projects,
                               'newproject': ""})
         self.assertEqual(response.code, 200)
         self.assertIn("%i barcodes assigned to %s, please wait for download." %
@@ -124,8 +122,7 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
         response = self.post('/ag_new_barcode/',
                              {'action': 'assign',
                               'numbarcodes': 0,
-                              'projects': ','.join(
-                                list(map(url_escape, projects))),
+                              'projects': projects,
                               'newproject': ""})
         self.assertEqual(response.code, 200)
         self.assertIn("Error running SQL query: UPDATE barcodes.barcode",
@@ -135,7 +132,7 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
         response = self.post('/ag_new_barcode/',
                              {'action': 'assign',
                               'numbarcodes': num_barcodes,
-                              'newproject': url_escape(projects[0])})
+                              'newproject': projects[0]})
         self.assertEqual(response.code, 200)
         self.assertIn("ERROR! Project %s already exists!" %
                       xhtml_escape(projects[0]),
@@ -150,9 +147,8 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
         response = self.post('/ag_new_barcode/',
                              {'action': 'assign',
                               'numbarcodes': num_barcodes,
-                              'projects': ','.join(
-                                list(map(url_escape, projects))),
-                              'newproject': url_escape(newProject)})
+                              'projects': projects,
+                              'newproject': newProject})
         self.assertEqual(response.code, 200)
         self.assertIn("%i barcodes assigned to %s, please wait for download." %
                       (num_barcodes, ", ".join(map(xhtml_escape,

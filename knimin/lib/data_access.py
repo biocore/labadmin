@@ -1500,7 +1500,8 @@ class KniminAccess(object):
         sql = "SELECT EXISTS(SELECT * FROM project WHERE project = %s)"
         exists = self._con.execute_fetchone(sql, [name])[0]
         if exists:
-                raise ValueError("Project %s already exists!" % name)
+                raise ValueError("Project %s already exists!" %
+                                 xhtml_escape(name))
 
         sql = """INSERT INTO project (project_id, project)
                  SELECT max(project_id)+1, %s FROM project"""
