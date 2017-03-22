@@ -321,3 +321,5 @@ def xhtml_escape_recursive(d):
         return map(xhtml_escape_recursive, d)
     elif isinstance(d, dict):
         return {k: xhtml_escape_recursive(v) for k, v in d.items()}
+    else:
+        return d
