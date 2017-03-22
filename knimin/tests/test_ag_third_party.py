@@ -250,5 +250,6 @@ class AGNewThirdPartyHandler(TestHandlerBase):
         # roll back change to the DB
         db.ut_remove_external_survey(**data)
 
+
 if __name__ == "__main__":
     main()
