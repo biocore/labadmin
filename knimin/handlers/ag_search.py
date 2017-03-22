@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 from tornado.web import authenticated
-from tornado.escape import xhtml_escape
 from knimin.handlers.base import BaseHandler
 from knimin.handlers.access_decorators import set_access
 
 from knimin import db
-from knimin.lib.util import xhtml_escape_recursive
 
 
 @set_access(['Search'])
@@ -61,6 +59,6 @@ class AGSearchHandler(BaseHandler):
 
         # now render the page
         self.render("ag_search.html",
-                    results=xhtml_escape_recursive(display_results),
-                    handouts=map(xhtml_escape, handouts),
+                    results=display_results,
+                    handouts=handouts,
                     currentuser=self.current_user)
