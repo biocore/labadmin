@@ -58,5 +58,7 @@ class AGSearchHandler(BaseHandler):
             display_results.append(login_display)
 
         # now render the page
-        self.render("ag_search.html", results=display_results,
-                    handouts=handouts, currentuser=self.current_user)
+        self.render("ag_search.html",
+                    results=display_results,
+                    handouts=handouts,
+                    currentuser=self.current_user)

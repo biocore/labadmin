@@ -4,6 +4,7 @@ from tornado.escape import url_escape
 
 from knimin.tests.tornado_test_base import TestHandlerBase
 from knimin import db
+from knimin.lib.util import xhtml_escape_recursive
 
 
 class testAGSearchHandler(TestHandlerBase):
@@ -64,7 +65,9 @@ class testAGSearchHandler(TestHandlerBase):
                              field == 'ag_kit_barcode_id'):
                             self.assertNotIn(sample[field], response.body)
                         else:
-                            self.assertIn(sample[field], response.body)
+                            exp = xhtml_escape_recursive(sample[field])
+                            self.assertIn(str(exp),
+                                          response.body)
 
 
 if __name__ == '__main__':
