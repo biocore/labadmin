@@ -22,7 +22,11 @@ class AGThirdPartyHandler(TestHandlerBase):
 
     def tearDown(self):
         for f in self._clean_up_funcs:
-            f()
+            try:
+                f()
+            except:
+                print("clean-up failed for. Downstream tests might be affected"
+                      "by this!")
         super(AGThirdPartyHandler, self).tearDown()
 
     def test_get_not_authed(self):
@@ -172,7 +176,11 @@ class AGNewThirdPartyHandler(TestHandlerBase):
 
     def tearDown(self):
         for f in self._clean_up_funcs:
-            f()
+            try:
+                f()
+            except:
+                print("clean-up failed for. Downstream tests might be affected"
+                      "by this!")
         super(AGNewThirdPartyHandler, self).tearDown()
 
     def test_post_not_authed(self):
