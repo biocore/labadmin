@@ -25,8 +25,8 @@ class AGThirdPartyHandler(TestHandlerBase):
             try:
                 f()
             except:
-                print("clean-up failed for. Downstream tests might be affected"
-                      "by this!")
+                print("Database clean-up failed. Downstream tests might be"
+                      "affected by this!")
         super(AGThirdPartyHandler, self).tearDown()
 
     def test_get_not_authed(self):
