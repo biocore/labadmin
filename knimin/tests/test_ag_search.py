@@ -1,9 +1,10 @@
 from unittest import main
 
-from tornado.escape import url_escape
+from tornado.escape import url_escape, xhtml_escape
 
 from knimin.tests.tornado_test_base import TestHandlerBase
 from knimin import db
+from knimin.lib.util import xhtml_escape_recursive
 
 
 class testAGSearchHandler(TestHandlerBase):
@@ -56,15 +57,18 @@ class testAGSearchHandler(TestHandlerBase):
         response = self.post('/ag_search/', {'search_term': search_term})
         self.assertEqual(response.code, 200)
         for barcode in db.search_barcodes(search_term):
-            kit_id = db.get_kit_info_by_login(barcode)[0]['ag_kit_id']
-            for sample in db.get_barcode_info_by_kit_id(kit_id):
+            kit_id = xhtml_escape_recursive(
+                db.get_kit_info_by_login(barcode)[0]['ag_kit_id'])
+            for sample in xhtml_escape_recursive(
+                    db.get_barcode_info_by_kit_id(kit_id)):
                 for field in sample:
                     if sample[field] is not None:
                         if (field == 'ag_kit_id') or (
                              field == 'ag_kit_barcode_id'):
                             self.assertNotIn(sample[field], response.body)
                         else:
-                            self.assertIn(sample[field], response.body)
+                            self.assertIn(xhtml_escape(sample[field]),
+                                          response.body)
 
 
 if __name__ == '__main__':
