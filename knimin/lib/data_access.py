@@ -2424,3 +2424,28 @@ class KniminAccess(object):
                  SET results_ready = NULL
                  WHERE barcode IN %s"""
         self._con.execute(sql, [tuple(barcodes)])
+
+    def ut_remove_external_survey(self, name, description, url):
+        """ Remove an external survey from DB.
+
+        Parameters
+        ----------
+        name : str
+            Name of the external survey
+        description : str
+            Description of the external survey
+        url : str
+            URL of the external survey
+
+        Returns
+        -------
+        Nothing
+        """
+        sql = """DELETE FROM ag.external_survey_sources
+                 WHERE external_survey = %s
+                 AND external_survey_description = %s
+                 AND external_survey_url = %s"""
+        try:
+            self._con.execute(sql, [name, description, url])
+        except ValueError as e:
+            raise ValueError("Something went wrong: " + str(e))
