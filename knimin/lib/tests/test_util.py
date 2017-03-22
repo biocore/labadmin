@@ -228,5 +228,6 @@ class UtilTests(TestCase):
         self.assertEqual(xhtml_escape_recursive(x2)[0]['animals'][0],
                          u'\xc3\xb6\xc3\xa4\xc3\xbc')
 
+
 if __name__ == '__main__':
     main()
