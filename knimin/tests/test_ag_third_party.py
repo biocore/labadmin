@@ -24,9 +24,9 @@ class AGThirdPartyHandler(TestHandlerBase):
         for f in self._clean_up_funcs:
             try:
                 f()
-            except:
+            except Exception as e:
                 print("Database clean-up failed. Downstream tests might be"
-                      "affected by this!")
+                      "affected by this! Reason: %s" % str(e))
         super(AGThirdPartyHandler, self).tearDown()
 
     def test_get_not_authed(self):
@@ -178,9 +178,9 @@ class AGNewThirdPartyHandler(TestHandlerBase):
         for f in self._clean_up_funcs:
             try:
                 f()
-            except:
-                print("clean-up failed for. Downstream tests might be affected"
-                      "by this!")
+            except Exception as e:
+                print("Database clean-up failed. Downstream tests might be"
+                      "affected by this! Reason: %s" % str(e))
         super(AGNewThirdPartyHandler, self).tearDown()
 
     def test_post_not_authed(self):
