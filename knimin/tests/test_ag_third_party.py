@@ -9,6 +9,7 @@ from tornado.escape import url_escape
 from knimin.tests.tornado_test_base import TestHandlerBase
 from knimin import db
 from knimin.handlers.ag_third_party import ThirdPartyData, NewThirdParty
+from functools import partial
 
 
 class AGThirdPartyHandler(TestHandlerBase):
@@ -17,6 +18,12 @@ class AGThirdPartyHandler(TestHandlerBase):
     data_vioscreen = {'name': 'Vioscreen',
                       'description': 'FFQ',
                       'url': 'http://vioscreen.com'}
+    _clean_up_funcs = []
+
+    def tearDown(self):
+        for f in self._clean_up_funcs:
+            f()
+        super(AGThirdPartyHandler, self).tearDown()
 
     def test_get_not_authed(self):
         response = self.get('/ag_third_party/data/')
@@ -64,7 +71,8 @@ class AGThirdPartyHandler(TestHandlerBase):
             self.assertIn('<option value="%s">%s</option>' % (survey, survey),
                           response.body)
         # roll back change to the DB
-        db.ut_remove_external_survey(**data)
+        self._clean_up_funcs.append(partial(
+            db.ut_remove_external_survey, **data))
 
     def test_post_data(self):
         self.mock_login_admin()
@@ -85,8 +93,10 @@ class AGThirdPartyHandler(TestHandlerBase):
         self.assertIn('HEI2010_Greens_Beans', obs['14f508185c954721'].keys())
 
         # roll back change to the DB
-        db._clear_table('external_survey_answers', 'ag')
-        db.ut_remove_external_survey(**self.data_vioscreen)
+        self._clean_up_funcs.append(partial(
+            db._clear_table, 'external_survey_answers', 'ag'))
+        self._clean_up_funcs.append(partial(
+            db.ut_remove_external_survey, **self.data_vioscreen))
 
     def test_post_missing_data(self):
         self.mock_login()
@@ -102,8 +112,10 @@ class AGThirdPartyHandler(TestHandlerBase):
                       '<li>Not a valid choice', response.body)
 
         # roll back change to the DB
-        db._clear_table('external_survey_answers', 'ag')
-        db.ut_remove_external_survey(**self.data_vioscreen)
+        self._clean_up_funcs.append(partial(
+            db._clear_table, 'external_survey_answers', 'ag'))
+        self._clean_up_funcs.append(partial(
+            db.ut_remove_external_survey, **self.data_vioscreen))
 
     def test_post_wrong_arguments(self):
         self.mock_login_admin()
@@ -149,11 +161,20 @@ class AGThirdPartyHandler(TestHandlerBase):
                       response.body)
 
         # roll back change to the DB
-        db._clear_table('external_survey_answers', 'ag')
-        db.ut_remove_external_survey(**self.data_vioscreen)
+        self._clean_up_funcs.append(partial(
+            db._clear_table, 'external_survey_answers', 'ag'))
+        self._clean_up_funcs.append(partial(
+            db.ut_remove_external_survey, **self.data_vioscreen))
 
 
 class AGNewThirdPartyHandler(TestHandlerBase):
+    _clean_up_funcs = []
+
+    def tearDown(self):
+        for f in self._clean_up_funcs:
+            f()
+        super(AGNewThirdPartyHandler, self).tearDown()
+
     def test_post_not_authed(self):
         name = ''.join([choice(ascii_letters) for x in range(15)])
         data = {'name': name, 'description': 'TEST', 'url': 'test.fake'}
@@ -179,7 +200,8 @@ class AGNewThirdPartyHandler(TestHandlerBase):
         self.assertIn("Added '%s' successfully" % data['name'], response.body)
 
         # roll back change to the DB
-        db.ut_remove_external_survey(**data)
+        self._clean_up_funcs.append(partial(
+            db.ut_remove_external_survey, **data))
 
     def test_post_missing_data(self):
         self.mock_login_admin()
@@ -206,7 +228,8 @@ class AGNewThirdPartyHandler(TestHandlerBase):
         self.assertIn("Survey 'Vioscreen' already exists", response.body)
 
         # roll back change to the DB
-        db.ut_remove_external_survey(**data)
+        self._clean_up_funcs.append(partial(
+            db.ut_remove_external_survey, **data))
 
     def test_get(self):
         self.mock_login_admin()
@@ -248,7 +271,8 @@ class AGNewThirdPartyHandler(TestHandlerBase):
                       response.body)
 
         # roll back change to the DB
-        db.ut_remove_external_survey(**data)
+        self._clean_up_funcs.append(partial(
+            db.ut_remove_external_survey, **data))
 
 
 if __name__ == "__main__":
