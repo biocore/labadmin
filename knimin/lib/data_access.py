@@ -121,8 +121,10 @@ class SQLHandler(object):
                     err_sql = cur.mogrify(sql, sql_args)
                 except:
                     err_sql = cur.mogrify(sql, sql_args[0])
+                # errors might contain user strings encoded in utf-8.
                 raise ValueError(("\nError running SQL query: %s"
-                                  "\nError: %s" % (err_sql, e)))
+                                  "\nError: %s" % (err_sql.decode('utf-8'),
+                                                   str(e).decode('utf-8'))))
 
     def execute_fetchall(self, sql, sql_args=None):
         """ Executes a fetchall SQL query
@@ -615,11 +617,13 @@ class KniminAccess(object):
 
     def _geocode(self, barcode, zipcode, country, zip_lookup, country_lookup):
         """Adds geocoding information to the barcoe for pulldown"""
+        # for a proper lookup in the dict, zipcode must be encoded as utf-8
+        key_zipcode = zipcode.encode('utf-8')
         try:
-            barcode['LATITUDE'] = zip_lookup[zipcode][country][0]
-            barcode['LONGITUDE'] = zip_lookup[zipcode][country][1]
-            barcode['ELEVATION'] = zip_lookup[zipcode][country][2]
-            barcode['STATE'] = zip_lookup[zipcode][country][3]
+            barcode['LATITUDE'] = zip_lookup[key_zipcode][country][0]
+            barcode['LONGITUDE'] = zip_lookup[key_zipcode][country][1]
+            barcode['ELEVATION'] = zip_lookup[key_zipcode][country][2]
+            barcode['STATE'] = zip_lookup[key_zipcode][country][3]
             barcode['COUNTRY'] = country_lookup[country]
             barcode['GEO_LOC_NAME'] = ':'.join(
                 [barcode['COUNTRY'], barcode['STATE']])
@@ -636,7 +640,7 @@ class KniminAccess(object):
                 barcode['GEO_LOC_NAME'] = ':'.join(
                     [barcode['COUNTRY'], barcode['STATE']])
                 # Store in dict so we don't geocode again
-                zip_lookup[zipcode][country] = (
+                zip_lookup[key_zipcode][country] = (
                     round(info.lat, 1), round(info.long, 1),
                     round(info.elev, 1), info.state)
             else:
@@ -647,7 +651,7 @@ class KniminAccess(object):
                 barcode['COUNTRY'] = 'Unspecified'
                 barcode['GEO_LOC_NAME'] = 'Unspecified'
                 # Store in dict so we don't geocode again
-                zip_lookup[zipcode][country] = (
+                zip_lookup[key_zipcode][country] = (
                     'Unspecified', 'Unspecified', 'Unspecified',
                     'Unspecified')
         return barcode
@@ -776,9 +780,9 @@ class KniminAccess(object):
                 for field in ('HEIGHT_CM', 'WEIGHT_KG'):
                     md[1][barcode][field] = sub('[^0-9.]',
                                                 '', md[1][barcode][field])
-                    if md[1][barcode][field]:
+                    try:
                         md[1][barcode][field] = float(md[1][barcode][field])
-                    else:
+                    except ValueError:
                         md[1][barcode][field] = 'Unspecified'
 
                 # Correct height units
@@ -956,8 +960,9 @@ class KniminAccess(object):
                         'SURVEY_ID'], unknown_external))
             except Exception as e:
                 # Add barcode to error and remove from metadata info
-                errors[barcode] = str(e)
+                errors[barcode] = '%s' % e
                 del md[1][barcode]
+
         return md, errors
 
     def format_environmental(self, barcodes):
@@ -1904,14 +1909,18 @@ class KniminAccess(object):
         if not zipcode or not country:
             return Location(zipcode, None, None, None,
                             None, None, None, country)
-
         info = geocode('%s %s' % (zipcode, country))
         cannot_geocode = False
         # Clean the zipcode so it is same case and setup, since international
         # people can enter lowercased zipcodes or missing spaces, and google
         # does not give back 9 digit zipcodes for USA, only 6.
-        clean_postcode = str(info.postcode).lower().replace(' ', '')
-        clean_zipcode = str(zipcode).lower().replace(' ', '').split('-')[0]
+        # take care of utf-8 chars, thus en- and de-code accordingly
+        clean_postcode = None
+        if info.postcode is not None:
+            clean_postcode = str(info.postcode.encode('utf-8')).lower()\
+                .decode('utf-8').replace(' ', '')
+        clean_zipcode = str(zipcode.encode('utf-8')).lower().decode('utf-8')\
+            .replace(' ', '').split('-')[0]
         if not info.lat:
             cannot_geocode = True
         # Use startswith because UK zipcodes can be 2, 3, or 6 characters
@@ -2140,7 +2149,7 @@ class KniminAccess(object):
                     (survey_id, ag_login_id)
                  WHERE barcode like %s or lower(participant_name) like
                  %s or lower(notes) like %s"""
-        liketerm = '%%' + term.lower() + '%%'
+        liketerm = '%%' + term.decode('utf-8').lower() + '%%'
         results = self._con.execute_fetchall(sql,
                                              [liketerm, liketerm, liketerm])
         return [x[0] for x in results]
