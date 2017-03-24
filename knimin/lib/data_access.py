@@ -2458,3 +2458,66 @@ class KniminAccess(object):
             self._con.execute(sql, [name, description, url])
         except ValueError as e:
             raise ValueError("Something went wrong: " + str(e))
+
+    def ut_get_participant_names_from_ag_login_id(self, ag_login_id):
+        """ Returns all participant_name(s) for a given ag_login_id.
+        For unit testing only!
+
+        Parameters
+        ----------
+        ag_login_id : str
+            Existing ag_login_id.
+
+        Returns
+        -------
+        [[str]]
+            Example: ["Name - z\xc3\x96DOZ8(Z~'",
+                      "Name - z\xc3\x96DOZ8(Z~'",
+                      'Name - QpeY\xc3\xb8u#0\xc3\xa5<',
+                      'Name - S)#@G]xOdL',
+                      'Name - Y5"^&sGQiW',
+                      'Name - L\xc3\xa7+c\r\xc3\xa5?\r\xc2\xbf!',
+                      'Name - (~|w:S\xc3\x85#L\xc3\x84']
+
+        Raises
+        ------
+        ValueError
+            If ag_login_id is not in DB.
+        """
+        sql = """SELECT participant_name
+                 FROM ag.ag_login_surveys
+                 WHERE ag_login_id = %s"""
+        info = self._con.execute_fetchall(sql, [ag_login_id])
+        if not info:
+            raise ValueError('ag_login_id not in database: %s' %
+                             ag_login_id)
+        return [n[0] for n in info]
+
+    def ut_get_supplied_kit_id(self, ag_login_id):
+        """ Returns supplied_kit_id for a given ag_login_id.
+        For unit testing only!
+
+        Parameters
+        ----------
+        ag_login_id : str
+            Existing ag_login_id.
+
+        Returns
+        -------
+        str
+            The supplied_kit_id for the given ag_login_id.
+            Example: 'DokBF'
+
+        Raises
+        ------
+        ValueError
+            If ag_login_id is not in DB.
+        """
+        sql = """SELECT supplied_kit_id
+                 FROM ag.ag_kit
+                 WHERE ag_login_id = %s"""
+        info = self._con.execute_fetchall(sql, [ag_login_id])
+        if not info:
+            raise ValueError('ag_login_id not in database: %s' %
+                             ag_login_id)
+        return info[0][0]
