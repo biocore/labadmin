@@ -201,8 +201,7 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
 
         barcode_projects, parent_project = db.getBarcodeProjType(
             barcode)
-        # ensure that project names are all utf8 encoded strings
-        project_names = map(lambda x: x.decode('utf-8'), db.getProjectNames())
+        project_names = db.getProjectNames()
 
         # barcode exists get general info
         # TODO (Stefan Janssen): check spelling of "received", i.e. tests in
