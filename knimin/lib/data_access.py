@@ -2362,13 +2362,14 @@ class KniminAccess(object):
         sql = """SELECT project from barcodes.project
                  JOIN barcodes.project_barcode USING (project_id)
                  where barcode = %s"""
-        results = [x[0] for x in self._con.execute_fetchall(sql, [barcode])]
-        if 'American Gut Project' in results:
-            parent_project = 'American Gut'
-            results.remove('American Gut Project')
-            projects = ', '.join(results)
+        results = [self._unicode_convert(x[0])
+                   for x in self._con.execute_fetchall(sql, [barcode])]
+        if u'American Gut Project' in results:
+            parent_project = u'American Gut'
+            results.remove(u'American Gut Project')
+            projects = u', '.join(results)
         else:
-            projects = ', '.join(results)
+            projects = u', '.join(results)
             parent_project = projects
         return (projects, parent_project)
 
@@ -2405,7 +2406,8 @@ class KniminAccess(object):
         """Returns a list of project names
         """
         sql = """SELECT project FROM project"""
-        return [x[0] for x in self._con.execute_fetchall(sql)]
+        return [self._unicode_convert(x[0])
+                for x in self._con.execute_fetchall(sql)]
 
     def set_deposited_ebi(self):
         """Updates barcode deposited status by checking EBI"""
@@ -2575,3 +2577,23 @@ class KniminAccess(object):
         if not info:
             raise ValueError('No unassigned barcodes found.')
         return info[0]
+
+    def ut_remove_project(self, project_name):
+        """ Deletes a project.
+        For unit testing only!
+
+        Parameters
+        ----------
+        project_name : str
+            The name of the project that should be deleted.
+
+        Raises
+        ------
+        ValueError
+            If project could not be deleted, e.g. because barcodes are still
+            associated to this project."""
+        sql = """DELETE FROM barcodes.project WHERE project=%s"""
+        try:
+            self._con.execute(sql, [project_name])
+        except:
+            raise ValueError("Unable to delete project %s" % project_name)
