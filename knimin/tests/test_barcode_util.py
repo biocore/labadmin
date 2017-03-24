@@ -339,6 +339,13 @@ FAQ section for when you can expect results.<br/>
               }
         # only look at those fields, that are not subject to scrubbing
         self.assertEqual({k: ag_details[k] for k in exp}, exp)
+        exp_keys = ['login_user', 'environment_sampled', 'withdrawn',
+                    'ag_kit_id', 'overloaded_checked', 'participant_name',
+                    'ag_kit_barcode_id', 'sample_date', 'other_checked',
+                    'status', 'refunded', 'other_text', 'barcode',
+                    'moldy_checked', 'date_of_last_email', 'site_sampled',
+                    'email_type', 'name', 'sample_time', 'notes', 'email']
+        self.assertEqual(sorted(ag_details.keys()), sorted(exp_keys))
 
         # check that None values are set to ''
         barcode = '000016744'
