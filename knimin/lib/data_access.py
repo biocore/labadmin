@@ -1978,7 +1978,9 @@ class KniminAccess(object):
                 break
 
             # Attempt to geocode
-            address = '{0} {1} {2} {3}'.format(city, state, zipcode, country)
+            address = '%s %s %s %s' % (
+                city.decode('utf-8'), state.decode('utf-8'),
+                zipcode.decode('utf-8'), country.decode('utf-8'))
             try:
                 info = geocode(address)
                 # empty string to indicate geocode was successful
