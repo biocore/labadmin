@@ -2,7 +2,6 @@
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
 from knimin.handlers.access_decorators import set_access
-from urllib import unquote
 
 from knimin import db
 
