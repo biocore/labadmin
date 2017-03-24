@@ -2528,26 +2528,30 @@ class KniminAccess(object):
 
     def ut_get_arbitrary_handout_barcode(self, is_AGP=True):
         """ Returns an arbitrarily chosen barcode that is handed out.
-            If is_AGP is True, this barcode belongs to the AGP, otherwise to
-            any project.
-            For unit testing only!
+        For unit testing only!
 
-            Parameters
-            ----------
-            is_AGP : Boolean
-                If True, only barcodes for American Gut Project are returned,
-                otherwise barcode is from some arbitrary project.
+        Parameters
+        ----------
+        is_AGP : Boolean
+            If True, only barcodes for American Gut Project are returned,
+            otherwise barcode is from some arbitrary project.
 
-            Returns
-            -------
-            str: barcode
-                Example: '000001000'
+        Returns
+        -------
+        str: barcode
+            Example: '000001000'
 
-            Raises
-            ------
-            ValueError
-                If no handed out barcode can be found in the DB.
-            """
+        Raises
+        ------
+        ValueError
+            If no handed out barcode can be found in the DB.
+
+        Notes
+        -----
+        If is_AGP is True, this barcode belongs to the AGP, otherwise to any
+        project.
+
+        """
         sql = """SELECT barcode FROM ag.ag_handout_barcodes
                  JOIN barcodes.project_barcode USING (barcode)"""
         if is_AGP:
