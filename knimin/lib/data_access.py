@@ -2521,3 +2521,57 @@ class KniminAccess(object):
             raise ValueError('ag_login_id not in database: %s' %
                              ag_login_id)
         return info[0][0]
+
+    def ut_get_arbitrary_handout_barcode(self, is_AGP=True):
+        """ Returns an arbitrarily chosen barcode that is handed out.
+            If is_AGP is True, this barcode belongs to the AGP, otherwise to
+            any project.
+            For unit testing only!
+
+            Parameters
+            ----------
+            is_AGP : Boolean
+                If True, only barcodes for American Gut Project are returned,
+                otherwise barcode is from some arbitrary project.
+
+            Returns
+            -------
+            str: barcode
+                Example: '000001000'
+
+            Raises
+            ------
+            ValueError
+                If no handed out barcode can be found in the DB.
+            """
+        sql = """SELECT barcode FROM ag.ag_handout_barcodes
+                 JOIN barcodes.project_barcode USING (barcode)"""
+        if is_AGP:
+            sql += """ WHERE project_id=1"""
+        sql += """ LIMIT 1"""
+        info = self._con.execute_fetchone(sql, [])
+        if not info:
+            raise ValueError('No handout barcodes found.')
+        return info[0]
+
+    def ut_get_arbitrary_unassigned_barcode(self):
+        """ Returns an arbitrarily chosen barcode that not yet assigned to
+            a survey.
+            For unit testing only!
+
+            Returns
+            -------
+            str: barcode
+                Example: '000001000'
+
+            Raises
+            ------
+            ValueError
+                If no unassigned barcode can be found in the DB.
+            """
+
+        sql = """SELECT barcode FROM ag.ag_handout_barcodes LIMIT 1"""
+        info = self._con.execute_fetchone(sql, [])
+        if not info:
+            raise ValueError('No unassigned barcodes found.')
+        return info[0]
