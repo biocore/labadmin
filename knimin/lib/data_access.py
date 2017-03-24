@@ -2440,6 +2440,7 @@ class KniminAccess(object):
 
     def ut_remove_external_survey(self, name, description, url):
         """ Remove an external survey from DB.
+        For unit testing only!
 
         Parameters
         ----------
@@ -2564,20 +2565,19 @@ class KniminAccess(object):
 
     def ut_get_arbitrary_unassigned_barcode(self):
         """ Returns an arbitrarily chosen barcode that not yet assigned to
-            a survey.
-            For unit testing only!
+        a survey.
+        For unit testing only!
 
-            Returns
-            -------
-            str: barcode
-                Example: '000001000'
+        Returns
+        -------
+        str: barcode
+            Example: '000001000'
 
-            Raises
-            ------
-            ValueError
-                If no unassigned barcode can be found in the DB.
-            """
-
+        Raises
+        ------
+        ValueError
+            If no unassigned barcode can be found in the DB.
+        """
         sql = """SELECT barcode FROM ag.ag_handout_barcodes LIMIT 1"""
         info = self._con.execute_fetchone(sql, [])
         if not info:
