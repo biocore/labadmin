@@ -56,9 +56,12 @@ class TestAGNewKitHandler(TestHandlerBase):
         tag = 'abc'
 
         # check for correct results
+        projects = db.getProjectNames()
+        project1 = projects[0]
+        project2 = projects[1]
         response = self.post('/ag_new_kit/',
                              {'tag': tag,
-                              'projects': ['PROJECT2', 'PROJECT5'],
+                              'projects': [project1, project2],
                               'swabs': swabs,
                               'kits': kits,
                               })
@@ -73,7 +76,7 @@ class TestAGNewKitHandler(TestHandlerBase):
 
         # missing argument
         response = self.post('/ag_new_kit/',
-                             {'projects': ['PROJECT2', 'PROJECT5'],
+                             {'projects': [project1, project2],
                               'swabs': swabs,
                               'kits': kits,
                               })
@@ -82,7 +85,7 @@ class TestAGNewKitHandler(TestHandlerBase):
         # too long tag
         response = self.post('/ag_new_kit/',
                              {'tag': 'toolongtag',
-                              'projects': ['PROJECT2', 'PROJECT5'],
+                              'projects': [project1, project2],
                               'swabs': swabs,
                               'kits': kits,
                               })
@@ -105,7 +108,7 @@ class TestAGNewKitHandler(TestHandlerBase):
         # check for empty swabs list
         response = self.post('/ag_new_kit/',
                              {'tag': tag,
-                              'projects': ['PROJECT2', 'PROJECT5'],
+                              'projects': [project1, project2],
                               'swabs': [],
                               'kits': kits,
                               })
@@ -116,7 +119,7 @@ class TestAGNewKitHandler(TestHandlerBase):
         # no kits given
         response = self.post('/ag_new_kit/',
                              {'tag': tag,
-                              'projects': ['PROJECT2', 'PROJECT5'],
+                              'projects': [project1, project2],
                               'swabs': swabs,
                               'kits': [],
                               })
@@ -127,7 +130,7 @@ class TestAGNewKitHandler(TestHandlerBase):
         # what if tag is None
         response = self.post('/ag_new_kit/',
                              {'tag': '',
-                              'projects': ['PROJECT2', 'PROJECT5'],
+                              'projects': [project1, project2],
                               'swabs': swabs,
                               'kits': kits,
                               })

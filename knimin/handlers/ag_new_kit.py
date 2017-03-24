@@ -1,7 +1,5 @@
-#!/usr/bin/env python
 from json import loads
 from tornado.web import authenticated, HTTPError
-from tornado.escape import xhtml_escape
 from knimin.handlers.base import BaseHandler
 from knimin.handlers.access_decorators import set_access
 from knimin import db
@@ -36,8 +34,9 @@ class AGNewKitDLHandler(BaseHandler):
 class AGNewKitHandler(BaseHandler):
     @authenticated
     def get(self):
-        project_names = list(map(xhtml_escape, db.getProjectNames()))
+        project_names = db.getProjectNames()
         remaining = len(db.get_unassigned_barcodes())
+
         self.render("ag_new_kit.html", projects=project_names,
                     currentuser=self.current_user, msg="", kitinfo=[],
                     fields="", remaining=remaining)
@@ -56,6 +55,6 @@ class AGNewKitHandler(BaseHandler):
             kits = db.create_ag_kits(zip(num_swabs, num_kits), tag, projects)
             fields = ','.join(kits[0]._fields)
         except Exception as e:
-            raise HTTPError(500, "ERROR: %s" % str(e))
+            raise HTTPError(500, "ERROR: %s" % e.message.encode('utf-8'))
 
         self.write({'kitinfo': kits, 'fields': fields})
