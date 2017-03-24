@@ -292,8 +292,6 @@ class TestDataAccess(TestCase):
                 # created. It is unique per deployment.
                 # 'registered_on': datetime.datetime(2016, 8, 17, 10, 47, 2,
                 #                                   713292),
-                'participant_name':
-                db.ut_get_participant_names_from_ag_login_id(ag_login_id)[0],
                 # 'kit_password': ('$2a$10$2.6Y9HmBqUFmSvKCjWmBte70WF.zd3h4Vqb'
                 #                  'hLMQK1xP67Aj3rei86'),
                 # 'deposited': False,
@@ -323,10 +321,13 @@ class TestDataAccess(TestCase):
                 'other': 'N',
                 'sample_barcode_file_md5': None
         }}
+        participant_names = db.ut_get_participant_names_from_ag_login_id(
+            ag_login_id)
         for key in obs:
             del(obs[key]['registered_on'])
             # only look at those fields, that are not subject to scrubbing
             self.assertEqual({k: obs[key][k] for k in exp[key]}, exp[key])
+            self.assertIn(obs[key]['participant_name'], participant_names)
 
 
 if __name__ == "__main__":

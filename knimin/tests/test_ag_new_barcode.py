@@ -21,7 +21,7 @@ class TestAGBarcodePrintoutHandler(TestHandlerBase):
         self.assertEqual(response.headers['Content-Disposition'],
                          'attachment; filename=barcodes.pdf')
         # check that the files is a PDF ...
-        self.assertIn('%PDF-1.4', response.body)
+        self.assertIn('%PDF-1.', response.body)
         # ... and it is not empty
         self.assertEqual(len(response.body) > 1000, True)
 
@@ -69,7 +69,7 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
         self.mock_login_admin()
         action = 'unknown'
         num_barcodes = 4
-        projects = ["American Gut Project", "Autism Spectrum Disorder"]
+        projects = db.getProjectNames()[:2]
         newProject = 'newProject' + str(os.getpid())
 
         # check that unkown action results in a response code 400
