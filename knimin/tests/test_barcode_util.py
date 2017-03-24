@@ -148,7 +148,6 @@ class TestBarcodeUtil(TestHandlerBase):
 
     def test_get_non_ag_barcode(self):
         self.mock_login()
-        self.data['project'] = db.getProjectNames()[1]
 
         db.alter_access_levels('test', [3])
         response = self.get('/barcode_util/', {'barcode': self.not_ag})
@@ -163,7 +162,8 @@ class TestBarcodeUtil(TestHandlerBase):
                          response.body)
 
         self.assertIn('Project type: %s'
-                      % self.data['project'].encode('utf-8'), response.body)
+                      % list(set(db.getBarcodeProjType(self.not_ag)))[0],
+                      response.body)
         self.assertIn('Barcode Info is correct', response.body)
 
     def test_post_not_logged_in(self):
