@@ -161,8 +161,8 @@ class TestBarcodeUtil(TestHandlerBase):
                          '_issue" id="overloaded" value="overloaded" }/>',
                          response.body)
 
-        self.assertIn('Project type: %s'
-                      % list(set(db.getBarcodeProjType(self.not_ag)))[0],
+        exp_prj_name = list(set(db.getBarcodeProjType(self.not_ag)))[0]
+        self.assertIn('Project type: %s' % exp_prj_name.encode('utf-8'),
                       response.body)
         self.assertIn('Barcode Info is correct', response.body)
 
