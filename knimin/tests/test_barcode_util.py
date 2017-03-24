@@ -15,8 +15,6 @@ class TestBarcodeUtil(TestHandlerBase):
     def setUp(self):
         self.ag_good = '000001018'
         self.ag_enviro = '000009460'
-        self.ag_handout = '000022146'
-        self.ag_unassigned = '000022640'
         self.not_ag = '000006155'
         self.not_logged = '000001137'
 
@@ -110,7 +108,9 @@ class TestBarcodeUtil(TestHandlerBase):
     def test_get_handout_barcode(self):
         self.mock_login()
         db.alter_access_levels('test', [3])
-        response = self.get('/barcode_util/', {'barcode': self.ag_handout})
+
+        barcode = db.ut_get_arbitrary_handout_barcode()
+        response = self.get('/barcode_util/', {'barcode': barcode})
         self.assertEqual(response.code, 200)
         self.assertIn(
             '<input id="barcode" name="barcode" type="text" '
@@ -128,7 +128,9 @@ class TestBarcodeUtil(TestHandlerBase):
     def test_get_unassigned_barcode(self):
         self.mock_login()
         db.alter_access_levels('test', [3])
-        response = self.get('/barcode_util/', {'barcode': self.ag_unassigned})
+        barcode = db.ut_get_arbitrary_unassigned_barcode()
+        response = self.get('/barcode_util/', {'barcode': barcode})
+
         self.assertEqual(response.code, 200)
         self.assertIn(
             '<input id="barcode" name="barcode" type="text" '
