@@ -15,7 +15,9 @@ class AgAddBarcodeKitHandler(TestHandlerBase):
         response = self.get('/ag_add_barcode_kit/')
         self.assertEqual(response.code, 200)
         self.assertIn('Add barcode to existing AG kit', response.body)
-        self.assertIn('tst_vBKrP', response.body)  # some test kit id
+        kit_id = db.ut_get_supplied_kit_id(
+            'd8592c74-83f5-2135-e040-8a80115d6401')
+        self.assertIn(kit_id, response.body)  # some test kit id
 
     def test_post_not_authed(self):
         response = self.post('/ag_add_barcode_kit/', {'foo': 'bar'})
@@ -23,8 +25,9 @@ class AgAddBarcodeKitHandler(TestHandlerBase):
 
     def test_post(self):
         self.mock_login_admin()
+        ag_login_id = 'd8592c74-83f5-2135-e040-8a80115d6401'
+        kit_id = db.ut_get_supplied_kit_id(ag_login_id)
 
-        kit_id = 'tst_vBKrP'
         # this is the kit uuid for tst_vBKrP
         kit_uuid = 'd8592c74-83f6-2135-e040-8a80115d6401'
         n_barcodes = len(db.get_barcode_info_by_kit_id(kit_uuid))
