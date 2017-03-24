@@ -3,6 +3,7 @@ from unittest import TestCase, main
 from knimin.lib.ag_jira import jira_connect, get_projects
 from jira.resources import Project
 
+
 class TestJira(TestCase):
     def test_jira_connect_error(self):
         with self.assertRaises(ValueError):

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from jira import JIRA
 
+
 def jira_connect(server='https://jira.atlassian.com',
                  user=None, password=None):
     """Connect to JIRA server
@@ -23,11 +24,12 @@ def jira_connect(server='https://jira.atlassian.com',
             raise ValueError('password and user should be both None or both '
                              'have a value')
 
-        jira = JIRA(options = {'server': server}, basic_auth=(user, password))
+        jira = JIRA(options={'server': server}, basic_auth=(user, password))
     else:
-        jira = JIRA(options = {'server': server})
+        jira = JIRA(options={'server': server})
 
     return jira
+
 
 def get_projects():
     """Connect to JIRA server
