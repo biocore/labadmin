@@ -3,8 +3,9 @@ from unittest import main
 from random import choice
 from string import ascii_letters
 from datetime import date, time
+import os
 
-from tornado.escape import url_escape
+from tornado.escape import url_escape, xhtml_escape
 
 from knimin import db
 from knimin.tests.tornado_test_base import TestHandlerBase
@@ -15,8 +16,6 @@ class TestBarcodeUtil(TestHandlerBase):
     def setUp(self):
         self.ag_good = '000001018'
         self.ag_enviro = '000009460'
-        self.ag_handout = '000022146'
-        self.ag_unassigned = '000022640'
         self.not_ag = '000006155'
         self.not_logged = '000001137'
 
@@ -110,7 +109,9 @@ class TestBarcodeUtil(TestHandlerBase):
     def test_get_handout_barcode(self):
         self.mock_login()
         db.alter_access_levels('test', [3])
-        response = self.get('/barcode_util/', {'barcode': self.ag_handout})
+
+        barcode = db.ut_get_arbitrary_handout_barcode()
+        response = self.get('/barcode_util/', {'barcode': barcode})
         self.assertEqual(response.code, 200)
         self.assertIn(
             '<input id="barcode" name="barcode" type="text" '
@@ -128,7 +129,9 @@ class TestBarcodeUtil(TestHandlerBase):
     def test_get_unassigned_barcode(self):
         self.mock_login()
         db.alter_access_levels('test', [3])
-        response = self.get('/barcode_util/', {'barcode': self.ag_unassigned})
+        barcode = db.ut_get_arbitrary_unassigned_barcode()
+        response = self.get('/barcode_util/', {'barcode': barcode})
+
         self.assertEqual(response.code, 200)
         self.assertIn(
             '<input id="barcode" name="barcode" type="text" '
@@ -145,6 +148,7 @@ class TestBarcodeUtil(TestHandlerBase):
 
     def test_get_non_ag_barcode(self):
         self.mock_login()
+
         db.alter_access_levels('test', [3])
         response = self.get('/barcode_util/', {'barcode': self.not_ag})
         self.assertEqual(response.code, 200)
@@ -157,7 +161,9 @@ class TestBarcodeUtil(TestHandlerBase):
                          '_issue" id="overloaded" value="overloaded" }/>',
                          response.body)
 
-        self.assertIn('Project type: UNKNOWN', response.body)
+        exp_prj_name = list(set(db.getBarcodeProjType(self.not_ag)))[0]
+        self.assertIn('Project type: %s' % exp_prj_name.encode('utf-8'),
+                      response.body)
         self.assertIn('Barcode Info is correct', response.body)
 
     def test_post_not_logged_in(self):
@@ -186,22 +192,27 @@ class TestBarcodeUtil(TestHandlerBase):
 
     def test_post_update_ag_project_change(self):
         db.alter_access_levels('test', [3])
-        self.data['project'] = 'UNKNOWN'
+        self.data['project'] = 'UNKNOWN_%s' % os.getpid()
         self.mock_login()
+        # ensure project is in the DB
+        db.create_project(self.data['project'])
+
         response = self.post('/barcode_util/', data=self.data)
         self.assertEqual(response.code, 200)
         self.assertIn('Barcode %s general details updated' % self.ag_good,
                       response.body)
         self.assertIn('Project successfully changed', response.body)
         barcode_projects, parent_project = db.getBarcodeProjType(self.ag_good)
-        self.assertEqual(barcode_projects, 'UNKNOWN')
+        self.assertEqual(barcode_projects, self.data['project'])
         self.assertEqual(parent_project, 'American Gut')
 
         # reset back
-        db.setBarcodeProjects(self.ag_good, rem_projects=['UNKNOWN'])
+        db.setBarcodeProjects(self.ag_good,
+                              rem_projects=[self.data['project']])
         barcode_projects, parent_project = db.getBarcodeProjType(self.ag_good)
         self.assertEqual(barcode_projects, '')
         self.assertEqual(parent_project, 'American Gut')
+        db.ut_remove_project(self.data['project'])
 
     def test_post_not_logged_barcode(self):
         db.alter_access_levels('test', [3])
@@ -307,23 +318,34 @@ FAQ section for when you can expect results.<br/>
         del ag_details['overloaded']
         del ag_details['other']
         del ag_details['deposited']
-        self.assertEqual(ag_details,
-                         {'login_user': 'REMOVED',
-                          'environment_sampled': '', 'withdrawn': '',
-                          'ag_kit_id': 'd8592c74-7ddb-2135-e040-8a80115d6401',
-                          'overloaded_checked': '',
-                          'participant_name': 'REMOVED-0',
-                          'ag_kit_barcode_id':
-                          'd8592c74-7ddc-2135-e040-8a80115d6401',
-                          'sample_date': date(2013, 4, 18),
-                          'other_checked': '', 'status': 'Received',
-                          'refunded': '', 'other_text': 'REMOVED',
-                          'barcode': '000001018', 'moldy_checked': '',
-                          'date_of_last_email': '', 'site_sampled': 'Stool',
-                          'email_type': '1', 'name': 'REMOVED',
-                          'sample_time': time(6, 50),
-                          'notes': 'REMOVED',
-                          'email': 'REMOVED'})
+        exp = {
+               # 'login_user': 'REMOVED',
+               'environment_sampled': '', 'withdrawn': '',
+               'ag_kit_id': 'd8592c74-7ddb-2135-e040-8a80115d6401',
+               'overloaded_checked': '',
+               # 'participant_name': 'REMOVED-0',
+               'ag_kit_barcode_id':
+               'd8592c74-7ddc-2135-e040-8a80115d6401',
+               'sample_date': date(2013, 4, 18),
+               'other_checked': '', 'status': 'Received',
+               'refunded': '', 'other_text': 'REMOVED',
+               'barcode': '000001018', 'moldy_checked': '',
+               'date_of_last_email': '', 'site_sampled': 'Stool',
+               # 'email_type': '1',
+               # 'name': 'REMOVED',
+               'sample_time': time(6, 50),
+               # 'notes': 'REMOVED',
+               # 'email': 'REMOVED'
+              }
+        # only look at those fields, that are not subject to scrubbing
+        self.assertEqual({k: ag_details[k] for k in exp}, exp)
+        exp_keys = ['login_user', 'environment_sampled', 'withdrawn',
+                    'ag_kit_id', 'overloaded_checked', 'participant_name',
+                    'ag_kit_barcode_id', 'sample_date', 'other_checked',
+                    'status', 'refunded', 'other_text', 'barcode',
+                    'moldy_checked', 'date_of_last_email', 'site_sampled',
+                    'email_type', 'name', 'sample_time', 'notes', 'email']
+        self.assertEqual(sorted(ag_details.keys()), sorted(exp_keys))
 
         # check that None values are set to ''
         barcode = '000016744'
@@ -457,7 +479,7 @@ class BarcodeUtilHandler(TestHandlerBase):
 
         # check if sequencing status is set to ''
         # (TODO: currently it is set to WAITING, which seems to be wrong!)
-        barcode_seqstatus_empty = "000001131"  #
+        barcode_seqstatus_empty = "000001850"  #
         response = self.get('/barcode_util/',
                             {'barcode': barcode_seqstatus_empty})
         self.assertEqual(response.code, 200)
@@ -667,15 +689,16 @@ class BarcodeUtilHandler(TestHandlerBase):
 
         # check updating a non-AGP barcode
         data = {
-            'barcode': '000033786',
-            'parent_project': 'PROJECT4',
-            'scan_date': '2016-10-31',
+            'barcode': '000013941',
+            'parent_project': db.getProjectNames()[1],
+            'scan_date': '2014-12-15',
             'bstatus': 'Recieved',
             'biomass_remaining': 'Unknown',
             'sequencing_status': 'WAITING',
             'obsolete_status': 'N',
             'project': 'UNKNOWN',
         }
+
         response = self.post('/barcode_util/', data)
         self.assertEqual(response.code, 200)
         self.assertNotIn("Barcode %s AG info was successfully updated"
@@ -708,7 +731,9 @@ class BarcodeUtilHandler(TestHandlerBase):
                        '</label> <br />') % ag_details['other'], response.body)
 
         self.assertIn(('<textarea name="other_text" onclick="this.select()'
-                       '">%s</textarea>') % ag_details['notes'], response.body)
+                       '">%s</textarea>') %
+                      xhtml_escape(ag_details['other_text']),
+                      response.body)
         self.assertIn(('<label for="send_mail" style="display:block;">send kit'
                        ' owner %s (%s) an email </label>')
                       % (ag_details['name'], ag_details['email']),
