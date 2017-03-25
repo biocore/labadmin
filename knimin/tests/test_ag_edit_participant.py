@@ -1,6 +1,6 @@
 from unittest import main
 
-from tornado.escape import url_escape
+from tornado.escape import url_escape, xhtml_escape
 
 from knimin.tests.tornado_test_base import TestHandlerBase
 from knimin import db
@@ -16,22 +16,28 @@ class testAGEditParticipantHandler(TestHandlerBase):
                          (port, url_escape('/ag_edit_participant/')))
 
     def test_get(self):
+        ag_login_id = '0077c686-b0ad-11f8-e050-8a800c5d1877'
         self.mock_login_admin()
-        email = 'xjztuew@wbfznvoyxb.com'
-        response = self.get('/ag_edit_participant/?email=%s' % email)
+        email = db.get_login_info(ag_login_id)[0]['email']
+        response = self.get('/ag_edit_participant/', {'email': email})
         self.assertEqual(response.code, 200)
 
         # check that all relevant user information is rendered on HTML side
         login = db.get_login_by_email(email)
         for key, value in login.items():
+            if not isinstance(key, unicode):
+                key = key.decode('utf-8')
             if key == 'zip':
-                key = 'zipcode'
+                key = u'zipcode'
             elif key == 'ag_login_id':
                 continue
-            value = value.decode('utf-8')
+            if not isinstance(value, unicode):
+                value = value.decode('utf-8')
+            key = xhtml_escape(key.encode('utf-8'))
+            value = xhtml_escape(value.encode('utf-8'))
             self.assertIn(('</td><td><input type="text" name="%s" id="%s" '
                            'value="%s"></td></tr>') % (key, key, value),
-                          response.body.decode('utf-8'))
+                          response.body)
 
         # check what happens if user with email does not exist.
         # TODO: we should create a better error message in the handler to be
@@ -48,14 +54,14 @@ class testAGEditParticipantHandler(TestHandlerBase):
     def test_post(self):
         self.mock_login_admin()
 
-        email = 'xjztuew@wbfznvoyxb.com'
-        name = 'TESTDUDE'
-        address = '123 fake test street'
-        city = 'testcity'
-        state = '\xc3\x8ele-de-France'
-        zipcode = '1L2 2G3'
+        name = u'TESTDUDE'
+        address = u'123 fake test street'
+        city = u'testcity'
+        state = u'\xc3\x8ele-de-France'
+        zipcode = u'1L2 2G3'
         country = 'United Kingdom'
-        ag_login_id = '4cc7c201-7301-4088-98b7-8ff6351fd452'
+        ag_login_id = '0023cc03-3332-eec6-e050-8a800c5d3c04'
+        email = db.get_login_info(ag_login_id)[0]['email']
 
         # check a regular update
         response = self.post('/ag_edit_participant/',
@@ -63,7 +69,7 @@ class testAGEditParticipantHandler(TestHandlerBase):
                               'name': name,
                               'address': address,
                               'city': city,
-                              'state': state.decode('utf-8'),
+                              'state': state,
                               'zipcode': zipcode,
                               'country': country,
                               'ag_login_id': ag_login_id})
@@ -71,7 +77,7 @@ class testAGEditParticipantHandler(TestHandlerBase):
         self.assertIn('Participant was updated successfully', response.body)
 
         # pull it back out and verify
-        response = self.get('/ag_edit_participant/?email=%s' % email)
+        response = self.get('/ag_edit_participant/', {'email': email})
         self.assertEqual(response.code, 200)
         # check that all relevant user information is rendered on HTML side
         login = db.get_login_by_email(email)
@@ -91,7 +97,7 @@ class testAGEditParticipantHandler(TestHandlerBase):
                               'name': name,
                               'address': address,
                               'city': city,
-                              'state': state.decode('utf-8'),
+                              'state': state,
                               'zipcode': zipcode,
                               'country': country,
                               'ag_login_id': 'wrongID'})
@@ -103,7 +109,7 @@ class testAGEditParticipantHandler(TestHandlerBase):
                              {'email': email,
                               'name': name,
                               'city': city,
-                              'state': state.decode('utf-8'),
+                              'state': state,
                               'zipcode': zipcode,
                               'country': country,
                               'ag_login_id': ag_login_id})
