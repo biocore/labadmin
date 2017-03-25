@@ -2564,8 +2564,7 @@ class KniminAccess(object):
         return info[0]
 
     def ut_get_arbitrary_unassigned_barcode(self):
-        """ Returns an arbitrarily chosen barcode that is not yet assigned to
-        a survey.
+        """ Returns an arbitrarily chosen unassigned barcode.
         For unit testing only!
 
         Returns
