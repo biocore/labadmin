@@ -59,11 +59,13 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
         response = self.get('/ag_new_barcode/')
         self.assertEqual(response.code, 200)
 
+        obs = response.body.decode('utf-8')
+
         for project in db.getProjectNames():
             self.assertIn("<option value='%s'>%s</option>" %
-                          ((xhtml_escape(project),) * 2), response.body)
+                          ((xhtml_escape(project),) * 2), obs)
         self.assertIn("Number of barcodes (%i unassigned)" %
-                      len(db.get_unassigned_barcodes()), response.body)
+                      len(db.get_unassigned_barcodes()), obs)
 
     def test_post(self):
         self.mock_login_admin()
@@ -78,7 +80,7 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
         self.assertRaises(HTTPError)
         self.assertEqual(response.code, 400)
         self.assertIn("HTTPError: HTTP %i: Bad Request (Unknown action: %s)"
-                      % (400, action), response.body)
+                      % (400, action), response.body.decode('utf-8'))
 
         # TODO: test if exception for 0 barcodes to create is raised issue #105
 
@@ -86,7 +88,7 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
         response = self.post('/ag_new_barcode/', {'action': 'create',
                                                   'numbarcodes': num_barcodes})
         self.assertIn("%i Barcodes created! Please wait for barcode download" %
-                      num_barcodes, response.body)
+                      num_barcodes, response.body.decode('utf-8'))
 
         response = self.post('/ag_new_barcode/',
                              {'action': 'assign',
@@ -104,7 +106,7 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
         self.assertEqual(response.code, 200)
         exp = ('<h3>ERROR! Project(s) given don\'t exist in database: '
                '%s</h3>') % xhtml_escape(prj_nonexist)
-        self.assertIn(exp, response.body)
+        self.assertIn(exp, response.body.decode('utf-8'))
 
         # check correct assignment report on HTML side
         response = self.post('/ag_new_barcode/',
@@ -115,7 +117,7 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
         self.assertEqual(response.code, 200)
         self.assertIn("%i barcodes assigned to %s, please wait for download." %
                       (num_barcodes, ", ".join(map(xhtml_escape, projects))),
-                      response.body)
+                      response.body.decode('utf-8'))
 
         # check if SQL error is thrown if number of barcodes is 0.
         # See issue: #107
@@ -126,7 +128,7 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
                               'newproject': ""})
         self.assertEqual(response.code, 200)
         self.assertIn("Error running SQL query: UPDATE barcodes.barcode",
-                      response.body)
+                      response.body.decode('utf-8'))
 
         # check recognition of existing projects
         response = self.post('/ag_new_barcode/',
@@ -136,7 +138,7 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
         self.assertEqual(response.code, 200)
         self.assertIn("ERROR! Project %s already exists!" %
                       xhtml_escape(projects[0]),
-                      response.body)
+                      response.body.decode('utf-8'))
 
         # check recognition of unkown action
         response = self.post('/ag_new_barcode/', {'action': 'unkown'})
@@ -153,7 +155,7 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
         self.assertIn("%i barcodes assigned to %s, please wait for download." %
                       (num_barcodes, ", ".join(map(xhtml_escape,
                                                    projects + [newProject]))),
-                      response.body)
+                      response.body.decode('utf-8'))
 
 
 if __name__ == "__main__":
