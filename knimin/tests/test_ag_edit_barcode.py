@@ -59,13 +59,15 @@ class TestAGEditBarcodeHandler(TestHandlerBase):
     def test_post(self):
         self.mock_login_admin()
         kit_id = '15d5baf0-0b50-40aa-bb78-4e527795017e'
+        participant_name = db.ut_get_participant_names_from_ag_login_id(
+            db.search_kits(kit_id)[0])
         response = self.post('/ag_edit_barcode/',
                              {'barcode': '000023299',
                               'ag_kit_id': kit_id,
                               'site_sampled': 'Stool',
                               'sample_date': '2015-01-17',
                               'sample_time': '08:00:00',
-                              'participant_name': "REMOVED-0",
+                              'participant_name': participant_name,
                               'notes': "REMOVED",
                               'refunded': 'N',
                               'withdrawn': 'N',
@@ -78,7 +80,7 @@ class TestAGEditBarcodeHandler(TestHandlerBase):
                               'site_sampled': 'Stool',
                               'sample_date': '2015-01-17',
                               'sample_time': '08:00:00',
-                              'participant_name': "REMOVED-0",
+                              'participant_name': participant_name,
                               'notes': "REMOVED",
                               'refunded': 'N',
                               'withdrawn': 'N',
@@ -93,7 +95,7 @@ class TestAGEditBarcodeHandler(TestHandlerBase):
                               'site_sampled': 'Stool',
                               'sample_date': '2015-01-17',
                               'sample_time': '08:00:00',
-                              'participant_name': "REMOVED-0",
+                              'participant_name': participant_name,
                               'notes': "REMOVED",
                               'refunded': 'N',
                               'withdrawn': 'N',
