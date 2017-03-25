@@ -43,11 +43,12 @@ class TestAGNewKitHandler(TestHandlerBase):
         self.mock_login_admin()
         response = self.get('/ag_new_kit/')
         self.assertEqual(response.code, 200)
+        obs = response.body.decode('utf-8')
         for project in db.getProjectNames():
             self.assertIn("<option value='%s'>%s</option>" %
-                          ((xhtml_escape(project),) * 2), response.body)
+                          ((xhtml_escape(project),) * 2), obs)
         self.assertIn("%i</span> unassigned barcodes" %
-                      len(db.get_unassigned_barcodes()), response.body)
+                      len(db.get_unassigned_barcodes()), obs)
 
     def test_post(self):
         self.mock_login_admin()
