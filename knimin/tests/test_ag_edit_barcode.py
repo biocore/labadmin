@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from unittest import main
 
 from tornado.escape import url_escape, xhtml_escape
@@ -60,7 +61,7 @@ class TestAGEditBarcodeHandler(TestHandlerBase):
         self.mock_login_admin()
         kit_id = '15d5baf0-0b50-40aa-bb78-4e527795017e'
         participant_name = db.ut_get_participant_names_from_ag_login_id(
-            db.search_kits(kit_id)[0])
+            db.search_kits(kit_id)[0])[0]
         response = self.post('/ag_edit_barcode/',
                              {'barcode': '000023299',
                               'ag_kit_id': kit_id,
