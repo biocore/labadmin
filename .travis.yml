@@ -10,7 +10,7 @@ before_install:
   - redis-server --version
 install:
   - pip install --upgrade pip
-  - pip install click natsort coverage coveralls
+  - pip install -U click natsort coverage coveralls
   - travis_retry pip install -U .[test]
 script:
   - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
