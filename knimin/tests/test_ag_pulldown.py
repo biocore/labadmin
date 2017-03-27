@@ -9,7 +9,7 @@ from knimin import db
 
 
 class testUpdateEBIStatusHandler(TestHandlerBase):
-    os.environ["ASYNC_TEST_TIMEOUT"] = "45"
+    os.environ["ASYNC_TEST_TIMEOUT"] = "60"
 
     def test_get_not_authed(self):
         response = self.get('/update_ebi/')
@@ -21,7 +21,7 @@ class testUpdateEBIStatusHandler(TestHandlerBase):
 
     def test_get(self):
         self.mock_login_admin()
-        os.environ["ASYNC_TEST_TIMEOUT"] = "45"
+        os.environ["ASYNC_TEST_TIMEOUT"] = "60"
 
         # test successful query
         response = self.get('/update_ebi/')
