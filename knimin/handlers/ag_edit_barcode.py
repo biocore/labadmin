@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from tornado.web import authenticated
+from tornado.escape import url_unescape
 from knimin.handlers.base import BaseHandler
 from knimin.handlers.access_decorators import set_access
 
@@ -34,8 +35,8 @@ class AGEditBarcodeHandler(BaseHandler):
         environment_sampled = self.get_argument('environment_sampled')
         sample_date = self.get_argument('sample_date')
         sample_time = self.get_argument('sample_time')
-        participant_name = self.get_argument('participant_name')
-        notes = self.get_argument('notes')
+        participant_name = url_unescape(self.get_argument('participant_name'))
+        notes = url_unescape(self.get_argument('notes'))
         refunded = self.get_argument('refunded')
         withdrawn = self.get_argument('withdrawn')
 

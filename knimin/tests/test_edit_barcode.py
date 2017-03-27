@@ -1,4 +1,5 @@
 from unittest import main
+from tornado.escape import url_escape
 from knimin.tests.tornado_test_base import TestHandlerBase
 from knimin import db
 
@@ -28,8 +29,9 @@ class TestEditBarcodeHandler(TestHandlerBase):
                    'site_sampled': details['site_sampled'],
                    'sample_date': details['sample_date'],
                    'sample_time': details['sample_time'],
-                   'participant_name': details['participant_name'],
-                   'notes': details['notes'],
+                   'participant_name':
+                       url_escape(details['participant_name']),
+                   'notes': url_escape(details['notes']),
                    'environment_sampled': details['environment_sampled']}
 
         if details['refunded'] is None:
