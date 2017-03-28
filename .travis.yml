@@ -8,8 +8,16 @@ addons:
   postgresql: "9.3"
 before_install:
   - redis-server --version
+  - wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+  - chmod +x miniconda.sh
+  - ./miniconda.sh -b
+  - export PATH=/home/travis/miniconda3/bin:$PATH
+  # Update conda itself
+  - conda update --yes conda
 install:
-  - pip install --upgrade pip
+  - travis retry conda create --yes -n labadmin pip
+  - source activate labadmin
+  - pip install -U pip
   - pip install -U click natsort coverage coveralls
   - travis_retry pip install -U .[test]
 script:
