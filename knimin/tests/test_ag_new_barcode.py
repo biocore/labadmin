@@ -104,8 +104,8 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
                               'projects': projects + [prj_nonexist],
                               'newproject': ""})
         self.assertEqual(response.code, 200)
-        exp = ('<h3>ERROR! Project(s) given don\'t exist in database: '
-               '%s</h3>') % xhtml_escape(prj_nonexist)
+        exp = xhtml_escape('ERROR! Project(s) given don\'t exist in '
+                           'database: %s' % prj_nonexist)
         self.assertIn(exp, response.body.decode('utf-8'))
 
         # check correct assignment report on HTML side

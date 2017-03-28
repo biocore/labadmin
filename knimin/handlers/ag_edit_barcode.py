@@ -34,9 +34,8 @@ class AGEditBarcodeHandler(BaseHandler):
         environment_sampled = self.get_argument('environment_sampled')
         sample_date = self.get_argument('sample_date')
         sample_time = self.get_argument('sample_time')
-        participant_name = self.decode_argument(
-            self.get_argument('participant_name'))
-        notes = self.decode_argument(self.get_argument('notes'))
+        participant_name = self.get_argument('participant_name')
+        notes = self.get_argument('notes')
         refunded = self.get_argument('refunded')
         withdrawn = self.get_argument('withdrawn')
 
