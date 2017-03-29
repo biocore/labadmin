@@ -6,8 +6,9 @@ services:
   - redis-server
 addons:
   postgresql: "9.3"
-  packages:
-    - oracle-java8-installer
+  apt:
+    packages:
+      - oracle-java8-set-default
 before_install:
   - redis-server --version
   - wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
