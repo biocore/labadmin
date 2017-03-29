@@ -6,12 +6,21 @@ services:
   - redis-server
 addons:
   postgresql: "9.3"
+  packages:
+    - oracle-java8-installer
 before_install:
   - redis-server --version
 install:
   - pip install --upgrade pip
   - pip install click natsort coverage coveralls
   - travis_retry pip install .[test]
+before_script:
+  # installing jira locally for testing
+  - language: java
+  - wget https://marketplace.atlassian.com/download/plugins/atlassian-plugin-sdk-tgz
+  - tar zxvf atlassian-plugin-sdk-tgz
+  - export PATH="${PATH}:atlassian-plugin-sdk-*/bin"
+  - atlas-version
 script:
   - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
   - cd /home/travis/build/biocore/american-gut-web
