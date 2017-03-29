@@ -1,8 +1,19 @@
-000033796
-000033797
-000033798
-000033799
-000033800
-000033801
-000033802
-000033804
+000001000	infos about barcode	survey_group: -1	survey_id: 48c83b76031b7580
+000001001	infos about barcode	survey_group: -1	survey_id: 0b0832aafb76068d
+000001002	infos about barcode	survey_group: -1	survey_id: 2d19912f1784a4bf
+000037583	infos about barcode	survey_group: -2	survey_id: 0696e13141fb4d13
+000066526	infos about barcode	survey_group: -2	survey_id: 0c42c7b89d21d814
+000031568	infos about barcode	survey_group: -2	survey_id: 0d4d925e045f9353
+000037555	infos about barcode	survey_group: -3	survey_id: 05109e6adfa45c70
+000065893	infos about barcode	survey_group: -3	survey_id: 051117c37ffd75d7
+000067690	infos about barcode	survey_group: -3	survey_id: 061b62bb33a480d6
+000049932	infos about barcode	survey_group: -4	survey_id: 005be6bd1a714085
+000063380	infos about barcode	survey_group: -4	survey_id: 0d57b2d00370a907
+000063381	infos about barcode	survey_group: -4	survey_id: 0d57b2d00370a907
+000006616	infos about barcode	survey_group: -5	survey_id: 864923798da97c70
+000030821	infos about barcode	survey_group: -1	survey_id: 37af4d8102234cfc
+000030822	infos about barcode	survey_group: -1	survey_id: 37af4d8102234cfc
+000030823	infos about barcode	survey_group: -1	survey_id: 37af4d8102234cfc
+000069020	infos about barcode	survey_group: -4	survey_id: e60a2eb5001e48c6
+000069021	infos about barcode	survey_group: -4	survey_id: e60a2eb5001e48c6
+000069022	infos about barcode	survey_group: -4	survey_id: e60a2eb5001e48c6
