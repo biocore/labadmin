@@ -20,6 +20,8 @@ before_script:
   - tar zxvf atlassian-plugin-sdk-tgz
   - mv atlassian-plugin-sdk-*/ atlassian-plugin-sdk
   - export PATH="${PATH}:${PWD}/atlassian-plugin-sdk/bin"
+  # making sure to start with a clean maven
+  - rm -r ~/.m2/
   - atlas-version
   - tar zxvf support_files/myConfluenceMacro.tgz
   - cd myConfluenceMacro
