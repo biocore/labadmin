@@ -52,6 +52,15 @@ p {
       dummy.addParameter('barcodes', '{{barcodes}}');
       dummy.addParameter('blanks', '{{blanks}}');
       dummy.addParameter('external', '{{external}}');
+	       slist = [
+	       {% for s in agsurveys %}
+	       {% if s[2] == True %}
+	       {{s[0]}},
+	       {% end %}
+	       {% end %}
+	       ];
+	    dummy.addParameter('selected_ag_surveys', slist);
+	    dummy.addParameter('merged', '{{merged}}');
       dummy.send();
   {% end %}
     });
@@ -71,13 +80,33 @@ p {
 <form enctype="multipart/form-data" action="/ag_pulldown/" name="agForm" id="agForm" method="post">
 <p>Upload qiime mapping file, or other file with first line header and one barcode per line</p>
 <p>Barcodes File <input type="file" name="barcodes" id="barcodes"/></p>
+<p>American Gut Surveys:
+  <div>Select which American Gut surveys shall be included in the pulldown archive. <br/>Add 'all in one file' if you also want to have one addition file<br/>that contains all available columns from all American Gut surveys.</div>
+  <select name="agsurveys" id="agsurveys" multiple />
+  {% for s in agsurveys %}
+  {% if s[2] %}
+  <option value='{{s[0]}}' selected>{{s[1]}}</option>
+  {% else %}
+  <option value='{{s[0]}}'>{{s[1]}}</option>
+  {% end %}
+  {% end %}
+  </select>
+</p>
+
+</p>
 <p>External Survey
+  <div>Select which external surveys should be included in the pulldown archive.</div>
   <select name="external" id="external" multiple />
   {% for s in surveys %}
   <option value='{{s}}'>{{s}}</option>
   {% end %}
   </select>
 </p>
+{% if merged == 'True' %}
+<input type="checkbox" name="merged" value="True" checked>Add file containing columns of all selected surveys<br>
+{% else %}
+<input type="checkbox" name="merged" value="True">Add a file &quot;surveys_merged_md.txt&quot; that will contain columns of all selected surveys.<br>
+{% end %}
 <p><input type="submit" {%if barcodes%}disabled{% end %}></p>
 <div style='color:red;'>{% raw errors %}</div>
 </form>

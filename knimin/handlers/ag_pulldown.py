@@ -1,5 +1,7 @@
 from tornado.web import authenticated
 from future.utils import viewitems
+from StringIO import StringIO
+import pandas as pd
 
 from knimin.handlers.base import BaseHandler
 from knimin import db
@@ -13,17 +15,20 @@ class AGPulldownHandler(BaseHandler):
     def get(self):
         surveys = db.list_external_surveys()
         self.render("ag_pulldown.html", currentuser=self.current_user,
-                    barcodes=[], surveys=surveys, errors='')
+                    barcodes=[], surveys=surveys, errors='',
+                    agsurveys=db.list_ag_surveys(), merged='False')
 
     @authenticated
     def post(self):
         # Do nothing if no file given
         if 'barcodes' not in self.request.files:
             surveys = db.list_external_surveys()
+            ags = db.list_ag_surveys(map(int, self.get_arguments('agsurveys')))
             self.render("ag_pulldown.html", currentuser=self.current_user,
                         barcodes='', blanks='', external='', surveys=surveys,
                         errors="No barcode file given, thus nothing could "
-                               "be pulled down.")
+                               "be pulled down.", agsurveys=ags,
+                        merged=self.get_argument('merged', default='False'))
             return
         # Get file information, ignoring commented out lines
         fileinfo = self.request.files['barcodes'][0]['body']
@@ -41,9 +46,12 @@ class AGPulldownHandler(BaseHandler):
         else:
             external = ''
         surveys = db.list_external_surveys()
+        ags = db.list_ag_surveys(map(int, self.get_arguments('agsurveys')))
         self.render("ag_pulldown.html", currentuser=self.current_user,
                     barcodes=",".join(barcodes), blanks=",".join(blanks),
-                    surveys=surveys, external=external, errors='')
+                    surveys=surveys, external=external, errors='',
+                    agsurveys=ags,
+                    merged=self.get_argument('merged', default='False'))
 
 
 @set_access(['Metadata Pulldown'])
@@ -55,10 +63,19 @@ class AGPulldownDLHandler(BaseHandler):
             blanks = self.get_argument('blanks').split(',')
         else:
             blanks = []
+
+        # query which surveys have been selected by the user
+        if self.get_argument('selected_ag_surveys'):
+            selected_ag_surveys = map(int, self.get_argument(
+                'selected_ag_surveys').split(','))
+        else:
+            selected_ag_surveys = []
+
         if self.get_argument('external'):
             external = self.get_argument('external').split(',')
         else:
             external = []
+
         # Get metadata and create zip file
         metadata, failures = db.pulldown(barcodes, blanks, external)
 
@@ -67,8 +84,39 @@ class AGPulldownDLHandler(BaseHandler):
         failtext = ("The following barcodes were not retrieved "
                     "for any survey:\n%s" % failed)
         meta_zip.append("failures.txt", failtext)
+
+        # check database about what surveys are available
+        available_agsurveys = {}
+        for (id, name, selected) in db.list_ag_surveys():
+            available_agsurveys[id] = name.replace(' ', '_')
+
+        results_as_pd = []
         for survey, meta in viewitems(metadata):
-            meta_zip.append('survey_%s_md.txt' % survey, meta)
+            # only create files for those surveys that have been selected by
+            # the user. Note that ids from the DB are negative, in metadata
+            # they are positive!
+            # Currently, I (Stefan Janssen) don't have test data for external
+            # surveys, thus I don't know their 'survey' value. I expect it to
+            # be the name of the external survey. In order to not block their
+            # pulldown I check that a skipped survey ID must be in the set of
+            # all available surveys.
+            if ((-1 * survey) in selected_ag_surveys) or \
+               (-1 * survey not in available_agsurveys):
+                meta_zip.append('survey_%s_md.txt' %
+                                available_agsurveys[-1 * survey], meta)
+                # transform each survey into a pandas dataframe for later merge
+                # read all columns as string to avoid unintened conversions,
+                # like cutting leading zeros of barcodes
+                pd_meta = pd.read_csv(StringIO(meta), sep="\t", dtype=str)
+                # reset the index to barcodes = here sample_name
+                pd_meta.set_index('sample_name', inplace=True)
+                results_as_pd.append(pd_meta)
+        pd_all = pd.concat(results_as_pd, join='outer', axis=1)
+
+        # add the merged table of all selected surveys to the zip archive
+        if self.get_argument('merged', default='False') == 'True':
+            meta_zip.append('surveys_merged_md.txt',
+                            pd_all.to_csv(sep='\t', index_label='sample_name'))
 
         # write out zip file
         self.add_header('Content-type',  'application/octet-stream')
