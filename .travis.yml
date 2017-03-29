@@ -31,7 +31,7 @@ before_script:
   # forcing oraclejdk8
   - jdk_switcher use oraclejdk8
   - atlas-version
-  - atlas-create-jira-plugin -a myfooplugin -g com.mycompany.plugins -v 1.0.0-SNAPSHOT -p com.mycompany.plugins.myfooplugin --non-interactive -q
+  - atlas-create-jira-plugin -a myConfluenceMacro -g com.mycompany.plugins -v 1.0.0-SNAPSHOT -p com.mycompany.plugins.myConfluenceMacro --non-interactive -q
   - cd myConfluenceMacro
   - atlas-run &
 script:
