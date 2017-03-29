@@ -29,10 +29,12 @@ before_script:
   - mv atlassian-plugin-sdk-*/ atlassian-plugin-sdk
   - export PATH="${PATH}:${PWD}/atlassian-plugin-sdk/bin"
   - atlas-version
+script:
+  # forcing oraclejdk8
+  - jdk_switcher use oraclejdk8
   - atlas-create-jira-plugin -a myConfluenceMacro -g com.mycompany.plugins -v 1.0.0-SNAPSHOT -p com.mycompany.plugins.myConfluenceMacro --non-interactive -q
   - cd myConfluenceMacro
   - travis_wait 30 atlas-run &
-script:
   - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
   - cd /home/travis/build/biocore/american-gut-web
   - export AG_CONFIG=`pwd`/ag_config.txt.example
