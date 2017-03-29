@@ -1,6 +1,6 @@
 from unittest import main
 
-from tornado.escape import url_escape
+from tornado.escape import url_escape, xhtml_escape
 
 from knimin.tests.tornado_test_base import TestHandlerBase
 from knimin import db
@@ -32,8 +32,8 @@ class TestAGEditBarcodeHandler(TestHandlerBase):
         self.assertEqual(response.code, 200)
         details = db.getAGBarcodeDetails(barcode)
         l = db.search_kits(details['ag_kit_id'])[0]
-        self.assertIn('name="barcode" id="barcode" value="%s"' % barcode,
-                      response.body)
+        self.assertIn('name="barcode" id="barcode" value="%s"' %
+                      barcode.encode('utf-8'), response.body)
         for s in db.human_sites:
             if details['site_sampled'] == str(s):
                 self.assertIn('<option value="%s" selected>%s</option>' %
@@ -49,12 +49,12 @@ class TestAGEditBarcodeHandler(TestHandlerBase):
                 self.assertIn('<option value="%s">%s</option>' %
                               (str(e), str(e)), response.body)
         for p in db.getHumanParticipants(l) + db.getAnimalParticipants(l):
-            if details['participant_name'] == str(p):
+            if details['participant_name'] == p:
                 self.assertIn('<option value="%s" selected>%s</option>' %
-                              (str(p), str(p)), response.body)
+                              ((xhtml_escape(p), ) * 2), response.body)
             else:
                 self.assertIn('<option value="%s" >%s</option>' %
-                              (str(p), str(p)), response.body)
+                              ((xhtml_escape(p), ) * 2), response.body)
 
     def test_post(self):
         self.mock_login_admin()

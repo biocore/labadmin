@@ -1978,7 +1978,9 @@ class KniminAccess(object):
                 break
 
             # Attempt to geocode
-            address = '{0} {1} {2} {3}'.format(city, state, zipcode, country)
+            address = '%s %s %s %s' % (
+                city.decode('utf-8'), state.decode('utf-8'),
+                zipcode.decode('utf-8'), country.decode('utf-8'))
             try:
                 info = geocode(address)
                 # empty string to indicate geocode was successful
@@ -2362,13 +2364,14 @@ class KniminAccess(object):
         sql = """SELECT project from barcodes.project
                  JOIN barcodes.project_barcode USING (project_id)
                  where barcode = %s"""
-        results = [x[0] for x in self._con.execute_fetchall(sql, [barcode])]
-        if 'American Gut Project' in results:
-            parent_project = 'American Gut'
-            results.remove('American Gut Project')
-            projects = ', '.join(results)
+        results = [self._unicode_convert(x[0])
+                   for x in self._con.execute_fetchall(sql, [barcode])]
+        if u'American Gut Project' in results:
+            parent_project = u'American Gut'
+            results.remove(u'American Gut Project')
+            projects = u', '.join(results)
         else:
-            projects = ', '.join(results)
+            projects = u', '.join(results)
             parent_project = projects
         return (projects, parent_project)
 
@@ -2405,7 +2408,8 @@ class KniminAccess(object):
         """Returns a list of project names
         """
         sql = """SELECT project FROM project"""
-        return [x[0] for x in self._con.execute_fetchall(sql)]
+        return [self._unicode_convert(x[0])
+                for x in self._con.execute_fetchall(sql)]
 
     def set_deposited_ebi(self):
         """Updates barcode deposited status by checking EBI"""
@@ -2436,6 +2440,7 @@ class KniminAccess(object):
 
     def ut_remove_external_survey(self, name, description, url):
         """ Remove an external survey from DB.
+        For unit testing only!
 
         Parameters
         ----------
@@ -2521,3 +2526,79 @@ class KniminAccess(object):
             raise ValueError('ag_login_id not in database: %s' %
                              ag_login_id)
         return info[0][0]
+
+    def ut_get_arbitrary_handout_barcode(self, is_AGP=True):
+        """ Returns an arbitrarily chosen barcode that is handed out.
+        For unit testing only!
+
+        Parameters
+        ----------
+        is_AGP : Boolean
+            If True, only barcodes for American Gut Project are returned,
+            otherwise barcode is from some arbitrary project.
+
+        Returns
+        -------
+        str: barcode
+            Example: '000001000'
+
+        Raises
+        ------
+        ValueError
+            If no handed out barcode can be found in the DB.
+
+        Notes
+        -----
+        If is_AGP is True, this barcode belongs to the AGP, otherwise to any
+        project.
+
+        """
+        sql = """SELECT barcode FROM ag.ag_handout_barcodes
+                 JOIN barcodes.project_barcode USING (barcode)"""
+        if is_AGP:
+            sql += """ WHERE project_id=1"""
+        sql += """ LIMIT 1"""
+        info = self._con.execute_fetchone(sql, [])
+        if not info:
+            raise ValueError('No handout barcodes found.')
+        return info[0]
+
+    def ut_get_arbitrary_unassigned_barcode(self):
+        """ Returns an arbitrarily chosen unassigned barcode.
+        For unit testing only!
+
+        Returns
+        -------
+        str: barcode
+            Example: '000001000'
+
+        Raises
+        ------
+        ValueError
+            If no unassigned barcode can be found in the DB.
+        """
+        sql = """SELECT barcode FROM ag.ag_handout_barcodes LIMIT 1"""
+        info = self._con.execute_fetchone(sql, [])
+        if not info:
+            raise ValueError('No unassigned barcodes found.')
+        return info[0]
+
+    def ut_remove_project(self, project_name):
+        """ Deletes a project.
+        For unit testing only!
+
+        Parameters
+        ----------
+        project_name : str
+            The name of the project that should be deleted.
+
+        Raises
+        ------
+        ValueError
+            If project could not be deleted, e.g. because barcodes are still
+            associated to this project."""
+        sql = """DELETE FROM barcodes.project WHERE project=%s"""
+        try:
+            self._con.execute(sql, [project_name])
+        except:
+            raise ValueError("Unable to delete project %s" % project_name)
