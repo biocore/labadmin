@@ -28,12 +28,10 @@ before_script:
   - tar zxvf atlassian-plugin-sdk-tgz
   - mv atlassian-plugin-sdk-*/ atlassian-plugin-sdk
   - export PATH="${PATH}:${PWD}/atlassian-plugin-sdk/bin"
-  # making sure to start with a clean maven
-  - rm -r ~/.m2/
   # forcing oraclejdk8
   - jdk_switcher use oraclejdk8
   - atlas-version
-  - tar zxvf support_files/myConfluenceMacro.tgz
+  - atlas-create-jira-plugin -a myfooplugin -g com.mycompany.plugins -v 1.0.0-SNAPSHOT -p com.mycompany.plugins.myfooplugin --non-interactive -q
   - cd myConfluenceMacro
   - atlas-run &
 script:
