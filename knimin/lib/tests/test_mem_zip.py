@@ -1,8 +1,9 @@
 import unittest
-from knimin.lib.mem_zip import InMemoryZip
+from knimin.lib.mem_zip import InMemoryZip, extract_zip
 import zipfile
 import os
 import io
+from os.path import join, dirname, realpath
 
 
 class TestInMemoryZip(unittest.TestCase):
@@ -49,6 +50,19 @@ class TestInMemoryZip(unittest.TestCase):
         zhandle = zipfile.ZipFile(io.BytesIO(res))
         res_contents = zhandle.read(self.test_fname)
         self.assertEqual(res_contents, exp_contents)
+
+    def test_extract_zip(self):
+        fp_zip = join(dirname(realpath(__file__)), '..', '..', 'tests', 'data',
+                      'results_multiplesurvey_barcodes.zip')
+        obs = extract_zip(fp_zip)
+        exp_filenames = ['survey_Surfers_md.txt', 'failures.txt',
+                         'survey_Fermented_Foods_md.txt',
+                         'surveys_merged_md.txt',
+                         'survey_Pet_Information_md.txt']
+        # check filenames
+        self.assertEqual(sorted(obs.keys()), sorted(exp_filenames))
+        # check file contents very briefly
+        self.assertIn('SURF_BOARD_TYPE', obs['survey_Surfers_md.txt'])
 
 
 if __name__ == '__main__':

@@ -61,6 +61,26 @@ class InMemoryZip(object):
         return self.in_memory_data.getvalue()
 
 
+def extract_zip(input_zip):
+    """ Reads all files of a zip file from disk.
+
+    A helper function to read in all files of a zip archive as strings and
+    return a dict of those strings where the keys are the filenames.
+
+    Parameters
+    ----------
+    input_zip : str
+        The filename of the archive.
+
+    Returns
+    -------
+    A dict of str: keys = filenames in archive, values = content of files
+    """
+
+    input_zip = zipfile.ZipFile(input_zip)
+    return {name: input_zip.read(name) for name in input_zip.namelist()}
+
+
 if __name__ == "__main__":
     # Run a test
     imz = InMemoryZip()
