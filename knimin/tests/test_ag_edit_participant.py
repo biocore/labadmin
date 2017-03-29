@@ -87,8 +87,9 @@ class testAGEditParticipantHandler(TestHandlerBase):
             elif key == 'ag_login_id':
                 continue
             value = value.decode('utf-8')
-            self.assertIn(('</td><td><input type="text" name="%s" id="%s" '
-                           'value="%s"></td></tr>') % (key, key, value),
+            self.assertIn('</td><td><input type="text" name="%s" id="%s" '
+                          'value="%s"></td></tr>'
+                          % (key, key, xhtml_escape(value)),
                           response.body.decode('utf-8'))
 
         # wrong ag_login_id

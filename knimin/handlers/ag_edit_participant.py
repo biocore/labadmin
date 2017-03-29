@@ -13,6 +13,9 @@ class AGEditParticipantHandler(BaseHandler):
         email = self.get_argument('email', None)
         if email is not None:
             login = db.get_login_by_email(email)
+            if not login:
+                raise ValueError("Couldn't retrieve the login information for "
+                                 "the given email: %s" % email)
             self.render("ag_edit_participant.html", response=None,
                         login=login, currentuser=self.current_user)
 

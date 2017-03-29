@@ -328,8 +328,7 @@ FAQ section for when you can expect results.<br/>
                'd8592c74-7ddc-2135-e040-8a80115d6401',
                'sample_date': date(2013, 4, 18),
                'other_checked': '', 'status': 'Received',
-               'refunded': '', 'other_text': 'REMOVED',
-               'barcode': '000001018', 'moldy_checked': '',
+               'refunded': '', 'barcode': '000001018', 'moldy_checked': '',
                'date_of_last_email': '', 'site_sampled': 'Stool',
                # 'email_type': '1',
                # 'name': 'REMOVED',
@@ -687,9 +686,8 @@ class BarcodeUtilHandler(TestHandlerBase):
         self.assertIn("Barcode %s AG info was successfully updated"
                       % data['barcode'], response.body)
 
-        # check updating a non-AGP barcode
         data = {
-            'barcode': '000013941',
+            'barcode': db.ut_get_arbitrary_non_ag_barcode(),
             'parent_project': db.getProjectNames()[1],
             'scan_date': '2014-12-15',
             'bstatus': 'Recieved',
@@ -736,7 +734,8 @@ class BarcodeUtilHandler(TestHandlerBase):
                       response.body)
         self.assertIn(('<label for="send_mail" style="display:block;">send kit'
                        ' owner %s (%s) an email </label>')
-                      % (ag_details['name'], ag_details['email']),
+                      % (xhtml_escape(ag_details['name']),
+                         xhtml_escape(ag_details['email'])),
                       response.body)
 
 

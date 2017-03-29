@@ -59,17 +59,19 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
         response = self.get('/ag_new_barcode/')
         self.assertEqual(response.code, 200)
 
+        obs = response.body.decode('utf-8')
+
         for project in db.getProjectNames():
             self.assertIn("<option value='%s'>%s</option>" %
-                          ((xhtml_escape(project),) * 2), response.body)
+                          ((xhtml_escape(project),) * 2), obs)
         self.assertIn("Number of barcodes (%i unassigned)" %
-                      len(db.get_unassigned_barcodes()), response.body)
+                      len(db.get_unassigned_barcodes()), obs)
 
     def test_post(self):
         self.mock_login_admin()
         action = 'unknown'
         num_barcodes = 4
-        projects = db.getProjectNames()[:2]
+        projects = [p.encode('utf-8') for p in db.getProjectNames()[:2]]
         newProject = 'newProject' + str(os.getpid())
 
         # check that unkown action results in a response code 400
@@ -88,11 +90,6 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
         self.assertIn("%i Barcodes created! Please wait for barcode download" %
                       num_barcodes, response.body)
 
-        response = self.post('/ag_new_barcode/',
-                             {'action': 'assign',
-                              'numbarcodes': num_barcodes,
-                              'projects': projects})
-
         # check assignment of barcodes
         # check that error is raised if project(s) cannot be found in DB
         prj_nonexist = 'a non existing project name'
@@ -102,8 +99,8 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
                               'projects': projects + [prj_nonexist],
                               'newproject': ""})
         self.assertEqual(response.code, 200)
-        exp = ('<h3>ERROR! Project(s) given don\'t exist in database: '
-               '%s</h3>') % xhtml_escape(prj_nonexist)
+        exp = xhtml_escape('ERROR! Project(s) given don\'t exist in '
+                           'database: %s' % prj_nonexist)
         self.assertIn(exp, response.body)
 
         # check correct assignment report on HTML side
@@ -113,9 +110,10 @@ class TestAGNewBarcodeHandler(TestHandlerBase):
                               'projects': projects,
                               'newproject': ""})
         self.assertEqual(response.code, 200)
-        self.assertIn("%i barcodes assigned to %s, please wait for download." %
-                      (num_barcodes, ", ".join(map(xhtml_escape, projects))),
-                      response.body)
+        exp = xhtml_escape(
+            "%i barcodes assigned to %s, please wait for download." %
+            (num_barcodes, ", ".join(projects)))
+        self.assertIn(exp, response.body)
 
         # check if SQL error is thrown if number of barcodes is 0.
         # See issue: #107
