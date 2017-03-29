@@ -1,5 +1,6 @@
 from json import loads
 from tornado.web import authenticated, HTTPError
+from tornado.escape import url_unescape
 from knimin.handlers.base import BaseHandler
 from knimin.handlers.access_decorators import set_access
 from knimin import db
@@ -46,7 +47,8 @@ class AGNewKitHandler(BaseHandler):
         tag = self.get_argument("tag")
         if not tag:
             tag = None
-        projects = self.get_arguments("projects")
+        projects = [url_unescape(p).encode('utf-8')
+                    for p in self.get_arguments("projects")]
         num_swabs = map(int, self.get_arguments("swabs"))
         num_kits = map(int, self.get_arguments("kits"))
         kits = []
