@@ -55,10 +55,11 @@ class TestInMemoryZip(unittest.TestCase):
         fp_zip = join(dirname(realpath(__file__)), '..', '..', 'tests', 'data',
                       'results_multiplesurvey_barcodes.zip')
         obs = extract_zip(fp_zip)
-        exp_filenames = ['survey_Surfers_md.txt', 'failures.txt',
-                         'survey_Fermented_Foods_md.txt',
-                         'surveys_merged_md.txt',
-                         'survey_Pet_Information_md.txt']
+        exp_filenames = ['failures.txt', 'survey_Fermented_Foods_md.txt',
+                         'survey_Personal_Information_md.txt',
+                         'survey_Personal_Microbiome_md.txt',
+                         'survey_Pet_Information_md.txt',
+                         'surveys_merged_md.txt', 'survey_Surfers_md.txt']
         # check filenames
         self.assertEqual(sorted(obs.keys()), sorted(exp_filenames))
         # check file contents very briefly
