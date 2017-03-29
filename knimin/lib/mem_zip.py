@@ -87,7 +87,8 @@ def sneak_files(archive, len=1000):
     Parameters
     ----------
     len : int
-        Number of characters returned from each file
+        Number of characters returned from each file.
+        Default: 1000.
 
     Returns
     -------
