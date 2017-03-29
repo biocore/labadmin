@@ -21,6 +21,9 @@ before_script:
   - mv atlassian-plugin-sdk-*/ atlassian-plugin-sdk
   - export PATH="${PATH}:atlassian-plugin-sdk/bin"
   - atlas-version
+  - tar zxvf support_files/myConfluenceMacro.tgz
+  - cd myConfluenceMacro
+  - atlas-run &
 script:
   - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
   - cd /home/travis/build/biocore/american-gut-web
