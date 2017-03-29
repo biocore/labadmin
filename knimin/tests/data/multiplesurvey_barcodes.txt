@@ -17,3 +17,4 @@
 000069020	infos about barcode	survey_group: -4	survey_id: e60a2eb5001e48c6
 000069021	infos about barcode	survey_group: -4	survey_id: e60a2eb5001e48c6
 000069022	infos about barcode	survey_group: -4	survey_id: e60a2eb5001e48c6
+
