@@ -65,13 +65,13 @@ class AGPulldownDLHandler(BaseHandler):
             blanks = []
 
         # query which surveys have been selected by the user
-        if self.get_argument('selected_ag_surveys'):
+        if self.get_argument('selected_ag_surveys', []):
             selected_ag_surveys = map(int, self.get_argument(
                 'selected_ag_surveys').split(','))
         else:
             selected_ag_surveys = []
 
-        if self.get_argument('external'):
+        if self.get_argument('external', []):
             external = self.get_argument('external').split(',')
         else:
             external = []
@@ -111,7 +111,10 @@ class AGPulldownDLHandler(BaseHandler):
                 # reset the index to barcodes = here sample_name
                 pd_meta.set_index('sample_name', inplace=True)
                 results_as_pd.append(pd_meta)
-        pd_all = pd.concat(results_as_pd, join='outer', axis=1)
+
+        pd_all = pd.DataFrame()
+        if len(results_as_pd) > 0:
+            pd_all = pd.concat(results_as_pd, join='outer', axis=1)
 
         # add the merged table of all selected surveys to the zip archive
         if self.get_argument('merged', default='False') == 'True':
