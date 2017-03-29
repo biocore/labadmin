@@ -7,7 +7,7 @@ from tornado.escape import url_escape
 
 from knimin.tests.tornado_test_base import TestHandlerBase
 from knimin import db
-from knimin.lib.mem_zip import extract_zip
+from knimin.lib.mem_zip import extract_zip, sneak_files
 
 
 class testUpdateEBIStatusHandler(TestHandlerBase):
@@ -128,7 +128,7 @@ class testAGPulldownDLHandler(TestHandlerBase):
         truth = extract_zip(join(dirname(realpath(__file__)), 'data',
                                  'results_barcodes.zip'))
 
-        self.assertEqual(result, truth)
+        self.assertEqual(sneak_files(result), sneak_files(truth))
 
     def test_post_multiple_surverys(self):
         self.mock_login_admin()
@@ -161,7 +161,7 @@ class testAGPulldownDLHandler(TestHandlerBase):
         truth = extract_zip(join(dirname(realpath(__file__)), 'data',
                                  'results_multiplesurvey_barcodes.zip'))
 
-        self.assertEqual(result, truth)
+        self.assertEqual(sneak_files(result), sneak_files(truth))
 
     def test_post_select_surveys(self):
         self.mock_login_admin()
