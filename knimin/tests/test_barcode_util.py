@@ -686,9 +686,8 @@ class BarcodeUtilHandler(TestHandlerBase):
         self.assertIn("Barcode %s AG info was successfully updated"
                       % data['barcode'], response.body)
 
-        # check updating a non-AGP barcode
         data = {
-            'barcode': '000013941',
+            'barcode': db.ut_get_arbitrary_non_ag_barcode(),
             'parent_project': db.getProjectNames()[1],
             'scan_date': '2014-12-15',
             'bstatus': 'Recieved',

@@ -58,8 +58,8 @@ class TestAGNewKitHandler(TestHandlerBase):
 
         # check for correct results
         projects = db.getProjectNames()
-        project1 = projects[0]
-        project2 = projects[1]
+        project1 = projects[0].encode('utf-8')
+        project2 = projects[1].encode('utf-8')
         response = self.post('/ag_new_kit/',
                              {'tag': tag,
                               'projects': [project1, project2],
