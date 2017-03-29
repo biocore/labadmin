@@ -9,7 +9,7 @@ import knimin.lib.squash_barcodes as m
 
 class SquashBarcodesTests(TestCase):
     def test_build_barcodes_pdf(self):
-        self.assertIn('%PDF-1.4\n%', m.build_barcodes_pdf(['000000011']))
+        self.assertIn('%PDF-1.', m.build_barcodes_pdf(['000000011']))
 
         old_get_image = m.get_image
 
@@ -21,7 +21,7 @@ class SquashBarcodesTests(TestCase):
                                     thickness=2, show_text=True,
                                     quiet_zone=False)
         m.get_image = mock_get_image1
-        self.assertIn('%PDF-1.4\n%', m.build_barcodes_pdf(['000000011']))
+        self.assertIn('%PDF-1.', m.build_barcodes_pdf(['000000011']))
 
         # replace get_image method to change behaviour
         def mock_get_image2(barcodes):

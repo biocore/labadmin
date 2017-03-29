@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from tornado.web import authenticated, HTTPError
+from tornado.escape import url_unescape
 from knimin.handlers.base import BaseHandler
 from knimin.handlers.access_decorators import set_access
 
@@ -68,7 +69,8 @@ class AGNewBarcodeHandler(BaseHandler):
                    % num_barcodes)
 
         elif action == "assign":
-            projects = self.get_arguments('projects')
+            projects = [url_unescape(p).encode('utf-8')
+                        for p in self.get_arguments('projects')]
             new_project = self.get_argument('newproject').strip()
             try:
                 if new_project:
@@ -76,9 +78,10 @@ class AGNewBarcodeHandler(BaseHandler):
                     projects.append(new_project)
                 assignedbc = db.assign_barcodes(num_barcodes, projects)
             except ValueError as e:
-                msg = "ERROR! %s" % str(e)
+                msg = u"ERROR! %s" % e.message
             else:
-                tmp = "%d barcodes assigned to %s, please wait for download."
+                projects = [p.decode('utf-8') for p in projects]
+                tmp = u"%d barcodes assigned to %s, please wait for download."
                 msg = tmp % (num_barcodes, ", ".join(projects))
 
         else:

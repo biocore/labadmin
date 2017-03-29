@@ -10,10 +10,18 @@ addons:
     - oracle-java8-installer
 before_install:
   - redis-server --version
+  - wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+  - chmod +x miniconda.sh
+  - ./miniconda.sh -b
+  - export PATH=/home/travis/miniconda3/bin:$PATH
+  # Update conda itself
+  - conda update --yes conda
 install:
-  - pip install --upgrade pip
-  - pip install click natsort coverage coveralls
-  - travis_retry pip install .[test]
+  - travis_retry conda create --yes -n labadmin python=2.7 pip
+  - source activate labadmin
+  - pip install -U pip
+  - pip install -U click natsort coverage coveralls
+  - travis_retry pip install -U .[test]
 before_script:
   # installing jira locally for testing
   - wget https://marketplace.atlassian.com/download/plugins/atlassian-plugin-sdk-tgz
@@ -22,6 +30,8 @@ before_script:
   - export PATH="${PATH}:${PWD}/atlassian-plugin-sdk/bin"
   # making sure to start with a clean maven
   - rm -r ~/.m2/
+  # forcing oraclejdk8
+  - jdk_switcher use oraclejdk8
   - atlas-version
   - tar zxvf support_files/myConfluenceMacro.tgz
   - cd myConfluenceMacro

@@ -18,12 +18,14 @@ class TestProjectsSummaryHandler(TestHandlerBase):
         response = self.get('/projects/summary/')
         self.assertEqual(response.code, 200)
 
+        obs = response.body.decode('utf-8')
+
         # check that correct information is printed on HTML page.
         for project_name in db.getProjectNames():
             num_barcodes = len(db.get_barcodes_for_projects([project_name]))
             self.assertIn('<tr><td>%s</td>' % xhtml_escape(project_name),
-                          response.body)
-            self.assertIn('<td>%s</td></tr>' % num_barcodes, response.body)
+                          obs)
+            self.assertIn('<td>%s</td></tr>' % num_barcodes, obs)
 
 
 if __name__ == '__main__':
