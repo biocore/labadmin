@@ -1,5 +1,5 @@
 import unittest
-from knimin.lib.mem_zip import InMemoryZip, extract_zip
+from knimin.lib.mem_zip import InMemoryZip, extract_zip, sneak_files
 import zipfile
 import os
 import io
@@ -64,6 +64,19 @@ class TestInMemoryZip(unittest.TestCase):
         self.assertEqual(sorted(obs.keys()), sorted(exp_filenames))
         # check file contents very briefly
         self.assertIn('SURF_BOARD_TYPE', obs['survey_Surfers_md.txt'])
+
+    def test_sneak_files(self):
+        fp_zip = join(dirname(realpath(__file__)), '..', '..', 'tests', 'data',
+                      'results_multiplesurvey_barcodes.zip')
+        exp = [{'survey_Personal_Microbiome_md.txt': 'sample_name\tPM_AGE\tP'},
+               {'survey_Pet_Information_md.txt': 'sample_name\tALTITUDE'},
+               {'failures.txt': 'The following barcod'},
+               {'survey_Fermented_Foods_md.txt': 'sample_name\tFERMENTE'},
+               {'survey_Surfers_md.txt': 'sample_name\tSURF_BOA'},
+               {'survey_Personal_Information_md.txt': 'sample_name\tACNE_MED'},
+               {'surveys_merged_md.txt': 'sample_name\tACNE_MED'}]
+        obs = sneak_files(extract_zip(fp_zip), 20)
+        self.assertEqual(exp, obs)
 
 
 if __name__ == '__main__':

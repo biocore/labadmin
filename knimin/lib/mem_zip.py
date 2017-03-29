@@ -81,6 +81,21 @@ def extract_zip(input_zip):
     return {name: input_zip.read(name) for name in input_zip.namelist()}
 
 
+def sneak_files(archive, len=1000):
+    """ Returns the first characters of each file in an zip archive.
+
+    Parameters
+    ----------
+    len : int
+        Number of characters returned from each file
+
+    Returns
+    -------
+    dict{str, str} where the first component is the filename and the second
+    the first <len> characters of the file."""
+    return map(lambda (k, v): {k: v[:len]}, archive.items())
+
+
 if __name__ == "__main__":
     # Run a test
     imz = InMemoryZip()
