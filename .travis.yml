@@ -19,7 +19,7 @@ before_script:
   - wget https://marketplace.atlassian.com/download/plugins/atlassian-plugin-sdk-tgz
   - tar zxvf atlassian-plugin-sdk-tgz
   - mv atlassian-plugin-sdk-*/ atlassian-plugin-sdk
-  - export PATH="${PATH}:atlassian-plugin-sdk/bin"
+  - export PATH="${PATH}:${PWD}/atlassian-plugin-sdk/bin"
   - atlas-version
   - tar zxvf support_files/myConfluenceMacro.tgz
   - cd myConfluenceMacro

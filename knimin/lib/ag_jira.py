@@ -2,8 +2,8 @@
 from jira import JIRA
 
 
-def jira_connect(server='https://jira.atlassian.com',
-                 user=None, password=None):
+def jira_connect(server='http://127.0.0.1:2990',
+                 user='admin', password='admin'):
     """Connect to JIRA server
 
     Parameters
