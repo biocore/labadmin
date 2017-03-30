@@ -334,16 +334,14 @@ class TestDataAccess(TestCase):
                  (-3, 'Fermented Foods', True),
                  (-4, 'Surfers', True),
                  (-5, 'Personal_Microbiome', True)]
-        for survey in truth:
-            self.assertIn(survey, db.list_ag_surveys())
+        self.assertItemsEqual(db.list_ag_surveys(), truth)
 
         truth = [(-1, 'Personal Information', False),
                  (-2, 'Pet Information', True),
                  (-3, 'Fermented Foods', False),
                  (-4, 'Surfers', True),
                  (-5, 'Personal_Microbiome', False)]
-        for survey in truth:
-            self.assertIn(survey, db.list_ag_surveys([-2, -4]))
+        self.assertItemsEqual(db.list_ag_surveys([-2, -4]), truth)
 
 
 if __name__ == "__main__":
