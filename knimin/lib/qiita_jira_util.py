@@ -2,7 +2,9 @@
 from knimin import jira_handler
 from jira import JIRAError
 
-def create_project(project_name, assignee=None, template_name="Project Management"):
+
+def create_project(project_name, assignee=None,
+                   template_name="Project Management"):
     """Returns an open JIRA connection handler
 
     Parameters
@@ -30,14 +32,11 @@ def create_project(project_name, assignee=None, template_name="Project Managemen
 
     print key, template_name
     try:
-        project = jira_handler.create_project(key=key,
-                                              template_name=template_name)
-    #   project = jira_handler.create_project(key=key, name=project_name,
-    #                                         assignee=assignee,
-    #                                         template_name=template_name)
+        jira_project = jira_handler.create_project(
+            key=key, name=project_name, assignee=assignee,
+            template_name=template_name)
     except JIRAError as e:
         jira_project = None
         message = e.text
-
 
     return jira_project, message

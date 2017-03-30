@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from jira import JIRA
 
+
 def create_jira_handler(config):
     """Returns an open JIRA connection handler
 
