@@ -58,23 +58,14 @@ class AGPulldownHandler(BaseHandler):
 class AGPulldownDLHandler(BaseHandler):
     @authenticated
     def post(self):
-        barcodes = self.get_argument('barcodes').split(',')
-        if self.get_argument('blanks'):
-            blanks = self.get_argument('blanks').split(',')
-        else:
-            blanks = []
+        barcodes = self.get_arguments('barcodes')
+        blanks = self.get_arguments('blanks')
 
         # query which surveys have been selected by the user
-        if self.get_argument('selected_ag_surveys', []):
-            selected_ag_surveys = map(int, self.get_argument(
-                'selected_ag_surveys').split(','))
-        else:
-            selected_ag_surveys = []
+        selected_ag_surveys = map(int,
+                                  self.get_arguments('selected_ag_surveys'))
 
-        if self.get_argument('external', []):
-            external = self.get_argument('external').split(',')
-        else:
-            external = []
+        external = self.get_arguments('external')
 
         # Get metadata and create zip file
         metadata, failures = db.pulldown(barcodes, blanks, external)
@@ -87,8 +78,8 @@ class AGPulldownDLHandler(BaseHandler):
 
         # check database about what surveys are available
         available_agsurveys = {}
-        for (id, name, selected) in db.list_ag_surveys():
-            available_agsurveys[id] = name.replace(' ', '_')
+        for (_id, name, _) in db.list_ag_surveys():
+            available_agsurveys[_id] = name.replace(' ', '_')
 
         results_as_pd = []
         for survey, meta in viewitems(metadata):
