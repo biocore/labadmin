@@ -59,13 +59,26 @@ class AGPulldownDLHandler(BaseHandler):
     @authenticated
     def post(self):
         barcodes = self.get_arguments('barcodes')
+        if len(barcodes) == 1:
+            if ',' in barcodes[0]:
+                barcodes = barcodes[0].split(',')
+
         blanks = self.get_arguments('blanks')
+        if len(blanks) == 1:
+            if ',' in blanks[0]:
+                blanks = blanks[0].split(',')
 
         # query which surveys have been selected by the user
-        selected_ag_surveys = map(int,
-                                  self.get_arguments('selected_ag_surveys'))
+        selected_ag_surveys = self.get_arguments('selected_ag_surveys')
+        if len(selected_ag_surveys) == 1:
+            if ',' in selected_ag_surveys[0]:
+                selected_ag_surveys = selected_ag_surveys[0].split(',')
+        selected_ag_surveys = list(map(int, selected_ag_surveys))
 
         external = self.get_arguments('external')
+        if len(external) == 1:
+            if ',' in external[0]:
+                external = external[0].split(',')
 
         # Get metadata and create zip file
         metadata, failures = db.pulldown(barcodes, blanks, external)
@@ -91,11 +104,11 @@ class AGPulldownDLHandler(BaseHandler):
             # be the name of the external survey. In order to not block their
             # pulldown I check that a skipped survey ID must be in the set of
             # all available surveys.
-            abs_survey = abs(survey)
-            if (abs_survey in selected_ag_surveys) or \
-               (abs_survey not in available_agsurveys):
+            survey = -1 * survey
+            if (survey in selected_ag_surveys) or \
+               (survey not in available_agsurveys):
                 meta_zip.append('survey_%s_md.txt' %
-                                available_agsurveys[-1 * survey], meta)
+                                available_agsurveys[survey], meta)
                 # transform each survey into a pandas dataframe for later merge
                 # read all columns as string to avoid unintened conversions,
                 # like cutting leading zeros of barcodes
