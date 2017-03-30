@@ -86,17 +86,20 @@ class TestGeocode(TestCase):
         self.assertEqual(obs.country, exp.country)
 
         # Test for unicode
-        obs = geocode('12 Erlangen')
-        exp = Location('12 Erlangen', 59.36121550000001, 16.4908829,
+        obs = geocode('Erlangengatan 12')
+        exp = Location('Erlangengatan 12', 59.36121550000001, 16.4908829,
                        38.21769714355469, 'Eskilstuna',
                        u'S\xf6dermanlands l\xe4n', '632 30', 'Sweden')
         self.assertEqual(obs, exp)
 
     def test_geocode_bad_address(self):
-        obs = geocode('SomeRandomPlace')
-        exp = Location('SomeRandomPlace', None, None, None, None, None, None,
-                       None)
+        # google always tried to find something, thus make sure this is really
+        # not a word or something that can be matched somehow.
+        loc_name = 'SomeRdfkcmolzscrmilxsrhi,luxrg,zshandomPlace'
+        obs = geocode(loc_name)
+        exp = Location(loc_name, None, None, None, None, None, None, None)
         self.assertEqual(obs, exp)
+
 
 # Results copied from Google API responses on 2015-10-25
 ok = '''{

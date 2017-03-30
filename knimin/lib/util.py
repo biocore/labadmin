@@ -3,6 +3,7 @@ from StringIO import StringIO
 import time
 
 from tornado.httpclient import HTTPClient, HTTPError
+from tornado.escape import xhtml_escape
 
 __author__ = "Adam Robbins-Pianka"
 __copyright__ = "Copyright 2009-2015, QIIME Web Analysis"
@@ -302,3 +303,23 @@ def categorize_bmi(x):
         bmi_cat = 'Unspecified'
 
     return bmi_cat
+
+
+def xhtml_escape_recursive(d):
+    """ xhtml escape more complex data structures.
+
+    Parameters
+    ----------
+    d : data-structure, i.e. str or list or dict or combinations thereof
+
+    Returns
+    -------
+    Same data-structure but with xhtml_escaped fields (not keys)."""
+    if isinstance(d, str):
+        return xhtml_escape(d)
+    elif isinstance(d, list):
+        return map(xhtml_escape_recursive, d)
+    elif isinstance(d, dict):
+        return {k: xhtml_escape_recursive(v) for k, v in d.items()}
+    else:
+        return d

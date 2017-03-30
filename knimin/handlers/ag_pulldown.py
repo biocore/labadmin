@@ -33,7 +33,9 @@ class AGPulldownHandler(BaseHandler):
                    if not l.startswith('#')]
         barcodes = [b for b in samples if not b.upper().startswith('BLANK')]
         blanks = [b for b in samples if b.upper().startswith('BLANK')]
-        hold = self.get_arguments('external', [])
+
+        hold = self.get_arguments('external')
+
         if hold:
             external = ','.join(hold)
         else:

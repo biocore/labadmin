@@ -1,6 +1,6 @@
 from unittest import main
 
-from tornado.escape import url_escape
+from tornado.escape import url_escape, xhtml_escape
 from json import loads, dumps
 
 from knimin.tests.tornado_test_base import TestHandlerBase
@@ -43,11 +43,12 @@ class TestAGNewKitHandler(TestHandlerBase):
         self.mock_login_admin()
         response = self.get('/ag_new_kit/')
         self.assertEqual(response.code, 200)
+        obs = response.body.decode('utf-8')
         for project in db.getProjectNames():
             self.assertIn("<option value='%s'>%s</option>" %
-                          (project, project), response.body)
+                          ((xhtml_escape(project),) * 2), obs)
         self.assertIn("%i</span> unassigned barcodes" %
-                      len(db.get_unassigned_barcodes()), response.body)
+                      len(db.get_unassigned_barcodes()), obs)
 
     def test_post(self):
         self.mock_login_admin()
@@ -56,9 +57,12 @@ class TestAGNewKitHandler(TestHandlerBase):
         tag = 'abc'
 
         # check for correct results
+        projects = db.getProjectNames()
+        project1 = projects[0].encode('utf-8')
+        project2 = projects[1].encode('utf-8')
         response = self.post('/ag_new_kit/',
                              {'tag': tag,
-                              'projects': ['PROJECT2', 'PROJECT5'],
+                              'projects': [project1, project2],
                               'swabs': swabs,
                               'kits': kits,
                               })
@@ -73,7 +77,7 @@ class TestAGNewKitHandler(TestHandlerBase):
 
         # missing argument
         response = self.post('/ag_new_kit/',
-                             {'projects': ['PROJECT2', 'PROJECT5'],
+                             {'projects': [project1, project2],
                               'swabs': swabs,
                               'kits': kits,
                               })
@@ -82,7 +86,7 @@ class TestAGNewKitHandler(TestHandlerBase):
         # too long tag
         response = self.post('/ag_new_kit/',
                              {'tag': 'toolongtag',
-                              'projects': ['PROJECT2', 'PROJECT5'],
+                              'projects': [project1, project2],
                               'swabs': swabs,
                               'kits': kits,
                               })
@@ -105,7 +109,7 @@ class TestAGNewKitHandler(TestHandlerBase):
         # check for empty swabs list
         response = self.post('/ag_new_kit/',
                              {'tag': tag,
-                              'projects': ['PROJECT2', 'PROJECT5'],
+                              'projects': [project1, project2],
                               'swabs': [],
                               'kits': kits,
                               })
@@ -116,13 +120,25 @@ class TestAGNewKitHandler(TestHandlerBase):
         # no kits given
         response = self.post('/ag_new_kit/',
                              {'tag': tag,
-                              'projects': ['PROJECT2', 'PROJECT5'],
+                              'projects': [project1, project2],
                               'swabs': swabs,
                               'kits': [],
                               })
         self.assertEqual(response.code, 500)
         self.assertIn("SET assigned_on = NOW() WHERE barcode IN ()",
                       response.body)
+
+        # what if tag is None
+        response = self.post('/ag_new_kit/',
+                             {'tag': '',
+                              'projects': [project1, project2],
+                              'swabs': swabs,
+                              'kits': kits,
+                              })
+        self.assertEqual(response.code, 200)
+        kitinfo = loads(response.body)
+        self.assertNotIn('_', kitinfo['kitinfo'][0][0])
+
 
 if __name__ == "__main__":
     main()

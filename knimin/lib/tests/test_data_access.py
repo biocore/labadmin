@@ -63,7 +63,7 @@ class TestDataAccess(TestCase):
 
         # This astype is making sure that the values in the BMI column are
         # values that can be casted to float.
-        survey_df.BMI.astype(float)
+        survey_df[survey_df.BMI != 'Unspecified'] .BMI.astype(float)
 
         body_product_values = set(survey_df.BODY_PRODUCT)
         self.assertTrue(all([x.startswith('UBERON') or x == 'Unspecified'
@@ -96,18 +96,32 @@ class TestDataAccess(TestCase):
 
     def test_get_unconsented(self):
         obs = db.get_unconsented()
-        self.assertEqual(len(obs), 433)
-        exp = ['000001000', datetime.date(2015, 4, 10), 'REMOVED']
-        self.assertEqual(obs[0], exp)
+        # we don't know the actual number independent of DB version, but we can
+        # assume that we have a certain amount of those barcodes.
+        self.assertTrue(len(obs) >= 100)
+
+        # we cannot know which barcodes are unconsented without executing the
+        # db function itself. Thus, for unit tests, we should only check data
+        # types.
+        self.assertTrue(obs[0][0].isdigit())
+        self.assertTrue(isinstance(obs[0][1], datetime.date))
+        self.assertTrue(isinstance(obs[0][2], str))
 
     def test_search_kits(self):
-        obs = db.search_kits('tst_IueFX')
-        self.assertEqual(['ded5101d-c8e3-f6b3-e040-8a80115d6f03'], obs)
+        # obtain current test data from DB
+        ag_login_id = 'd8592c74-7cf9-2135-e040-8a80115d6401'
+        kits = db.get_kit_info_by_login(ag_login_id)
 
+        # check if ag_login_id is regain with supplied_kit_id
+        obs = db.search_kits(kits[0]['supplied_kit_id'])
+        self.assertEqual([ag_login_id], obs)
+
+        # check if kit_id is found by search
         obs = db.search_kits('e1934dfe-8537-6dce-e040-8a80115d2da9')
         self.assertEqual(['e1934ceb-6e92-c36a-e040-8a80115d2d64'], obs)
 
-        obs = db.search_kits('000001124')
+        # check that a non existing kit is not found
+        obs = db.search_kits('990001124')
         self.assertEqual([], obs)
 
     def test_get_barcodes_with_results(self):
@@ -128,29 +142,42 @@ class TestDataAccess(TestCase):
         self.assertEqual(obs['mail']['mimetext']['From'], '')
         self.assertEqual(obs['mail']['mimetext']['Subject'],
                          'Your American/British Gut results are ready')
-        self.assertEqual(obs['mail']['recipients'],
-                         ['americangut@gmail.com', 'REMOVED'])
+        # don't compare name, since it is scrubbed to random chars
+        self.assertEqual(obs['mail']['recipients'][0],
+                         'americangut@gmail.com')
 
         obs = db.get_ag_barcode_details(['000001072', '000023299'])
         self.assertEqual(obs['000023299']['results_ready'], 'Y')
         self.assertEqual(obs['000001072']['results_ready'], 'Y')
 
     def test_get_access_levels_user(self):
-        obs = db.get_access_levels_user('test')
-        self.assertEqual(obs, [])
+        # insert a fresh new user into DB.
+        email = 'testmail@testdomain.com'
+        password = ('$2a$10$2.6Y9HmBqUFmSvKCjWmBte70'
+                    'WF.zd3h4VqbhLMQK1xP67Aj3rei86')
+        sql = """INSERT INTO ag.labadmin_users (email, password)
+                 VALUES (%s, %s)"""
+        db._con.execute(sql, [email, password])
 
-        db.alter_access_levels('test', [1, 6])
-        obs = db.get_access_levels_user('test')
-        self.assertEqual(obs, [[1, 'Barcodes'], [6, 'Search']])
+        obs = db.get_access_levels_user(email)
+        self.assertItemsEqual(obs, [])
 
-        db.alter_access_levels('test', [])
-        obs = db.get_access_levels_user('test')
-        self.assertEqual(obs, [])
+        db.alter_access_levels(email, [1, 6])
+        obs = db.get_access_levels_user(email)
+        self.assertItemsEqual(obs, [[1, 'Barcodes'], [6, 'Search']])
+
+        db.alter_access_levels(email, [])
+        obs = db.get_access_levels_user(email)
+        self.assertItemsEqual(obs, [])
+
+        # Remove test user from DB.
+        sql = """DELETE FROM ag.labadmin_users WHERE email=%s"""
+        db._con.execute(sql, [email])
 
     def test_get_users(self):
         obs = db.get_users()
-        exp = ['test']
-        self.assertEqual(obs, exp)
+        exp = 'test'
+        self.assertIn(exp, obs)
 
     def test_get_access_levels(self):
         obs = db.get_access_levels()
@@ -161,24 +188,20 @@ class TestDataAccess(TestCase):
 
     def test_participant_names(self):
         obs = db.participant_names()
-        self.assertEqual(len(obs), 8237)
-        self.assertEqual(obs[0], ['000027561', 'REMOVED-0'])
+        self.assertTrue(len(obs) >= 8237)
+        self.assertIn('000027561', map(lambda x: x[0], obs))
 
     def test_search_barcodes(self):
         obs = db.search_barcodes('000001124')
         self.assertEqual(obs, ['d8592c74-7c27-2135-e040-8a80115d6401'])
 
-        obs = db.search_barcodes('REMOVED-8')
-        exp = ['d8592c74-7da1-2135-e040-8a80115d6401',
-               '00711b0a-67d6-0fed-e050-8a800c5d7570',
-               'd8592c74-9491-2135-e040-8a80115d6401',
-               'f37dc99e-2241-3a4f-e040-8a80115d1694',
-               'e025e238-4529-77a9-e040-8a80115d503f',
-               'e76468db-82ca-bf84-e040-8a80115d55dc',
-               'fa66366c-12f2-50aa-e040-8a800c5d6584',
-               'df703c65-b700-401c-e040-8a80115d46ed',
-               'e02a84fb-8db9-1e6a-e040-8a80115d6e16']
-        self.assertEqual(obs, exp)
+        ag_login_id = "d8592c74-9491-2135-e040-8a80115d6401"
+        names = db.ut_get_participant_names_from_ag_login_id(ag_login_id)
+
+        obs = []
+        for name in names:
+            obs.extend(db.search_barcodes(name))
+        self.assertTrue(ag_login_id in obs)
 
     def test_getAGBarcodeDetails(self):
         obs = db.getAGBarcodeDetails('000018046')
@@ -186,43 +209,47 @@ class TestDataAccess(TestCase):
                'ag_kit_id': '0060a301-e5c0-6a4e-e050-8a800c5d49b7',
                'barcode': '000018046',
                'environment_sampled': None,
-               'name': 'REMOVED',
+               # 'name': 'REMOVED',
                'ag_kit_barcode_id': '0060a301-e5c1-6a4e-e050-8a800c5d49b7',
                'sample_time': datetime.time(11, 15),
-               'notes': 'REMOVED',
+               # 'notes': 'REMOVED',
                'overloaded': 'N',
-               'withdrawn': None, 'email': 'REMOVED',
-               'other': 'N', 'deposited': False,
-               'participant_name': 'REMOVED-0',
+               'withdrawn': None,  # 'email': 'REMOVED',
+               'other': 'N',
+               # 'deposited': False,
+               # 'participant_name': 'REMOVED-0',
                'refunded': None, 'moldy': 'N',
                'sample_date': datetime.date(2014, 8, 13),
                'date_of_last_email': datetime.date(2014, 8, 15),
-               'other_text': 'REMOVED',
+               # 'other_text': 'REMOVED',
                'site_sampled': 'Stool'}
-        self.assertEqual(obs, exp)
+        # only look at those fields, that are not subject to scrubbing
+        self.assertEqual({k: obs[k] for k in exp}, exp)
 
     def test_get_barcode_info_by_kit_id(self):
         obs = db.get_barcode_info_by_kit_id(
-            '0060a301-e5c0-6a4e-e050-8a800c5d49b7')
-        exp = [{'ag_kit_id': '0060a301-e5c0-6a4e-e050-8a800c5d49b7',
-                'environment_sampled': None,
-                'sample_time': datetime.time(11, 15),
-                'notes': 'REMOVED',
-                'barcode': '000018046',
-                'results_ready': 'Y',
-                'refunded': None,
-                'participant_name': 'REMOVED-0',
-                'ag_kit_barcode_id': '0060a301-e5c1-6a4e-e050-8a800c5d49b7',
-                'sample_date': datetime.date(2014, 8, 13),
-                'withdrawn': None,
-                'site_sampled': 'Stool'}]
-        self.assertEqual(obs, exp)
+            '0060a301-e5c0-6a4e-e050-8a800c5d49b7')[0]
+        exp = {'ag_kit_id': '0060a301-e5c0-6a4e-e050-8a800c5d49b7',
+               'environment_sampled': None,
+               'sample_time': datetime.time(11, 15),
+               # 'notes': 'REMOVED',
+               'barcode': '000018046',
+               'results_ready': 'Y',
+               'refunded': None,
+               # 'participant_name': 'REMOVED-0',
+               'ag_kit_barcode_id': '0060a301-e5c1-6a4e-e050-8a800c5d49b7',
+               'sample_date': datetime.date(2014, 8, 13),
+               'withdrawn': None,
+               'site_sampled': 'Stool'}
+        # only look at those fields, that are not subject to scrubbing
+        self.assertEqual({k: obs[k] for k in exp}, exp)
 
     def test_getHumanParticipants(self):
         i = "d8592c74-9694-2135-e040-8a80115d6401"
         res = db.getHumanParticipants(i)
-        exp = ['REMOVED-2', 'REMOVED-0', 'REMOVED-3', 'REMOVED-1']
-        self.assertItemsEqual(res, exp)
+        # we can't compare to scrubbed participant names, thus we only check
+        # number of names.
+        self.assertTrue(len(res) >= 4)
 
     def test_getHumanParticipantsNotPresent(self):
         i = '00000000-0000-0000-0000-000000000000'
@@ -232,8 +259,9 @@ class TestDataAccess(TestCase):
     def test_getAnimalParticipants(self):
         i = "ed5ab96f-fe3b-ead5-e040-8a80115d1c4b"
         res = db.getAnimalParticipants(i)
-        exp = ['REMOVED-0']
-        self.assertItemsEqual(res, exp)
+        # we can't compare to scrubbed participant names, thus we only check
+        # number of names.
+        self.assertTrue(len(res) == 1)
 
     def test_getAnimalParticipantsNotPresent(self):
         i = "00711b0a-67d6-0fed-e050-8a800c5d7570"
@@ -242,60 +270,64 @@ class TestDataAccess(TestCase):
 
     def test_get_ag_barcode_details(self):
         obs = db.get_ag_barcode_details(['000018046'])
+        ag_login_id = '0060a301-e5bf-6a4e-e050-8a800c5d49b7'
         exp = {'000018046': {
-               'ag_kit_barcode_id': '0060a301-e5c1-6a4e-e050-8a800c5d49b7',
-               'verification_email_sent': 'n',
-               'pass_reset_code': None,
-               'vioscreen_status': 3,
-               'sample_barcode_file': '000018046.jpg',
-               'environment_sampled': None,
-               'supplied_kit_id': 'tst_nVEyP',
-               'withdrawn': None,
-               'kit_verified': 'y',
-               'city': 'REMOVED',
-               'ag_kit_id': '0060a301-e5c0-6a4e-e050-8a800c5d49b7',
-               'zip': 'REMOVED',
-               'ag_login_id': '0060a301-e5bf-6a4e-e050-8a800c5d49b7',
-               'state': 'REMOVED',
-               'results_ready': 'Y',
-               'moldy': 'N',
-               # The key 'registered_on' is a time stamp when the database is
-               # created. It is unique per deployment.
-               # 'registered_on': datetime.datetime(2016, 8, 17, 10, 47, 2,
-               #                                   713292),
-               'participant_name': 'REMOVED-0',
-               'kit_password': ('$2a$12$LiakUCHOpAMvEp9Wxehw5OIlD/TIIP0Bs3blw'
-                                '18ePcmKHWWAePrQ.'),
-               'deposited': False,
-               'sample_date': datetime.date(2014, 8, 13),
-               'email': 'REMOVED',
-               'print_results': False,
-               'open_humans_token': None,
-               'elevation': 0.0,
-               'refunded': None,
-               'other_text': 'REMOVED',
-               'barcode': '000018046',
-               'swabs_per_kit': 1L,
-               'kit_verification_code': '60260',
-               'latitude': 0.0,
-               'cannot_geocode': None,
-               'address': 'REMOVED',
-               'date_of_last_email': datetime.date(2014, 8, 15),
-               'site_sampled': 'Stool',
-               'name': 'REMOVED',
-               'sample_time': datetime.time(11, 15),
-               'notes': 'REMOVED',
-               'overloaded': 'N',
-               'longitude': 0.0,
-               'pass_reset_time': None,
-               'country': 'REMOVED',
-               'survey_id': '084532330aca5885',
-               'other': 'N',
-               'sample_barcode_file_md5': None
-               }}
+                'ag_kit_barcode_id': '0060a301-e5c1-6a4e-e050-8a800c5d49b7',
+                'verification_email_sent': 'n',
+                'pass_reset_code': None,
+                'vioscreen_status': 3,
+                'sample_barcode_file': '000018046.jpg',
+                'environment_sampled': None,
+                'supplied_kit_id': db.ut_get_supplied_kit_id(ag_login_id),
+                'withdrawn': None,
+                'kit_verified': 'y',
+                # 'city': 'REMOVED',
+                'ag_kit_id': '0060a301-e5c0-6a4e-e050-8a800c5d49b7',
+                # 'zip': 'REMOVED',
+                'ag_login_id': ag_login_id,
+                # 'state': 'REMOVED',
+                'results_ready': 'Y',
+                'moldy': 'N',
+                # The key 'registered_on' is a time stamp when the database is
+                # created. It is unique per deployment.
+                # 'registered_on': datetime.datetime(2016, 8, 17, 10, 47, 2,
+                #                                   713292),
+                # 'kit_password': ('$2a$10$2.6Y9HmBqUFmSvKCjWmBte70WF.zd3h4Vqb'
+                #                  'hLMQK1xP67Aj3rei86'),
+                # 'deposited': False,
+                'sample_date': datetime.date(2014, 8, 13),
+                # 'email': 'REMOVED',
+                'print_results': False,
+                'open_humans_token': None,
+                # 'elevation': 0.0,
+                'refunded': None,
+                # 'other_text': 'REMOVED',
+                'barcode': '000018046',
+                'swabs_per_kit': 1L,
+                # 'kit_verification_code': '60260',
+                # 'latitude': 0.0,
+                'cannot_geocode': None,
+                # 'address': 'REMOVED',
+                'date_of_last_email': datetime.date(2014, 8, 15),
+                'site_sampled': 'Stool',
+                # 'name': 'REMOVED',
+                'sample_time': datetime.time(11, 15),
+                # 'notes': 'REMOVED',
+                'overloaded': 'N',
+                # 'longitude': 0.0,
+                'pass_reset_time': None,
+                # 'country': 'REMOVED',
+                'survey_id': '084532330aca5885',
+                'other': 'N',
+                'sample_barcode_file_md5': None
+        }}
+        participant_names = db.ut_get_participant_names_from_ag_login_id(
+            ag_login_id)
         for key in obs:
             del(obs[key]['registered_on'])
-        self.assertEqual(obs, exp)
+            # only look at those fields, that are not subject to scrubbing
+            self.assertEqual({k: obs[key][k] for k in exp[key]}, exp[key])
+            self.assertIn(obs[key]['participant_name'], participant_names)
 
     def test_create_study(self):
         # Create a study with all properties

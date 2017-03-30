@@ -52,5 +52,6 @@ class TestAGResultsReadyHandler(TestHandlerBase):
         self.assertEqual(response.code, 200)
         self.assertIn('ERROR: No barcode results available', response.body)
 
+
 if __name__ == '__main__':
     main()

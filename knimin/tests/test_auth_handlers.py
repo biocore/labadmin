@@ -33,14 +33,14 @@ class TestAuthLoginHandler(TestHandlerBase):
         # check if login with correct credentials is possible
         response = self.post('/auth/login/',
                              {'email': 'test',
-                              'password': 'password',
+                              'password': 'test',
                               })
         port = self.get_http_port()
         # TODO: check via response.code, see issue #102
         self.assertEqual(
+            response.effective_url,
             'http://localhost:%d/login/?next=%s' %
-            (port, url_escape('/logged_in_index/')),
-            response.effective_url
+            (port, url_escape('/logged_in_index/'))
         )
 
     def test_set_current_user(self):
@@ -71,6 +71,7 @@ class TestAuthLogoutHandler(TestHandlerBase):
         self.assertEqual(response.code, 200)
         self.assertTrue(response.effective_url.endswith(
             '/login/?next=%2Fprojects%2Fsummary%2F'))
+
 
 if __name__ == "__main__":
     main()

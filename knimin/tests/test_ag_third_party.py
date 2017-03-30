@@ -9,19 +9,25 @@ from tornado.escape import url_escape
 from knimin.tests.tornado_test_base import TestHandlerBase
 from knimin import db
 from knimin.handlers.ag_third_party import ThirdPartyData, NewThirdParty
+from functools import partial
 
 
 class AGThirdPartyHandler(TestHandlerBase):
     ext_survey_fp = join(dirname(realpath(__file__)), 'data',
                          'external_survey_data.csv')
+    data_vioscreen = {'name': 'Vioscreen',
+                      'description': 'FFQ',
+                      'url': 'http://vioscreen.com'}
+    _clean_up_funcs = []
 
-    def setUp(self):
-        # Make sure vioscreen survey exists in DB
-        try:
-            db.add_external_survey('Vioscreen', 'FFQ', 'http://vioscreen.com')
-        except ValueError:
-            pass
-        super(AGThirdPartyHandler, self).setUp()
+    def tearDown(self):
+        for f in self._clean_up_funcs:
+            try:
+                f()
+            except Exception as e:
+                print("Database clean-up failed. Downstream tests might be"
+                      "affected by this! Reason: %s" % str(e))
+        super(AGThirdPartyHandler, self).tearDown()
 
     def test_get_not_authed(self):
         response = self.get('/ag_third_party/data/')
@@ -54,11 +60,11 @@ class AGThirdPartyHandler(TestHandlerBase):
         tpsurveys = db.list_external_surveys()
         form = ThirdPartyData()
         # make sure that at least this third party survey exist in the DB
+        data = {'name': 'newTPsurvey',
+                'description': 'akSJdghcakscmakld  fh',
+                'url': 'www.google.com'}
         if len(tpsurveys) == 0:
-            response = self.post('/ag_third_party/add/',
-                                 {'name': 'newTPsurvey',
-                                  'description': 'akSJdghcakscmakld  fh',
-                                  'url': 'www.google.com'})
+            response = self.post('/ag_third_party/add/', data)
 
         response = self.get('/ag_third_party/data/')
         self.assertEqual(response.code, 200)
@@ -68,6 +74,9 @@ class AGThirdPartyHandler(TestHandlerBase):
         for survey in tpsurveys:
             self.assertIn('<option value="%s">%s</option>' % (survey, survey),
                           response.body)
+        # roll back change to the DB
+        self._clean_up_funcs.append(partial(
+            db.ut_remove_external_survey, **data))
 
     def test_post_data(self):
         self.mock_login_admin()
@@ -75,6 +84,7 @@ class AGThirdPartyHandler(TestHandlerBase):
                 'survey_id': 'SubjectId', 'trim': '-160'}
         files = {'file_in': self.ext_survey_fp}
 
+        response = self.post('/ag_third_party/add/', self.data_vioscreen)
         response = self.multipart_post('/ag_third_party/data/', data, files)
         self.assertEqual(response.code, 200)
         self.assertIn("3 surveys added to 'Vioscreen' successfully",
@@ -85,7 +95,12 @@ class AGThirdPartyHandler(TestHandlerBase):
         obs = db.get_external_survey('Vioscreen', [id])
         self.assertTrue(len(obs[id]) == 274)
         self.assertIn('HEI2010_Greens_Beans', obs['14f508185c954721'].keys())
-        db._clear_table('external_survey_answers', 'ag')
+
+        # roll back change to the DB
+        self._clean_up_funcs.append(partial(
+            db._clear_table, 'external_survey_answers', 'ag'))
+        self._clean_up_funcs.append(partial(
+            db.ut_remove_external_survey, **self.data_vioscreen))
 
     def test_post_missing_data(self):
         self.mock_login()
@@ -93,14 +108,23 @@ class AGThirdPartyHandler(TestHandlerBase):
         data = {'seperator': 'comma', 'survey_id': 'SubjectId', 'trim': ''}
         files = {'file_in': self.ext_survey_fp}
 
+        response = self.post('/ag_third_party/add/', self.data_vioscreen)
+
         response = self.multipart_post('/ag_third_party/data/', data, files)
         self.assertEqual(response.code, 200)
         self.assertIn('Third Party survey</label>\n\n<ul class="errors">'
                       '<li>Not a valid choice', response.body)
-        db._clear_table('external_survey_answers', 'ag')
+
+        # roll back change to the DB
+        self._clean_up_funcs.append(partial(
+            db._clear_table, 'external_survey_answers', 'ag'))
+        self._clean_up_funcs.append(partial(
+            db.ut_remove_external_survey, **self.data_vioscreen))
 
     def test_post_wrong_arguments(self):
         self.mock_login_admin()
+        response = self.post('/ag_third_party/add/', self.data_vioscreen)
+
         data = {'survey': 'NotInDB',
                 'seperator': 'comma',
                 'survey_id': 'SubjectId',
@@ -140,21 +164,29 @@ class AGThirdPartyHandler(TestHandlerBase):
         self.assertIn('<ul class="errors"><li>Not a valid choice</li></ul>',
                       response.body)
 
+        # roll back change to the DB
+        self._clean_up_funcs.append(partial(
+            db._clear_table, 'external_survey_answers', 'ag'))
+        self._clean_up_funcs.append(partial(
+            db.ut_remove_external_survey, **self.data_vioscreen))
+
 
 class AGNewThirdPartyHandler(TestHandlerBase):
-    def setUp(self):
-        # Make sure vioscreen survey exists in DB
-        try:
-            db.add_external_survey('Vioscreen', 'FFQ', 'http://vioscreen.com')
-        except ValueError:
-            pass
-        super(AGNewThirdPartyHandler, self).setUp()
+    _clean_up_funcs = []
+
+    def tearDown(self):
+        for f in self._clean_up_funcs:
+            try:
+                f()
+            except Exception as e:
+                print("Database clean-up failed. Downstream tests might be"
+                      "affected by this! Reason: %s" % str(e))
+        super(AGNewThirdPartyHandler, self).tearDown()
 
     def test_post_not_authed(self):
         name = ''.join([choice(ascii_letters) for x in range(15)])
-        response = self.post('/ag_third_party/add/',
-                             data={'name': name, 'description': 'TEST',
-                                   'url': 'test.fake'})
+        data = {'name': name, 'description': 'TEST', 'url': 'test.fake'}
+        response = self.post('/ag_third_party/add/', data)
         self.assertEqual(response.code, 403)
 
     def test_get_not_authed(self):
@@ -166,36 +198,46 @@ class AGNewThirdPartyHandler(TestHandlerBase):
                          (port, url_escape('/ag_third_party/add/')))
 
     def test_post_data(self):
-        self.mock_login()
+        self.mock_login_admin()
         db.alter_access_levels('test', [4])
-        name = ''.join([choice(ascii_letters) for x in range(15)])
-        response = self.post('/ag_third_party/add/',
-                             data={'name': name, 'description': 'TEST',
-                                   'url': 'test.fake'})
+        data = {'name': ''.join([choice(ascii_letters) for x in range(15)]),
+                'description': 'TEST',
+                'url': 'test.fake'}
+        response = self.post('/ag_third_party/add/', data)
         self.assertEqual(response.code, 200)
-        self.assertIn("Added '%s' successfully" % name, response.body)
+        self.assertIn("Added '%s' successfully" % data['name'], response.body)
+
+        # roll back change to the DB
+        self._clean_up_funcs.append(partial(
+            db.ut_remove_external_survey, **data))
 
     def test_post_missing_data(self):
-        self.mock_login()
+        self.mock_login_admin()
         db.alter_access_levels('test', [4])
-        name = ''.join([choice(ascii_letters) for x in range(15)])
-        data = {'name': name, 'description': 'TEST', 'url': ''}
-
+        data = {'name': ''.join([choice(ascii_letters) for x in range(15)]),
+                'description': 'TEST',
+                'url': ''}
         response = self.post('/ag_third_party/add/', data)
         self.assertEqual(response.code, 200)
         self.assertIn('Survey URL</label>\n\n<ul class="errors"><li>'
                       'Required field', response.body)
-        db._clear_table('external_survey_answers', 'ag')
 
     def test_post_existing_survey(self):
-        self.mock_login()
+        self.mock_login_admin()
         db.alter_access_levels('test', [4])
-        data = {'name': 'Vioscreen', 'description': 'TEST', 'url': 'test.fake'}
-
+        data = {'name': 'Vioscreen',
+                'description': 'TEST',
+                'url': 'test.fake'}
+        # adding survey in for the first time
+        response = self.post('/ag_third_party/add/', data)
+        # trying the second time
         response = self.post('/ag_third_party/add/', data)
         self.assertEqual(response.code, 200)
         self.assertIn("Survey 'Vioscreen' already exists", response.body)
-        db._clear_table('external_survey_answers', 'ag')
+
+        # roll back change to the DB
+        self._clean_up_funcs.append(partial(
+            db.ut_remove_external_survey, **data))
 
     def test_get(self):
         self.mock_login_admin()
@@ -208,39 +250,37 @@ class AGNewThirdPartyHandler(TestHandlerBase):
 
     def test_post(self):
         self.mock_login_admin()
-        name = 'testNewTPSurvey_' + str(os.getpid())
+        data = {'name': 'testNewTPSurvey_' + str(os.getpid()),
+                'description': 'akSJdghcakscmakld  fh',
+                'url': 'www.google.com'}
 
         # add a new Survey
-        response = self.post('/ag_third_party/add/',
-                             {'name': name,
-                              'description': 'akSJdghcakscmakld  fh',
-                              'url': 'www.google.com'})
+        response = self.post('/ag_third_party/add/', data)
         self.assertEqual(response.code, 200)
         self.assertIn("<div style='color:red;'>Added '%s' successfully</div>"
-                      % name, response.body)
+                      % data['name'], response.body)
 
         # check that existing surveys cannot be added
-        response = self.post('/ag_third_party/add/',
-                             {'name': name,
-                              'description': 'akSJdghcakscmakld  fh',
-                              'url': 'www.google.com'})
+        response = self.post('/ag_third_party/add/', data)
         self.assertEqual(response.code, 200)
         self.assertIn(("<div style='color:red;'>Survey '%s' already "
-                       "exists</div>") % name, response.body)
+                       "exists</div>") % data['name'], response.body)
 
         # check for missing fields
         response = self.post('/ag_third_party/add/',
-                             {'name': 'new',
-                              'url': 'www.google.com'})
+                             {k: data[k] for k in ['name', 'url']})
         self.assertEqual(response.code, 200)
         self.assertIn('<ul class="errors"><li>Required field</li></ul>',
                       response.body)
         response = self.post('/ag_third_party/add/',
-                             {'name': 'new',
-                              'description': 'akSJdghcakscmakld  fh'})
+                             {k: data[k] for k in ['name', 'description']})
         self.assertEqual(response.code, 200)
         self.assertIn('<ul class="errors"><li>Required field</li></ul>',
                       response.body)
+
+        # roll back change to the DB
+        self._clean_up_funcs.append(partial(
+            db.ut_remove_external_survey, **data))
 
 
 if __name__ == "__main__":

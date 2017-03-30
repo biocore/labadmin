@@ -20,6 +20,7 @@ from mail import send_email
 from util import (make_valid_kit_ids, make_verification_code, make_passwd,
                   categorize_age, categorize_etoh, categorize_bmi, correct_age,
                   fetch_url, correct_bmi)
+from tornado.escape import xhtml_escape
 from constants import (md_lookup, month_int_lookup, month_str_lookup,
                        regions_by_state, blanks_values, season_lookup,
                        ebi_remove, env_lookup)
@@ -121,8 +122,10 @@ class SQLHandler(object):
                     err_sql = cur.mogrify(sql, sql_args)
                 except:
                     err_sql = cur.mogrify(sql, sql_args[0])
+                # errors might contain user strings encoded in utf-8.
                 raise ValueError(("\nError running SQL query: %s"
-                                  "\nError: %s" % (err_sql, e)))
+                                  "\nError: %s" % (err_sql.decode('utf-8'),
+                                                   str(e).decode('utf-8'))))
 
     def execute_fetchall(self, sql, sql_args=None):
         """ Executes a fetchall SQL query
@@ -615,11 +618,13 @@ class KniminAccess(object):
 
     def _geocode(self, barcode, zipcode, country, zip_lookup, country_lookup):
         """Adds geocoding information to the barcoe for pulldown"""
+        # for a proper lookup in the dict, zipcode must be encoded as utf-8
+        key_zipcode = zipcode.encode('utf-8')
         try:
-            barcode['LATITUDE'] = zip_lookup[zipcode][country][0]
-            barcode['LONGITUDE'] = zip_lookup[zipcode][country][1]
-            barcode['ELEVATION'] = zip_lookup[zipcode][country][2]
-            barcode['STATE'] = zip_lookup[zipcode][country][3]
+            barcode['LATITUDE'] = zip_lookup[key_zipcode][country][0]
+            barcode['LONGITUDE'] = zip_lookup[key_zipcode][country][1]
+            barcode['ELEVATION'] = zip_lookup[key_zipcode][country][2]
+            barcode['STATE'] = zip_lookup[key_zipcode][country][3]
             barcode['COUNTRY'] = country_lookup[country]
             barcode['GEO_LOC_NAME'] = ':'.join(
                 [barcode['COUNTRY'], barcode['STATE']])
@@ -636,7 +641,7 @@ class KniminAccess(object):
                 barcode['GEO_LOC_NAME'] = ':'.join(
                     [barcode['COUNTRY'], barcode['STATE']])
                 # Store in dict so we don't geocode again
-                zip_lookup[zipcode][country] = (
+                zip_lookup[key_zipcode][country] = (
                     round(info.lat, 1), round(info.long, 1),
                     round(info.elev, 1), info.state)
             else:
@@ -647,7 +652,7 @@ class KniminAccess(object):
                 barcode['COUNTRY'] = 'Unspecified'
                 barcode['GEO_LOC_NAME'] = 'Unspecified'
                 # Store in dict so we don't geocode again
-                zip_lookup[zipcode][country] = (
+                zip_lookup[key_zipcode][country] = (
                     'Unspecified', 'Unspecified', 'Unspecified',
                     'Unspecified')
         return barcode
@@ -699,9 +704,17 @@ class KniminAccess(object):
                                  round(elevation::numeric, 1), state
                              FROM zipcodes"""
         zip_lookup = defaultdict(dict)
+
+        def _decode_zip_lookup(item):
+            if item is None:
+                return 'Unspecified'
+            elif isinstance(item, (str, unicode)):
+                return item.decode('utf-8')
+            else:
+                return item
+
         for row in self._con.execute_fetchall(zipcode_sql):
-            zip_lookup[row[0]][row[1]] = map(
-                lambda x: x if x is not None else 'Unspecified', row[2:])
+            zip_lookup[row[0]][row[1]] = map(_decode_zip_lookup, row[2:])
 
         country_sql = "SELECT country, EBI from ag.iso_country_lookup"
         country_lookup = dict(self._con.execute_fetchall(country_sql))
@@ -768,9 +781,9 @@ class KniminAccess(object):
                 for field in ('HEIGHT_CM', 'WEIGHT_KG'):
                     md[1][barcode][field] = sub('[^0-9.]',
                                                 '', md[1][barcode][field])
-                    if md[1][barcode][field]:
+                    try:
                         md[1][barcode][field] = float(md[1][barcode][field])
-                    else:
+                    except ValueError:
                         md[1][barcode][field] = 'Unspecified'
 
                 # Correct height units
@@ -948,8 +961,9 @@ class KniminAccess(object):
                         'SURVEY_ID'], unknown_external))
             except Exception as e:
                 # Add barcode to error and remove from metadata info
-                errors[barcode] = str(e)
+                errors[barcode] = '%s' % e
                 del md[1][barcode]
+
         return md, errors
 
     def format_environmental(self, barcodes):
@@ -1492,7 +1506,8 @@ class KniminAccess(object):
         sql = "SELECT EXISTS(SELECT * FROM project WHERE project = %s)"
         exists = self._con.execute_fetchone(sql, [name])[0]
         if exists:
-                raise ValueError("Project %s already exists!" % name)
+                raise ValueError("Project %s already exists!" %
+                                 xhtml_escape(name))
 
         sql = """INSERT INTO project (project_id, project)
                  SELECT max(project_id)+1, %s FROM project"""
@@ -1520,19 +1535,18 @@ class KniminAccess(object):
         -----
         Barcodes are returned in ascending order
         """
-        sql_args = None
         sql = """SELECT DISTINCT barcode FROM barcodes.barcode
                  LEFT JOIN barcodes.project_barcode pb USING (barcode)
                  WHERE pb.barcode IS NULL
                  ORDER BY barcode ASC"""
+        barcodes = self._con.execute_fetchall(sql)
         if n is not None:
-            sql += " LIMIT %s"
-            sql_args = [n]
-        barcodes = [x[0] for x in self._con.execute_fetchall(sql, sql_args)]
-        if len(barcodes) < n:
-            raise ValueError("Not enough barcodes! %d asked for, %d remaining"
-                             % (n, len(barcodes)))
-        return barcodes
+            if len(barcodes) < n:
+                raise ValueError(
+                    "Not enough barcodes! %d asked for, %d remaining"
+                    % (n, len(barcodes)))
+            barcodes = barcodes[:n]
+        return [x[0] for x in barcodes]
 
     def assign_barcodes(self, num_barcodes, projects):
         """Assign a given number of barcodes to projects
@@ -1560,7 +1574,7 @@ class KniminAccess(object):
         not_exist = {p for p in projects if p not in existing}
         if not_exist:
             raise ValueError("Project(s) given don't exist in database: %s"
-                             % ', '.join(not_exist))
+                             % ', '.join(map(xhtml_escape, not_exist)))
 
         # Get unassigned barcode list and make sure we have enough barcodes
         barcodes = self.get_unassigned_barcodes(num_barcodes)
@@ -1895,14 +1909,18 @@ class KniminAccess(object):
         if not zipcode or not country:
             return Location(zipcode, None, None, None,
                             None, None, None, country)
-
         info = geocode('%s %s' % (zipcode, country))
         cannot_geocode = False
         # Clean the zipcode so it is same case and setup, since international
         # people can enter lowercased zipcodes or missing spaces, and google
         # does not give back 9 digit zipcodes for USA, only 6.
-        clean_postcode = str(info.postcode).lower().replace(' ', '')
-        clean_zipcode = str(zipcode).lower().replace(' ', '').split('-')[0]
+        # take care of utf-8 chars, thus en- and de-code accordingly
+        clean_postcode = None
+        if info.postcode is not None:
+            clean_postcode = str(info.postcode.encode('utf-8')).lower()\
+                .decode('utf-8').replace(' ', '')
+        clean_zipcode = str(zipcode.encode('utf-8')).lower().decode('utf-8')\
+            .replace(' ', '').split('-')[0]
         if not info.lat:
             cannot_geocode = True
         # Use startswith because UK zipcodes can be 2, 3, or 6 characters
@@ -1960,7 +1978,9 @@ class KniminAccess(object):
                 break
 
             # Attempt to geocode
-            address = '{0} {1} {2} {3}'.format(city, state, zipcode, country)
+            address = '%s %s %s %s' % (
+                city.decode('utf-8'), state.decode('utf-8'),
+                zipcode.decode('utf-8'), country.decode('utf-8'))
             try:
                 info = geocode(address)
                 # empty string to indicate geocode was successful
@@ -2131,7 +2151,7 @@ class KniminAccess(object):
                     (survey_id, ag_login_id)
                  WHERE barcode like %s or lower(participant_name) like
                  %s or lower(notes) like %s"""
-        liketerm = '%%' + term.lower() + '%%'
+        liketerm = '%%' + term.decode('utf-8').lower() + '%%'
         results = self._con.execute_fetchall(sql,
                                              [liketerm, liketerm, liketerm])
         return [x[0] for x in results]
@@ -2344,13 +2364,14 @@ class KniminAccess(object):
         sql = """SELECT project from barcodes.project
                  JOIN barcodes.project_barcode USING (project_id)
                  where barcode = %s"""
-        results = [x[0] for x in self._con.execute_fetchall(sql, [barcode])]
-        if 'American Gut Project' in results:
-            parent_project = 'American Gut'
-            results.remove('American Gut Project')
-            projects = ', '.join(results)
+        results = [self._unicode_convert(x[0])
+                   for x in self._con.execute_fetchall(sql, [barcode])]
+        if u'American Gut Project' in results:
+            parent_project = u'American Gut'
+            results.remove(u'American Gut Project')
+            projects = u', '.join(results)
         else:
-            projects = ', '.join(results)
+            projects = u', '.join(results)
             parent_project = projects
         return (projects, parent_project)
 
@@ -2387,7 +2408,8 @@ class KniminAccess(object):
         """Returns a list of project names
         """
         sql = """SELECT project FROM project"""
-        return [x[0] for x in self._con.execute_fetchall(sql)]
+        return [self._unicode_convert(x[0])
+                for x in self._con.execute_fetchall(sql)]
 
     def set_deposited_ebi(self):
         """Updates barcode deposited status by checking EBI"""
@@ -3324,3 +3346,192 @@ class KniminAccess(object):
                  SET results_ready = NULL
                  WHERE barcode IN %s"""
         self._con.execute(sql, [tuple(barcodes)])
+
+    def ut_remove_external_survey(self, name, description, url):
+        """ Remove an external survey from DB.
+        For unit testing only!
+
+        Parameters
+        ----------
+        name : str
+            Name of the external survey
+        description : str
+            Description of the external survey
+        url : str
+            URL of the external survey
+
+        Returns
+        -------
+        Nothing
+        """
+        sql = """DELETE FROM ag.external_survey_sources
+                 WHERE external_survey = %s
+                 AND external_survey_description = %s
+                 AND external_survey_url = %s"""
+        try:
+            self._con.execute(sql, [name, description, url])
+        except ValueError as e:
+            raise ValueError("Something went wrong: " + str(e))
+
+    def ut_get_participant_names_from_ag_login_id(self, ag_login_id):
+        """ Returns all participant_name(s) for a given ag_login_id.
+        For unit testing only!
+
+        Parameters
+        ----------
+        ag_login_id : str
+            Existing ag_login_id.
+
+        Returns
+        -------
+        [[str]]
+            Example: ["Name - z\xc3\x96DOZ8(Z~'",
+                      "Name - z\xc3\x96DOZ8(Z~'",
+                      'Name - QpeY\xc3\xb8u#0\xc3\xa5<',
+                      'Name - S)#@G]xOdL',
+                      'Name - Y5"^&sGQiW',
+                      'Name - L\xc3\xa7+c\r\xc3\xa5?\r\xc2\xbf!',
+                      'Name - (~|w:S\xc3\x85#L\xc3\x84']
+
+        Raises
+        ------
+        ValueError
+            If ag_login_id is not in DB.
+        """
+        sql = """SELECT participant_name
+                 FROM ag.ag_login_surveys
+                 WHERE ag_login_id = %s"""
+        info = self._con.execute_fetchall(sql, [ag_login_id])
+        if not info:
+            raise ValueError('ag_login_id not in database: %s' %
+                             ag_login_id)
+        return [n[0] for n in info]
+
+    def ut_get_supplied_kit_id(self, ag_login_id):
+        """ Returns supplied_kit_id for a given ag_login_id.
+        For unit testing only!
+
+        Parameters
+        ----------
+        ag_login_id : str
+            Existing ag_login_id.
+
+        Returns
+        -------
+        str
+            The supplied_kit_id for the given ag_login_id.
+            Example: 'DokBF'
+
+        Raises
+        ------
+        ValueError
+            If ag_login_id is not in DB.
+        """
+        sql = """SELECT supplied_kit_id
+                 FROM ag.ag_kit
+                 WHERE ag_login_id = %s"""
+        info = self._con.execute_fetchall(sql, [ag_login_id])
+        if not info:
+            raise ValueError('ag_login_id not in database: %s' %
+                             ag_login_id)
+        return info[0][0]
+
+    def ut_get_arbitrary_handout_barcode(self, is_AGP=True):
+        """ Returns an arbitrarily chosen barcode that is handed out.
+        For unit testing only!
+
+        Parameters
+        ----------
+        is_AGP : Boolean
+            If True, only barcodes for American Gut Project are returned,
+            otherwise barcode is from some arbitrary project.
+
+        Returns
+        -------
+        str: barcode
+            Example: '000001000'
+
+        Raises
+        ------
+        ValueError
+            If no handed out barcode can be found in the DB.
+
+        Notes
+        -----
+        If is_AGP is True, this barcode belongs to the AGP, otherwise to any
+        project.
+
+        """
+        sql = """SELECT barcode FROM ag.ag_handout_barcodes
+                 JOIN barcodes.project_barcode USING (barcode)"""
+        if is_AGP:
+            sql += """ WHERE project_id=1"""
+        sql += """ LIMIT 1"""
+        info = self._con.execute_fetchone(sql, [])
+        if not info:
+            raise ValueError('No handout barcodes found.')
+        return info[0]
+
+    def ut_get_arbitrary_non_ag_barcode(self):
+        """Returns an artibtrarily chosen non-AG barcode
+        For unit testing only!
+
+        Returns
+        -------
+        str: barcode
+            Example: '000001000'
+
+        Raises
+        ------
+        ValueError
+            If no non-AG barcode can be found in the DB.
+        """
+        sql = """SELECT barcode FROM barcodes.project_barcode
+                    WHERE project_id != 1 AND barcode != '000000001'
+                 EXCEPT
+                 SELECT barcode FROM barcodes.project_barcode
+                    WHERE project_id = 1;"""
+        info = self._con.execute_fetchall(sql)
+        if not info:
+            raise ValueError('No non-AG barcodes found')
+        return info[0][0]
+
+    def ut_get_arbitrary_unassigned_barcode(self):
+        """ Returns an arbitrarily chosen unassigned barcode.
+        For unit testing only!
+
+        Returns
+        -------
+        str: barcode
+            Example: '000001000'
+
+        Raises
+        ------
+        ValueError
+            If no unassigned barcode can be found in the DB.
+        """
+        sql = """SELECT barcode FROM ag.ag_handout_barcodes LIMIT 1"""
+        info = self._con.execute_fetchone(sql, [])
+        if not info:
+            raise ValueError('No unassigned barcodes found.')
+        return info[0]
+
+    def ut_remove_project(self, project_name):
+        """ Deletes a project.
+        For unit testing only!
+
+        Parameters
+        ----------
+        project_name : str
+            The name of the project that should be deleted.
+
+        Raises
+        ------
+        ValueError
+            If project could not be deleted, e.g. because barcodes are still
+            associated to this project."""
+        sql = """DELETE FROM barcodes.project WHERE project=%s"""
+        try:
+            self._con.execute(sql, [project_name])
+        except:
+            raise ValueError("Unable to delete project %s" % project_name)
