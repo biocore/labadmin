@@ -40,7 +40,6 @@ before_script:
   # and other libs so 9min should be sufficient
   - sleep 540
 script:
-  - ps -elf | grep jira
   - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
   - cd /home/travis/build/biocore/american-gut-web
   - export AG_CONFIG=`pwd`/ag_config.txt.example
@@ -50,7 +49,7 @@ script:
   - $PYTHONPATH
   - cd $TRAVIS_BUILD_DIR
   - cp $TRAVIS_BUILD_DIR/knimin/config.txt.example $TRAVIS_BUILD_DIR/knimin/config.txt
-  - nosetests --with-doctest --with-coverage
+  - nosetests --verbose --with-doctest --with-coverage
   - flake8 knimin setup.py scripts
 after_success:
   - coveralls
