@@ -100,8 +100,9 @@ class AGPulldownDLHandler(BaseHandler):
             # be the name of the external survey. In order to not block their
             # pulldown I check that a skipped survey ID must be in the set of
             # all available surveys.
-            if ((-1 * survey) in selected_ag_surveys) or \
-               (-1 * survey not in available_agsurveys):
+            abs_survey = abs(survey)
+            if (abs_survey in selected_ag_surveys) or \
+               (abs_survey not in available_agsurveys):
                 meta_zip.append('survey_%s_md.txt' %
                                 available_agsurveys[-1 * survey], meta)
                 # transform each survey into a pandas dataframe for later merge
@@ -112,14 +113,14 @@ class AGPulldownDLHandler(BaseHandler):
                 pd_meta.set_index('sample_name', inplace=True)
                 results_as_pd.append(pd_meta)
 
-        pd_all = pd.DataFrame()
-        if len(results_as_pd) > 0:
-            pd_all = pd.concat(results_as_pd, join='outer', axis=1)
-
         # add the merged table of all selected surveys to the zip archive
         if self.get_argument('merged', default='False') == 'True':
-            meta_zip.append('surveys_merged_md.txt',
-                            pd_all.to_csv(sep='\t', index_label='sample_name'))
+            pd_all = pd.DataFrame()
+            if len(results_as_pd) > 0:
+                pd_all = pd.concat(results_as_pd, join='outer', axis=1)
+                meta_zip.append('surveys_merged_md.txt',
+                                pd_all.to_csv(sep='\t',
+                                              index_label='sample_name'))
 
         # write out zip file
         self.add_header('Content-type',  'application/octet-stream')
