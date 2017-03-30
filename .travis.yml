@@ -32,12 +32,16 @@ before_script:
   - mv atlassian-plugin-sdk-*/ atlassian-plugin-sdk
   - export PATH="${PATH}:${PWD}/atlassian-plugin-sdk/bin"
   - atlas-version
+  # creating plugin templates
   # turns out that the atlas commands pass any extra parameter to mvn so
   # passing -q to make the commands "quiet"
-  # </dev/zero 2>&1 & --> https://goo.gl/n7BYnh
-  - atlas-run-standalone --product jira --version 6.4.7 </dev/zero 2>&1 &
+  - atlas-create-jira-plugin -a myConfluenceMacro -g com.mycompany.plugins -v 1.0.0-SNAPSHOT -p com.mycompany.plugins.myConfluenceMacro --non-interactive -q
+  - cd myConfluenceMacro
   # to start jira we need to wait for ~12min but after this we will install AGP
   # and other libs so 9min should be sufficient
+  # -DskipAllPrompts=true - https://goo.gl/MaVeLx
+  # </dev/zero 2>&1 & --> https://goo.gl/n7BYnh
+  - atlas-run -DskipAllPrompts=true </dev/zero 2>&1 &
   - sleep 540
 script:
   - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
