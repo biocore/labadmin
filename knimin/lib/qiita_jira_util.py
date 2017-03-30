@@ -4,7 +4,7 @@ from jira import JIRAError
 
 
 def create_project(project_name, assignee=None,
-                   template_name="Project Management"):
+                   template_name="Task management"):
     """Returns an open JIRA connection handler
 
     Parameters
@@ -26,11 +26,10 @@ def create_project(project_name, assignee=None,
     # study_id will be provided by Qiita, hardcoding it
     study_id = 10001
     message = ''
-    key = '%sKK%d' % (
+    key = '%s%d' % (
         ''.join([k[0] for k in template_name.split(' ') if k]).upper(),
         study_id)
 
-    print key, template_name
     try:
         jira_project = jira_handler.create_project(
             key=key, name=project_name, assignee=assignee,
