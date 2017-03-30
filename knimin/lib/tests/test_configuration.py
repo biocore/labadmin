@@ -47,6 +47,13 @@ class ConfigurationTests(TestCase):
         config = KniminConfig(self.config_fp)
         self.assertEqual(config.http_port, 8888)
 
+    def test_get_jira(self):
+        config = KniminConfig(self.config_fp)
+        self.assertEqual(config.jira_host, 'http://127.0.0.1:2990/jira')
+        self.assertEqual(config.jira_user, 'admin')
+        self.assertEqual(config.jira_password, 'admin')
+        self.assertEqual(config.jira_passkey, 'mykey')
+
 
 test_config = """[main]
 debug = True
@@ -70,6 +77,12 @@ PORT = 465
 SSL = False
 USERNAME =
 PASSWORD =
+
+[jira]
+HOST = http://127.0.0.1:2990/jira
+USERNAME = admin
+PASSWORD = admin
+PASSKEY = mykey
 """
 
 

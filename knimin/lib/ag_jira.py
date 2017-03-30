@@ -1,42 +1,17 @@
 #!/usr/bin/env python
 from jira import JIRA
 
-
-def jira_connect(server='http://127.0.0.1:2990/jira',
-                 user='admin', password='admin'):
-    """Connect to JIRA server
+def create_jira_handler(config):
+    """Returns an open JIRA connection handler
 
     Parameters
     ----------
-    server: str, optional
-        the servername to connect
-    user: str, optional
-        the user to connect as
-    password: str, optional
-        the password of the user
-
-    Raises
-    ------
-    ValueError, if the user or password are None but the other is not
+    config : config object
+        The config object with the jira configuration
     """
-    if user is not None or password is not None:
-        if user is None or password is None:
-            raise ValueError('password and user should be both None or both '
-                             'have a value')
-
-        jira = JIRA(options={'server': server}, basic_auth=(user, password))
+    if not config.jira_passkey:
+        return JIRA(options={
+            'server': config.jira_host},
+            basic_auth=(config.jira_user, config.jira_password))
     else:
-        jira = JIRA(options={'server': server})
-
-    return jira
-
-
-def get_projects():
-    """Connect to JIRA server
-
-    Returns
-    -------
-    list of available projects
-    """
-    jira = jira_connect()
-    return jira.projects()
+        raise ValueError("passkey connection to JIRA not impleented")

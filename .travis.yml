@@ -35,7 +35,7 @@ before_script:
   # turns out that the atlas commands pass any extra parameter to mvn so
   # passing -q to make the commands "quiet"
   # </dev/zero 2>&1 & --> https://goo.gl/n7BYnh
-  - atlas-run-standalone --product jira </dev/zero 2>&1 &
+  - atlas-run-standalone --product jira --version 6.4.7 </dev/zero 2>&1 &
   # to start jira we need to wait for ~12min but after this we will install AGP
   # and other libs so 9min should be sufficient
   - sleep 540
