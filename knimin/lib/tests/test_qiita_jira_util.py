@@ -10,7 +10,7 @@ class TestQiitaJiraUtil(TestCase):
         # check success
         pj, message = create_project(pj_name)
         self.assertEqual(pj.name, pj_name)
-        self.assertEqual(pj.key, 'TM10001)
+        self.assertEqual(pj.key, 'TM10001')
         self.assertEqual(message, '')
 
         # check failure
