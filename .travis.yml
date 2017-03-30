@@ -15,12 +15,28 @@ before_install:
   # Update conda itself
   - conda update --yes conda
 install:
+  - travis_retry conda create --yes -n qiita_env python=2.7 pip nose flake8 pyzmq
+    networkx pyparsing natsort mock future libgfortran 'pandas>=0.18' 'scipy>0.13.0'
+    'numpy>=1.7' 'h5py>=2.3.1'
+  - source activate qiita_env
+  - pip install sphinx sphinx-bootstrap-theme coveralls ipython[all]==2.4.1
+  - pip install https://github.com/biocore/qiita/archive/master.zip --process-dependency-links
+  - ipython profile create qiita-general --parallel
+  - export QIITA_SERVER_CERT=$HOME/miniconda3/envs/qiita_env/lib/python2.7/site-packages/qiita_core/support_files/server.crt
+  - export MOI_CONFIG_FP=$HOME/miniconda3/envs/qiita_env/lib/python2.7/site-packages/qiita_core/support_files/config_test.cfg
+  - qiita-env start_cluster qiita-general
+  - qiita-env make --no-load-ontologies
+  - source deactivate
   - travis_retry conda create --yes -n labadmin python=2.7 pip
   - source activate labadmin
   - pip install -U pip
   - pip install -U click natsort coverage coveralls
   - travis_retry pip install -U .[test]
+before_script:
+    - source activate qiita_env
+    - qiita pet webserver --no-build-docs start &
 script:
+  - source activate labadmin
   - git clone -b plate-mapper-kiwi https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
   - cd /home/travis/build/biocore/american-gut-web
   - export AG_CONFIG=`pwd`/ag_config.txt.example
