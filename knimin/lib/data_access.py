@@ -1686,18 +1686,14 @@ class KniminAccess(object):
         return self._con.execute_fetchone(sql, [survey, description, url])[0]
 
     def list_ag_surveys(self, selected=None):
-        """Returns the list of american gut survey names
+        """Returns the list of american gut survey names.
 
         Parameters
         ----------
         selected : list of int
-            To keep track of which surveys have been selected by the user via
-            the rendered website, the resulting list of tupels third element
-            holds this information as a boolean value.
-            If None is supplied all surveys are marked as being selected, if
-            a list of IDs (in form of ints) is supplied, only those surveys are
-            marked with True that exist in the DB and have a matching ID to one
-            of the given IDs.
+            The returned list's third element indicates if a survey has been
+            "chosen". If selected is None, all surveys will be "chosen",
+            otherwise only surveys whose ID is in selected are "chosen".
 
         Returns
         -------
@@ -1710,8 +1706,8 @@ class KniminAccess(object):
         sql = """SELECT group_order, american
                 FROM ag.survey_group
                 WHERE group_order < 0"""
-        return [(id, name, (selected is None) or (id in selected))
-                for [id, name] in self._con.execute_fetchall(sql)]
+        return [(id_, name, (selected is None) or (id_ in selected))
+                for [id_, name] in self._con.execute_fetchall(sql)]
 
     def list_external_surveys(self):
         """Returns list of external survey names
