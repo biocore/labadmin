@@ -15,6 +15,7 @@ class GoogleAPIRequestDenied(Exception):
 class GoogleAPIInvalidRequest(Exception):
     pass
 
+
 Location = namedtuple('Location', ['input', 'lat', 'long', 'elev', 'city',
                       'state', 'postcode', 'country'])
 

@@ -1,3 +1,5 @@
+# -*- coding: latin-1 -*-
+
 from unittest import TestCase, main
 from StringIO import StringIO
 from random import seed
@@ -5,7 +7,8 @@ from socket import gaierror
 
 from knimin.lib.util import (combine_barcodes, categorize_age, categorize_etoh,
                              categorize_bmi, correct_bmi, correct_age,
-                             make_valid_kit_ids, get_printout_data, fetch_url)
+                             make_valid_kit_ids, get_printout_data, fetch_url,
+                             xhtml_escape_recursive)
 
 
 __author__ = "Adam Robbins-Pianka"
@@ -195,6 +198,36 @@ class UtilTests(TestCase):
         # test positive result
         self.assertTrue(isinstance(fetch_url('http://www.google.com'),
                                    StringIO))
+
+    def test_xhtml_escape_recursive(self):
+        x = [{'login_info': [{'city': 'REMOVED',
+                              'name': 'REMOVED',
+                              'zip': 'REMOVED',
+                              'country':
+                              'REMOVED',
+                              'ag_login_id':
+                              '4be2359f-edef-48d8-9b5f-af5daa491f6d',
+                              'state': 'REMOVED',
+                              'address': 'REMOVED',
+                              'email': 'REMOVED'}],
+              'animals': [],
+              'humans': ['REMOVED-0'],
+              'kit': [{'ag_kit_id': '5a8f1a86-67d6-4655-a471-8cd71601a465',
+                       'swabs_per_kit': 4L,
+                       'kit_verification_code': '80700',
+                       'ag_login_id': '4be2359f-edef-48d8-9b5f-af5daa491f6d',
+                       'kit_password': ('$2a$12$LiakUCHOpAMvEp9Wxehw5OIlD/TI'
+                                        'IP0Bs3blw18ePcmKHWWAePrQ.'),
+                       'supplied_kit_id': 'tst_MMflj'}],
+              'kit_verified': 'y'}]
+        # check that values are not changed, if no utf8 chars are present
+        self.assertEqual(xhtml_escape_recursive(x), x)
+
+        x2 = x
+        x2[0]['animals'] = [u'öäü']
+        self.assertEqual(xhtml_escape_recursive(x2)[0]['animals'][0],
+                         u'\xc3\xb6\xc3\xa4\xc3\xbc')
+
 
 if __name__ == '__main__':
     main()

@@ -22,6 +22,14 @@ class ConfigurationTests(TestCase):
         with self.assertRaises(IOError):
             KniminConfig('does not exist')
 
+        # test that expection is raised if not all sections are specified
+        config = tempfile.NamedTemporaryFile()
+        config.write(test_config[:100])
+        config.seek(0)
+        config_fp = config.name
+        with self.assertRaises(ValueError):
+            KniminConfig(config_fp)
+
     def test_get_main(self):
         config = KniminConfig(self.config_fp)
         self.assertTrue(config.debug)
@@ -38,6 +46,7 @@ class ConfigurationTests(TestCase):
     def test_get_tornado(self):
         config = KniminConfig(self.config_fp)
         self.assertEqual(config.http_port, 8888)
+
 
 test_config = """[main]
 debug = True

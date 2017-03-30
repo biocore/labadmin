@@ -488,6 +488,7 @@ regions_by_state = {None: {'Census_1': 'Unspecified',
 def default_blank():
     return 'Not applicable'
 
+
 blanks_values = defaultdict(default_blank,
                             ASSIGNED_FROM_GEO="No",
                             COMMON_NAME="unclassified metagenome",

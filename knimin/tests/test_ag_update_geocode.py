@@ -25,7 +25,7 @@ class TestAGUpdateGeocodeHandler(TestHandlerBase):
     def test_post(self):
         self.mock_login_admin()
         response = self.post('/ag_update_geocode/', {'retry': '0',
-                                                     'limit': '-1'})
+                                                     'limit': '10'})
         self.assertEqual(response.code, 200)
         for stat in db.getGeocodeStats():
             self.assertIn("<td>%s</td><td>%s</td>" % stat, response.body)

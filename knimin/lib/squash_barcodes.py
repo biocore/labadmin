@@ -91,6 +91,8 @@ def build_barcodes_pdf(barcodes):
     # write out each page
     tmpdir = "tmp_%s" % ''.join([choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
                                  for i in range(5)])
+    # TODO: leverage python's tempfile module to replace this home brew
+    # mechanism here. See issue: #147.
     while path.exists(tmpdir):
         tmpdir = "tmp_%s" % ''.join([choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
                                      for i in range(5)])

@@ -21,5 +21,6 @@ class TestConsentCheckHandler(TestHandlerBase):
         self.assertEqual(response.code, 200)
         self.assertIn('000004126</td><td style="color:red">', response.body)
 
+
 if __name__ == '__main__':
     main()
