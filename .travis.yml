@@ -39,7 +39,9 @@ script:
   # passing -q to make the commands "quiet"
   - atlas-create-jira-plugin -a myConfluenceMacro -g com.mycompany.plugins -v 1.0.0-SNAPSHOT -p com.mycompany.plugins.myConfluenceMacro --non-interactive -q
   - cd myConfluenceMacro
-  - travis_wait 100 atlas-run -q &
+  # atlas-run should be in a background process normally started with & but
+  # travis_wait takes care of that
+  - travis_wait 10 atlas-run -q
   - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
   - cd /home/travis/build/biocore/american-gut-web
   - export AG_CONFIG=`pwd`/ag_config.txt.example
