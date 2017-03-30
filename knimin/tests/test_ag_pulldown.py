@@ -233,6 +233,53 @@ class testAGPulldownDLHandler(TestHandlerBase):
         self.assertEqual(response.headers['Content-Disposition'],
                          'attachment; filename=metadata.zip')
 
+    def test_post_select_surveys_htmlencoding(self):
+        # the interface html page provides arguments as one concatenated string
+        # which is not a list of strings. Here, I test if this other behaviour
+        # also works.
+        self.mock_login_admin()
+
+        response = self.post('/ag_pulldown/download/',
+                             {'barcodes': ('000037555,000065893,000067690,'
+                                           '000037583,000066526,000031568'),
+                              'blanks': '',
+                              'external': '',
+                              'selected_ag_surveys': '-2,-3,-8',
+                              'merged': 'False'})
+        # store the resulting zip archive to disc ...
+        tmpfile = NamedTemporaryFile(mode='w', delete=False,
+                                     prefix='metadata_pulldown_multiple_sel_',
+                                     suffix='.zip')
+        tmpfile.write(response.body)
+        tmpfile.close()
+        # ... and read the content as dict of strings
+        result = extract_zip(tmpfile.name)
+        self.assertItemsEqual(result.keys(),
+                              ['failures.txt',
+                               'survey_Fermented_Foods_md.txt',
+                               'survey_Pet_Information_md.txt'])
+        os.remove(tmpfile.name)
+
+        response = self.post('/ag_pulldown/download/',
+                             {'barcodes': ('000037555,000065893,000067690,'
+                                           '000037583,000066526,000031568'),
+                              'blanks': '',
+                              'external': '',
+                              'selected_ag_surveys': '-3',
+                              'merged': 'False'})
+        # store the resulting zip archive to disc ...
+        tmpfile = NamedTemporaryFile(mode='w', delete=False,
+                                     prefix='metadata_pulldown_multiple_sel_',
+                                     suffix='.zip')
+        tmpfile.write(response.body)
+        tmpfile.close()
+        # ... and read the content as dict of strings
+        result = extract_zip(tmpfile.name)
+        self.assertItemsEqual(result.keys(),
+                              ['failures.txt',
+                               'survey_Fermented_Foods_md.txt'])
+        os.remove(tmpfile.name)
+
 
 if __name__ == "__main__":
     main()
