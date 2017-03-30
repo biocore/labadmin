@@ -86,6 +86,9 @@ def sneak_files(archive, len=1000):
 
     Parameters
     ----------
+    archive : dict{str : filename, str : filecontents}
+        The already extracted zip archive in form of a dict, where keys are
+        filenames and values are the content of the file.
     len : int
         Number of characters returned from each file.
         Default: 1000.
