@@ -40,7 +40,7 @@ script:
   # atlas-run needs to download all packages and then start the process, which will
   # take some time so starting with & and then sleep to wait
   # -DskipAllPrompts=true - https://goo.gl/MaVeLx
-  - atlas-run -q -DskipAllPrompts=true &
+  - atlas-run -DskipAllPrompts=true &
   - sleep 500
   - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
   - cd /home/travis/build/biocore/american-gut-web
