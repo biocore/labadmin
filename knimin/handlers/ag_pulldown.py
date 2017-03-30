@@ -58,27 +58,14 @@ class AGPulldownHandler(BaseHandler):
 class AGPulldownDLHandler(BaseHandler):
     @authenticated
     def post(self):
-        barcodes = self.get_arguments('barcodes')
-        if len(barcodes) == 1:
-            if ',' in barcodes[0]:
-                barcodes = barcodes[0].split(',')
-
-        blanks = self.get_arguments('blanks')
-        if len(blanks) == 1:
-            if ',' in blanks[0]:
-                blanks = blanks[0].split(',')
-
+        barcodes = listify(self.get_arguments('barcodes'))
+        blanks = listify(self.get_arguments('blanks'))
         # query which surveys have been selected by the user
-        selected_ag_surveys = self.get_arguments('selected_ag_surveys')
-        if len(selected_ag_surveys) == 1:
-            if ',' in selected_ag_surveys[0]:
-                selected_ag_surveys = selected_ag_surveys[0].split(',')
-        selected_ag_surveys = list(map(int, selected_ag_surveys))
+        selected_ag_surveys = listify(
+            self.get_arguments('selected_ag_surveys'))
+        external = listify(self.get_arguments('external'))
 
-        external = self.get_arguments('external')
-        if len(external) == 1:
-            if ',' in external[0]:
-                external = external[0].split(',')
+        selected_ag_surveys = list(map(int, selected_ag_surveys))
 
         # Get metadata and create zip file
         metadata, failures = db.pulldown(barcodes, blanks, external)
@@ -148,3 +135,22 @@ class UpdateEBIStatusHandler(BaseHandler):
         except Exception as e:
             msg = 'ERROR: %s' % str(e)
         self.write(msg)
+
+
+def listify(list):
+    """ Returns a flat list of str for either list of str (unchanged) or a one-
+    element list of str - delimited by ',' - into a list of str.
+
+    Parameters
+    ----------
+    list : [str]
+        Input list of str
+
+    Returns
+    -------
+    A list of str. If single element was a comma delimited str with x parts,
+    the list will contain those x elements."""
+    if len(list) == 1:
+        if ',' in list[0]:
+            list = list[0].split(',')
+    return list
