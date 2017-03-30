@@ -82,5 +82,6 @@ class TestPMPlateListHandler(TestHandlerBase):
         db.delete_samples(['test_sample_' + str(x) for x in range(total)])
         db.delete_study(sid)
 
+
 if __name__ == '__main__':
     main()
