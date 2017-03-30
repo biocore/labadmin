@@ -38,10 +38,12 @@ script:
   - atlas-create-jira-plugin -a myConfluenceMacro -g com.mycompany.plugins -v 1.0.0-SNAPSHOT -p com.mycompany.plugins.myConfluenceMacro --non-interactive -q
   - cd myConfluenceMacro
   # atlas-run needs to download all packages and then start the process, which will
-  # take some time so starting with & and then sleep to wait
+  # take over 12min (from first run: [INFO] Total time: 12:05.966s) and travis needs to
+  # have feedback every 10 so creating 2 sleeps, one with 9 minutes and another with 3
   # -DskipAllPrompts=true - https://goo.gl/MaVeLx
-  - atlas-run -DskipAllPrompts=true &
-  - sleep 500
+  - atlas-run -q -DskipAllPrompts=true &
+  - sleep 540
+  - sleep 180
   - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
   - cd /home/travis/build/biocore/american-gut-web
   - export AG_CONFIG=`pwd`/ag_config.txt.example

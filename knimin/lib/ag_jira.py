@@ -2,7 +2,7 @@
 from jira import JIRA
 
 
-def jira_connect(server='http://127.0.0.1:2990',
+def jira_connect(server='http://localhost:2990/jira',
                  user='admin', password='admin'):
     """Connect to JIRA server
 
