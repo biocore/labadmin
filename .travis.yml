@@ -41,7 +41,7 @@ before_script:
   # and other libs so 9min should be sufficient
   # -DskipAllPrompts=true - https://goo.gl/MaVeLx
   # </dev/zero 2>&1 & --> https://goo.gl/n7BYnh
-  - atlas-run -DskipAllPrompts=true </dev/zero 2>&1 &
+  - atlas-run --product jira --version 6.4.7 -DskipAllPrompts=true </dev/zero 2>&1 &
   - sleep 540
 script:
   - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
