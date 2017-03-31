@@ -44,8 +44,8 @@ before_script:
   - atlas-run --product jira --version 6.4.7 -DskipAllPrompts=true </dev/zero 2>&1 &
   - sleep 560
   # for some reason we need to check the main URL for the server to activate
-  - wget http://127.0.0.1:2990/jira/rest/api/2/serverInfo -o /dev/null
-  - wget http://127.0.0.1:2990/jira/ -o /dev/null
+  - wget http://127.0.0.1:2990/jira/
+  - wget http://127.0.0.1:2990/jira/rest/api/2/serverInfo
 script:
   - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
   - cd /home/travis/build/biocore/american-gut-web
