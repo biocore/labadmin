@@ -16,7 +16,9 @@ class TestQiitaJiraUtil(TestCase):
         # check failure
         pj, message = create_project(pj_name)
         self.assertIsNone(pj)
-        self.assertEqual(message, 'A project with that name already exists.')
+        exp_msg = ("A project with that name already exists., Project "
+                   "'My New Project' uses this project key.")
+        self.assertEqual(message, exp_msg)
 
 
 if __name__ == '__main__':

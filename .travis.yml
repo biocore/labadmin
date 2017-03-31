@@ -38,11 +38,12 @@ before_script:
   - atlas-create-jira-plugin -a myConfluenceMacro -g com.mycompany.plugins -v 1.0.0-SNAPSHOT -p com.mycompany.plugins.myConfluenceMacro --non-interactive -q
   - cd myConfluenceMacro
   # to start jira we need to wait for ~12min but after this we will install AGP
-  # and other libs so 9min should be sufficient
+  # and other libs so 9min should be sufficient. However, after a few tests it
+  # seems like 7 min should suffice.
   # -DskipAllPrompts=true - https://goo.gl/MaVeLx
   # </dev/zero 2>&1 & --> https://goo.gl/n7BYnh
   - atlas-run --product jira --version 6.4.7 -DskipAllPrompts=true </dev/zero 2>&1 &
-  - sleep 540
+  - sleep 420
 script:
   - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
   - cd /home/travis/build/biocore/american-gut-web
