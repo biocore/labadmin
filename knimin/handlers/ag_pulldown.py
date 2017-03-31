@@ -137,20 +137,20 @@ class UpdateEBIStatusHandler(BaseHandler):
         self.write(msg)
 
 
-def listify(list):
+def listify(_list):
     """ Returns a flat list of str for either list of str (unchanged) or a one-
     element list of str - delimited by ',' - into a list of str.
 
     Parameters
     ----------
-    list : [str]
+    _list : [str]
         Input list of str
 
     Returns
     -------
     A list of str. If single element was a comma delimited str with x parts,
     the list will contain those x elements."""
-    if len(list) == 1:
-        if ',' in list[0]:
-            list = list[0].split(',')
-    return list
+    if len(_list) == 1:
+        if ',' in _list[0]:
+            _list = _list[0].split(',')
+    return _list

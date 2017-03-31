@@ -8,6 +8,7 @@ from tornado.escape import url_escape
 from knimin.tests.tornado_test_base import TestHandlerBase
 from knimin import db
 from knimin.lib.mem_zip import extract_zip, sneak_files
+from knimin.handlers.ag_pulldown import listify
 
 
 class testUpdateEBIStatusHandler(TestHandlerBase):
@@ -279,6 +280,14 @@ class testAGPulldownDLHandler(TestHandlerBase):
                               ['failures.txt',
                                'survey_Fermented_Foods_md.txt'])
         os.remove(tmpfile.name)
+
+    def test_listify(self):
+        obs = listify(['a', 'b', 'c'])
+        exp = ['a', 'b', 'c']
+        self.assertItemsEqual(obs, exp)
+
+        obs = listify(['a,b,c'])
+        self.assertItemsEqual(obs, exp)
 
 
 if __name__ == "__main__":
