@@ -1685,6 +1685,30 @@ class KniminAccess(object):
                  RETURNING external_survey_id"""
         return self._con.execute_fetchone(sql, [survey, description, url])[0]
 
+    def list_ag_surveys(self, selected=None):
+        """Returns the list of american gut survey names.
+
+        Parameters
+        ----------
+        selected : list of int
+            The returned list's third element indicates if a survey has been
+            "chosen". If selected is None, all surveys will be "chosen",
+            otherwise only surveys whose ID is in selected are "chosen".
+
+        Returns
+        -------
+        list of (int, str, bool)
+            first element is the group_order number
+            second element is the group name
+            third element is the information if user selected this survey for
+                  pulldown. All surveys are selected if selected is None.
+        """
+        sql = """SELECT group_order, american
+                FROM ag.survey_group
+                WHERE group_order < 0"""
+        return [(id_, name, (selected is None) or (id_ in selected))
+                for [id_, name] in self._con.execute_fetchall(sql)]
+
     def list_external_surveys(self):
         """Returns list of external survey names
 
