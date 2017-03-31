@@ -41,11 +41,10 @@ before_script:
   # and other libs so 9min should be sufficient.
   # -DskipAllPrompts=true - https://goo.gl/MaVeLx
   # </dev/zero 2>&1 & --> https://goo.gl/n7BYnh
-  - atlas-run --product jira --version 6.4.7 -DskipAllPrompts=true </dev/zero 2>&1 &
+  # this will install the latest version of JIRA but we could install other ones
+  # via --version 6.4.7
+  - atlas-run --product jira -DskipAllPrompts=true </dev/zero 2>&1 &
   - sleep 560
-  # for some reason we need to check the main URL for the server to activate
-  - wget http://127.0.0.1:2990/jira/
-  - wget http://127.0.0.1:2990/jira/rest/api/2/serverInfo
 script:
   - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
   - cd /home/travis/build/biocore/american-gut-web
