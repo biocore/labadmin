@@ -2427,6 +2427,21 @@ class KniminAccess(object):
                  WHERE barcode IN %s"""
         self._con.execute(sql, [barcodes])
 
+    # - PlateMapper functions - #
+
+    def get_studies(self):
+        """Retrieves the list of studies present in the DB
+
+        Returns
+        -------
+        List of DictCursor
+            The list of studies
+        """
+        with TRN:
+            sql = """SELECT * FROM pm.study ORDER BY study_id"""
+            TRN.add(sql)
+            return TRN.execute_fetchindex()
+
     def _study_exists(self, study_id):
         """Confirms that a study ID exists
 
@@ -2447,7 +2462,7 @@ class KniminAccess(object):
             if not TRN.execute_fetchlast():
                 raise ValueError('Study ID %s does not exist.' % study_id)
 
-    def _study_is_unique(self, qiita_study_id=None, title=None, skip_id=None):
+    def _study_is_unique(self, qiita_study_id, title, skip_id=None):
         """Confirms that a study is unique
 
         Confirms that the Qiita study ID and/or the title to be assigned to a
@@ -2455,12 +2470,10 @@ class KniminAccess(object):
 
         Parameters
         ----------
-        qiita_study_id : int, optional
+        qiita_study_id : int
             Qiita study ID of the study
-        title : str, optional
+        title : str
             Title of the study
-            Either qiita_study_id or title must be specified as the identifier
-            of a study
         skip_id : int, optional
             Skip this study ID in searching
             In function create_study, this is not used
@@ -2469,88 +2482,83 @@ class KniminAccess(object):
         Raises
         ------
         ValueError
-            If neither value is given, or either value already exists
+            If the study is a duplicate
         """
-        cols = ['qiita_study_id', 'title']
-        vals = [qiita_study_id, title]
-        tags = [x.capitalize().replace('_', ' ').replace(' id', ' ID')
-                for x in cols]
-        if all(val is None for val in vals):
-            raise ValueError('Either %s or %s must be specified.'
-                             % (tags[0], tags[1]))
         with TRN:
             sql = """SELECT study_id
                      FROM pm.study
-                     WHERE {} = %s
-                     AND study_id IS DISTINCT FROM %s"""
-            errs = []
-            err_msg = "%s %s conflicts with exisiting study %s."
-            for col, val, tag in zip(cols, vals, tags):
-                if val:
-                    TRN.add(sql.format(col), [val, skip_id])
-                    res = TRN.execute_fetchflatten()
-                    if res:
-                        errs.append(err_msg % (tag, repr(val), res[0]))
-            if errs:
-                raise ValueError('\n'.join(errs))
+                     WHERE (study_id = %s OR title = %s)"""
+            sql_args = [qiita_study_id, title]
+            if skip_id:
+                sql += " AND study_id != %s"
+                sql_args.append(skip_id)
 
-    def create_study(self, qiita_study_id=None, title=None, alias=None,
-                     notes=None):
+            TRN.add(sql, sql_args)
+            res = TRN.execute_fetchflatten()
+            if res:
+                raise ValueError("Study (%s, %s) conflicts with studies %s"
+                                 % (qiita_study_id, title,
+                                    ', '.join(map(str, res))))
+
+    def create_study(self, qiita_study_id, title, alias, jira_key):
         """Creates a study
 
         Parameters
         ----------
-        qiita_study_id : int, optional
-            Assigns a Qiita study ID to the study
-        title : str, optional
-            Assigns a title to the study
-            Either qiita_study_id or title must be specified
-        alias : str, optional
-            Assigns an alias to the study
-        notes : str, optional
-            Makes notes of the study
-
-        Returns
-        -------
-        int
-            ID of the study created
+        qiita_study_id : int
+            The Qiita study ID
+        title : str
+            The title of the study
+        alias : str
+            The alias of the study
+        jira_key : str
+            The study JIRA key
         """
         with TRN:
             self._study_is_unique(qiita_study_id, title)
-            sql = """INSERT INTO pm.study (qiita_study_id, title, alias, notes)
-                     VALUES (%s, %s, %s, %s)
-                     RETURNING study_id"""
-            sql_args = [qiita_study_id, title, alias, notes]
+            sql = """INSERT INTO pm.study (study_id, title, alias, jira_key)
+                     VALUES (%s, %s, %s, %s)"""
+            sql_args = [qiita_study_id, title, alias, jira_key]
             TRN.add(sql, sql_args)
-            return TRN.execute_fetchlast()
+            TRN.execute()
 
-    def edit_study(self, study_id, qiita_study_id=None, title=None, alias=None,
-                   notes=None):
+    def edit_study(self, study_id, title=None, alias=None):
         """Edits properties of an existing study
 
         Parameters
         ----------
         study_id : int
             ID of the study to edit
-        qiita_study_id : int, optional
-            Assigns a Qiita study ID to the study
         title : str, optional
             Assigns a title to the study
             Either qiita_study_id or title must be specified
         alias : str, optional
             Assigns an alias to the study
-        notes : str, optional
-            Makes notes of the study
+
+        Raises
+        ------
+        ValueError
+            If both title and alias are None
         """
+        if title is None and alias is None:
+            raise ValueError(
+                "At least one of title or alias should be provided")
+
         with TRN:
             self._study_exists(study_id)
-            self._study_is_unique(qiita_study_id, title, study_id)
+            self._study_is_unique(study_id, title, study_id)
+            cols = []
+            sql_args = []
+            if title is not None:
+                cols.append("title = %s")
+                sql_args.append(title)
+            if alias is not None:
+                cols.append("alias = %s")
+                sql_args.append(alias)
+            sql_args.append(study_id)
             sql = """UPDATE pm.study
-                     SET qiita_study_id = %s, title = %s, alias = %s,
-                         notes = %s
-                     WHERE study_id = %s
-                     RETURNING study_id"""
-            sql_args = [qiita_study_id, title, alias, notes, study_id]
+                     SET {}
+                     WHERE study_id = %s""".format(', '.join(cols))
             TRN.add(sql, sql_args)
             TRN.execute()
 
@@ -2574,7 +2582,7 @@ class KniminAccess(object):
             If the study ID does not exist
         """
         with TRN:
-            sql = """SELECT qiita_study_id, title, alias, notes
+            sql = """SELECT study_id, title, alias, jira_key
                      FROM pm.study
                      WHERE study_id = %s"""
             TRN.add(sql, [study_id])
@@ -3346,6 +3354,8 @@ class KniminAccess(object):
                  SET results_ready = NULL
                  WHERE barcode IN %s"""
         self._con.execute(sql, [tuple(barcodes)])
+
+    # - Unit testing helper functions - #
 
     def ut_remove_external_survey(self, name, description, url):
         """ Remove an external survey from DB.
