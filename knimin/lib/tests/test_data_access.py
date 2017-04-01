@@ -645,8 +645,8 @@ class TestDataAccess(TestCase):
     #     db.write_sample_plate_layout(spid, splayout)
     #     with self.assertRaises(ValueError) as context:
     #         db.delete_samples(['3'])
-    #     err = ('Sample ID(s) 3 cannot be deleted because they are associated '
-    #            'with sample plate(s) %s.' % spid)
+    #     err = ('Sample ID(s) 3 cannot be deleted because they are '
+    #            'associated with sample plate(s) %s.' % spid)
     #     self.assertEqual(str(context.exception), err)
     #     db.delete_sample_plate(spid)
     #     db.delete_samples(['3'])
@@ -712,12 +712,13 @@ class TestDataAccess(TestCase):
     #     # Attempt to create a sample plate with a duplicate name
     #     with self.assertRaises(ValueError) as context:
     #         db.create_sample_plate('test_plate', ptid)
-    #     err = ('Name \'test_plate\' conflicts with exisiting sample plate %s.'
-    #            % spid)
+    #     err = ('Name \'test_plate\' conflicts with exisiting sample '
+    #            'plate %s.' % spid)
     #     self.assertEqual(str(context.exception), err)
     #     # Attempt to create a sample plate with an invalid email
     #     with self.assertRaises(ValueError) as context:
-    #         db.create_sample_plate('test_plate_2', ptid, email='not-an-email')
+    #         db.create_sample_plate('test_plate_2', ptid,
+    #                                email='not-an-email')
     #     err = 'Email not-an-email does not exist.'
     #     self.assertEqual(str(context.exception), err)
     #     # Attempt to create a sample plate with an invalid plate type
@@ -754,8 +755,8 @@ class TestDataAccess(TestCase):
     #     spid2 = db.create_sample_plate('test_plate_2', ptid)
     #     with self.assertRaises(ValueError) as context:
     #         db.edit_sample_plate(spid, 'test_plate_2', ptid)
-    #     err = ('Name \'test_plate_2\' conflicts with exisiting sample plate %s'
-    #            '.' % spid2)
+    #     err = ('Name \'test_plate_2\' conflicts with exisiting sample '
+    #            'plate %s.' % spid2)
     #     self.assertEqual(str(context.exception), err)
     #     db.delete_sample_plate(spid2)
     #     # Attempt to assign an invalid email to a sample plate
@@ -913,7 +914,8 @@ class TestDataAccess(TestCase):
     # def test_get_plate_types(self):
     #     # Get available plate types
     #     obs = db.get_plate_types()
-    #     exp = [{'id': 1, 'name': '96-well', 'notes': 'Standard 96-well plate',
+    #     exp = [{'id': 1, 'name': '96-well',
+    #             'notes': 'Standard 96-well plate',
     #             'cols': 12, 'rows': 8}]
     #     self.assertListEqual(obs, exp)
     #
