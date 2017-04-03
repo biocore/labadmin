@@ -9,7 +9,8 @@ Installation instructions
 
 Create a conda environment for labadmin::
 
-   conda create -n labadmin psycopg2 python=2 click requests bioconda java-jdk
+   conda create -n labadmin psycopg2 python=2 click requests
+   conda install -c bioconda java-jdk
 
    source activate labadmin
 
