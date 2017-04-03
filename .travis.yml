@@ -37,7 +37,7 @@ before_script:
     - qiita pet webserver --no-build-docs start &
 script:
   - source activate labadmin
-  - git clone -b plate-mapper-kiwi https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
+  - git clone -b plate-mapper-jose https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
   - cd /home/travis/build/biocore/american-gut-web
   - export AG_CONFIG=`pwd`/ag_config.txt.example
   - export PYTHONPATH=/home/travis/build/biocore/american-gut-web:$PYTHONPATH
