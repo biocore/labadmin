@@ -281,55 +281,54 @@ class TestDataAccess(TestCase):
         obs = db.get_ag_barcode_details(['000018046'])
         ag_login_id = '0060a301-e5bf-6a4e-e050-8a800c5d49b7'
         exp = {'000018046': {
-                'ag_kit_barcode_id': '0060a301-e5c1-6a4e-e050-8a800c5d49b7',
-                'verification_email_sent': 'n',
-                'pass_reset_code': None,
-                'vioscreen_status': 3,
-                'sample_barcode_file': '000018046.jpg',
-                'environment_sampled': None,
-                'supplied_kit_id': db.ut_get_supplied_kit_id(ag_login_id),
-                'withdrawn': None,
-                'kit_verified': 'y',
-                # 'city': 'REMOVED',
-                'ag_kit_id': '0060a301-e5c0-6a4e-e050-8a800c5d49b7',
-                # 'zip': 'REMOVED',
-                'ag_login_id': ag_login_id,
-                # 'state': 'REMOVED',
-                'results_ready': 'Y',
-                'moldy': 'N',
-                # The key 'registered_on' is a time stamp when the database is
-                # created. It is unique per deployment.
-                # 'registered_on': datetime.datetime(2016, 8, 17, 10, 47, 2,
-                #                                   713292),
-                # 'kit_password': ('$2a$10$2.6Y9HmBqUFmSvKCjWmBte70WF.zd3h4Vqb'
-                #                  'hLMQK1xP67Aj3rei86'),
-                # 'deposited': False,
-                'sample_date': datetime.date(2014, 8, 13),
-                # 'email': 'REMOVED',
-                'print_results': False,
-                'open_humans_token': None,
-                # 'elevation': 0.0,
-                'refunded': None,
-                # 'other_text': 'REMOVED',
-                'barcode': '000018046',
-                'swabs_per_kit': 1L,
-                # 'kit_verification_code': '60260',
-                # 'latitude': 0.0,
-                'cannot_geocode': None,
-                # 'address': 'REMOVED',
-                'date_of_last_email': datetime.date(2014, 8, 15),
-                'site_sampled': 'Stool',
-                # 'name': 'REMOVED',
-                'sample_time': datetime.time(11, 15),
-                # 'notes': 'REMOVED',
-                'overloaded': 'N',
-                # 'longitude': 0.0,
-                'pass_reset_time': None,
-                # 'country': 'REMOVED',
-                'survey_id': '084532330aca5885',
-                'other': 'N',
-                'sample_barcode_file_md5': None
-        }}
+               'ag_kit_barcode_id': '0060a301-e5c1-6a4e-e050-8a800c5d49b7',
+               'verification_email_sent': 'n',
+               'pass_reset_code': None,
+               'vioscreen_status': 3,
+               'sample_barcode_file': '000018046.jpg',
+               'environment_sampled': None,
+               'supplied_kit_id': db.ut_get_supplied_kit_id(ag_login_id),
+               'withdrawn': None,
+               'kit_verified': 'y',
+               # 'city': 'REMOVED',
+               'ag_kit_id': '0060a301-e5c0-6a4e-e050-8a800c5d49b7',
+               # 'zip': 'REMOVED',
+               'ag_login_id': ag_login_id,
+               # 'state': 'REMOVED',
+               'results_ready': 'Y',
+               'moldy': 'N',
+               # The key 'registered_on' is a time stamp when the database is
+               # created. It is unique per deployment.
+               # 'registered_on': datetime.datetime(2016, 8, 17, 10, 47, 2,
+               #                                   713292),
+               # 'kit_password': ('$2a$10$2.6Y9HmBqUFmSvKCjWmBte70WF.zd3h4Vqb'
+               #                  'hLMQK1xP67Aj3rei86'),
+               # 'deposited': False,
+               'sample_date': datetime.date(2014, 8, 13),
+               # 'email': 'REMOVED',
+               'print_results': False,
+               'open_humans_token': None,
+               # 'elevation': 0.0,
+               'refunded': None,
+               # 'other_text': 'REMOVED',
+               'barcode': '000018046',
+               'swabs_per_kit': 1L,
+               # 'kit_verification_code': '60260',
+               # 'latitude': 0.0,
+               'cannot_geocode': None,
+               # 'address': 'REMOVED',
+               'date_of_last_email': datetime.date(2014, 8, 15),
+               'site_sampled': 'Stool',
+               # 'name': 'REMOVED',
+               'sample_time': datetime.time(11, 15),
+               # 'notes': 'REMOVED',
+               'overloaded': 'N',
+               # 'longitude': 0.0,
+               'pass_reset_time': None,
+               # 'country': 'REMOVED',
+               'survey_id': '084532330aca5885',
+               'other': 'N',
+               'sample_barcode_file_md5': None}}
         participant_names = db.ut_get_participant_names_from_ag_login_id(
             ag_login_id)
         for key in obs:
@@ -337,6 +336,21 @@ class TestDataAccess(TestCase):
             # only look at those fields, that are not subject to scrubbing
             self.assertEqual({k: obs[key][k] for k in exp[key]}, exp[key])
             self.assertIn(obs[key]['participant_name'], participant_names)
+
+    def test_list_ag_surveys(self):
+        truth = [(-1, 'Personal Information', True),
+                 (-2, 'Pet Information', True),
+                 (-3, 'Fermented Foods', True),
+                 (-4, 'Surfers', True),
+                 (-5, 'Personal_Microbiome', True)]
+        self.assertItemsEqual(db.list_ag_surveys(), truth)
+
+        truth = [(-1, 'Personal Information', False),
+                 (-2, 'Pet Information', True),
+                 (-3, 'Fermented Foods', False),
+                 (-4, 'Surfers', True),
+                 (-5, 'Personal_Microbiome', False)]
+        self.assertItemsEqual(db.list_ag_surveys([-2, -4]), truth)
 
     # - PlateMapper functions tests - #
     def test_get_studies(self):
