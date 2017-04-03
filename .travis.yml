@@ -58,7 +58,7 @@ before_script:
   # </dev/zero 2>&1 & --> https://goo.gl/n7BYnh
   # this will install the latest version of JIRA but we could install other ones
   # via --version 6.4.7
-  - atlas-run --product jira -DskipAllPrompts=true </dev/zero 2>&1 &
+  - atlas-run --product jira -DskipAllPrompts=true </dev/zero 2>&1 > /dev/null &
   - sleep 560
 script:
   - source activate labadmin
