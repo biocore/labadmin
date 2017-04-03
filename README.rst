@@ -21,10 +21,36 @@ Clone the repository, and pip install::
    pip install -e .
 
 Copy the example config file to be visible for starting up a test database::
-   
+
    cp ./knimin/config.txt.example ./knimin/config.txt
 
-You should now be able to start the webserver::
+Installing JIRA
+~~~~~~~~~~~~~~~
+
+Note that these instructions should work for Mac or Linux and that
+you need to have JAVA 1.8 or higher. If you are in a Mac, you will need to
+[update](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html).
+If you updated to that package you could force using it by::
+
+    export JAVA_HOME='/Library/Java/JavaVirtualMachines/jdk1.8.0_121.jdk/Contents/Home'
+
+Now you can continue with downloading the latest [JIRA SDK](https://marketplace.atlassian.com/download/plugins/atlassian-plugin-sdk-tgz),
+uncompressing it and setting it up::
+
+    curl -o atlassian-plugin-sdk-6.2.14.tar.gz https://marketplace.atlassian.com/download/plugins/atlassian-plugin-sdk-tgz
+    tar zxvf atlassian-plugin-sdk-6.2.14.tar.gz
+    mv atlassian-plugin-sdk-6.2.14 atlassian-plugin-sdk
+    export PATH="$PATH:${PWD}/atlassian-plugin-sdk/bin"
+
+To test the install you can run::
+
+    atlas-version
+
+and to start the JIRA system locally::
+
+    atlas-run-standalone --product jira </dev/zero 2>&1 &
+
+Now, you should now be able to start the webserver::
 
    python ./knimin/webserver.py
 
@@ -34,7 +60,7 @@ Initial default test login credentials are:
 
 **User:** test
 
-**Password:** password 
+**Password:** password
 
 Testing
 -------
@@ -44,13 +70,13 @@ To run the webserver locally, first run the following commands to insert a user 
     \c ag_test
 
     INSERT INTO ag.labadmin_users (email, password) VALUES ('master', '$2a$10$2.6Y9HmBqUFmSvKCjWmBte70WF.zd3h4VqbhLMQK1xP67Aj3rei86');
-    
+
     INSERT INTO ag.labadmin_users_access (access_id, email) VALUES (7, 'master');
-    
+
 Then you should be able to login with the following credentials
 
 **User:** master
 
-**Password:** password 
+**Password:** password
 
 After executing our existing unit test suite, access level for the user 'test' will be reset to '', i.e. they won't be able to see most of the main menu items. Thus, adding a second user 'master' with admin privileges is quite useful.

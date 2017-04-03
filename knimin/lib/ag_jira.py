@@ -15,4 +15,4 @@ def create_jira_handler(config):
             'server': config.jira_host},
             basic_auth=(config.jira_user, config.jira_password))
     else:
-        raise ValueError("passkey connection to JIRA not impleented")
+        raise ValueError("passkey connection to JIRA not implemented")
