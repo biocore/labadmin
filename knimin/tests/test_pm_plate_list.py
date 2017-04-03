@@ -64,7 +64,8 @@ class TestPMPlateListHandler(TestHandlerBase):
     #                '<td>' + str(p1['id']) + '</td>\n'
     #                '<td><a href="/pm_plate_map/?target=sample&id=' +
     #                str(p1['id']) + '">' + p1['name'] + '</a></td>\n'
-    #                '<td title="' + str(p1['type'][1]) + '">' + p1['type'][0] +
+    #                '<td title="' + str(p1['type'][1]) + '">' +
+    #                p1['type'][0] +
     #                '</td>\n'
     #                '<td>' + str(p1['fill'][0]) + '\n'
     #                '<span style="font-size:80%">\n'
