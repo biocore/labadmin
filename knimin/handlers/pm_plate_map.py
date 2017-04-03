@@ -38,7 +38,10 @@ class PMPlateNameCheckerHandler(BaseHandler):
     @authenticated
     def get(self):
         name = self.get_argument('name')
-        self.write({'result': db.sample_plate_name_exists(name)})
+        res = db.sample_plate_name_exists(name)
+        code = 200 if res else 404
+        self.write({'result': res})
+        self.set_status(code)
         self.finish()
 
 
