@@ -33,6 +33,8 @@ from knimin.handlers.projects_summary import ProjectsSummaryHandler
 from knimin.handlers.access_control import AGEditAccessHandler
 from knimin.handlers.ag_results_ready import AGResultsReadyHandler
 from knimin.handlers.pm_plate_list import PMPlateListHandler
+from knimin.handlers.pm_plate_map import (
+    PMCreatePlateHandler, PMPlateNameCheckerHandler)
 
 define("port", default=config.http_port, type=int)
 
@@ -75,7 +77,10 @@ class WebApplication(Application):
             (r"/projects/summary/", ProjectsSummaryHandler),
             (r"/admin/edit/", AGEditAccessHandler),
             (r"/consent_check", AGConsentCheckHandler),
+            # PlateMapper Handlers
             (r"/pm_plate_list/", PMPlateListHandler),
+            (r"/pm_create_plate/", PMCreatePlateHandler),
+            (r"/pm_sample_plate/name_check", PMPlateNameCheckerHandler),
             (r".*", NoPageHandler)
         ]
         settings = {

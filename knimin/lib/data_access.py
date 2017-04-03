@@ -2427,6 +2427,21 @@ class KniminAccess(object):
                  WHERE barcode IN %s"""
         self._con.execute(sql, [barcodes])
 
+    # - PlateMapper functions - #
+
+    def get_studies(self):
+        """Retrieves the list of studies present in the DB
+
+        Returns
+        -------
+        List of DictCursor
+            The list of studies
+        """
+        with TRN:
+            sql = """SELECT * FROM pm.study ORDER BY study_id"""
+            TRN.add(sql)
+            return TRN.execute_fetchindex()
+
     def _study_exists(self, study_id):
         """Confirms that a study ID exists
 
@@ -2447,7 +2462,7 @@ class KniminAccess(object):
             if not TRN.execute_fetchlast():
                 raise ValueError('Study ID %s does not exist.' % study_id)
 
-    def _study_is_unique(self, qiita_study_id=None, title=None, skip_id=None):
+    def _study_is_unique(self, qiita_study_id, title, skip_id=None):
         """Confirms that a study is unique
 
         Confirms that the Qiita study ID and/or the title to be assigned to a
@@ -2455,12 +2470,10 @@ class KniminAccess(object):
 
         Parameters
         ----------
-        qiita_study_id : int, optional
+        qiita_study_id : int
             Qiita study ID of the study
-        title : str, optional
+        title : str
             Title of the study
-            Either qiita_study_id or title must be specified as the identifier
-            of a study
         skip_id : int, optional
             Skip this study ID in searching
             In function create_study, this is not used
@@ -2469,88 +2482,83 @@ class KniminAccess(object):
         Raises
         ------
         ValueError
-            If neither value is given, or either value already exists
+            If the study is a duplicate
         """
-        cols = ['qiita_study_id', 'title']
-        vals = [qiita_study_id, title]
-        tags = [x.capitalize().replace('_', ' ').replace(' id', ' ID')
-                for x in cols]
-        if all(val is None for val in vals):
-            raise ValueError('Either %s or %s must be specified.'
-                             % (tags[0], tags[1]))
         with TRN:
             sql = """SELECT study_id
                      FROM pm.study
-                     WHERE {} = %s
-                     AND study_id IS DISTINCT FROM %s"""
-            errs = []
-            err_msg = "%s %s conflicts with exisiting study %s."
-            for col, val, tag in zip(cols, vals, tags):
-                if val:
-                    TRN.add(sql.format(col), [val, skip_id])
-                    res = TRN.execute_fetchflatten()
-                    if res:
-                        errs.append(err_msg % (tag, repr(val), res[0]))
-            if errs:
-                raise ValueError('\n'.join(errs))
+                     WHERE (study_id = %s OR title = %s)"""
+            sql_args = [qiita_study_id, title]
+            if skip_id:
+                sql += " AND study_id != %s"
+                sql_args.append(skip_id)
 
-    def create_study(self, qiita_study_id=None, title=None, alias=None,
-                     notes=None):
+            TRN.add(sql, sql_args)
+            res = TRN.execute_fetchflatten()
+            if res:
+                raise ValueError("Study (%s, %s) conflicts with studies %s"
+                                 % (qiita_study_id, title,
+                                    ', '.join(map(str, res))))
+
+    def create_study(self, qiita_study_id, title, alias, jira_id):
         """Creates a study
 
         Parameters
         ----------
-        qiita_study_id : int, optional
-            Assigns a Qiita study ID to the study
-        title : str, optional
-            Assigns a title to the study
-            Either qiita_study_id or title must be specified
-        alias : str, optional
-            Assigns an alias to the study
-        notes : str, optional
-            Makes notes of the study
-
-        Returns
-        -------
-        int
-            ID of the study created
+        qiita_study_id : int
+            The Qiita study ID
+        title : str
+            The title of the study
+        alias : str
+            The alias of the study
+        jira_id : str
+            The study JIRA key
         """
         with TRN:
             self._study_is_unique(qiita_study_id, title)
-            sql = """INSERT INTO pm.study (qiita_study_id, title, alias, notes)
-                     VALUES (%s, %s, %s, %s)
-                     RETURNING study_id"""
-            sql_args = [qiita_study_id, title, alias, notes]
+            sql = """INSERT INTO pm.study (study_id, title, alias, jira_id)
+                     VALUES (%s, %s, %s, %s)"""
+            sql_args = [qiita_study_id, title, alias, jira_id]
             TRN.add(sql, sql_args)
-            return TRN.execute_fetchlast()
+            TRN.execute()
 
-    def edit_study(self, study_id, qiita_study_id=None, title=None, alias=None,
-                   notes=None):
+    def edit_study(self, study_id, title=None, alias=None):
         """Edits properties of an existing study
 
         Parameters
         ----------
         study_id : int
             ID of the study to edit
-        qiita_study_id : int, optional
-            Assigns a Qiita study ID to the study
         title : str, optional
             Assigns a title to the study
             Either qiita_study_id or title must be specified
         alias : str, optional
             Assigns an alias to the study
-        notes : str, optional
-            Makes notes of the study
+
+        Raises
+        ------
+        ValueError
+            If both title and alias are None
         """
+        if title is None and alias is None:
+            raise ValueError(
+                "At least one of title or alias should be provided")
+
         with TRN:
             self._study_exists(study_id)
-            self._study_is_unique(qiita_study_id, title, study_id)
+            self._study_is_unique(study_id, title, study_id)
+            cols = []
+            sql_args = []
+            if title is not None:
+                cols.append("title = %s")
+                sql_args.append(title)
+            if alias is not None:
+                cols.append("alias = %s")
+                sql_args.append(alias)
+            sql_args.append(study_id)
             sql = """UPDATE pm.study
-                     SET qiita_study_id = %s, title = %s, alias = %s,
-                         notes = %s
-                     WHERE study_id = %s
-                     RETURNING study_id"""
-            sql_args = [qiita_study_id, title, alias, notes, study_id]
+                     SET {}
+                     WHERE study_id = %s""".format(', '.join(cols))
             TRN.add(sql, sql_args)
             TRN.execute()
 
@@ -2574,7 +2582,7 @@ class KniminAccess(object):
             If the study ID does not exist
         """
         with TRN:
-            sql = """SELECT qiita_study_id, title, alias, notes
+            sql = """SELECT study_id, title, alias, jira_id
                      FROM pm.study
                      WHERE study_id = %s"""
             TRN.add(sql, [study_id])
@@ -2930,6 +2938,27 @@ class KniminAccess(object):
             if not TRN.execute_fetchlast():
                 raise ValueError('Sample plate ID %s does not exist.' % id)
 
+    def sample_plate_name_exists(self, name):
+        """Checks if there is a sample plate with the given name
+
+        Parameters
+        ----------
+        name : str
+            The sample plate name to check for
+
+        Returns
+        -------
+        bool
+            Whether the sample plate `name` exists
+        """
+        with TRN:
+            sql = """SELECT EXISTS(
+                        SELECT 1
+                        FROM pm.sample_plate
+                        WHERE name = %s)"""
+            TRN.add(sql, [name])
+            return TRN.execute_fetchlast()
+
     def _sample_plate_is_unique(self, name, skip_id=None):
         """Confirms that a sample plate name is not duplicate
 
@@ -3015,8 +3044,7 @@ class KniminAccess(object):
             if not TRN.execute_fetchlast():
                 raise ValueError('Plate type ID %s does not exist.' % id)
 
-    def create_sample_plate(self, name, plate_type_id, email=None,
-                            created_on=None, notes=None):
+    def create_sample_plate(self, name, plate_type_id, email, studies):
         """Creates a new sample plate
 
         Parameters
@@ -3025,12 +3053,10 @@ class KniminAccess(object):
             Assigns a name to the sample plate
         plate_type_id : int
             Defines the type of the sample plate
-        email : str, optional
+        email : str
             Specifies who (by Email) created the sample plate
-        created_on: datetime, optional
-            Specifies when (by date) was the sample plate created
-        notes : str, optional
-            Makes notes of the sample plate
+        studies : list of int
+            The list of study ids to be plated
 
         Returns
         -------
@@ -3040,15 +3066,20 @@ class KniminAccess(object):
         with TRN:
             self._sample_plate_is_unique(name)
             self._plate_type_exists(plate_type_id)
-            if email:
-                self._email_exists(email)
+            self._email_exists(email)
             sql = """INSERT INTO pm.sample_plate (name, plate_type_id, email,
-                                                  created_on, notes)
-                     VALUES (%s, %s, %s, %s, %s)
+                                                  created_on)
+                     VALUES (%s, %s, %s, now())
                      RETURNING sample_plate_id"""
-            sql_args = [name, plate_type_id, email, created_on, notes]
+            sql_args = [name, plate_type_id, email]
             TRN.add(sql, sql_args)
-            return TRN.execute_fetchlast()
+            plate_id = TRN.execute_fetchlast()
+            sql = """INSERT INTO pm.sample_plate_study
+                        (sample_plate_id, study_id) VALUES (%s, %s)"""
+            sql_args = [[plate_id, s] for s in studies]
+            TRN.add(sql, sql_args, many=True)
+            TRN.execute()
+            return plate_id
 
     def edit_sample_plate(self, id, name, plate_type_id, email=None,
                           created_on=None, notes=None):
@@ -3083,28 +3114,31 @@ class KniminAccess(object):
             TRN.add(sql, sql_args)
             TRN.execute()
 
-    def read_sample_plate(self, id):
+    def read_sample_plate(self, plate_id):
         """Reads properties of a sample plate
 
         Parameters
         ----------
-        id : int
+        plate_id : int
             ID of the sample plate to read
 
         Returns
         -------
         dict
             {name : str, plate_type_id : int, email : str,
-             created_on: datetime, notes : str}
+             created_on: datetime, notes : str, studies: list of int}
             Properties of the sample plate: name, plate type ID, who created
-            it, when it was created, and notes
+            it, when it was created, notes, and the studies plated
         """
         with TRN:
-            self._sample_plate_exists(id)
-            sql = """SELECT name, plate_type_id, email, created_on, notes
+            self._sample_plate_exists(plate_id)
+            sql = """SELECT name, plate_type_id, email, created_on, notes,
+                        array_agg(study_id ORDER BY study_id) as studies
                      FROM pm.sample_plate
-                     WHERE sample_plate_id = %s"""
-            TRN.add(sql, [id])
+                        JOIN pm.sample_plate_study USING (sample_plate_id)
+                     WHERE sample_plate_id = %s
+                     GROUP BY sample_plate_id"""
+            TRN.add(sql, [plate_id])
             return dict(TRN.execute_fetchindex()[0])
 
     def _sample_plate_layout_exists(self, id):
@@ -3198,21 +3232,24 @@ class KniminAccess(object):
             TRN.add(sql, [id])
             return [dict(x) for x in TRN.execute_fetchindex()]
 
-    def delete_sample_plate(self, id):
+    def delete_sample_plate(self, plate_id):
         """Deletes a sample plate and its layout
 
         Parameters
         ----------
-        id : int
+        plate_id : int
             ID of the sample plate to delete
         """
         with TRN:
-            self._sample_plate_exists(id)
-            if self._sample_plate_layout_exists(id):
-                self._clear_sample_plate_layout(id)
+            self._sample_plate_exists(plate_id)
+            if self._sample_plate_layout_exists(plate_id):
+                self._clear_sample_plate_layout(plate_id)
+            sql = """DELETE FROM pm.sample_plate_study
+                     WHERE sample_plate_id = %s"""
+            TRN.add(sql, [plate_id])
             sql = """DELETE FROM pm.sample_plate
                      WHERE sample_plate_id = %s"""
-            TRN.add(sql, [id])
+            TRN.add(sql, [plate_id])
             TRN.execute()
 
     def get_property_options(self, property):
@@ -3346,6 +3383,8 @@ class KniminAccess(object):
                  SET results_ready = NULL
                  WHERE barcode IN %s"""
         self._con.execute(sql, [tuple(barcodes)])
+
+    # - Unit testing helper functions - #
 
     def ut_remove_external_survey(self, name, description, url):
         """ Remove an external survey from DB.

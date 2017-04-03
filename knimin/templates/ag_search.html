@@ -3,7 +3,7 @@
 <h3>AG Search</h3>
 <style>
 th {
-    background-color: #bbb; 
+    background-color: #bbb;
 }
 
 .widetable {
@@ -16,7 +16,7 @@ th {
 }
 
 .result_container {
-    background-color: #888; 
+    background-color: #888;
     margin-bottom: 20px;
     border-radius: 10px;
     border-width: 5px;
@@ -25,7 +25,7 @@ th {
 }
 
 .result_item {
-    
+
 }
 </style>
 Find stuff.
@@ -69,14 +69,14 @@ Find stuff.
         {% if len(item['humans']) > 0 %}
             <tr><td>Human Surveys:</td><td colspan="100%">
                 {% for person in item['humans'] %}
-                        <a href="/ag_edit_survey/?participant_name={{person}}&ag_login_id={{login['ag_login_id']}}">{{person}}</a> 
+                        <a href="/ag_edit_survey/?participant_name={{person}}&ag_login_id={{login['ag_login_id']}}">{{person}}</a>
                 {% end %}
                         </td></tr>
         {% end %}
         {% if len(item['animals']) > 0 %}
             <tr><td>Animal Surveys:</td><td colspan="100%">
                 {% for animal in item['animals'] %}
-                        <a href="/ag_edit_survey_animal/?participant_name={{animal}}&ag_login_id={{login['ag_login_id']}}">{{animal}}</a> 
+                        <a href="/ag_edit_survey_animal/?participant_name={{animal}}&ag_login_id={{login['ag_login_id']}}">{{animal}}</a>
                 {% end %}
                         </td></tr>
         {% end %}
@@ -98,7 +98,7 @@ Find stuff.
                             </tr>
                             </table>
             {% for barcode in kit['barcode_info'] %}
-         
+
                 <table class="widetable">
                                     <th></th>
                                     <th>barcode</th>
@@ -200,18 +200,6 @@ Find stuff.
                                     </table>
                                     {% end %}
                                      <table class="widetable">
-                                    {% if len(kit['barcode_info'][barcode]['plate']) > 0 %}
-                                    <th>barcode</th>
-                                    <th>plate</th>
-                                    <th>sequencing_date</th>
-                                    {% for plate_info in kit['barcode_info'][barcode]['plate'] %}
-                                    <tr class="gridrow">
-                                    <td>{{kit['barcode_info'][barcode]['ag_info']['barcode']}}</td>
-                                    <td>{{plate_info['plate']}}</td>
-                                    <td>{{plate_info['sequence_date']}}</td>
-                                    </tr>
-                                    {%end %}
-                                    {% end %}
                                     <tr>
                                     {% set notes = kit['barcode_info'][barcode]['ag_info']['notes'] %}
                                     {% if notes is None %}
@@ -220,7 +208,7 @@ Find stuff.
                                     <td colspan="6">Notes: {{notes}}</td>
                                     </tr>
                                 </table>
-                                 
+
             {% end %}
         {% end %}
 
@@ -248,5 +236,3 @@ Find stuff.
     {% end %}
 {% end %}
 {% end %}
-
-
