@@ -35,23 +35,28 @@
       $('#plate-name-warning').html('* Please introduce a plate name');
       $('#plate-name-warning').show();
     } else {
-      $.get('/pm_sample_plate/name_check?name=' + plateName, function(data){
-        if (!data.result) {
-          // Construct a form and submit it
-          var form = $('<form>', {action: $(location).attr('href'), method: 'post'});
-          var fields = {'plate_type': plateType, 'studies': studies,
-                        'plate_name': plateName};
-          $.each(fields, function(key, val) {
-            $('<input>').attr({type: "hidden", name: key, value: val}).appendTo(form);
-          });
-          form.appendTo('body').submit();
-        }
-        else {
+      $.get('/pm_sample_plate/name_check?name=' + plateName, function(data) {
+        if (data.result) {
           // The plate name already exists
           $('#plate-name-warning').html('* The given plate name already exists');
           $('#plate-name-warning').show();
         }
-      });
+      })
+        .fail(function(jqXHR, textStatus, errorThrown) {
+          if(jqXHR.status === 404) {
+            var data = $.parseJSON(jqXHR.responseText);
+            if (!data.result) {
+              // Construct a form and submit it
+              var form = $('<form>', {action: $(location).attr('href'), method: 'post'});
+              var fields = {'plate_type': plateType, 'studies': studies,
+                            'plate_name': plateName};
+              $.each(fields, function(key, val) {
+                $('<input>').attr({type: "hidden", name: key, value: val}).appendTo(form);
+              });
+              form.appendTo('body').submit();
+            }
+          }
+        });
     }
   };
 
@@ -79,7 +84,7 @@
         return false;
     });
 
-    // Something
+    // Add the study options to the initial study select
     add_study_options($('#init-study-select'));
 
     // Initialize the study autocompletion
@@ -93,27 +98,27 @@
 </br>
 <!-- Plate type selector -->
 <div class="container">
-<label>Plate type:</label>
-<select id='plate-type-select' class='form-control'>
-  {% for pt in plate_types %}
-    <option value="{{pt['id']}}">{{pt['name']}} ({{pt['notes']}})</option>
-  {% end %}
-</select>
-<!-- Studies selector -->
-<label>Studies being plated: <b id='studies-warning' class='warning' hidden>* Please choose at least one study</b></label>
-<div class="tag-controls">
-  <div class="entry input-group">
-    <select class="study-select" id='init-study-select'>
-        <option selected value='-1'>Choose a study</option>
-    </select>
-    <button class="btn btn-success btn-add" type="button"><span class="glyphicon glyphicon-plus"></span></button>
+  <label>Plate type:</label>
+  <select id='plate-type-select' class='form-control'>
+    {% for pt in plate_types %}
+      <option value="{{pt['id']}}">{{pt['name']}} ({{pt['notes']}})</option>
+    {% end %}
+  </select>
+  <!-- Studies selector -->
+  <label>Studies being plated: <b id='studies-warning' class='warning' hidden>* Please choose at least one study</b></label>
+  <div class="tag-controls">
+    <div class="entry input-group">
+      <select class="study-select" id='init-study-select'>
+          <option selected value='-1'>Choose a study</option>
+      </select>
+      <button class="btn btn-success btn-add" type="button"><span class="glyphicon glyphicon-plus"></span></button>
+    </div>
   </div>
-</div>
-<label>Plate name: <b id='plate-name-warning' class='warning' hidden></b></label>
-<input class='form-control' id='plate-name'>
-</br>
-<div class="form-group">
-  <button onclick="submit_plate_creation();" class="btn button-sm btn-primary">Create plate</button>
-</div>
+  <label>Plate name: <b id='plate-name-warning' class='warning' hidden></b></label>
+  <input class='form-control' id='plate-name'>
+  </br>
+  <div class="form-group">
+    <button onclick="submit_plate_creation();" class="btn button-sm btn-primary">Create plate</button>
+  </div>
 </div>
 {% end %}
