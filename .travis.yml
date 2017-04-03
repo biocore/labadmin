@@ -1,3 +1,5 @@
+# we need trusty so apt/oracle-java8-set-default works
+dist: trusty
 language: python
 python:
   - "2.7"
@@ -6,6 +8,9 @@ services:
   - redis-server
 addons:
   postgresql: "9.3"
+  apt:
+    packages:
+      - oracle-java8-set-default
 before_install:
   - redis-server --version
   - wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
@@ -33,8 +38,28 @@ install:
   - pip install -U click natsort coverage coveralls
   - travis_retry pip install -U .[test]
 before_script:
-    - source activate qiita_env
-    - qiita pet webserver --no-build-docs start &
+  - source activate qiita_env
+  - qiita pet webserver --no-build-docs start &
+  - source activate labadmin
+  # installing jira locally for testing
+  - wget https://marketplace.atlassian.com/download/plugins/atlassian-plugin-sdk-tgz
+  - tar zxvf atlassian-plugin-sdk-tgz
+  - mv atlassian-plugin-sdk-*/ atlassian-plugin-sdk
+  - export PATH="${PATH}:${PWD}/atlassian-plugin-sdk/bin"
+  - atlas-version
+  # creating plugin templates
+  # turns out that the atlas commands pass any extra parameter to mvn so
+  # passing -q to make the commands "quiet"
+  - atlas-create-jira-plugin -a myConfluenceMacro -g com.mycompany.plugins -v 1.0.0-SNAPSHOT -p com.mycompany.plugins.myConfluenceMacro --non-interactive -q
+  - cd myConfluenceMacro
+  # to start jira we need to wait for ~12min but after this we will install AGP
+  # and other libs so 9min should be sufficient.
+  # -DskipAllPrompts=true - https://goo.gl/MaVeLx
+  # </dev/zero 2>&1 & --> https://goo.gl/n7BYnh
+  # this will install the latest version of JIRA but we could install other ones
+  # via --version 6.4.7
+  - atlas-run --product jira -DskipAllPrompts=true </dev/zero 2>&1 &
+  - sleep 560
 script:
   - source activate labadmin
   - git clone -b plate-mapper-jose https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
@@ -46,7 +71,7 @@ script:
   - $PYTHONPATH
   - cd $TRAVIS_BUILD_DIR
   - cp $TRAVIS_BUILD_DIR/knimin/config.txt.example $TRAVIS_BUILD_DIR/knimin/config.txt
-  - nosetests --with-doctest --with-coverage
+  - nosetests --verbose --with-doctest --with-coverage
   - flake8 knimin setup.py scripts
   - phantomjs knimin/tests/javascript/runner.js knimin/tests/javascript/index.html
 after_success:

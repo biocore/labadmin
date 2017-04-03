@@ -61,6 +61,45 @@ class InMemoryZip(object):
         return self.in_memory_data.getvalue()
 
 
+def extract_zip(input_zip):
+    """ Reads all files of a zip file from disk.
+
+    A helper function to read in all files of a zip archive as strings and
+    return a dict of those strings where the keys are the filenames.
+
+    Parameters
+    ----------
+    input_zip : str
+        The filename of the archive.
+
+    Returns
+    -------
+    A dict of str: keys = filenames in archive, values = content of files
+    """
+
+    input_zip = zipfile.ZipFile(input_zip)
+    return {name: input_zip.read(name) for name in input_zip.namelist()}
+
+
+def sneak_files(archive, len=1000):
+    """ Returns the first characters of each file in an zip archive.
+
+    Parameters
+    ----------
+    archive : dict{str : filename, str : filecontents}
+        The already extracted zip archive in form of a dict, where keys are
+        filenames and values are the content of the file.
+    len : int
+        Number of characters returned from each file.
+        Default: 1000.
+
+    Returns
+    -------
+    dict{str, str} where the first component is the filename and the second
+    the first <len> characters of the file."""
+    return map(lambda (k, v): {k: v[:len]}, archive.items())
+
+
 if __name__ == "__main__":
     # Run a test
     imz = InMemoryZip()
