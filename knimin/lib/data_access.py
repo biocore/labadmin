@@ -3291,6 +3291,28 @@ class KniminAccess(object):
             TRN.add(sql)
             return [dict(x) for x in TRN.execute_fetchindex()]
 
+    def read_plate_type(self, plate_type_id):
+        """Returns the information the given plate type
+
+        Parameters
+        ----------
+        plate_type_id: int
+            The id of the plate type
+
+        Returns
+        -------
+        DictCursor
+            The information of the plate type
+        """
+        with TRN:
+            sql = "SELECT * FROM pm.plate_type WHERE plate_type_id = %s"
+            TRN.add(sql, [plate_type_id])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError("Plate type %s doesn't exist" % plate_type_id)
+            # Magic number 0: there is only one result in the query
+            return res[0]
+
     def get_emails(self):
         """Gets all available emails
 

@@ -929,15 +929,25 @@ class TestDataAccess(TestCase):
     #            {'id': 3, 'name': 'HOWE_KF3', 'notes': None},
     #            {'id': 4, 'name': 'HOWE_KF4', 'notes': None}]
     #     self.assertListEqual(obs, exp)
-    #
-    # def test_get_plate_types(self):
-    #     # Get available plate types
-    #     obs = db.get_plate_types()
-    #     exp = [{'id': 1, 'name': '96-well',
-    #             'notes': 'Standard 96-well plate',
-    #             'cols': 12, 'rows': 8}]
-    #     self.assertListEqual(obs, exp)
-    #
+
+    def test_get_plate_types(self):
+        # Get available plate types
+        obs = db.get_plate_types()
+        exp = [{'id': 1, 'name': '96-well',
+                'notes': 'Standard 96-well plate',
+                'cols': 12, 'rows': 8}]
+        self.assertEqual(obs, exp)
+
+    def test_read_plate_type(self):
+        obs = db.read_plate_type(1)
+        exp = {'plate_type_id': 1, 'name': '96-well',
+               'notes': 'Standard 96-well plate',
+               'cols': 12, 'rows': 8}
+        self.assertEqual(dict(obs), exp)
+        with self.assertRaises(ValueError) as ctx:
+            db.read_plate_type(100)
+        self.assertEqual(ctx.exception.message, "Plate type 100 doesn't exist")
+
     # def test_get_emails(self):
     #     # Get available emails
     #     obs = db.get_emails()
