@@ -24,17 +24,16 @@ Copy the example config file to be visible for starting up a test database::
 
    cp ./knimin/config.txt.example ./knimin/config.txt
 
-Installing JIRA
-~~~~~~~~~~~~~~~
+**Installing JIRA**
 
 Note that these instructions should work for Mac or Linux and that
 you need to have JAVA 1.8 or higher. If you are in a Mac, you will need to
-[update](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html).
+`update <http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html>`__.
 If you updated to that package you could force using it by::
 
     export JAVA_HOME='/Library/Java/JavaVirtualMachines/jdk1.8.0_121.jdk/Contents/Home'
 
-Now you can continue with downloading the latest [JIRA SDK](https://marketplace.atlassian.com/download/plugins/atlassian-plugin-sdk-tgz),
+Now you can continue with downloading the latest `JIRA SDK <https://marketplace.atlassian.com/download/plugins/atlassian-plugin-sdk-tgz>`__,
 uncompressing it and setting it up::
 
     curl -o atlassian-plugin-sdk-6.2.14.tar.gz https://marketplace.atlassian.com/download/plugins/atlassian-plugin-sdk-tgz
