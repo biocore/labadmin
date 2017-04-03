@@ -3268,7 +3268,7 @@ class KniminAccess(object):
             self._sample_plate_exists(plate_id)
             if self._sample_plate_layout_exists(plate_id):
                 self._clear_sample_plate_layout(plate_id)
-            sql = """DELETE fROM pm.sample_plate_study
+            sql = """DELETE FROM pm.sample_plate_study
                      WHERE sample_plate_id = %s"""
             TRN.add(sql, [plate_id])
             sql = """DELETE FROM pm.sample_plate
