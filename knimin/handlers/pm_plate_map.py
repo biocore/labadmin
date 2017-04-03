@@ -30,7 +30,7 @@ class PMCreatePlateHandler(BaseHandler):
         user = self.current_user
         plate_id = db.create_sample_plate(plate_name, plate_type,
                                           user, studies)
-        self.redirect('/pm_plate_map/%d/' % plate_id)
+        self.redirect('/pm_plate_map?plate_id=%d' % plate_id)
 
 
 @set_access(['Admin'])
@@ -39,4 +39,29 @@ class PMPlateNameCheckerHandler(BaseHandler):
     def get(self):
         name = self.get_argument('name')
         self.write({'result': db.sample_plate_name_exists(name)})
+        self.finish()
+
+
+@set_access(['Admin'])
+class PMPlateMapHandler(BaseHandler):
+    @authenticated
+    def get(self):
+        plate_id = self.get_argument('plate_id')
+        self.render("pm_plate_map.html", currentuser=self.current_user,
+                    plate_id=plate_id)
+
+
+@set_access(['Admin'])
+class PMSamplePlateHandler(BaseHandler):
+    @authenticated
+    def get(self):
+        plate_id = self.get_argument('plate_id')
+        plate_info = db.read_sample_plate(plate_id)
+        plate_info['plate_type'] = dict(db.read_plate_type(
+            plate_info.pop('plate_type_id')))
+        plate_info['studies'] = [db.read_study(s)
+                                 for s in plate_info['studies']]
+        plate_info['plate_id'] = plate_id
+        plate_info['created_on'] = str(plate_info['created_on'])
+        self.write(plate_info)
         self.finish()
