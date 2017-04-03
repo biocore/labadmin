@@ -9,7 +9,7 @@ Installation instructions
 
 Create a conda environment for labadmin::
 
-   conda create -n labadmin psycopg2 python=2 click requests
+   conda create -n labadmin psycopg2 python=2 click requests bioconda java-jdk
 
    source activate labadmin
 
@@ -26,10 +26,10 @@ Copy the example config file to be visible for starting up a test database::
 
 **Installing JIRA**
 
-Note that these instructions should work for Mac or Linux and that
-you need to have JAVA 1.8 or higher. If you are in a Mac, you will need to
-`update <http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html>`__.
-If you updated to that package you could force using it by::
+Note that these instructions should work for Mac or Linux and that you need to have JAVA 1.8 or higher which
+is already installed in the conda command. However, if are not using conda you can simply download the
+`latests JAVA version <http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html>`__ and add it
+to your environment by::
 
     export JAVA_HOME='/Library/Java/JavaVirtualMachines/jdk1.8.0_121.jdk/Contents/Home'
 
@@ -47,6 +47,7 @@ To test the install you can run::
 
 and to start the JIRA system locally::
 
+    # </dev/zero 2>&1 & --> https://goo.gl/n7BYnh
     atlas-run-standalone --product jira </dev/zero 2>&1 &
 
 Now, you should now be able to start the webserver::
