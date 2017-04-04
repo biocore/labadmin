@@ -61,6 +61,9 @@ class PMSamplePlateHandler(BaseHandler):
     @authenticated
     def get(self):
         plate_id = self.get_argument('plate_id')
+
+        # Retrieve the plate information, taking into account that the given
+        # id may not exist in the DB
         try:
             plate_info = db.read_sample_plate(plate_id)
         except ValueError as e:
@@ -70,11 +73,15 @@ class PMSamplePlateHandler(BaseHandler):
                 self.finish()
                 return
             raise
+
+        # Format the output dictionary to contain a bit more information
+        # instead of the different objects ids
         plate_info['plate_type'] = dict(db.read_plate_type(
             plate_info.pop('plate_type_id')))
         plate_info['studies'] = [db.read_study(s)
                                  for s in plate_info['studies']]
         plate_info['plate_id'] = plate_id
         plate_info['created_on'] = str(plate_info['created_on'])
+
         self.write(plate_info)
         self.finish()
