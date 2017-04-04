@@ -96,6 +96,27 @@ PlateMap.prototype.initialize = function (data) {
 
 /**
  *
+ **/
+PlateMap.prototype.updateWellCommentsArea = function () {
+  var sample, wellId;
+  var comments = "";
+  for (var i = 0; i < this.rows; i++) {
+    for (var j = 0; j < this.cols; j++) {
+      if (this.wellComments[i][j] !== undefined) {
+        sample = this.inputTags[i][j].val().trim();
+        if (sample.length === 0) {
+          sample = 'No sample plated';
+        }
+        wellId = String.fromCharCode('A'.charCodeAt() + i) + (j + 1);
+        comments = comments + "Well " + wellId + " (Sample: " + sample + "): " + this.wellComments[i][j] + "\n";
+      }
+    }
+  }
+  $("#well-comments-area").val(comments);
+}
+
+/**
+ *
  * Helper method for when a user press a key on a well input
  *
  * @param {Elemnt} current The <input> element where the event has been trigered
@@ -150,6 +171,7 @@ PlateMap.prototype.commentModalSave = function () {
   var row = parseInt($('#comment-modal-btn').attr('pm-row'));
   var col = parseInt($('#comment-modal-btn').attr('pm-col'));
   this.wellComments[row][col] = $('#well-comment-textarea').val();
+  this.updateWellCommentsArea();
   $('#myModal').modal('hide');
 }
 
@@ -246,10 +268,15 @@ PlateMap.prototype.drawPlate = function() {
 
   // Add the Notes text area
   $('<b>Plate notes: </b></br>').appendTo(this.target);
-  textArea = $('<textarea cols="200" id="notes-input"></textarea>').appendTo(this.target);
+  textArea = $('<textarea cols="200" id="notes-input"></textarea></br>').appendTo(this.target);
   if (this.notes !== undefined) {
     textArea.val(this.notes);
   }
+
+  // Add the per well comments summary
+  $('<b>Per well comments: </b></br>').appendTo(this.target);
+  $('<textarea cols="200" id="well-comments-area" readonly></textarea></br>').appendTo(this.target);
+
 
   // Add the comments modal - Note that this modal gets added to the body
   // This is to avoid some undesired behavior with modals, in which they
