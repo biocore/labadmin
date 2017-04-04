@@ -63,7 +63,7 @@ function PlateMap(target, plate_id) {
 
 /**
  *
- * Helper function to initialize the object after the GET query is completed
+ * Initializes the object after the GET query is completed
  *
  * @param {Object} data The data returned from the GET query
  *
@@ -77,7 +77,7 @@ PlateMap.prototype.initialize = function (data) {
     this.rows = data.plate_type.rows;
     this.cols = data.plate_type.cols;
     this.studies = data.studies;
-    this.samples = [{label: 'sample_1_somethinglonger', category: 'study 1'},
+    this.autoCompleteSamples = [{label: 'sample_1_somethinglonger', category: 'study 1'},
                     {label: 'sample_2_somethinglonger', category: 'study 1'},
                     {label: 'sample_3_somethinglonger', category: 'study 1'},
                     {label: 'sample_1', category: 'study 2'},
@@ -95,6 +95,8 @@ PlateMap.prototype.initialize = function (data) {
 };
 
 /**
+ *
+ * Updates the contents of the text area with a summary of the well comments
  *
  **/
 PlateMap.prototype.updateWellCommentsArea = function () {
@@ -117,7 +119,7 @@ PlateMap.prototype.updateWellCommentsArea = function () {
 
 /**
  *
- * Helper method for when a user press a key on a well input
+ * Keypress event handler on the well input
  *
  * @param {Elemnt} current The <input> element where the event has been trigered
  * @param {Event} e The event object
@@ -139,13 +141,14 @@ PlateMap.prototype.keypressWell = function (current, e) {
         col = 0;
       }
     }
+    // Set the focus to the next input tag
     this.inputTags[row][col].focus();
   }
 }
 
 /**
  *
- * Helper method for when the comment modal gets shown
+ * Show event handler on the well comment modal
  *
  **/
 PlateMap.prototype.commentModalShow = function () {
@@ -164,7 +167,7 @@ PlateMap.prototype.commentModalShow = function () {
 
 /**
  *
- * Helper method for when the user clicks 'save' on the comment modal
+ * Click event handler on the save button form the comment modal
  *
  **/
 PlateMap.prototype.commentModalSave = function () {
@@ -178,7 +181,7 @@ PlateMap.prototype.commentModalSave = function () {
 
 /**
  *
- * Helper method to construct the HTML of a well
+ * Constructs the HTML elements of a well
  *
  * @param {int} row The row of the well
  * @param {int} column The column of the well
@@ -197,7 +200,8 @@ PlateMap.prototype.constructWell = function(row, column) {
     obj.keypressWell(this, e);
   });
   i.focusin(function(e) {
-    // Enable the comment button
+    // When the input element gets focus, store the current indices
+    // so we know the well the user wants to comment on.
     $('#comment-modal-btn').attr('pm-row', parseInt($(this).attr('pm-well-row')));
     $('#comment-modal-btn').attr('pm-col', parseInt($(this).attr('pm-well-column')));
   });
@@ -214,7 +218,7 @@ PlateMap.prototype.constructWell = function(row, column) {
 
 /**
  *
- * Helper method to construct the HTML of the plate map
+ * Constructs the HTML elements of the plate map
  *
  **/
 PlateMap.prototype.drawPlate = function() {
@@ -226,6 +230,8 @@ PlateMap.prototype.drawPlate = function() {
   $('<b>Plate type: </b>' + this.plateType + '</br>').appendTo(this.target);
   $('<b>Created on: </b>' + this.createdOn + '</br>').appendTo(this.target);
   $('<b>Created by: </b>' + this.createdBy + '</br>').appendTo(this.target);
+  // Add the comment button. We need to add it in a span so we can have both
+  // the bootstrap tooltip and the modal triggered
   span = $('<span>').attr('data-toggle', 'tooltip').attr('data-placement', 'right').attr('title', 'Add well comment').attr('id', 'well-comment');
   span.appendTo(this.target);
   span.tooltip();
@@ -235,10 +241,11 @@ PlateMap.prototype.drawPlate = function() {
   // Add studies
   // Add hyperlink to study to JIRA and Qiita
 
+  // Add the table that represents the plate map
   table = $('<table>');
   table.appendTo(this.target);
 
-  // Create the header row
+  // Add the header row
   row = $('<tr>');
   row.appendTo(table);
   $('<th>').appendTo(row);
@@ -249,18 +256,18 @@ PlateMap.prototype.drawPlate = function() {
     col.appendTo(row);
   }
 
-  // Create the plate map
+  // Adding the rest of the rows
   for (var i = 0; i < this.rows; i++) {
     row = $('<tr>');
     row.appendTo(table);
-    col = $('<td>');
     // Adding row name - From: http://stackoverflow.com/a/12504060
+    col = $('<td>');
     col.html(String.fromCharCode('A'.charCodeAt() + i));
     col.appendTo(row);
+    // Adding the rest of the rows
     for (var j = 0; j < this.cols; j++) {
       col = $('<td>');
       col.appendTo(row);
-      // Construct the well
       well = this.constructWell(i, j);
       well.appendTo(col);
     }
@@ -312,15 +319,18 @@ PlateMap.prototype.drawPlate = function() {
     $('#well-comment-textarea').focus();
   });
 
+  // Attach a handler to the save button
   $('#save-cmt-btn').click(function(e) {
     obj.commentModalSave();
   });
 
+  // Attach a handler to the keyup event of the well comment text area
   $('#well-comment-textarea').keyup(function(e) {
     var value = $('#well-comment-textarea').val().trim();
     // Only enable the button if there is some text in the textarea
     $('#save-cmt-btn').prop('disabled', value.length === 0);
   });
 
-  $(".autocomplete").catcomplete({source: this.samples});
+  // Enable autocompletion
+  $(".autocomplete").catcomplete({source: this.autoCompleteSamples});
 }
