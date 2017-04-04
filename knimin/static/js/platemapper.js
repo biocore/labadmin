@@ -46,7 +46,7 @@ PlateMap.prototype.initialize = function (data) {
     this.rows = data.plate_type.rows;
     this.cols = data.plate_type.cols;
     this.studies = data.studies;
-    this.samples = ['sample_1', 'sample_2'];
+    this.samples = ['sample_1_lets_try_something_longer', 'sample_2'];
     this.input_tags = new Array(this.rows);
     for (var i = 0; i < this.input_tags.length; i++) {
         this.input_tags[i] = new Array(this.cols);
@@ -92,16 +92,28 @@ PlateMap.prototype.on_keypress = function (current, e) {
  **/
 PlateMap.prototype.constructWell = function(row, column) {
   var obj = this;
+  // Div holding well
   var d = $('<div>');
-  d.addClass('form-group');
-  var i = $('<input pm-well-row="' + row + '" pm-well-column="' + column + '">');
+  d.addClass('input-group');
+  // The input tag
+  var i = $('<input>');
   i.on('keypress', function(e) {
     obj.on_keypress(this, e);
   });
   this.input_tags[row][column] = i;
   i.addClass('form-control').addClass('autocomplete');
-  i.attr('placeholder', 'Type sample');
+  i.attr('placeholder', 'Type sample').attr('pm-well-row', row).attr('pm-well-column', column).attr('type', 'text');
   i.appendTo(d);
+  // A span to locate the comments button next to the input
+  var s = $('<span>');
+  s.addClass('input-group-btn');
+  s.appendTo(d);
+  // The comment button
+  var b = $('<button>');
+  b.addClass('btn').addClass('btn-default').addClass('glyphicon').addClass('glyphicon-comment');
+  b.attr('type', 'button')
+  b.appendTo(s);
+  // Return the top div
   return d;
 };
 
