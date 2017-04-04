@@ -373,3 +373,12 @@ ul.mainmenu li a:hover {
 	color: #776557;
 /*	background: rgba(25, 25, 25, .1);*/
 }
+
+.pm_study_autocomplete {
+	background: #A9A9A9;
+	font-weight: bold;
+	font-size: 14px;
+	padding: .2em .4em;
+	margin: .8em 0 .2em;
+	line-height: 1.5;
+}
