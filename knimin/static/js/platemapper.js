@@ -21,13 +21,20 @@ function PlateMap(target, plate_id) {
     obj.initialize(data);
   })
     .fail(function (jqXHR, textStatus, errorThrown) {
-      console.log('Error ' + textStatus + ' ' + errorThrown);
+      if(jqXHR.status === 404) {
+        var data = $.parseJSON(jqXHR.responseText)
+        $('<h3 class="warning">').html(data.message).appendTo(obj.target);
+      } else {
+        $('<div>').html(jqXHR.responseText).appendTo(obj.target);
+      }
     });
 };
 
 /**
  *
  * Helper function to initialize the object after the GET query is completed
+ *
+ * @param {Object} data The data returned from the GET query
  *
  **/
 PlateMap.prototype.initialize = function (data) {
@@ -40,21 +47,58 @@ PlateMap.prototype.initialize = function (data) {
     this.cols = data.plate_type.cols;
     this.studies = data.studies;
     this.samples = ['sample_1', 'sample_2'];
+    this.input_tags = new Array(this.rows);
+    for (var i = 0; i < this.input_tags.length; i++) {
+        this.input_tags[i] = new Array(this.cols);
+    }
     this.drawPlate();
 };
+
+/**
+ *
+ * Helper method to change the focus of the input
+ *
+ **/
+PlateMap.prototype.on_keypress = function (current, e) {
+  var row, col;
+  if (e.which === 13) {
+    // The user hit enter, which means that we have to move down one row
+    // Retrieve which is the current row and column
+    row = parseInt($(current).attr('pm-well-row'));
+    col = parseInt($(current).attr('pm-well-column'));
+    // Update indices
+    row = row + 1;
+    if (row === this.rows) {
+      row = 0;
+      col = col + 1;
+      if (col === this.cols) {
+        col = 0;
+      }
+    }
+    this.input_tags[row][col].focus();
+  }
+}
 
 
 /**
  *
  * Helper method to construct the HTML of a well
  *
+ * @param {int} row The row of the well
+ * @param {int} column The column of the well
+ *
  * @return {jQuery.Object} The div representing a well
  *
  **/
-PlateMap.prototype.constructWell = function() {
+PlateMap.prototype.constructWell = function(row, column) {
+  var obj = this;
   var d = $('<div>');
   d.addClass('form-group');
-  var i = $('<input>')
+  var i = $('<input pm-well-row="' + row + '" pm-well-column="' + column + '">');
+  i.on('keypress', function(e) {
+    obj.on_keypress(this, e);
+  });
+  this.input_tags[row][column] = i;
   i.addClass('form-control').addClass('autocomplete');
   i.attr('placeholder', 'Type sample');
   i.appendTo(d);
@@ -101,7 +145,7 @@ PlateMap.prototype.drawPlate = function() {
       col = $('<td>');
       col.appendTo(row);
       // Construct the well
-      well = this.constructWell();
+      well = this.constructWell(i, j);
       well.appendTo(col);
     }
   }

@@ -6,6 +6,8 @@
 # The full license is in the file LICENSE, distributed with this software.
 # -----------------------------------------------------------------------------
 
+import re
+
 from tornado.web import authenticated
 
 from knimin import db
@@ -59,7 +61,15 @@ class PMSamplePlateHandler(BaseHandler):
     @authenticated
     def get(self):
         plate_id = self.get_argument('plate_id')
-        plate_info = db.read_sample_plate(plate_id)
+        try:
+            plate_info = db.read_sample_plate(plate_id)
+        except ValueError as e:
+            if re.match('Sample plate ID [0-9]* does not exist', e.message):
+                self.set_status(404)
+                self.write({'message': e.message})
+                self.finish()
+                return
+            raise
         plate_info['plate_type'] = dict(db.read_plate_type(
             plate_info.pop('plate_type_id')))
         plate_info['studies'] = [db.read_study(s)

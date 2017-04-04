@@ -158,6 +158,12 @@ class TestPMSamplePlateHandler(TestHandlerBase):
                             'title': 'LabAdmin test project'}]}
         self.assertEqual(json_decode(response.body), exp)
 
+        response = self.get('/pm_sample_plate?plate_id=%s' % (plate_id + 1))
+        self.assertEqual(response.code, 404)
+        exp = {'message': 'Sample plate ID %d does not exist.'
+                          % (plate_id + 1)}
+        self.assertEqual(json_decode(response.body), exp)
+
 
 if __name__ == '__main__':
     main()
