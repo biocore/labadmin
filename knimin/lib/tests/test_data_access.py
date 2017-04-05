@@ -2,6 +2,7 @@ from unittest import TestCase, main
 from os.path import join, dirname, realpath
 from six import StringIO
 from functools import partial
+from traceback import format_exc
 import datetime
 
 import pandas as pd
@@ -31,7 +32,7 @@ class TestDataAccess(TestCase):
                 f()
             except Exception as e:
                 print("Database clean-up failed. Downstream tests might be "
-                      "affected by this! Reason: %s" % e.message)
+                      "affected by this! Reason: %s" % format_exc(e))
 
     def test_pulldown_third_party(self):
         # Add survey answers
@@ -500,200 +501,109 @@ class TestDataAccess(TestCase):
         # Delete a study without samples
         db.create_study(9999, title='LabAdmin test project',
                         alias='LTP', jira_id='KL9999')
-        self.assertIsNotNone(db.read_study(9999))
         db.delete_study(9999)
-        with self.assertRaises(ValueError):
-            db._study_exists(9999)
-
-        # Delete a study with three samples associated
-        db.create_study(9999, title='LabAdmin test project',
-                        alias='LTP', jira_id='KL9999')
-
-        samples = [{'id': '1', 'study_ids': [9999]},
-                   {'id': '2', 'study_ids': [9999]},
-                   {'id': '3', 'study_ids': [9999]}]
-        db.create_samples(samples)
-        obs = db.read_samples(['1', '2', '3'])
-        exp = {'1': {'is_blank': False, 'barcode': None, 'notes': None,
-                     'study_ids': [9999]},
-               '2': {'is_blank': False, 'barcode': None, 'notes': None,
-                     'study_ids': [9999]},
-               '3': {'is_blank': False, 'barcode': None, 'notes': None,
-                     'study_ids': [9999]}}
-        self.assertEqual(obs, exp)
-        db.delete_study(9999)
-        with self.assertRaises(ValueError):
-            db.read_study(9999)
-        obs = db.read_samples(['1', '2', '3'])
-        exp = {}
-        self.assertDictEqual(obs, exp)
-
-        # Attempt to delete a non-existing study
+        # Check that the study has been deleted by trying to delete it again
         with self.assertRaises(ValueError) as ctx:
             db.delete_study(9999)
         self.assertEqual(ctx.exception.message,
                          'Study ID 9999 does not exist.')
 
-    def test_create_samples(self):
-        # Create three samples with sample IDs only
+        # Delete a study with three samples associated
         db.create_study(9999, title='LabAdmin test project',
                         alias='LTP', jira_id='KL9999')
+        db.set_study_samples(9999, ['9999.sample1', '9999.sample2',
+                                    '9999.sample3'])
+        db.delete_study(9999)
+        with self.assertRaises(ValueError) as ctx:
+            db.delete_study(9999)
+        self.assertEqual(ctx.exception.message,
+                         'Study ID 9999 does not exist.')
+
+        # Raises an error when trying to delete a study with samples plated
+        # db.create_study(9999, title='LabAdmin test project',
+        #                 alias='LTP', jira_id='KL9999')
+        # db.set_study_samples(9999, ['9999.sample1', '9999.sample2',
+        #                             '9999.sample3'])
+        # TODO: plate the samples
+        # with self.assertRaises(ValueError) as ctx:
+        #     db.delete_study(9999)
+        # self.assertEqual(ctx.exception.message,
+        #                  "Can't remove study 9999, samples have been plated")
+
+    def test_set_study_samples(self):
+        # Create a study
+        db.create_study(9999, title='LabAdmin test project', alias='LTP',
+                        jira_id='KL9999')
         self._clean_up_funcs.append(partial(db.delete_study, 9999))
-        samples = [{'id': x, 'study_ids': [9999]} for x in ('1', '2', '3')]
-        db.create_samples(samples)
-        obs = db.read_samples(['1', '2', '3'])
-        exp = {x: {'is_blank': False, 'barcode': None, 'notes': None,
-                   'study_ids': [9999]} for x in ('1', '2', '3')}
-        self.assertDictEqual(obs, exp)
 
-        # Create a sample with barcode, without is_blank, and associated with
-        # two studies
-        db.create_study(9998, title='LabAdmin test project 2',
-                        alias='LTP', jira_id='KL9998')
-        self._clean_up_funcs.append(partial(db.delete_study, 9998))
-        sql = """SELECT barcode FROM barcodes.barcode LIMIT 1"""
-        barcode = db._con.execute_fetchone(sql)[0]
-        samples = [{'id': '4', 'barcode': barcode, 'notes': 'Hi!',
-                    'study_ids': [9999, 9998]}]
-        db.create_samples(samples)
-        obs = db.read_samples(['4'])
-        exp = {'4': {'is_blank': False, 'barcode': barcode, 'notes': 'Hi!',
-               'study_ids': [9998, 9999]}}
-        self.assertDictEqual(obs, exp)
-        # Attempt to create a sample with an invalid barcode
-        samples = [{'id': '5', 'barcode': 'whatever', 'study_ids': [9999]}]
-        with self.assertRaises(ValueError) as context:
-            db.create_samples(samples)
-        err = 'Barcode(s) whatever do not exist.'
-        self.assertEqual(str(context.exception), err)
-        # Attempt to create two samples, one with duplicate ID
-        samples = [{'id': x, 'study_ids': [9999]} for x in ('5', '1')]
-        with self.assertRaises(ValueError) as context:
-            db.create_samples(samples)
-        err = 'Sample ID(s) 1 already exist.'
-        self.assertEqual(str(context.exception), err)
-        # Test if one duplicate ID fails the creation of all samples
-        obs = db.read_samples(['5'])
-        self.assertDictEqual(obs, {})
-        db.delete_samples(['1', '2', '3', '4'])
+        # Add samples to an empty study
+        samples = ['9999.sample1', '9999.sample2']
+        db.set_study_samples(9999, samples)
+        obs = db.get_study_samples(9999)
+        self.assertItemsEqual(obs, samples)
 
-    # def test_edit_samples(self):
-    #     # Assign properties to a sample and alter its associated study
-    #     sid = db.create_study(title='study')
-    #     db.create_samples([{'id': '1', 'study_ids': [sid]}])
-    #     obs = db.read_samples(['1'])
-    #     exp = {'1': {'is_blank': False, 'barcode': None, 'notes': None,
-    #                  'study_ids': [sid]}}
-    #     self.assertDictEqual(obs, exp)
-    #     sql = """SELECT barcode FROM barcodes.barcode LIMIT 1"""
-    #     barcode = db._con.execute_fetchone(sql)[0]
-    #     sid2 = db.create_study(title='study2')
-    #     db.edit_samples([{'id': '1', 'is_blank': True, 'barcode': barcode,
-    #                       'notes': 'Hi!', 'study_ids': [sid2]}])
-    #     obs = db.read_samples(['1'])
-    #     exp = {'1': {'is_blank': True, 'barcode': barcode, 'notes': 'Hi!',
-    #                  'study_ids': [sid2]}}
-    #     self.assertDictEqual(obs, exp)
-    #     # Attempt to assign an invalid barcode to a sample
-    #     with self.assertRaises(ValueError) as context:
-    #         db.edit_samples([{'id': '1', 'barcode': 'whatever'}])
-    #     err = 'Barcode(s) whatever do not exist.'
-    #     self.assertEqual(str(context.exception), err)
-    #     # Attempt to associate a sample with an invalid study ID
-    #     db.delete_study(sid)
-    #     with self.assertRaises(ValueError) as context:
-    #         db.edit_samples([{'id': '1', 'study_ids': [sid]}])
-    #     err = 'Study ID(s) %s do not exist.' % sid
-    #     self.assertEqual(str(context.exception), err)
-    #     # Attempt to edit a non-existing sample
-    #     db.delete_samples(['1'])
-    #     db.delete_study(sid2)
-    #     with self.assertRaises(ValueError) as context:
-    #         db.edit_samples([{'id': '1', 'is_blank': True}])
-    #     err = 'Sample ID(s) 1 do not exist.'
-    #     self.assertEqual(str(context.exception), err)
-    #
-    # def test_read_samples(self):
-    #     # Read properties and associated study IDs of three samples
-    #     sids = [db.create_study(title='study%s' % x) for x in range(3)]
-    #     sql = """SELECT barcode FROM barcodes.barcode LIMIT 1"""
-    #     barcode = db._con.execute_fetchone(sql)[0]
-    #     samples = [{'id': '1', 'barcode': barcode, 'notes': 'Hi!',
-    #                 'study_ids': [sids[0]]},
-    #                {'id': '2', 'is_blank': True,
-    #                 'study_ids': [sids[0]]},
-    #                {'id': '3', 'barcode': barcode, 'notes': 'Hey!',
-    #                 'study_ids': [sids[1], sids[2]]}]
-    #     db.create_samples(samples)
-    #     obs = db.read_samples(['1', '2', '3', '4'])
-    #     exp = {'1': {'is_blank': False, 'barcode': barcode, 'notes': 'Hi!',
-    #                  'study_ids': [sids[0]]},
-    #            '2': {'is_blank': True, 'barcode': None, 'notes': None,
-    #                  'study_ids': [sids[0]]},
-    #            '3': {'is_blank': False, 'barcode': barcode, 'notes': 'Hey!',
-    #                  'study_ids': sorted([sids[1], sids[2]])}}
-    #     self.assertDictEqual(obs, exp)
-    #     db.delete_samples(['1', '2', '3'])
-    #     for sid in sids:
-    #         db.delete_study(sid)
-    #
-    # def test_delete_samples(self):
-    #     # Delete two samples
-    #     sid = db.create_study(title='study')
-    #     samples = [{'id': x, 'study_ids': [sid]} for x in ('1', '2', '3')]
-    #     db.create_samples(samples)
-    #     db._samples_exist(['1', '2', '3'], exist=True)
-    #     db.delete_samples(['1', '2'])
-    #     obs = db.read_samples(['1', '2'])
-    #     self.assertDictEqual(obs, {})
-    #     # Attempt to delete two samples, one of which does not exist
-    #     with self.assertRaises(ValueError) as context:
-    #         db.delete_samples(['1', '3'])
-    #         err = 'Sample ID(s) 1 do not exist.'
-    #         self.assertEqual(str(context.exception), err)
-    #     # Attempt to delete a sample that is associated with a sample plate
-    #     sql = """SELECT plate_type_id FROM pm.plate_type LIMIT 1"""
-    #     ptid = db._con.execute_fetchone(sql)[0]
-    #     spid = db.create_sample_plate('test_plate', ptid)
-    #     splayout = [{'sample_id': '3', 'col': 1, 'row': 1}]
-    #     db.write_sample_plate_layout(spid, splayout)
-    #     with self.assertRaises(ValueError) as context:
-    #         db.delete_samples(['3'])
-    #     err = ('Sample ID(s) 3 cannot be deleted because they are '
-    #            'associated with sample plate(s) %s.' % spid)
-    #     self.assertEqual(str(context.exception), err)
-    #     db.delete_sample_plate(spid)
-    #     db.delete_samples(['3'])
-    #     db.delete_study(sid)
-    #
-    # def test_get_samples_by_study(self):
-    #     # Retrieve samples associated with studies
-    #     sids = [db.create_study(title='study%s' % x) for x in range(3)]
-    #     samples = [{'id': '1', 'study_ids': [sids[0]]},
-    #                {'id': '2', 'study_ids': [sids[0], sids[1]]},
-    #                {'id': '3', 'study_ids': [sids[1], sids[2]]}]
-    #     db.create_samples(samples)
-    #     obs = db.get_samples_by_study(sids[0])
-    #     exp = {'1': False, '2': True}
-    #     self.assertDictEqual(obs, exp)
-    #     obs = db.get_samples_by_study(sids[1])
-    #     exp = {'2': True, '3': True}
-    #     self.assertDictEqual(obs, exp)
-    #     obs = db.get_samples_by_study(sids[2])
-    #     exp = {'3': True}
-    #     self.assertDictEqual(obs, exp)
-    #     # Read an empty study
-    #     db.delete_samples(['3'])
-    #     obs = db.get_samples_by_study(sids[2])
-    #     self.assertDictEqual(obs, {})
-    #     # Attempt to read a non-existing study
-    #     db.delete_samples(['1', '2'])
-    #     for sid in sids:
-    #         db.delete_study(sid)
-    #     with self.assertRaises(ValueError) as context:
-    #         db.get_samples_by_study(sids[0])
-    #     err = 'Study ID %s does not exist.' % sids[0]
-    #     self.assertEqual(str(context.exception), err)
+        # Add more samples
+        samples.append('9999.sample3')
+        db.set_study_samples(9999, samples)
+        obs = db.get_study_samples(9999)
+        self.assertItemsEqual(obs, samples)
+
+        # Remove one sample
+        samples.remove('9999.sample3')
+        db.set_study_samples(9999, samples)
+        obs = db.get_study_samples(9999)
+        self.assertItemsEqual(obs, samples)
+
+        # TODO: Try to remove a sample that has been plated
+
+        # Try to add samples to a study that does not exist
+        with self.assertRaises(ValueError) as ctx:
+            db.set_study_samples(9998, ['9998.sample1', '9998.sample2'])
+        self.assertEqual(ctx.exception.message,
+                         'Study ID 9998 does not exist.')
+
+    def test_get_study_plated_samples(self):
+        # Create a study
+        db.create_study(9999, title='LabAdmin test project', alias='LTP',
+                        jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+
+        # Retrieve plated samples from an empty study
+        self.assertEqual(db.get_study_plated_samples(9999), {})
+
+        # Retrieve plated samples from a study with no samples plated
+        db.set_study_samples(
+            9999, ['9999.sample1', '9999.sample2', '9999.sample3'])
+        self.assertEqual(db.get_study_plated_samples(9999), {})
+
+        # TODO: Put samples in a couple of plates
+
+        # Try to get plated samples from a study that does not exist
+        with self.assertRaises(ValueError) as ctx:
+            db.get_study_plated_samples(9998)
+        self.assertEqual(ctx.exception.message,
+                         'Study ID 9998 does not exist.')
+
+    def test_get_study_samples(self):
+        # Create a study
+        db.create_study(9999, title='LabAdmin test project', alias='LTP',
+                        jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+
+        # Retrieve samples from an empty study
+        self.assertEqual(db.get_study_samples(9999), [])
+
+        # Retrieve samples
+        samples = ['9999.sample1', '9999.sample2']
+        db.set_study_samples(9999, samples)
+        obs = db.get_study_samples(9999)
+        self.assertItemsEqual(obs, samples)
+
+        # Try to access to a study that doesn't exist
+        with self.assertRaises(ValueError) as ctx:
+            db.get_study_samples(9998)
+        self.assertEqual(ctx.exception.message,
+                         'Study ID 9998 does not exist.')
 
     def test_sample_plate_name_exists(self):
         self.assertFalse(db.sample_plate_name_exists('Test plate'))
@@ -747,49 +657,72 @@ class TestDataAccess(TestCase):
         err = 'Plate type ID 12345 does not exist.'
         self.assertEqual(context.exception.message, err)
 
-    # def test_edit_sample_plate(self):
-    #     # Assign properties to a sample plate
-    #     sql = """SELECT plate_type_id FROM pm.plate_type LIMIT 1"""
-    #     ptid = db._con.execute_fetchone(sql)[0]
-    #     spid = db.create_sample_plate('test_plate', ptid)
-    #     obs = db.read_sample_plate(spid)
-    #     exp = {'name': 'test_plate',
-    #            'plate_type_id': ptid,
-    #            'email': None,
-    #            'created_on': None,
-    #            'notes': None}
-    #     self.assertDictEqual(obs, exp)
-    #     sql = """SELECT email FROM ag.labadmin_users LIMIT 1"""
-    #     email = db._con.execute_fetchone(sql)[0]
-    #     created_on = datetime.datetime(2016, 8, 15, 0, 0)
-    #     spinfo = {'name': 'test_plate',
-    #               'plate_type_id': ptid,
-    #               'email': email,
-    #               'created_on': created_on,
-    #               'notes': 'Hi!'}
-    #     db.edit_sample_plate(spid, **spinfo)
-    #     obs = db.read_sample_plate(spid)
-    #     self.assertDictEqual(obs, spinfo)
-    #     # Attempt to assign a duplicate name to a sample plate
-    #     spid2 = db.create_sample_plate('test_plate_2', ptid)
-    #     with self.assertRaises(ValueError) as context:
-    #         db.edit_sample_plate(spid, 'test_plate_2', ptid)
-    #     err = ('Name \'test_plate_2\' conflicts with exisiting sample '
-    #            'plate %s.' % spid2)
-    #     self.assertEqual(str(context.exception), err)
-    #     db.delete_sample_plate(spid2)
-    #     # Attempt to assign an invalid email to a sample plate
-    #     with self.assertRaises(ValueError) as context:
-    #         db.edit_sample_plate(spid, 'test_plate', ptid,
-    #                              email='not-an-email')
-    #     err = 'Email not-an-email does not exist.'
-    #     self.assertEqual(str(context.exception), err)
-    #     # Attempt to edit a sample plate that does not exist
-    #     db.delete_sample_plate(spid)
-    #     with self.assertRaises(ValueError) as context:
-    #         db.edit_sample_plate(spid, **spinfo)
-    #     err = 'Sample plate ID %s does not exist.' % spid
-    #     self.assertEqual(str(context.exception), err)
+    def test_edit_sample_plate(self):
+        # Create a study
+        db.create_study(9999, title='LabAdmin test project',
+                        alias='LTP', jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+
+        # Create a plate
+        pt_id = db.get_plate_types()[0]['id']
+        plate_id = db.create_sample_plate('Test plate', pt_id, 'test', [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id))
+
+        obs = db.read_sample_plate(plate_id)
+        # Remove created_on since it is not deterministic and its correctness
+        # have been tested elsewhere
+        del obs['created_on']
+        exp = {'name': 'Test plate', 'plate_type_id': pt_id, 'email': 'test',
+               'notes': None, 'studies': [9999]}
+        self.assertEqual(obs, exp)
+
+        # Update some attributes of the plate
+        exp_date = datetime.datetime.now()
+        db.edit_sample_plate(plate_id, name='Test Plate 2',
+                             created_on=exp_date, notes='Testing notes')
+        obs = db.read_sample_plate(plate_id)
+        exp = {'name': 'Test Plate 2', 'plate_type_id': pt_id, 'email': 'test',
+               'notes': 'Testing notes', 'studies': [9999],
+               'created_on': exp_date}
+        self.assertEqual(obs, exp)
+
+        # Raises an error when no attribute is being updated
+        with self.assertRaises(ValueError) as ctx:
+            db.edit_sample_plate(plate_id)
+        self.assertEqual(ctx.exception.message,
+                         'At least one of name, plate_type_id, email, '
+                         'created_on or notes sould be provided')
+
+        # Raises an error when the plate does not exists
+        with self.assertRaises(ValueError) as ctx:
+            db.edit_sample_plate(plate_id + 1, name='test')
+        self.assertEqual(ctx.exception.message,
+                         'Sample plate ID %s does not exist.' % (plate_id + 1))
+
+        # Raises an error when sample plate name is not unique
+        dup_id = db.create_sample_plate('Test plate', pt_id, 'test', [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, dup_id))
+        with self.assertRaises(ValueError) as ctx:
+            db.edit_sample_plate(plate_id, name='Test plate')
+        self.assertEqual(ctx.exception.message,
+                         "Name 'Test plate' conflicts with exisiting sample "
+                         "plate %s." % dup_id)
+
+        # Raises an error when sample plate type does not exist
+        with self.assertRaises(ValueError) as ctx:
+            db.edit_sample_plate(plate_id, plate_type_id=0)
+        self.assertEqual(ctx.exception.message,
+                         'Plate type ID 0 does not exist.')
+
+        # TODO: test when new plate type doesn't match the current layout
+
+        # Raises an error when the email does not exists
+        with self.assertRaises(ValueError) as ctx:
+            db.edit_sample_plate(plate_id, email='does@not.exist')
+        self.assertEqual(ctx.exception.message,
+                         'Email does@not.exist does not exist.')
 
     def test_read_sample_plate(self):
         # Create a study
