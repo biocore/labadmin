@@ -549,7 +549,8 @@ class TestDataAccess(TestCase):
         with self.assertRaises(ValueError) as ctx:
             db.delete_study(9999)
         self.assertEqual(ctx.exception.message,
-                         "Can't remove study 9999, samples have been plated")
+                         "Can't remove study 9999, samples have been plated. "
+                         "Try removing the plates first.")
 
     def test_set_study_samples(self):
         # Create a study
@@ -593,12 +594,12 @@ class TestDataAccess(TestCase):
         layout[0][0]['sample_id'] = '9999.sample1'
         layout[0][1]['sample_id'] = '9999.sample2'
         db.write_sample_plate_layout(plate_id, layout)
-        samples.remove('9999.sample2')
 
         with self.assertRaises(ValueError) as ctx:
             db.delete_study(9999)
         self.assertEqual(ctx.exception.message,
-                         "Can't remove study 9999, samples have been plated")
+                         "Can't remove study 9999, samples have been plated. "
+                         "Try removing the plates first.")
 
         # Try to add samples to a study that does not exist
         with self.assertRaises(ValueError) as ctx:
