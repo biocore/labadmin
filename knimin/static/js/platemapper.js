@@ -17,7 +17,7 @@ $( function() {
       $.each( items, function( index, item ) {
         var li;
         if ( item.category != currentCategory ) {
-          ul.append( "<li class='pm_study_autocomplete'>" + item.category + "</li>" );
+          $('<li>').addClass('pm_study_autocomplete').css({'background-color': item.color}).append(item.category).appendTo(ul);
           currentCategory = item.category;
         }
         li = that._renderItemData( ul, item );
@@ -46,8 +46,12 @@ $( function() {
  **/
 function PlateMap(target, plate_id) {
   var obj = this;
-  this.plate_id = plate_id
+
+  // Store the plate ID and the target DOM element
+  this.plateId = plate_id
   this.target = $('#' + target)
+
+  // Retrieve the plate information from the server
   $.get('/pm_sample_plate?plate_id=' + plate_id, function (data) {
     obj.initialize(data);
   })
@@ -77,12 +81,14 @@ PlateMap.prototype.initialize = function (data) {
     this.rows = data.plate_type.rows;
     this.cols = data.plate_type.cols;
     this.studies = data.studies;
-    this.autoCompleteSamples = [{label: 'sample_1_somethinglonger', category: 'study 1'},
-                    {label: 'sample_2_somethinglonger', category: 'study 1'},
-                    {label: 'sample_3_somethinglonger', category: 'study 1'},
-                    {label: 'sample_1', category: 'study 2'},
-                    {label: 'sample_2', category: 'study 2'},
-                    {label: 'sample_3', category: 'study 2'}];
+    this.autoCompleteSamples = [
+      {label: 'sample_1_somethinglonger', category: 'study 1', color: PlateMap._qiimeColors[0]},
+      {label: 'sample_2_somethinglonger', category: 'study 1', color: PlateMap._qiimeColors[0]},
+      {label: 'sample_3_somethinglonger', category: 'study 1', color: PlateMap._qiimeColors[0]},
+      {label: 'sample_1', category: 'study 2', color: PlateMap._qiimeColors[1]},
+      {label: 'sample_2', category: 'study 2', color: PlateMap._qiimeColors[1]},
+      {label: 'sample_3', category: 'study 2', color: PlateMap._qiimeColors[1]}]
+      ;
     this.inputTags = new Array(this.rows);
     for (var i = 0; i < this.inputTags.length; i++) {
         this.inputTags[i] = new Array(this.cols);
@@ -222,24 +228,37 @@ PlateMap.prototype.constructWell = function(row, column) {
  *
  **/
 PlateMap.prototype.drawPlate = function() {
-  var row, col, well, table, textArea, btn, span, obj;
+  var row, col, well, table, textArea, btn, span, obj, study;
   obj = this;
 
-  // Create the header and the top information
-  $('<label><h3>Plate <i>' + this.name + '</i> (ID: ' + this.plate_id + ') </h3></label></br>').appendTo(this.target);
-  $('<b>Plate type: </b>' + this.plateType + '</br>').appendTo(this.target);
-  $('<b>Created on: </b>' + this.createdOn + '</br>').appendTo(this.target);
-  $('<b>Created by: </b>' + this.createdBy + '</br>').appendTo(this.target);
-  // Add the comment button. We need to add it in a span so we can have both
-  // the bootstrap tooltip and the modal triggered
+  // Add the header
+  $('<label><h3>Plate <i>' + this.name + '</i> (ID: ' + this.plateId + ') &nbsp;&nbsp;</h3></label>').appendTo(this.target);
+  // Add the buttons next to the header
   span = $('<span>').attr('data-toggle', 'tooltip').attr('data-placement', 'right').attr('title', 'Add well comment').attr('id', 'well-comment');
   span.appendTo(this.target);
   span.tooltip();
   btn =  $('<button>').addClass('btn').addClass('glyphicon glyphicon-comment');
   btn.attr('type', 'button').attr('data-toggle', 'modal').attr('data-target', '#myModal').attr('id', 'comment-modal-btn').attr('pm-row', 0).attr('pm-col', 0);
   btn.appendTo(span);
+  // Add the plate information
+  $('</br><b>Plate type: </b>' + this.plateType + '</br>').appendTo(this.target);
+  $('<b>Created on: </b>' + this.createdOn + '</br>').appendTo(this.target);
+  $('<b>Created by: </b>' + this.createdBy + '</br>').appendTo(this.target);
   // Add studies
+  $('<b>Studies:</b>').appendTo(this.target);
+  $.each(this.studies, function(idx, study) {
+      obj.target.append(' ');
+      $('<span>').css({'background-color': PlateMap._qiimeColors[PlateMap._qiimeColors.length - 1]}).html("&nbsp;&nbsp;&nbsp;&nbsp;").appendTo(obj.target);
+      obj.target.append(' ' + study.title + ' (');
+      $('<a>').attr('target', '_blank').attr('href', 'https://qiita.ucsd.edu/study/description/' + study.study_id).text('Qiita: ' + study.study_id).appendTo(obj.target);
+      obj.target.append(', ');
+      $('<a>').attr('target', '_blank').attr('href', 'http://kl-jira.ucsd.edu:8080/projects/' + study.jira_id).text('Jira: ' + study.jira_id).appendTo(obj.target);
+      obj.target.append(')');
+  });
   // Add hyperlink to study to JIRA and Qiita
+  // Add the comment button. We need to add it in a span so we can have both
+  // the bootstrap tooltip and the modal triggered
+
 
   // Add the table that represents the plate map
   table = $('<table>');
@@ -334,3 +353,20 @@ PlateMap.prototype.drawPlate = function() {
   // Enable autocompletion
   $(".autocomplete").catcomplete({source: this.autoCompleteSamples});
 }
+
+
+// This is a modified QIIME color palette grabbed from Emperor
+// https://github.com/biocore/emperor/blob/new-api/emperor/support_files/js/color-view-controller.js
+// The colors have been represented in rgba so we can change the alpha value to 0.25
+// The original QIIME color palette had 24 colors. We have added 2 extra colors
+// The first one is a transparent color, and the last one is a custom gray
+/** @private */
+PlateMap._qiimeColors = ['rgba(0,0,0,0)', 'rgba(255,0,0,0.25)', 'rgba(0,0,255,0.25)',
+  'rgba(242,115,4,0.25)', 'rgba(0,128,0,0.25)', 'rgba(145,39,141,0.25)',
+  'rgba(255,255,0,0.25)', 'rgba(124,236,244,0.25)', 'rgba(244,154,194,0.25)',
+  'rgba(93,160,158,0.25)', 'rgba(107,68,11,0.25)', 'rgba(128,128,128,0.25)',
+  'rgba(247,150,121,0.25)', 'rgba(125,169,216,0.25)', 'rgba(252,198,136,0.25)',
+  'rgba(128,201,155,0.25)', 'rgba(162,135,191,0.25)', 'rgba(255,248,153,0.25)',
+  'rgba(196,156,107,0.25)', 'rgba(192,192,192,0.25)', 'rgba(237,0,138,0.25)',
+  'rgba(0,182,255,0.25)', 'rgba(165,71,0,0.25)', 'rgba(128,128,0,0.25)',
+  'rgba(0,128,128,0.25)', 'rgba(169,169,169,0.50)'];
