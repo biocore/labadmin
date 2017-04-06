@@ -3135,7 +3135,7 @@ class KniminAccess(object):
             # To construct the output layout we just need to iterate over
             # the results since they are correctly sorted
             for well in res:
-                # Transform the DictCursos to an actual dictionary
+                # Transform the DictCursors to an actual dictionary
                 # and remove the values that we are not returning: row and col
                 well = dict(well)
                 col = well.pop('col')
