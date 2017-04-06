@@ -281,13 +281,22 @@ PlateMap.prototype.drawPlate = function() {
   // Add the header
   $('<label><h3>Plate <i>' + this.name + '</i> (ID: ' + this.plateId + ') &nbsp;&nbsp;</h3></label>').appendTo(this.target);
   // Add the buttons next to the header
+  // Save button
+  btn = $('<button>').addClass('btn btn-info').attr('type', 'button').appendTo(this.target).append(' Save');
+  $('<span>').addClass('glyphicon glyphicon-save').prependTo(btn);
+  this.target.append(' ');
+  // Proceed to extraction button
+  btn = $('<button>').addClass('btn btn-success').attr('type', 'button').appendTo(this.target).append(' Extract');
+  $('<span>').addClass('glyphicon glyphicon-share').prependTo(btn);
+  this.target.append(' ');
   // Add the comment button. We need to add it in a span so we can have both
   // the bootstrap tooltip and the modal triggered
   span = $('<span>').attr('data-toggle', 'tooltip').attr('data-placement', 'right').attr('title', 'Add well comment').attr('id', 'well-comment');
   span.appendTo(this.target);
   span.tooltip();
-  btn =  $('<button>').addClass('btn').addClass('glyphicon glyphicon-comment');
+  btn =  $('<button>').addClass('btn').append(' Comment well');
   btn.attr('type', 'button').attr('data-toggle', 'modal').attr('data-target', '#myModal').attr('id', 'comment-modal-btn').attr('pm-row', 0).attr('pm-col', 0);
+  $('<span>').addClass('glyphicon glyphicon-comment').prependTo(btn);
   btn.appendTo(span);
   // Add the plate information
   $('</br><b>Plate type: </b>' + this.plateType + '</br>').appendTo(this.target);
