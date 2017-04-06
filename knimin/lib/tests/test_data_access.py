@@ -748,85 +748,103 @@ class TestDataAccess(TestCase):
         err = 'Sample plate ID 1000 does not exist.'
         self.assertEqual(context.exception.message, err)
 
-    # def test_write_sample_plate_layout(self):
-    #     # Populate a sample plate with two samples
-    #     sid = db.create_study(title='study')
-    #     samples = [{'id': x, 'study_ids': [sid]} for x in ('1', '2', '3')]
-    #     db.create_samples(samples)
-    #     sql = """SELECT plate_type_id FROM pm.plate_type LIMIT 1"""
-    #     ptid = db._con.execute_fetchone(sql)[0]
-    #     spid = db.create_sample_plate('test_plate', ptid)
-    #     splayout = [
-    #         {'sample_id': '1', 'col': 1, 'row': 1},
-    #         {'sample_id': '2', 'col': 1, 'row': 2, 'name': 'B'}
-    #     ]
-    #     db.write_sample_plate_layout(spid, splayout)
-    #     obs = db.read_sample_plate_layout(spid)
-    #     exp = [
-    #         {'sample_id': '1', 'col': 1, 'row': 1, 'name': None,
-    #          'notes': None},
-    #         {'sample_id': '2', 'col': 1, 'row': 2, 'name': 'B',
-    #          'notes': None}
-    #     ]
-    #     self.assertListEqual(obs, exp)
-    #     # Clear the exisiting layout and add one sample
-    #     splayout = [{'sample_id': '3', 'col': 1, 'row': 3, 'notes': 'Hi!'}]
-    #     db.write_sample_plate_layout(spid, splayout)
-    #     obs = db.read_sample_plate_layout(spid)
-    #     exp = [{'sample_id': '3', 'col': 1, 'row': 3, 'name': None,
-    #             'notes': 'Hi!'}]
-    #     self.assertListEqual(obs, exp)
-    #     # Attempt to populate a sample plate with a non-existing sample
-    #     splayout = [{'sample_id': '4', 'col': 2, 'row': 1}]
-    #     with self.assertRaises(ValueError) as context:
-    #         db.write_sample_plate_layout(spid, splayout)
-    #     err = 'Sample ID 4 does not exist.'
-    #     self.assertEqual(str(context.exception), err)
-    #     # Attempt to populate a sample plate that does not exist
-    #     db.delete_sample_plate(spid)
-    #     with self.assertRaises(ValueError) as context:
-    #         db.write_sample_plate_layout(spid, splayout)
-    #     err = 'Sample plate ID %s does not exist.' % spid
-    #     self.assertEqual(str(context.exception), err)
-    #     db.delete_samples([x['id'] for x in samples])
-    #     db.delete_study(sid)
-    #
-    # def test_read_sample_plate_layout(self):
-    #     # Read a sample plate's layout containing three sample
-    #     sid = db.create_study(title='study')
-    #     samples = [{'id': x, 'study_ids': [sid]} for x in ('1', '2', '3')]
-    #     db.create_samples(samples)
-    #     sql = """SELECT plate_type_id FROM pm.plate_type LIMIT 1"""
-    #     ptid = db._con.execute_fetchone(sql)[0]
-    #     spid = db.create_sample_plate('test_plate', ptid)
-    #     splayout = [
-    #         {'sample_id': '1', 'col': 1, 'row': 1},
-    #         {'sample_id': '2', 'col': 1, 'row': 2, 'name': 'B'},
-    #         {'sample_id': '3', 'col': 1, 'row': 3, 'notes': 'Hi!'}
-    #     ]
-    #     db.write_sample_plate_layout(spid, splayout)
-    #     obs = db.read_sample_plate_layout(spid)
-    #     exp = [
-    #         {'sample_id': '1', 'col': 1, 'row': 1, 'name': None,
-    #          'notes': None},
-    #         {'sample_id': '2', 'col': 1, 'row': 2, 'name': 'B',
-    #          'notes': None},
-    #         {'sample_id': '3', 'col': 1, 'row': 3, 'name': None,
-    #          'notes': 'Hi!'}
-    #     ]
-    #     self.assertListEqual(obs, exp)
-    #     # Read a sample plate's layout that is clear
-    #     db._clear_sample_plate_layout(spid)
-    #     obs = db.read_sample_plate_layout(spid)
-    #     self.assertListEqual(obs, [])
-    #     # Attempt to read layout of a non-existing sample plate
-    #     db.delete_sample_plate(spid)
-    #     with self.assertRaises(ValueError) as context:
-    #         db.write_sample_plate_layout(spid, splayout)
-    #     err = 'Sample plate ID %s does not exist.' % spid
-    #     self.assertEqual(str(context.exception), err)
-    #     db.delete_samples([x['id'] for x in samples])
-    #     db.delete_study(sid)
+    def test_write_sample_plate_layout(self):
+        # Create a study
+        db.create_study(9999, title='LabAdmin test project',
+                        alias='LTP', jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+
+        # Create a plate
+        plate_type = db.get_plate_types()[0]
+        plate_id = db.create_sample_plate('Test plate', plate_type['id'],
+                                          'test', [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id))
+
+        # Add samples to the study
+        samples = ['Sample_%d_%d' % (i, j)
+                   for i in range(plate_type['rows'])
+                   for j in range(plate_type['cols'])]
+        db.set_study_samples(9999, samples)
+
+        # Create the layout
+        layout = []
+        row = []
+        for i in range(plate_type['rows']):
+            for j in range(plate_type['cols']):
+                row.append({'sample_id': samples[i * plate_type['cols'] + j],
+                            'name': "%d_%d" % (i, j), 'notes': None})
+            layout.append(row)
+            row = []
+
+        db.write_sample_plate_layout(plate_id, layout)
+        obs = db.read_sample_plate_layout(plate_id)
+        self.assertEqual(obs, layout)
+
+        # Update a value
+        layout[0][0]['sample_id'] = samples[-1]
+        db.write_sample_plate_layout(plate_id, layout)
+        obs = db.read_sample_plate_layout(plate_id)
+        self.assertEqual(obs, layout)
+
+        # Store an incomplete plate
+        layout[0][0]['sample_id'] = None
+        layout[0][0]['name'] = None
+        layout[0][0]['notes'] = None
+        db.write_sample_plate_layout(plate_id, layout)
+        obs = db.read_sample_plate_layout(plate_id)
+        self.assertEqual(obs, layout)
+
+        # Attempt to write the layout of a sample plate that doesn't exist
+        with self.assertRaises(ValueError) as ctx:
+            db.write_sample_plate_layout(1000, layout)
+        self.assertEqual(ctx.exception.message,
+                         'Sample plate ID 1000 does not exist.')
+
+        # Make one row shorter than the others
+        layout[0] = layout[0][:-2]
+        with self.assertRaises(ValueError) as ctx:
+            db.write_sample_plate_layout(plate_id, layout)
+        self.assertEqual(ctx.exception.message,
+                         "The given layout doesn't form a valid plate map "
+                         "because not all rows have the same number of "
+                         "columns")
+
+        # Attempt to add a layout with different dimensions
+        layout.remove(layout[0])
+        with self.assertRaises(ValueError) as ctx:
+            db.write_sample_plate_layout(plate_id, layout)
+        self.assertEqual(ctx.exception.message,
+                         "The given layout doesn't match the plate type "
+                         "dimensions. Plate type: (%d, %d). Layout: (%d, %d)"
+                         % (plate_type['rows'], plate_type['cols'],
+                            plate_type['rows'] - 1, plate_type['cols']))
+
+    def test_read_sample_plate_layout(self):
+        # We are not going to test here that this function reads a complete
+        # layout correctly, that is implicitly tested on the function
+        # test_write_sample_plate_layout
+
+        # Create a study
+        db.create_study(9999, title='LabAdmin test project',
+                        alias='LTP', jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+
+        # Create a plate
+        plate_type = db.get_plate_types()[0]
+        plate_id = db.create_sample_plate('Test plate', plate_type['id'],
+                                          'test', [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id))
+
+        # Test that if the layout doesn't exist it returns an empty list
+        self.assertEqual(db.read_sample_plate_layout(plate_id), [])
+
+        # Attempt to read a layout of a plate that doesn't exist
+        with self.assertRaises(ValueError) as ctx:
+            db.read_sample_plate_layout(1000)
+        self.assertEqual(ctx.exception.message,
+                         'Sample plate ID 1000 does not exist.')
 
     def test_delete_sample_plate(self):
         # Create a study
@@ -847,35 +865,14 @@ class TestDataAccess(TestCase):
         err = 'Sample plate ID %s does not exist.' % plate_id
         self.assertEqual(str(context.exception), err)
 
-        # TODO: Delete a sample plate and its layout
-        # sql = """SELECT plate_type_id FROM pm.plate_type LIMIT 1"""
-        # ptid = db._con.execute_fetchone(sql)[0]
-        # spid = db.create_sample_plate('test_plate', ptid)
-        # obs = db.read_sample_plate(spid)
-        # sid = db.create_study(title='study')
-        # db.create_samples([{'id': '1', 'study_ids': [sid]}])
-        # splayout = [{'sample_id': '1', 'col': 1, 'row': 1}]
-        # db.write_sample_plate_layout(spid, splayout)
-        # obs = db.read_sample_plate_layout(spid)
-        # self.assertTrue(obs)
-        # db.delete_sample_plate(spid)
-        # with self.assertRaises(ValueError) as context:
-        #     db.read_sample_plate(spid)
-        # err = 'Sample plate ID %s does not exist.' % spid
-        # self.assertEqual(str(context.exception), err)
-        # obs = db._sample_plate_layout_exists(spid)
-        # self.assertFalse(obs)
-        # db.delete_samples(['1'])
-        # db.delete_study(sid)
-
-    # def test_get_property_options(self):
-    #     # Get available extraction robots
-    #     obs = db.get_property_options("extraction_robot")
-    #     exp = [{'id': 1, 'name': 'HOWE_KF1', 'notes': None},
-    #            {'id': 2, 'name': 'HOWE_KF2', 'notes': None},
-    #            {'id': 3, 'name': 'HOWE_KF3', 'notes': None},
-    #            {'id': 4, 'name': 'HOWE_KF4', 'notes': None}]
-    #     self.assertListEqual(obs, exp)
+    def test_get_property_options(self):
+        # Get available extraction robots
+        obs = db.get_property_options("extraction_robot")
+        exp = [{'id': 1, 'name': 'HOWE_KF1', 'notes': None},
+               {'id': 2, 'name': 'HOWE_KF2', 'notes': None},
+               {'id': 3, 'name': 'HOWE_KF3', 'notes': None},
+               {'id': 4, 'name': 'HOWE_KF4', 'notes': None}]
+        self.assertListEqual(obs, exp)
 
     def test_get_plate_types(self):
         # Get available plate types
@@ -895,52 +892,115 @@ class TestDataAccess(TestCase):
             db.read_plate_type(100)
         self.assertEqual(ctx.exception.message, "Plate type 100 doesn't exist")
 
-    # def test_get_emails(self):
-    #     # Get available emails
-    #     obs = db.get_emails()
-    #     exp = ['test']
-    #     self.assertListEqual(obs, exp)
-    #
-    # def test_get_sample_plate_ids(self):
-    #     sql = """SELECT plate_type_id FROM pm.plate_type LIMIT 1"""
-    #     ptid = db._con.execute_fetchone(sql)[0]
-    #     spid = db.create_sample_plate('test_plate', ptid)
-    #     obs = db.get_sample_plate_ids()[-1]
-    #     self.assertEqual(obs, spid)
-    #     db.delete_sample_plate(spid)
-    #
-    # def test_get_sample_plate_list(self):
-    #     # Create a sample plate
-    #     sql = """SELECT plate_type_id FROM pm.plate_type LIMIT 1"""
-    #     ptid = db._con.execute_fetchone(sql)[0]
-    #     sql = """SELECT email FROM ag.labadmin_users LIMIT 1"""
-    #     email = db._con.execute_fetchone(sql)[0]
-    #     created_on = datetime.datetime.combine(datetime.date.today(),
-    #                                            datetime.time.min)
-    #     spinfo = {'name': 'test_plate',
-    #               'plate_type_id': ptid,
-    #               'email': email,
-    #               'created_on': created_on,
-    #               'notes': 'A test plate'}
-    #     spid = db.create_sample_plate(**spinfo)
-    #     sid = db.create_study(title='test_study')
-    #     samples = [{'id': x, 'study_ids': [sid]} for x in ('1', '2', '3')]
-    #     db.create_samples(samples)
-    #     splayout = [{'sample_id': str(x), 'col': 1, 'row': x}
-    #                 for x in (1, 2, 3)]
-    #     db.write_sample_plate_layout(spid, splayout)
-    #     obs = db.get_sample_plate_list()[-1]
-    #     exp = {'id': spid,
-    #            'name': 'test_plate',
-    #            'type': ['96-well', 96],
-    #            'person': email,
-    #            'date': created_on.strftime('%m/%d/%Y'),
-    #            'fill': [3, 0.031],
-    #            'study': [1, sid, None, 'test_study']}
-    #     self.assertDictEqual(obs, exp)
-    #     db.delete_sample_plate(spid)
-    #     db.delete_samples(['1', '2', '3'])
-    #     db.delete_study(sid)
+    def test_get_emails(self):
+        # Get available emails
+        obs = db.get_emails()
+        exp = ['test']
+        self.assertListEqual(obs, exp)
+
+    def test_get_sample_plate_ids(self):
+        self.assertEqual(db.get_sample_plate_ids(), [])
+
+        # Create a study
+        db.create_study(9999, title='LabAdmin test project',
+                        alias='LTP', jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+        # Magic number 0 -> we just want to get on plate type, so whatever
+        # is first works for us
+        pt_id = db.get_plate_types()[0]['id']
+        plate_id = db.create_sample_plate('Test plate', pt_id, 'test', [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id))
+        self.assertEqual(db.get_sample_plate_ids(), [plate_id])
+
+        plate_id_2 = db.create_sample_plate('Test plate 2', pt_id,
+                                            'test', [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id_2))
+        self.assertEqual(db.get_sample_plate_ids(), [plate_id, plate_id_2])
+
+    def test_get_sample_plate_list(self):
+        self.assertEqual(db.get_sample_plate_list(), [])
+
+        # Create a couple of studies
+        db.create_study(9999, title='LabAdmin test project', alias='LTP',
+                        jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+        db.create_study(9998, title='LabAdmin test project 2', alias='LTP2',
+                        jira_id='KL9998')
+        self._clean_up_funcs.append(partial(db.delete_study, 9998))
+        # Magic number 0 -> we just want to get on plate type, so whatever
+        # is first works for us
+        pt = db.get_plate_types()[0]
+
+        plate_id = db.create_sample_plate('Test plate', pt['id'],
+                                          'test', [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id))
+
+        plate_id_2 = db.create_sample_plate('Test plate 2', pt['id'], 'test',
+                                            [9998])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id_2))
+
+        plate_id_3 = db.create_sample_plate('Test plate 3', pt['id'], 'test',
+                                            [9999, 9998])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id_3))
+
+        # Try first with an empty plate
+        pt_name = pt['name']
+        pt_wells = pt['rows'] * pt['cols']
+        date = datetime.date.today()
+        obs = db.get_sample_plate_list()
+        exp = [{'id': plate_id, 'name': 'Test plate',
+                'type': [pt_name, pt_wells], 'person': 'test',
+                'date': date, 'fill': [0, 0.000],
+                'studies': ['LabAdmin test project']},
+               {'id': plate_id_2, 'name': 'Test plate 2',
+                'type': [pt_name, pt_wells], 'person': 'test',
+                'date': date, 'fill': [0, 0.000],
+                'studies': ['LabAdmin test project 2']},
+               {'id': plate_id_3, 'name': 'Test plate 3',
+                'type': [pt_name, pt_wells], 'person': 'test',
+                'date': date, 'fill': [0, 0.000],
+                'studies': ['LabAdmin test project',
+                            'LabAdmin test project 2']}]
+        self.assertEqual(obs, exp)
+
+        # Plate some samples and check the output again
+        # Add samples to the study
+        samples = ['9999.Sample_1', '9999.Sample_2', '9999.Sample_3']
+        db.set_study_samples(9999, samples)
+
+        # Create the layout
+        layout = []
+        row = []
+        for i in range(pt['rows']):
+            for j in range(pt['cols']):
+                row.append({'sample_id': None, 'name': None, 'notes': None})
+            layout.append(row)
+            row = []
+        layout[0][0]['sample_id'] = samples[0]
+        layout[0][1]['sample_id'] = samples[1]
+        layout[0][2]['sample_id'] = samples[2]
+        db.write_sample_plate_layout(plate_id, layout)
+
+        obs = db.get_sample_plate_list()
+        exp = [{'id': plate_id, 'name': 'Test plate',
+                'type': [pt_name, pt_wells], 'person': 'test',
+                'date': date, 'fill': [3, round(3 / pt_wells, 3)],
+                'studies': ['LabAdmin test project']},
+               {'id': plate_id_2, 'name': 'Test plate 2',
+                'type': [pt_name, pt_wells], 'person': 'test',
+                'date': date, 'fill': [0, 0.000],
+                'studies': ['LabAdmin test project 2']},
+               {'id': plate_id_3, 'name': 'Test plate 3',
+                'type': [pt_name, pt_wells], 'person': 'test',
+                'date': date, 'fill': [0, 0.000],
+                'studies': ['LabAdmin test project',
+                            'LabAdmin test project 2']}]
+        self.assertEqual(obs, exp)
 
 
 if __name__ == "__main__":

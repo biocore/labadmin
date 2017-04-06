@@ -3012,28 +3012,6 @@ class KniminAccess(object):
             TRN.add(sql, [plate_id])
             return dict(TRN.execute_fetchindex()[0])
 
-    def _sample_plate_layout_exists(self, sample_plate_id):
-        """Checks whether the layout of a sample plate exists
-
-        The layout of a sample plate exists when at least one sample-to-well
-        record exists.
-
-        Parameters
-        ----------
-        sample_plate_id : int
-            ID of the sample plate whose layout is to be checked
-
-        Returns
-        ------
-        bool
-            Whether the layout exists
-        """
-        with TRN:
-            sql = """SELECT EXISTS (SELECT 1 FROM pm.sample_plate_layout
-                                    WHERE sample_plate_id = %s)"""
-            TRN.add(sql, [sample_plate_id])
-            return TRN.execute_fetchlast()
-
     def _clear_sample_plate_layout(self, sample_plate_id):
         """Deletes the entire layout of a sample plate
 
@@ -3055,53 +3033,109 @@ class KniminAccess(object):
         ----------
         sample_plate_id : int
             ID of the sample plate whose layout is to be written
-        layout : list of dict
-            {sample_id : str, col : int, row : int, name : str, notes : str}
-            A list of sample-to-well records, each of which includes:
-            Sample ID, column number, row number, name, and notes
+        layout : list of list of dict
+            A 2-D matrix storing the per well information in a dict with the
+            format: {'sample_id': str, 'name': str, 'notes': str}
+
+        Raises
+        ------
+        ValueError
+            If the sample plate doesn't exist
+            If the given layout doesn't construct a valid layout
+            If the given layout doesn't match the sample plate type
         """
         with TRN:
             self._sample_plate_exists(sample_plate_id)
-            if self._sample_plate_layout_exists(sample_plate_id):
-                self._clear_sample_plate_layout(sample_plate_id)
-            sql = """INSERT INTO pm.sample_plate_layout (sample_plate_id,
-                        sample_id, col, row, name, notes)
-                     VALUES (%s, %s, %s, %s, %s, %s)"""
-            for x in layout:
-                sample_id = x['sample_id']
-                if not self._sample_exists(sample_id):
-                    raise ValueError('Sample ID %s does not exist.'
-                                     % sample_id)
-                TRN.add(sql, [sample_plate_id, sample_id, x['col'], x['row'],
-                              x.get('name'), x.get('notes')])
-                TRN.execute()
 
-    def read_sample_plate_layout(self, id):
+            # Check if the given layout forms a valid layout
+            l_rows = len(layout)
+            l_cols = len(layout[0])
+            # Check that all rows have the same number of columns
+            # for r in layout
+            if any([len(r) != l_cols for r in layout]):
+                raise ValueError(
+                    "The given layout doesn't form a valid plate map because "
+                    "not all rows have the same number of columns")
+
+            # Get the sample plate type size
+            sql = """SELECT rows, cols
+                     FROM pm.plate_type
+                        JOIN pm.sample_plate USING (plate_type_id)
+                    WHERE sample_plate_id = %s"""
+            TRN.add(sql, [sample_plate_id])
+            # Magic number 0 -> there is only one result on the previous query
+            plate_dims = dict(TRN.execute_fetchindex()[0])
+
+            # Check that the given layout has the same dimensions as the
+            # plate type
+            if plate_dims['rows'] != l_rows or plate_dims['cols'] != l_cols:
+                raise ValueError(
+                    "The given layout doesn't match the plate type "
+                    "dimensions. Plate type: (%d, %d). Layout: (%d, %d)"
+                    % (plate_dims['rows'], plate_dims['cols'], l_rows, l_cols))
+
+            # We can set the new layout. First clear the previous layout
+            # and insert the new one
+            self._clear_sample_plate_layout(sample_plate_id)
+            sql = """INSERT INTO pm.sample_plate_layout
+                        (sample_plate_id, sample_id, row, col, name, notes)
+                     VALUES (%s, %s, %s, %s, %s, %s)"""
+            sql_args = []
+            for row_idx, row in enumerate(layout):
+                for col_idx, values in enumerate(row):
+                    sql_args.append([sample_plate_id, values['sample_id'],
+                                     row_idx, col_idx, values['name'],
+                                     values['notes']])
+            TRN.add(sql, sql_args, many=True)
+            TRN.execute()
+
+    def read_sample_plate_layout(self, sample_plate_id):
         """Reads the layout of a sample plate
 
         Parameters
         ----------
-        id : int
+        sample_plate_id : int
             ID of the sample plate whose layout is to be read
 
         Returns
         -------
-        list of dict
-            {sample_id : str, col : int, row : int, name : str, notes : str}
-            A list of sample-to-well records, each of which includes:
-            Sample ID, column number, row number, name, and notes
-            The list is sorted by column then by row in ascending order
+        layout : list of list of dict
+            A 2-D matrix storing the per well information in a dict with the
+            format: {'sample_id': str, 'name': str, 'notes': str}
         """
         with TRN:
-            self._sample_plate_exists(id)
-            if not self._sample_plate_layout_exists(id):
-                return []
-            sql = """SELECT sample_id, col, row, name, notes
+            self._sample_plate_exists(sample_plate_id)
+            sql = """SELECT *
                      FROM pm.sample_plate_layout
                      WHERE sample_plate_id = %s
-                     ORDER BY col, row"""
-            TRN.add(sql, [id])
-            return [dict(x) for x in TRN.execute_fetchindex()]
+                     ORDER BY row, col"""
+            TRN.add(sql, [sample_plate_id])
+            res = TRN.execute_fetchindex()
+            layout = []
+            row = []
+            # To construct the output layout we just need to iterate over
+            # the results since they are correctly sorted
+            for well in res:
+                # Transform the DictCursos to an actual dictionary
+                # and remove the values that we are not returning:
+                # row, col and sample_plate_id
+                well = dict(well)
+                col = well.pop('col')
+                del well['row']
+                del well['sample_plate_id']
+                # A new row starts when col == 0, but we need to take into
+                # account the first row, so we don't append an empty row to
+                # the layout
+                if col == 0 and row:
+                    layout.append(row)
+                    row = []
+                row.append(well)
+            # If there was a layout stored in the DB, the last row was not
+            # added to the layout, so add it here
+            if row:
+                layout.append(row)
+
+            return layout
 
     def delete_sample_plate(self, plate_id):
         """Deletes a sample plate and its layout
@@ -3113,8 +3147,8 @@ class KniminAccess(object):
         """
         with TRN:
             self._sample_plate_exists(plate_id)
-            if self._sample_plate_layout_exists(plate_id):
-                self._clear_sample_plate_layout(plate_id)
+            self._clear_sample_plate_layout(plate_id)
+
             sql = """DELETE FROM pm.sample_plate_study
                      WHERE sample_plate_id = %s"""
             TRN.add(sql, [plate_id])
@@ -3123,12 +3157,12 @@ class KniminAccess(object):
             TRN.add(sql, [plate_id])
             TRN.execute()
 
-    def get_property_options(self, property):
+    def get_property_options(self, prop):
         """Retrieves a list of available options for a property
 
         Parameters
         ----------
-        property : str
+        prop : str
             Property name, i.e., name of a table under schema "pm"
 
         Returns
@@ -3141,9 +3175,9 @@ class KniminAccess(object):
             sql = """SELECT {} AS id, name, notes
                      FROM {}
                      ORDER BY {}"""
-            TRN.add(sql.format(property + '_id',
-                               'pm.' + property,
-                               property + '_id'))
+            TRN.add(sql.format(prop + '_id',
+                               'pm.' + prop,
+                               prop + '_id'))
             return [dict(x) for x in TRN.execute_fetchindex()]
 
     def get_plate_types(self):
@@ -3222,48 +3256,41 @@ class KniminAccess(object):
         list of dict
             {id : int, name : str, type : list of [str, int], count : int,
             person : str, date : datetime,
-            study : list of [int, int, int, str])}
+            studies : list of str)}
             Plate id, plate name, plate type (name and total number of wells),
             (number and proportion) of samples filled, email, date, study
-            (number of studies, ID, Qiita ID and title of the most frequent
+            (number of studies, ID and title of the most frequent
             study)
         """
         with TRN:
-            sql = """SELECT sample_plate_id, sample_plate.name, plate_type.name,
-                            cols, rows, email, created_on, x.sample_count,
-                            x.study_freq, x.study_id, x.qiita_study_id, x.title
-                     FROM pm.sample_plate
-                     JOIN pm.plate_type USING (plate_type_id)
-                     JOIN (SELECT study_id, qiita_study_id, title,
-                                  sample_plate_id,
-                                  COUNT(DISTINCT study_id) AS study_freq,
-                                  COUNT(sample_id) AS sample_count
-                           FROM pm.study
-                           JOIN pm.study_sample USING (study_id)
-                           JOIN pm.sample_plate_layout USING (sample_id)
-                           JOIN pm.sample_plate USING (sample_plate_id)
-                           GROUP BY study_id, sample_plate_id
-                           ORDER BY COUNT(study_id) DESC) AS x
-                     USING (sample_plate_id)
-                     ORDER BY sample_plate_id"""
+            sql = """SELECT sp.sample_plate_id as id,
+                            sp.name as name,
+                            sp.email as person,
+                            sp.created_on::date as date,
+                            pt.name as type_name,
+                            (pt.cols * pt.rows) as num_wells,
+                            COUNT(spl.sample_id) as num_samples,
+                            ROUND(COUNT(spl.sample_id) / (pt.cols * pt.rows),
+                                  3)::float as ratio,
+                            ARRAY_AGG(DISTINCT s.title
+                                      ORDER BY s.title) as studies
+                     FROM pm.sample_plate sp
+                        JOIN pm.plate_type pt USING (plate_type_id)
+                        JOIN pm.sample_plate_study USING (sample_plate_id)
+                        JOIN pm.study s USING (study_id)
+                        LEFT JOIN pm.sample_plate_layout spl
+                            USING (sample_plate_id)
+                     GROUP BY sp.sample_plate_id, pt.name, pt.cols, pt.rows
+                     ORDER BY sp.sample_plate_id
+                  """
             TRN.add(sql)
             res = TRN.execute_fetchindex()
             plates = []
             for row in res:
-                wells = row[3]*row[4]
-                ratio = 0.0
-                if wells:
-                    ratio = round(float(row[7])/wells, 3)
-                date = None
-                if row[6] is not None:
-                    date = row[6].strftime('%m/%d/%Y')
-                plates.append({'id': int(row[0]),
-                               'name': row[1],
-                               'type': [row[2], wells],
-                               'person': row[5],
-                               'date': date,
-                               'fill': [row[7], ratio],
-                               'study': [row[8], row[9], row[10], row[11]]})
+                row = dict(row)
+                row['fill'] = [row.pop('num_samples'), row.pop('ratio')]
+                row['type'] = [row.pop('type_name'), row.pop('num_wells')]
+                plates.append(row)
             return plates
 
     def _clear_table(self, table, schema):
