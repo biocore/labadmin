@@ -642,6 +642,7 @@ class TestDataAccess(TestCase):
             row = []
         layout[0][0]['sample_id'] = '9999.sample1'
         layout[0][1]['sample_id'] = '9999.sample2'
+        layout[0][2]['sample_id'] = '9999.sample1'
         db.write_sample_plate_layout(plate_id, layout)
         layout[0][1]['sample_id'] = '9999.sample3'
         db.write_sample_plate_layout(plate_id_2, layout)

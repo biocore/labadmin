@@ -2726,7 +2726,7 @@ class KniminAccess(object):
         with TRN:
             self._study_exists(study_id)
             sql = """SELECT sample_plate_id,
-                            ARRAY_AGG(sample_id ORDER BY sample_id)
+                            ARRAY_AGG(DISTINCT sample_id ORDER BY sample_id)
                      FROM pm.sample_plate_layout
                         JOIN pm.study_sample USING (sample_id)
                      WHERE study_id = %s
