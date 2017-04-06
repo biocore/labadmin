@@ -73,6 +73,8 @@ function PlateMap(target, plate_id) {
  *
  **/
 PlateMap.prototype.initialize = function (data) {
+    var study, color;
+
     this.name = data.name;
     this.createdOn = data.created_on;
     this.createdBy = data.email;
@@ -81,18 +83,34 @@ PlateMap.prototype.initialize = function (data) {
     this.rows = data.plate_type.rows;
     this.cols = data.plate_type.cols;
     this.studies = data.studies;
-    this.autoCompleteSamples = [
-      {label: 'sample_1_somethinglonger', category: 'study 1', color: PlateMap._qiimeColors[0]},
-      {label: 'sample_2_somethinglonger', category: 'study 1', color: PlateMap._qiimeColors[0]},
-      {label: 'sample_3_somethinglonger', category: 'study 1', color: PlateMap._qiimeColors[0]},
-      {label: 'sample_1', category: 'study 2', color: PlateMap._qiimeColors[1]},
-      {label: 'sample_2', category: 'study 2', color: PlateMap._qiimeColors[1]},
-      {label: 'sample_3', category: 'study 2', color: PlateMap._qiimeColors[1]}]
-      ;
+
+    // Construct a dictionary keyed by sample, for easy access to the sample
+    // information
+    this.samples = {}
+    // This is a special list needed for initializing the sample autocompletion
+    this.autoCompleteSamples = []
+    // Iterate over all the studies
+    for (var idx = 0; idx < this.studies.length; idx++) {
+      study = this.studies[idx];
+      color = PlateMap._qiimeColors[idx];
+      // Iterate over all samples
+      for (var sample of study.samples.all) {
+        this.samples[sample] = {color: color, plate: []};
+        this.autoCompleteSamples.push({label: sample, category: study.title, color: color});
+      }
+      // Iterate over all plates to get the already plated samples
+      for (var plate in study.samples.plated) {
+        if (study.samples.plated.hasOwnProperty(plate)) {
+          this.samples[sample].plate.push(plate);
+        }
+      }
+    }
+
     this.inputTags = new Array(this.rows);
     for (var i = 0; i < this.inputTags.length; i++) {
         this.inputTags[i] = new Array(this.cols);
     }
+
     this.wellComments = new Array(this.rows);
     for (var i = 0; i < this.wellComments.length; i++) {
         this.wellComments[i] = new Array(this.cols);
@@ -234,6 +252,8 @@ PlateMap.prototype.drawPlate = function() {
   // Add the header
   $('<label><h3>Plate <i>' + this.name + '</i> (ID: ' + this.plateId + ') &nbsp;&nbsp;</h3></label>').appendTo(this.target);
   // Add the buttons next to the header
+  // Add the comment button. We need to add it in a span so we can have both
+  // the bootstrap tooltip and the modal triggered
   span = $('<span>').attr('data-toggle', 'tooltip').attr('data-placement', 'right').attr('title', 'Add well comment').attr('id', 'well-comment');
   span.appendTo(this.target);
   span.tooltip();
@@ -248,16 +268,13 @@ PlateMap.prototype.drawPlate = function() {
   $('<b>Studies:</b>').appendTo(this.target);
   $.each(this.studies, function(idx, study) {
       obj.target.append(' ');
-      $('<span>').css({'background-color': PlateMap._qiimeColors[PlateMap._qiimeColors.length - 1]}).html("&nbsp;&nbsp;&nbsp;&nbsp;").appendTo(obj.target);
+      $('<span>').css({'background-color': PlateMap._qiimeColors[idx]}).html("&nbsp;&nbsp;&nbsp;&nbsp;").appendTo(obj.target);
       obj.target.append(' ' + study.title + ' (');
       $('<a>').attr('target', '_blank').attr('href', 'https://qiita.ucsd.edu/study/description/' + study.study_id).text('Qiita: ' + study.study_id).appendTo(obj.target);
       obj.target.append(', ');
       $('<a>').attr('target', '_blank').attr('href', 'http://kl-jira.ucsd.edu:8080/projects/' + study.jira_id).text('Jira: ' + study.jira_id).appendTo(obj.target);
       obj.target.append(')');
   });
-  // Add hyperlink to study to JIRA and Qiita
-  // Add the comment button. We need to add it in a span so we can have both
-  // the bootstrap tooltip and the modal triggered
 
 
   // Add the table that represents the plate map

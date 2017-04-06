@@ -133,8 +133,9 @@ class TestPMSamplePlateHandler(TestHandlerBase):
         self.mock_login_admin()
         db.create_study(9999, 'LabAdmin test project', 'LTP', 'KL9999')
         self._clean_up_funcs.append(partial(db.delete_study, 9999))
-        plate_id = db.create_sample_plate(
-            'TestPlate', db.get_plate_types()[0]['id'], 'test', [9999])
+        plate_type = db.get_plate_types()[0]
+        plate_id = db.create_sample_plate('TestPlate', plate_type['id'],
+                                          'test', [9999])
         self._clean_up_funcs.insert(
             0, partial(db.delete_sample_plate, plate_id))
 
@@ -142,7 +143,7 @@ class TestPMSamplePlateHandler(TestHandlerBase):
         self.assertEqual(response.code, 200)
 
         plate_info = db.read_sample_plate(plate_id)
-        exp = {'created_on': str(plate_info['created_on']),
+        exp = {'created_on': plate_info['created_on'].isoformat(sep=' '),
                'email': 'test',
                'name': 'TestPlate',
                'notes': None,
@@ -152,16 +153,41 @@ class TestPMSamplePlateHandler(TestHandlerBase):
                               'notes': 'Standard 96-well plate',
                               'plate_type_id': plate_info['plate_type_id'],
                               'rows': 8},
-               'studies': [{'alias': 'LTP',
-                            'jira_id': 'KL9999',
-                            'study_id': 9999,
-                            'title': 'LabAdmin test project'}]}
+               'studies': [
+                {'alias': 'LTP', 'jira_id': 'KL9999', 'study_id': 9999,
+                 'title': 'LabAdmin test project',
+                 'samples': {'all': [],
+                             'plated': {}}}]}
         self.assertEqual(json_decode(response.body), exp)
 
-        response = self.get('/pm_sample_plate?plate_id=%s' % (plate_id + 1))
+        # Add some samples to the study
+        samples = ['9999.Sample1', '9999.Sample2', '9999.Sample3']
+        db.set_study_samples(9999, samples)
+        response = self.get('/pm_sample_plate?plate_id=%s' % plate_id)
+        self.assertEqual(response.code, 200)
+        exp['studies'][0]['samples']['all'] = samples
+        self.assertEqual(json_decode(response.body), exp)
+
+        # Plate some samples in some other plate
+        plate_id_2 = db.create_sample_plate('TestPlate2', plate_type['id'],
+                                            'test', [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id_2))
+        well = {'sample_id': None, 'name': None, 'notes': None}
+        # This is crating a layout with empty wells
+        layout = [[well] * plate_type['cols']] * plate_type['rows']
+        layout[0][0] = {'sample_id': samples[0], 'name': None, 'notes': None}
+        db.write_sample_plate_layout(plate_id_2, layout)
+        response = self.get('/pm_sample_plate?plate_id=%s' % plate_id)
+        self.assertEqual(response.code, 200)
+        exp['studies'][0]['samples']['plated'][str(plate_id_2)] = [samples[0]]
+        self.assertEqual(json_decode(response.body), exp)
+
+        # Check response when plate doesn't exist
+        response = self.get('/pm_sample_plate?plate_id=%s' % (plate_id_2 + 1))
         self.assertEqual(response.code, 404)
         exp = {'message': 'Sample plate ID %d does not exist.'
-                          % (plate_id + 1)}
+                          % (plate_id_2 + 1)}
         self.assertEqual(json_decode(response.body), exp)
 
 

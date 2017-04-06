@@ -72,16 +72,26 @@ class PMSamplePlateHandler(BaseHandler):
                 self.write({'message': e.message})
                 self.finish()
                 return
+            # If there has been any other error, simply re-raise it
             raise
 
         # Format the output dictionary to contain a bit more information
         # instead of the different objects ids
         plate_info['plate_type'] = dict(db.read_plate_type(
             plate_info.pop('plate_type_id')))
-        plate_info['studies'] = [db.read_study(s)
-                                 for s in plate_info['studies']]
+
+        studies = []
+        for s_id in plate_info['studies']:
+            study = db.read_study(s_id)
+            study['samples'] = {}
+            study['samples']['all'] = db.get_study_samples(s_id)
+            study['samples']['plated'] = db.get_study_plated_samples(s_id)
+            studies.append(study)
+
+        plate_info['studies'] = studies
+
         plate_info['plate_id'] = plate_id
-        plate_info['created_on'] = str(plate_info['created_on'])
+        plate_info['created_on'] = plate_info['created_on'].isoformat(sep=' ')
 
         self.write(plate_info)
         self.finish()
