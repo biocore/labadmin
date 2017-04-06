@@ -520,15 +520,36 @@ class TestDataAccess(TestCase):
                          'Study ID 9999 does not exist.')
 
         # Raises an error when trying to delete a study with samples plated
-        # db.create_study(9999, title='LabAdmin test project',
-        #                 alias='LTP', jira_id='KL9999')
-        # db.set_study_samples(9999, ['9999.sample1', '9999.sample2',
-        #                             '9999.sample3'])
-        # TODO: plate the samples
-        # with self.assertRaises(ValueError) as ctx:
-        #     db.delete_study(9999)
-        # self.assertEqual(ctx.exception.message,
-        #                  "Can't remove study 9999, samples have been plated")
+        db.create_study(9999, title='LabAdmin test project',
+                        alias='LTP', jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+        # Add samples to the study
+        samples = ['9999.Sample_1', '9999.Sample_2', '9999.Sample_3']
+        db.set_study_samples(9999, samples)
+
+        # Create a plate
+        pt = db.get_plate_types()[0]
+        plate_id = db.create_sample_plate('Test plate', pt['id'],
+                                          'test', [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id))
+        # Create the layout
+        layout = []
+        row = []
+        for i in range(pt['rows']):
+            for j in range(pt['cols']):
+                row.append({'sample_id': None, 'name': None, 'notes': None})
+            layout.append(row)
+            row = []
+        layout[0][0]['sample_id'] = samples[0]
+        layout[0][1]['sample_id'] = samples[1]
+        layout[0][2]['sample_id'] = samples[2]
+        db.write_sample_plate_layout(plate_id, layout)
+
+        with self.assertRaises(ValueError) as ctx:
+            db.delete_study(9999)
+        self.assertEqual(ctx.exception.message,
+                         "Can't remove study 9999, samples have been plated")
 
     def test_set_study_samples(self):
         # Create a study
@@ -554,7 +575,30 @@ class TestDataAccess(TestCase):
         obs = db.get_study_samples(9999)
         self.assertItemsEqual(obs, samples)
 
-        # TODO: Try to remove a sample that has been plated
+        # Try to remove a sample that has been plated
+        # Create a plate
+        pt = db.get_plate_types()[0]
+        plate_id = db.create_sample_plate('Test plate', pt['id'],
+                                          'test', [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id))
+        # Create the layout
+        layout = []
+        row = []
+        for i in range(pt['rows']):
+            for j in range(pt['cols']):
+                row.append({'sample_id': None, 'name': None, 'notes': None})
+            layout.append(row)
+            row = []
+        layout[0][0]['sample_id'] = '9999.sample1'
+        layout[0][1]['sample_id'] = '9999.sample2'
+        db.write_sample_plate_layout(plate_id, layout)
+        samples.remove('9999.sample2')
+
+        with self.assertRaises(ValueError) as ctx:
+            db.delete_study(9999)
+        self.assertEqual(ctx.exception.message,
+                         "Can't remove study 9999, samples have been plated")
 
         # Try to add samples to a study that does not exist
         with self.assertRaises(ValueError) as ctx:
@@ -576,7 +620,34 @@ class TestDataAccess(TestCase):
             9999, ['9999.sample1', '9999.sample2', '9999.sample3'])
         self.assertEqual(db.get_study_plated_samples(9999), {})
 
-        # TODO: Put samples in a couple of plates
+        # Put samples in a couple of plates
+        # Create a plate
+        pt = db.get_plate_types()[0]
+        plate_id = db.create_sample_plate('Test plate', pt['id'],
+                                          'test', [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id))
+        plate_id_2 = db.create_sample_plate('Test plate 2', pt['id'],
+                                            'test', [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id_2))
+        # Create the layout
+        layout = []
+        row = []
+        for i in range(pt['rows']):
+            for j in range(pt['cols']):
+                row.append({'sample_id': None, 'name': None, 'notes': None})
+            layout.append(row)
+            row = []
+        layout[0][0]['sample_id'] = '9999.sample1'
+        layout[0][1]['sample_id'] = '9999.sample2'
+        db.write_sample_plate_layout(plate_id, layout)
+        layout[0][1]['sample_id'] = '9999.sample3'
+        db.write_sample_plate_layout(plate_id_2, layout)
+
+        exp = {plate_id: ['9999.sample1', '9999.sample2'],
+               plate_id_2: ['9999.sample1', '9999.sample3']}
+        self.assertEqual(db.get_study_plated_samples(9999), exp)
 
         # Try to get plated samples from a study that does not exist
         with self.assertRaises(ValueError) as ctx:
@@ -664,8 +735,9 @@ class TestDataAccess(TestCase):
         self._clean_up_funcs.append(partial(db.delete_study, 9999))
 
         # Create a plate
-        pt_id = db.get_plate_types()[0]['id']
-        plate_id = db.create_sample_plate('Test plate', pt_id, 'test', [9999])
+        pt = db.get_plate_types()[0]
+        plate_id = db.create_sample_plate('Test plate', pt['id'],
+                                          'test', [9999])
         self._clean_up_funcs.insert(
             0, partial(db.delete_sample_plate, plate_id))
 
@@ -673,8 +745,8 @@ class TestDataAccess(TestCase):
         # Remove created_on since it is not deterministic and its correctness
         # have been tested elsewhere
         del obs['created_on']
-        exp = {'name': 'Test plate', 'plate_type_id': pt_id, 'email': 'test',
-               'notes': None, 'studies': [9999]}
+        exp = {'name': 'Test plate', 'plate_type_id': pt['id'],
+               'email': 'test', 'notes': None, 'studies': [9999]}
         self.assertEqual(obs, exp)
 
         # Update some attributes of the plate
@@ -682,8 +754,8 @@ class TestDataAccess(TestCase):
         db.edit_sample_plate(plate_id, name='Test Plate 2',
                              created_on=exp_date, notes='Testing notes')
         obs = db.read_sample_plate(plate_id)
-        exp = {'name': 'Test Plate 2', 'plate_type_id': pt_id, 'email': 'test',
-               'notes': 'Testing notes', 'studies': [9999],
+        exp = {'name': 'Test Plate 2', 'plate_type_id': pt['id'],
+               'email': 'test', 'notes': 'Testing notes', 'studies': [9999],
                'created_on': exp_date}
         self.assertEqual(obs, exp)
 
@@ -701,7 +773,7 @@ class TestDataAccess(TestCase):
                          'Sample plate ID %s does not exist.' % (plate_id + 1))
 
         # Raises an error when sample plate name is not unique
-        dup_id = db.create_sample_plate('Test plate', pt_id, 'test', [9999])
+        dup_id = db.create_sample_plate('Test plate', pt['id'], 'test', [9999])
         self._clean_up_funcs.insert(
             0, partial(db.delete_sample_plate, dup_id))
         with self.assertRaises(ValueError) as ctx:
@@ -716,7 +788,24 @@ class TestDataAccess(TestCase):
         self.assertEqual(ctx.exception.message,
                          'Plate type ID 0 does not exist.')
 
-        # TODO: test when new plate type doesn't match the current layout
+        # Raises an error when plate_type_id is provided and samples have been
+        # already plated
+        # Add samples to the study
+        samples = ['9999.Sample_1', '9999.Sample_2', '9999.Sample_3']
+        db.set_study_samples(9999, samples)
+
+        # Create the layout
+        layout = []
+        row = []
+        for i in range(pt['rows']):
+            for j in range(pt['cols']):
+                row.append({'sample_id': None, 'name': None, 'notes': None})
+            layout.append(row)
+            row = []
+        layout[0][0]['sample_id'] = samples[0]
+        layout[0][1]['sample_id'] = samples[1]
+        layout[0][2]['sample_id'] = samples[2]
+        db.write_sample_plate_layout(plate_id, layout)
 
         # Raises an error when the email does not exists
         with self.assertRaises(ValueError) as ctx:

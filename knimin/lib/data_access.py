@@ -2725,7 +2725,8 @@ class KniminAccess(object):
         """
         with TRN:
             self._study_exists(study_id)
-            sql = """SELECT sample_plate_id, array_agg(sample_id)
+            sql = """SELECT sample_plate_id,
+                            ARRAY_AGG(sample_id ORDER BY sample_id)
                      FROM pm.sample_plate_layout
                         JOIN pm.study_sample USING (sample_id)
                      WHERE study_id = %s
@@ -2946,6 +2947,17 @@ class KniminAccess(object):
             Specifies when (by date) was the sample plate created
         notes : str, optional
             Makes notes of the sample plate
+
+        Raises
+        ------
+        ValueError
+            If none of name, plate_type_id, email, created_on or notes is
+                provided
+            If the sample plate ID doesn't exist
+            If name is provdided and conflicts with another plate
+            If plate_type_id is provided and doesn't exist
+            If plate_type_id is provided and samples have been plated
+            If email is provided and doesn't exist
         """
         # Check that at least one of the optional parameters have been provided
         if all([name is None, plate_type_id is None, email is None,
@@ -2964,8 +2976,15 @@ class KniminAccess(object):
                 sql_args.append(name)
             if plate_type_id is not None:
                 self._plate_type_exists(plate_type_id)
-                # TODO: check that if the plate layout exists, the new plate
-                # type is compatible with the samples already plated
+                # Fail if samples have been already plated
+                sql = """SELECT EXISTS(SELECT 1 FROM pm.sample_plate_layout
+                                       WHERE sample_plate_id = %s AND
+                                             sample_id IS NOT NULL)"""
+                TRN.add(sql, [sample_plate_id])
+                if TRN.execute_fetchlast():
+                    raise ValueError(
+                        "Can't change the plate type because samples have "
+                        "been alredy plated")
                 cols.append('plate_type_id = %s')
                 sql_args.append(name)
             if email is not None:
