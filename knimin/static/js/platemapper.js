@@ -377,6 +377,13 @@ PlateMap.prototype.drawPlate = function() {
   btn.attr('type', 'button').attr('data-toggle', 'modal').attr('data-target', '#myModal').attr('id', 'comment-modal-btn').attr('pm-row', 0).attr('pm-col', 0);
   $('<span>').addClass('glyphicon glyphicon-comment').prependTo(btn);
   btn.appendTo(span);
+  this.target.append(' ');
+  // Add the help button
+  btn = $('<button>').addClass('btn btn-info').appendTo(this.target).append(' help');
+  btn.attr('type', 'button').attr('data-toggle', 'modal').attr('data-target', '#myHelpModal');
+  $('<span>').addClass('glyphicon glyphicon-info-sign').prependTo(btn);
+
+
   // Add the plate information
   $('</br><b>Plate type: </b>' + this.plateType + '</br>').appendTo(this.target);
   $('<b>Created on: </b>' + this.createdOn + '</br>').appendTo(this.target);
@@ -483,6 +490,27 @@ PlateMap.prototype.drawPlate = function() {
     // Only enable the button if there is some text in the textarea
     $('#save-cmt-btn').prop('disabled', value.length === 0);
   });
+
+  // Add the helps modal - Note that this modal gets added to the body
+  // This is to avoid some undesired behavior with modals, in which they
+  // get blocked "behind" the faded background
+  $('<div class="modal fade" id="myHelpModal" tabindex="-1" role="dialog" aria-labelledby="myHelpModalLabel" aria-hidden="true">' +
+    '<div class="modal-dialog" role="document">' +
+      '<div class="modal-content">' +
+        '<div class="modal-header">' +
+          '<h4 class="modal-title" id="myHelpModalLabel">Plate Map legend</h4>' +
+          '<button type="button" class="close" data-dismiss="modal" aria-label="Close">' +
+            '<span aria-hidden="true">&times;</span>' +
+          '</button>' +
+        '</div>' +
+        '<div class="modal-body">' +
+          '<span><input placeholder="Example sample" type="text" disabled="True" class="pm_sample_plated" /> &nbsp;&nbsp; Sample already plated</span>' +
+          '<span><input placeholder="Example sample" type="text" disabled="True" class="pm_well_commented" /> &nbsp;&nbsp; Well has a comment</span>' +
+          '<span><input placeholder="Example sample" type="text" disabled="True" style="background-color: red;" /> &nbsp;&nbsp; Sample not recognized</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+  '</div>').appendTo($('body'));
 
   // Enable autocompletion
   $(".autocomplete").catcomplete({source: this.autoCompleteSamples});
