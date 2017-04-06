@@ -173,6 +173,30 @@ PlateMap.prototype.keypressWell = function (current, e) {
 
 /**
  *
+ * Change event handler on the well input
+ *
+ * @param {Elemnt} current The <input> element where the event has been trigered
+ * @param {Event} e The event object
+ *
+ **/
+PlateMap.prototype.changeWell = function (current, e) {
+  var sample, sampleInfo, row, col;
+  sample = $(current).val().trim();
+
+  sampleInfo = this.samples[sample];
+
+  if (sampleInfo === undefined) {
+    // This sample is not recognized - mark the well as problematic
+    $(current).css({'background-color': 'red'});
+  } else {
+    $(current).css({'background-color': sampleInfo.color});
+  }
+
+  // TODO: control the proceed to extraction button
+}
+
+/**
+ *
  * Show event handler on the well comment modal
  *
  **/
@@ -230,6 +254,9 @@ PlateMap.prototype.constructWell = function(row, column) {
     // so we know the well the user wants to comment on.
     $('#comment-modal-btn').attr('pm-row', parseInt($(this).attr('pm-well-row')));
     $('#comment-modal-btn').attr('pm-col', parseInt($(this).attr('pm-well-column')));
+  });
+  i.change(function(e) {
+    obj.changeWell(this, e);
   });
   i.addClass('form-control').addClass('autocomplete').addClass('pm-well');
   i.attr('placeholder', 'Type sample').attr('pm-well-row', row).attr('pm-well-column', column).attr('type', 'text');
