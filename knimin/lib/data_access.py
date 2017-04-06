@@ -2637,8 +2637,8 @@ class KniminAccess(object):
                 self.get_study_plated_samples(study_id).values()))
             if plated:
                 raise ValueError(
-                    "Can't remove study %s, samples have been plated"
-                    % study_id)
+                    "Can't remove study %s, samples have been plated. "
+                    "Try removing the plates first." % study_id)
 
             # Check if there are any samples that we need to remove
             samples = self.get_study_samples(study_id)
@@ -2672,7 +2672,7 @@ class KniminAccess(object):
         """
         with TRN:
             self._study_exists(study_id)
-            # Check if there are any samples that where already plated that
+            # Check if there are any samples that were already plated that
             # are being removed
             plated = set(chain.from_iterable(
                 self.get_study_plated_samples(study_id).values()))
@@ -2680,8 +2680,8 @@ class KniminAccess(object):
             removed = plated - samples
             if removed:
                 raise ValueError(
-                    'Plated samples have been removed from the study: %s'
-                    % ', '.join(removed))
+                    "Can't remove samples from study %s. Offending samples: %s"
+                    % (study_id, ', '.join(removed)))
 
             old_samples = set(self.get_study_samples(study_id))
             new_samples = samples - old_samples
@@ -3124,7 +3124,7 @@ class KniminAccess(object):
         """
         with TRN:
             self._sample_plate_exists(sample_plate_id)
-            sql = """SELECT *
+            sql = """SELECT sample_id, col, row, name, notes
                      FROM pm.sample_plate_layout
                      WHERE sample_plate_id = %s
                      ORDER BY row, col"""
@@ -3136,12 +3136,10 @@ class KniminAccess(object):
             # the results since they are correctly sorted
             for well in res:
                 # Transform the DictCursos to an actual dictionary
-                # and remove the values that we are not returning:
-                # row, col and sample_plate_id
+                # and remove the values that we are not returning: row and col
                 well = dict(well)
                 col = well.pop('col')
                 del well['row']
-                del well['sample_plate_id']
                 # A new row starts when col == 0, but we need to take into
                 # account the first row, so we don't append an empty row to
                 # the layout
@@ -3229,7 +3227,9 @@ class KniminAccess(object):
             The information of the plate type
         """
         with TRN:
-            sql = "SELECT * FROM pm.plate_type WHERE plate_type_id = %s"
+            sql = """SELECT plate_type_id, name, cols, rows, notes
+                     FROM pm.plate_type
+                     WHERE plate_type_id = %s"""
             TRN.add(sql, [plate_type_id])
             res = TRN.execute_fetchindex()
             if not res:
