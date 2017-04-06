@@ -106,15 +106,15 @@ PlateMap.prototype.initialize = function (data) {
       }
     }
 
-    this.inputTags = new Array(this.rows);
-    for (var i = 0; i < this.inputTags.length; i++) {
-        this.inputTags[i] = new Array(this.cols);
+    // Create a 2D array to store the per well information
+    this.wellInformation = new Array(this.rows);
+    for (var i = 0; i < this.wellInformation.length; i++) {
+      this.wellInformation[i] = new Array(this.cols);
+      for (var j = 0; j < this.wellInformation[i].length; j++) {
+          this.wellInformation[i][j] = {inputTag: undefined, comment: undefined};
+      }
     }
 
-    this.wellComments = new Array(this.rows);
-    for (var i = 0; i < this.wellComments.length; i++) {
-        this.wellComments[i] = new Array(this.cols);
-    }
     this.drawPlate();
 };
 
@@ -124,17 +124,18 @@ PlateMap.prototype.initialize = function (data) {
  *
  **/
 PlateMap.prototype.updateWellCommentsArea = function () {
-  var sample, wellId;
+  var sample, wellId, wellInfo;
   var comments = "";
   for (var i = 0; i < this.rows; i++) {
     for (var j = 0; j < this.cols; j++) {
-      if (this.wellComments[i][j] !== undefined) {
-        sample = this.inputTags[i][j].val().trim();
+      wellInfo = this.wellInformation[i][j];
+      if (wellInfo.comment !== undefined) {
+        sample = wellInfo.inputTag.val().trim();
         if (sample.length === 0) {
           sample = 'No sample plated';
         }
         wellId = String.fromCharCode('A'.charCodeAt() + i) + (j + 1);
-        comments = comments + "Well " + wellId + " (Sample: " + sample + "): " + this.wellComments[i][j] + "\n";
+        comments = comments + "Well " + wellId + " (Sample: " + sample + "): " + wellInfo.comment + "\n";
       }
     }
   }
@@ -166,7 +167,7 @@ PlateMap.prototype.keypressWell = function (current, e) {
       }
     }
     // Set the focus to the next input tag
-    this.inputTags[row][col].focus();
+    this.wellInformation[row][col].inputTag.focus();
   }
 }
 
@@ -180,11 +181,12 @@ PlateMap.prototype.commentModalShow = function () {
   var col = parseInt($('#comment-modal-btn').attr('pm-col'));
   // Magic number + 1 -> correct index because JavaScript arrays start at 0
   var wellId = String.fromCharCode('A'.charCodeAt() + row) + (col + 1);
-  var sample = this.inputTags[row][col].val().trim();
+  var wellInfo = this.wellInformation[row][col];
+  var sample = wellInfo.inputTag.val().trim();
   if (sample.length === 0) {
     sample = 'No sample plated';
   }
-  var value = (this.wellComments[row][col] !== undefined) ? this.wellComments[row][col] : "";
+  var value = (wellInfo.comment !== undefined) ? wellInfo.comment : "";
   $('#well-comment-textarea').val(value);
   $('#exampleModalLabel').html('Adding comment to well ' + wellId + ' (Sample: <i>' + sample + '</i>)');
 }
@@ -197,7 +199,7 @@ PlateMap.prototype.commentModalShow = function () {
 PlateMap.prototype.commentModalSave = function () {
   var row = parseInt($('#comment-modal-btn').attr('pm-row'));
   var col = parseInt($('#comment-modal-btn').attr('pm-col'));
-  this.wellComments[row][col] = $('#well-comment-textarea').val();
+  this.wellInformation[row][col].comment = $('#well-comment-textarea').val();
   this.updateWellCommentsArea();
   $('#myModal').modal('hide');
 }
@@ -234,7 +236,7 @@ PlateMap.prototype.constructWell = function(row, column) {
   i.appendTo(d);
   // Store the input in the array for easy access when navigating on the
   // plate map
-  this.inputTags[row][column] = i;
+  this.wellInformation[row][column].inputTag = i;
   // Return the top div
   return d;
 };
