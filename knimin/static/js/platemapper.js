@@ -95,13 +95,13 @@ PlateMap.prototype.initialize = function (data) {
       color = PlateMap._qiimeColors[idx];
       // Iterate over all samples
       for (var sample of study.samples.all) {
-        this.samples[sample] = {color: color, plate: []};
+        this.samples[sample] = {color: color, plates: []};
         this.autoCompleteSamples.push({label: sample, category: study.title, color: color});
       }
       // Iterate over all plates to get the already plated samples
       for (var plate in study.samples.plated) {
         if (study.samples.plated.hasOwnProperty(plate)) {
-          this.samples[sample].plate.push(plate);
+          this.samples[sample].plates.push(plate);
         }
       }
     }
@@ -111,7 +111,7 @@ PlateMap.prototype.initialize = function (data) {
     for (var i = 0; i < this.wellInformation.length; i++) {
       this.wellInformation[i] = new Array(this.cols);
       for (var j = 0; j < this.wellInformation[i].length; j++) {
-          this.wellInformation[i][j] = {inputTag: undefined, comment: undefined};
+        this.wellInformation[i][j] = {inputTag: undefined, comment: undefined};
       }
     }
 
@@ -140,6 +140,67 @@ PlateMap.prototype.updateWellCommentsArea = function () {
     }
   }
   $("#well-comments-area").val(comments);
+}
+
+/**
+ *
+ * Constructs the layout to be sent to the server
+ *
+ * @return {Array}
+ *
+ **/
+PlateMap.prototype._construct_layout = function () {
+  var layout, row, wellInfo;
+
+  layout = []
+  for (var wellRow of this.wellInformation) {
+    row = []
+    for (var well of wellRow) {
+      wellInfo = {};
+      wellInfo.notes = well.comment;
+      sample = well.inputTag.val().trim();
+      if (sample.length > 0) {
+        if (sample in this.samples) {
+          wellInfo.sample_id = sample;
+        } else {
+          wellInfo.name = sample;
+        }
+      }
+      row.push(wellInfo);
+    }
+    layout.push(row);
+  }
+  return layout;
+}
+
+/**
+ *
+ * Saves the current layout in the server
+ *
+ **/
+PlateMap.prototype.savePlate = function () {
+
+  var layout = this._construct_layout();
+  $.post($(location).attr('href'), {action: 'save', layout: JSON.stringify(layout), plate_id: this.plateId}, function(data) {
+    console.log(data);
+  });
+}
+
+/**
+ *
+ * Proceeds to the plate extraction page
+ *
+ **/
+PlateMap.prototype.extractPlate = function () {
+  console.log('extractPlate');
+  var layout = this._construct_layout();
+  var form = $('<form>', {action: $(location).attr('href'), method: 'post'});
+  var fields = {action: 'extract', plate_id: this.plateId,
+                layout: JSON.stringify(layout)};
+  $.each(fields, function(key, val) {
+    $('<input>').attr({type: "hidden", name: key, value: val}).appendTo(form);
+  });
+  form.appendTo('body').submit();
 }
 
 /**
@@ -185,13 +246,23 @@ PlateMap.prototype.changeWell = function (current, e) {
 
   sampleInfo = this.samples[sample];
 
+  // Clean any extra style that we added
+  $(current).removeClass('pm_sample_plated');
+
   if (sampleInfo === undefined) {
     // This sample is not recognized - mark the well as problematic
     $(current).css({'background-color': 'red'});
   } else {
+    // This sample belongs to a study - label the backgroun with the
+    // same color as the study
     $(current).css({'background-color': sampleInfo.color});
+    // Check if it has been plated before
+    if (sampleInfo.plates.length > 0) {
+      $(current).addClass('pm_sample_plated');
+    }
   }
 
+  this.updateWellCommentsArea();
   // TODO: control the proceed to extraction button
 }
 
@@ -223,7 +294,9 @@ PlateMap.prototype.commentModalShow = function () {
 PlateMap.prototype.commentModalSave = function () {
   var row = parseInt($('#comment-modal-btn').attr('pm-row'));
   var col = parseInt($('#comment-modal-btn').attr('pm-col'));
-  this.wellInformation[row][col].comment = $('#well-comment-textarea').val();
+  var wellInfo = this.wellInformation[row][col];
+  wellInfo.comment = $('#well-comment-textarea').val();
+  wellInfo.inputTag.addClass('pm_well_commented');
   this.updateWellCommentsArea();
   $('#myModal').modal('hide');
 }
@@ -283,11 +356,17 @@ PlateMap.prototype.drawPlate = function() {
   // Add the buttons next to the header
   // Save button
   btn = $('<button>').addClass('btn btn-info').attr('type', 'button').appendTo(this.target).append(' Save');
+  btn.click(function (e) {
+    obj.savePlate();
+  });
   $('<span>').addClass('glyphicon glyphicon-save').prependTo(btn);
   this.target.append(' ');
   // Proceed to extraction button
   btn = $('<button>').addClass('btn btn-success').attr('type', 'button').appendTo(this.target).append(' Extract');
   $('<span>').addClass('glyphicon glyphicon-share').prependTo(btn);
+  btn.click(function (e) {
+    obj.extractPlate();
+  });
   this.target.append(' ');
   // Add the comment button. We need to add it in a span so we can have both
   // the bootstrap tooltip and the modal triggered

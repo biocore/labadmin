@@ -8,7 +8,8 @@
 
 import re
 
-from tornado.web import authenticated
+from tornado.web import authenticated, HTTPError
+from tornado.escape import json_decode
 
 from knimin import db
 from knimin.handlers.base import BaseHandler
@@ -54,6 +55,26 @@ class PMPlateMapHandler(BaseHandler):
         plate_id = self.get_argument('plate_id')
         self.render("pm_plate_map.html", currentuser=self.current_user,
                     plate_id=plate_id)
+
+    @authenticated
+    def post(self):
+        plate_id = self.get_argument('plate_id')
+        action = self.get_argument('action')
+        layout = json_decode(self.get_argument('layout'))
+
+        if action not in ('save', 'extract'):
+            raise HTTPError(400, 'Action should be save or extract')
+        else:
+            # In any of the two cases we need to save the plate layout
+            db.write_sample_plate_layout(plate_id, layout)
+
+            if action == 'save':
+                # At this point we are done! Simply return a 200
+                self.set_status(200)
+                self.finish()
+            elif action == 'extract':
+                # The plate is promoted for extraction
+                self.redirect("/pm_extract_plate?plate_id=%s" % plate_id)
 
 
 @set_access(['Admin'])

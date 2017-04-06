@@ -381,3 +381,12 @@ ul.mainmenu li a:hover {
 	margin: .8em 0 .2em;
 	line-height: 1.5;
 }
+
+.pm_well_commented {
+  	box-shadow: 0px 0px 10px 5px rgba(0,0,0,0.75);
+}
+
+.pm_sample_plated {
+	border: 5px solid black;
+  	border-style: double;
+}
