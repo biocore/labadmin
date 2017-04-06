@@ -3102,9 +3102,9 @@ class KniminAccess(object):
             sql_args = []
             for row_idx, row in enumerate(layout):
                 for col_idx, values in enumerate(row):
-                    sql_args.append([sample_plate_id, values['sample_id'],
-                                     row_idx, col_idx, values['name'],
-                                     values['notes']])
+                    sql_args.append([sample_plate_id, values.get('sample_id'),
+                                     row_idx, col_idx, values.get('name'),
+                                     values.get('notes')])
             TRN.add(sql, sql_args, many=True)
             TRN.execute()
 
