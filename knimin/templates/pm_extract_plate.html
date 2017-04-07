@@ -161,7 +161,7 @@
   <select id='extraction-robot-select' class='form-control search-select-2'>
     <option value="-1">Choose a robot...</option>
     {% for robot in robots %}
-      <option value="{{robot['id']}}">{{robot['name']}}</option>
+      <option value="{{robot['name']}}">{{robot['name']}}</option>
     {% end %}
   </select>
 
@@ -170,7 +170,7 @@
   <select id='extraction-tool-select' class='form-control search-select-2'>
     <option value="-1">Choose a tool...</option>
     {% for tool in tools %}
-      <option value="{{tool['id']}}">{{tool['name']}}</option>
+      <option value="{{tool['name']}}">{{tool['name']}}</option>
     {% end %}
   </select>
 

@@ -3365,8 +3365,8 @@ class KniminAccess(object):
                 plates.append(row)
             return plates
 
-    def extract_sample_plates(self, sample_plate_ids, email, robot_id, kit_id,
-                              tool_id, notes=None):
+    def extract_sample_plates(self, sample_plate_ids, email, robot, kit_lot,
+                              tool, notes=None):
         """Stores the extraction information for the given sample_plates
 
         Parameters
@@ -3375,22 +3375,107 @@ class KniminAccess(object):
             The sample plates being extracted
         email : str
             The email of the user preparing the extraction
-        robot_id : str
-            The id of the robot used for extraction
-        kit_id : str
-            The id of the kit lot used for extraction
-        tool_id : str
-            The id of the tool used for extraction
-        notes : list of str, optional
+        robot : str
+            The name of the robot used for extraction
+        kit_lot : str
+            The kit lot used for extraction
+        tool : str
+            The name of the tool used for extraction
+        notes : str, optional
             Notes added to the extracted plates
         """
+        if not sample_plate_ids:
+            raise ValueError("Provide at least one sample plate to extract")
         with TRN:
+            # Check that the passed sample plates exist
+            for p_id in sample_plate_ids:
+                self._sample_plate_exists(p_id)
+
+            robot_id = self.get_or_create_property_option_id(
+                "extraction_robot", robot)
+            kit_lot_id = self.get_or_create_property_option_id(
+                "extraction_kit_lot", kit_lot)
+            tool_id = self.get_or_create_property_option_id(
+                "extraction_tool", tool)
             sql = """INSERT INTO pm.dna_plate (
-                        email, created_on, sample_plate_id,
+                        email, name, created_on, sample_plate_id,
                         extraction_robot_id, extraction_kit_lot_id,
                         extraction_tool_id, notes)
-                     VALUES (%s, now(), %s, (%s), (%s), (%s), %s)"""
-            print sql
+                     VALUES (%s, (SELECT name
+                                  FROM pm.sample_plate WHERE
+                                  sample_plate_id = %s),
+                             now(), %s, %s, %s, %s, %s)
+                     RETURNING dna_plate_id"""
+            dna_plates = []
+            for p_id in sample_plate_ids:
+                TRN.add(sql, [email, p_id, p_id, robot_id, kit_lot_id,
+                              tool_id, notes])
+                dna_plates.append(TRN.execute_fetchlast())
+            return dna_plates
+
+    def read_dna_plate(self, dna_plate_id):
+        """Returns the information of the DNA plate
+
+        Parameters
+        ----------
+        dna_plate_id : int
+            The id of the DNA plate
+
+        Returns
+        -------
+        dict
+            {id: int, name: str, email: str, created_on: datetime,
+             sample_plate_id: int, extraction_robot: str,
+             extraction_kit_lot: str, extractio_tool: str, notes: str}
+
+        Raises
+        ------
+        ValueError
+            If the dna plate with ID `dna_plate_id` does not exist
+        """
+        with TRN:
+            sql = """SELECT dna_plate_id as id,
+                            p.name as name,
+                            email, created_on, sample_plate_id,
+                            er.name as extraction_robot,
+                            ekl.name as extraction_kit_lot,
+                            et.name as extraction_tool,
+                            p.notes as notes
+                     FROM pm.dna_plate p
+                        JOIN pm.extraction_robot er USING (extraction_robot_id)
+                        JOIN pm.extraction_kit_lot ekl
+                            USING (extraction_kit_lot_id)
+                        JOIN pm.extraction_tool et USING (extraction_tool_id)
+                     WHERE dna_plate_id = %s"""
+            TRN.add(sql, [dna_plate_id])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError("DNA plate %s does not exist" % dna_plate_id)
+            # Magic number 0 -> there is only 1 result row
+            return dict(res[0])
+
+    def delete_dna_plate(self, dna_plate_id):
+        """Deletes a DNA plate
+
+        Parameters
+        ----------
+        dna_plate_id : int
+            The id of the DNA plate
+
+        Raises
+        ------
+        ValueError
+            If the dna plate does not exist
+        """
+        with TRN:
+            sql = """DELETE FROM pm.dna_plate
+                     WHERE dna_plate_id = %s
+                     RETURNING dna_plate_id"""
+            TRN.add(sql, [dna_plate_id])
+            if not TRN.execute_fetchindex():
+                # If the output from the SQL is empty it means that the
+                # plate did not exist
+                raise ValueError("DNA plate %s does not exist" % dna_plate_id)
 
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""
