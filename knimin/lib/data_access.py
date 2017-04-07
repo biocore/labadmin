@@ -3312,6 +3312,33 @@ class KniminAccess(object):
                 plates.append(row)
             return plates
 
+    def extract_sample_plates(self, sample_plate_ids, email, robot_id, kit_id,
+                              tool_id, notes=None):
+        """Stores the extraction information for the given sample_plates
+
+        Parameters
+        ----------
+        sample_plate_ids : list of int
+            The sample plates being extracted
+        email : str
+            The email of the user preparing the extraction
+        robot_id : str
+            The id of the robot used for extraction
+        kit_id : str
+            The id of the kit lot used for extraction
+        tool_id : str
+            The id of the tool used for extraction
+        notes : list of str, optional
+            Notes added to the extracted plates
+        """
+        with TRN:
+            sql = """INSERT INTO pm.dna_plate (
+                        email, created_on, sample_plate_id,
+                        extraction_robot_id, extraction_kit_lot_id,
+                        extraction_tool_id, notes)
+                     VALUES (%s, now(), %s, (%s), (%s), (%s), %s)"""
+            print sql
+
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""
         self._con.execute('DELETE FROM %s.%s' % (schema, table))
