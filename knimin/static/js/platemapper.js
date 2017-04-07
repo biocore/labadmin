@@ -118,6 +118,40 @@ PlateMap.prototype.initialize = function (data) {
 
 /**
  *
+ * Formats the row Id
+ *
+ * @param {int} row The row
+ *
+ * @return {string}
+ *
+ **/
+ PlateMap.prototype._formatRowId = function (row, col) {
+   if (this.rows > 28) {
+     return String(i + 1);
+   }
+   else {
+     return String.fromCharCode('A'.charCodeAt() + row);
+   }
+ }
+/**
+ *
+ * Formats the well Id
+ *
+ * @param {int} row The row of the well
+ * @param {int} col The col of the well
+ *
+ * @return {string}
+ *
+ **/
+PlateMap.prototype._formatWellId = function (row, col) {
+  var rId = this._formatRowId(row);
+  var sep = (this.rows > 28) ? '-' : '';
+  var cId = String(col + 1);
+  return rId + sep + cId;
+}
+
+/**
+ *
  * Updates the contents of the text area with a summary of the well comments
  *
  **/
@@ -132,7 +166,7 @@ PlateMap.prototype.updateWellCommentsArea = function () {
         if (sample.length === 0) {
           sample = 'No sample plated';
         }
-        wellId = String.fromCharCode('A'.charCodeAt() + i) + (j + 1);
+        wellId = this._formatWellId(i, j);
         comments += "Well " + wellId + " (Sample: " + sample + "): " + wellInfo.comment + "\n";
       }
     }
@@ -276,7 +310,7 @@ PlateMap.prototype.commentModalShow = function () {
   var row = parseInt($('#comment-modal-btn').attr('pm-row'));
   var col = parseInt($('#comment-modal-btn').attr('pm-col'));
   // Magic number + 1 -> correct index because JavaScript arrays start at 0
-  var wellId = String.fromCharCode('A'.charCodeAt() + row) + (col + 1);
+  var wellId = this._formatWellId(row, col);
   var wellInfo = this.wellInformation[row][col];
   var sample = wellInfo.inputTag.val().trim();
   if (sample.length === 0) {
@@ -422,7 +456,7 @@ PlateMap.prototype._drawPlate = function() {
     $row.appendTo($table);
     // Adding row name - From: http://stackoverflow.com/a/12504060
     $col = $('<td>');
-    $col.html(String.fromCharCode('A'.charCodeAt() + i));
+    $col.html(this._formatRowId(i));
     $col.appendTo($row);
     // Adding the rest of the rows
     for (var j = 0; j < this.cols; j++) {
