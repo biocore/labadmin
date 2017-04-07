@@ -284,7 +284,7 @@ PlateMap.prototype.commentModalShow = function () {
   }
   var value = wellInfo.comment || "";
   $('#well-comment-textarea').val(value);
-  $('#exampleModalLabel').html('Adding comment to well ' + wellId + ' (Sample: <i>' + sample + '</i>)');
+  $('#wellCommentModalLabel').html('Adding comment to well ' + wellId + ' (Sample: <i>' + sample + '</i>)');
 }
 
 /**
@@ -448,11 +448,11 @@ PlateMap.prototype._drawPlate = function() {
   // Add the comments modal - Note that this modal gets added to the body
   // This is to avoid some undesired behavior with modals, in which they
   // get blocked "behind" the faded background
-  $('<div class="modal fade" id="wellCommentModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">' +
+  $('<div class="modal fade" id="wellCommentModal" tabindex="-1" role="dialog" aria-labelledby="wellCommentModalLabel" aria-hidden="true">' +
     '<div class="modal-dialog" role="document">' +
       '<div class="modal-content">' +
         '<div class="modal-header">' +
-          '<h4 class="modal-title" id="exampleModalLabel"></h4>' +
+          '<h4 class="modal-title" id="wellCommentModalLabel"></h4>' +
           '<button class="close" data-dismiss="modal" aria-label="Close">' +
             '<span aria-hidden="true">&times;</span>' +
           '</button>' +
