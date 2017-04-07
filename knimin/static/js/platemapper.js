@@ -17,7 +17,7 @@ $( function() {
       $.each( items, function( index, item ) {
         var li;
         if ( item.category != currentCategory ) {
-          $('<li>').addClass('pm_study_autocomplete').css({'background-color': item.color}).append(item.category).appendTo(ul);
+          $('<li>').addClass('pm-study-autocomplete').css({'background-color': item.color}).append(item.category).appendTo(ul);
           currentCategory = item.category;
         }
         li = that._renderItemData( ul, item );
@@ -36,31 +36,29 @@ $( function() {
  * Represents a Plate
  *
  * @param {string} target The name of the target container for the plate map
- * @param {int} rows The number of rows in the plate
- * @param {int} cols The number of columns in the plate
- * @param {string[]} samples The list of samples to populate the autocomplete
+ * @param {int} plateId The plate id
  *
  * @return {PlateMap}
  * @constructs PlateMap
  *
  **/
-function PlateMap(target, plate_id) {
-  var obj = this;
+function PlateMap(target, plateId) {
+  var that = this;
 
   // Store the plate ID and the target DOM element
-  this.plateId = plate_id
-  this.target = $('#' + target)
+  this.plateId = plateId;
+  this.target = $('#' + target);
 
   // Retrieve the plate information from the server
-  $.get('/pm_sample_plate?plate_id=' + plate_id, function (data) {
-    obj.initialize(data);
+  $.get('/pm_sample_plate?plate_id=' + plateId, function (data) {
+    that.initialize(data);
   })
     .fail(function (jqXHR, textStatus, errorThrown) {
       if(jqXHR.status === 404) {
-        var data = $.parseJSON(jqXHR.responseText)
-        $('<h3 class="warning">').html(data.message).appendTo(obj.target);
+        var data = $.parseJSON(jqXHR.responseText);
+        $('<h3 class="warning">').html(data.message).appendTo(that.target);
       } else {
-        $('<div>').html(jqXHR.responseText).appendTo(obj.target);
+        $('<div>').html(jqXHR.responseText).appendTo(that.target);
       }
     });
 };
@@ -86,9 +84,9 @@ PlateMap.prototype.initialize = function (data) {
 
     // Construct a dictionary keyed by sample, for easy access to the sample
     // information
-    this.samples = {}
+    this.samples = {};
     // This is a special list needed for initializing the sample autocompletion
-    this.autoCompleteSamples = []
+    this.autoCompleteSamples = [];
     // Iterate over all the studies
     for (var idx = 0; idx < this.studies.length; idx++) {
       study = this.studies[idx];
@@ -111,11 +109,11 @@ PlateMap.prototype.initialize = function (data) {
     for (var i = 0; i < this.wellInformation.length; i++) {
       this.wellInformation[i] = new Array(this.cols);
       for (var j = 0; j < this.wellInformation[i].length; j++) {
-        this.wellInformation[i][j] = {inputTag: undefined, comment: undefined};
+        this.wellInformation[i][j] = {inputTag: null, comment: null};
       }
     }
 
-    this.drawPlate();
+    this._drawPlate();
 };
 
 /**
@@ -129,13 +127,13 @@ PlateMap.prototype.updateWellCommentsArea = function () {
   for (var i = 0; i < this.rows; i++) {
     for (var j = 0; j < this.cols; j++) {
       wellInfo = this.wellInformation[i][j];
-      if (wellInfo.comment !== undefined) {
+      if (wellInfo.comment !== null) {
         sample = wellInfo.inputTag.val().trim();
         if (sample.length === 0) {
           sample = 'No sample plated';
         }
         wellId = String.fromCharCode('A'.charCodeAt() + i) + (j + 1);
-        comments = comments + "Well " + wellId + " (Sample: " + sample + "): " + wellInfo.comment + "\n";
+        comments += "Well " + wellId + " (Sample: " + sample + "): " + wellInfo.comment + "\n";
       }
     }
   }
@@ -149,18 +147,18 @@ PlateMap.prototype.updateWellCommentsArea = function () {
  * @return {Array}
  *
  **/
-PlateMap.prototype._construct_layout = function () {
-  var layout, row, wellInfo;
+PlateMap.prototype._constructLayout = function () {
+  var layout, row, wellInfo, sample;
 
-  layout = []
+  layout = [];
   for (var wellRow of this.wellInformation) {
-    row = []
+    row = [];
     for (var well of wellRow) {
       wellInfo = {};
       wellInfo.notes = well.comment;
       sample = well.inputTag.val().trim();
       if (sample.length > 0) {
-        if (sample in this.samples) {
+        if (this.samples.hasOwnProperty(sample)) {
           wellInfo.sample_id = sample;
         } else {
           wellInfo.name = sample;
@@ -179,10 +177,13 @@ PlateMap.prototype._construct_layout = function () {
  *
  **/
 PlateMap.prototype.savePlate = function () {
-
-  var layout = this._construct_layout();
+  var layout = this._constructLayout();
+  $('#save-btn-icon').removeClass('glyphicon glyphicon-save').addClass('glyphicon glyphicon-refresh');
   $.post($(location).attr('href'), {action: 'save', layout: JSON.stringify(layout), plate_id: this.plateId}, function(data) {
-    console.log(data);
+    $('#save-btn-icon').removeClass('glyphicon glyphicon-refresh').addClass('glyphicon glyphicon-ok');
+    setTimeout(function() {
+      $('#save-btn-icon').removeClass('glyphicon glyphicon-ok').addClass('glyphicon glyphicon-save');
+    }, 5000);
   });
 }
 
@@ -192,8 +193,8 @@ PlateMap.prototype.savePlate = function () {
  *
  **/
 PlateMap.prototype.extractPlate = function () {
-  console.log('extractPlate');
-  var layout = this._construct_layout();
+
+  var layout = this._constructLayout();
   var form = $('<form>', {action: $(location).attr('href'), method: 'post'});
   var fields = {action: 'extract', plate_id: this.plateId,
                 layout: JSON.stringify(layout)};
@@ -207,7 +208,7 @@ PlateMap.prototype.extractPlate = function () {
  *
  * Keypress event handler on the well input
  *
- * @param {Elemnt} current The <input> element where the event has been trigered
+ * @param {Element} current The <input> element where the event has been trigered
  * @param {Event} e The event object
  *
  **/
@@ -236,7 +237,7 @@ PlateMap.prototype.keypressWell = function (current, e) {
  *
  * Change event handler on the well input
  *
- * @param {Elemnt} current The <input> element where the event has been trigered
+ * @param {Element} current The <input> element where the event has been trigered
  * @param {Event} e The event object
  *
  **/
@@ -247,18 +248,18 @@ PlateMap.prototype.changeWell = function (current, e) {
   sampleInfo = this.samples[sample];
 
   // Clean any extra style that we added
-  $(current).removeClass('pm_sample_plated');
+  $(current).removeClass('pm-sample_plated');
 
   if (sampleInfo === undefined) {
     // This sample is not recognized - mark the well as problematic
     $(current).css({'background-color': 'red'});
   } else {
-    // This sample belongs to a study - label the backgroun with the
+    // This sample belongs to a study - label the background with the
     // same color as the study
     $(current).css({'background-color': sampleInfo.color});
     // Check if it has been plated before
     if (sampleInfo.plates.length > 0) {
-      $(current).addClass('pm_sample_plated');
+      $(current).addClass('pm-sample-plated');
     }
   }
 
@@ -281,7 +282,7 @@ PlateMap.prototype.commentModalShow = function () {
   if (sample.length === 0) {
     sample = 'No sample plated';
   }
-  var value = (wellInfo.comment !== undefined) ? wellInfo.comment : "";
+  var value = wellInfo.comment || "";
   $('#well-comment-textarea').val(value);
   $('#exampleModalLabel').html('Adding comment to well ' + wellId + ' (Sample: <i>' + sample + '</i>)');
 }
@@ -296,9 +297,9 @@ PlateMap.prototype.commentModalSave = function () {
   var col = parseInt($('#comment-modal-btn').attr('pm-col'));
   var wellInfo = this.wellInformation[row][col];
   wellInfo.comment = $('#well-comment-textarea').val();
-  wellInfo.inputTag.addClass('pm_well_commented');
+  wellInfo.inputTag.addClass('pm-well-commented');
   this.updateWellCommentsArea();
-  $('#myModal').modal('hide');
+  $('#wellCommentModal').modal('hide');
 }
 
 
@@ -313,32 +314,32 @@ PlateMap.prototype.commentModalSave = function () {
  *
  **/
 PlateMap.prototype.constructWell = function(row, column) {
-  var obj = this;
+  var that = this;
   // Div holding well
-  var d = $('<div>');
-  d.addClass('input-group');
+  var $d = $('<div>');
+  $d.addClass('input-group');
   // The input tag
-  var i = $('<input>');
-  i.keypress(function(e) {
-    obj.keypressWell(this, e);
+  var $i = $('<input>');
+  $i.keypress(function(e) {
+    that.keypressWell(this, e);
   });
-  i.focusin(function(e) {
+  $i.focusin(function(e) {
     // When the input element gets focus, store the current indices
     // so we know the well the user wants to comment on.
     $('#comment-modal-btn').attr('pm-row', parseInt($(this).attr('pm-well-row')));
     $('#comment-modal-btn').attr('pm-col', parseInt($(this).attr('pm-well-column')));
   });
-  i.change(function(e) {
-    obj.changeWell(this, e);
+  $i.change(function(e) {
+    that.changeWell(this, e);
   });
-  i.addClass('form-control').addClass('autocomplete').addClass('pm-well');
-  i.attr('placeholder', 'Type sample').attr('pm-well-row', row).attr('pm-well-column', column).attr('type', 'text');
-  i.appendTo(d);
+  $i.addClass('form-control').addClass('autocomplete').addClass('pm-well');
+  $i.attr('placeholder', 'Type sample').attr('pm-well-row', row).attr('pm-well-column', column).attr('type', 'text');
+  $i.appendTo($d);
   // Store the input in the array for easy access when navigating on the
   // plate map
-  this.wellInformation[row][column].inputTag = i;
+  this.wellInformation[row][column].inputTag = $i;
   // Return the top div
-  return d;
+  return $d;
 };
 
 
@@ -347,41 +348,41 @@ PlateMap.prototype.constructWell = function(row, column) {
  * Constructs the HTML elements of the plate map
  *
  **/
-PlateMap.prototype.drawPlate = function() {
-  var row, col, well, table, textArea, btn, span, obj, study;
-  obj = this;
+PlateMap.prototype._drawPlate = function() {
+  var $row, $col, $well, $table, $textArea, $btn, $span, that, study;
+  that = this;
 
   // Add the header
   $('<label><h3>Plate <i>' + this.name + '</i> (ID: ' + this.plateId + ') &nbsp;&nbsp;</h3></label>').appendTo(this.target);
   // Add the buttons next to the header
   // Save button
-  btn = $('<button>').addClass('btn btn-info').attr('type', 'button').appendTo(this.target).append(' Save');
-  btn.click(function (e) {
-    obj.savePlate();
+  $btn = $('<button>').addClass('btn btn-info').appendTo(this.target).append(' Save');
+  $btn.click(function (e) {
+    that.savePlate();
   });
-  $('<span>').addClass('glyphicon glyphicon-save').prependTo(btn);
+  $('<span>').attr('id', 'save-btn-icon').addClass('glyphicon glyphicon-save').prependTo($btn);
   this.target.append(' ');
   // Proceed to extraction button
-  btn = $('<button>').addClass('btn btn-success').attr('type', 'button').appendTo(this.target).append(' Extract');
-  $('<span>').addClass('glyphicon glyphicon-share').prependTo(btn);
-  btn.click(function (e) {
-    obj.extractPlate();
+  $btn = $('<button>').addClass('btn btn-success').appendTo(this.target).append(' Extract');
+  $('<span>').addClass('glyphicon glyphicon-share').prependTo($btn);
+  $btn.click(function (e) {
+    that.extractPlate();
   });
   this.target.append(' ');
   // Add the comment button. We need to add it in a span so we can have both
   // the bootstrap tooltip and the modal triggered
-  span = $('<span>').attr('data-toggle', 'tooltip').attr('data-placement', 'right').attr('title', 'Add well comment').attr('id', 'well-comment');
-  span.appendTo(this.target);
-  span.tooltip();
-  btn =  $('<button>').addClass('btn').append(' Comment well');
-  btn.attr('type', 'button').attr('data-toggle', 'modal').attr('data-target', '#myModal').attr('id', 'comment-modal-btn').attr('pm-row', 0).attr('pm-col', 0);
-  $('<span>').addClass('glyphicon glyphicon-comment').prependTo(btn);
-  btn.appendTo(span);
+  $span = $('<span>').attr('data-toggle', 'tooltip').attr('data-placement', 'right').attr('title', 'Add well comment').attr('id', 'well-comment');
+  $span.appendTo(this.target);
+  $span.tooltip();
+  $btn =  $('<button>').addClass('btn').append(' Comment well');
+  $btn.attr('data-toggle', 'modal').attr('data-target', '#wellCommentModal').attr('id', 'comment-modal-btn').attr('pm-row', 0).attr('pm-col', 0);
+  $('<span>').addClass('glyphicon glyphicon-comment').prependTo($btn);
+  $btn.appendTo($span);
   this.target.append(' ');
   // Add the help button
-  btn = $('<button>').addClass('btn btn-info').appendTo(this.target).append(' help');
-  btn.attr('type', 'button').attr('data-toggle', 'modal').attr('data-target', '#myHelpModal');
-  $('<span>').addClass('glyphicon glyphicon-info-sign').prependTo(btn);
+  $btn = $('<button>').addClass('btn btn-info').appendTo(this.target).append(' help');
+  $btn.attr('data-toggle', 'modal').attr('data-target', '#myHelpModal');
+  $('<span>').addClass('glyphicon glyphicon-info-sign').prependTo($btn);
 
 
   // Add the plate information
@@ -391,53 +392,52 @@ PlateMap.prototype.drawPlate = function() {
   // Add studies
   $('<b>Studies:</b>').appendTo(this.target);
   $.each(this.studies, function(idx, study) {
-      obj.target.append(' ');
-      $('<span>').css({'background-color': PlateMap._qiimeColors[idx]}).html("&nbsp;&nbsp;&nbsp;&nbsp;").appendTo(obj.target);
-      obj.target.append(' ' + study.title + ' (');
-      $('<a>').attr('target', '_blank').attr('href', 'https://qiita.ucsd.edu/study/description/' + study.study_id).text('Qiita: ' + study.study_id).appendTo(obj.target);
-      obj.target.append(', ');
-      $('<a>').attr('target', '_blank').attr('href', 'http://kl-jira.ucsd.edu:8080/projects/' + study.jira_id).text('Jira: ' + study.jira_id).appendTo(obj.target);
-      obj.target.append(')');
+      that.target.append(' ');
+      $('<span>').css({'background-color': PlateMap._qiimeColors[idx]}).html("&nbsp;&nbsp;&nbsp;&nbsp;").appendTo(that.target);
+      that.target.append(' ' + study.title + ' (');
+      $('<a>').attr('target', '_blank').attr('href', 'https://qiita.ucsd.edu/study/description/' + study.study_id).text('Qiita: ' + study.study_id).appendTo(that.target);
+      that.target.append(', ');
+      $('<a>').attr('target', '_blank').attr('href', 'http://kl-jira.ucsd.edu:8080/projects/' + study.jira_id).text('Jira: ' + study.jira_id).appendTo(that.target);
+      that.target.append(')');
   });
 
-
   // Add the table that represents the plate map
-  table = $('<table>');
-  table.appendTo(this.target);
+  $table = $('<table>');
+  $table.appendTo(this.target);
 
   // Add the header row
-  row = $('<tr>');
-  row.appendTo(table);
-  $('<th>').appendTo(row);
+  $row = $('<tr>');
+  $row.appendTo($table);
+  $('<th>').appendTo($row);
   for (var i = 0; i < this.cols; i++) {
-    col = $('<th>');
-    col.attr('style', 'text-align: center;')
-    col.html(i+1);
-    col.appendTo(row);
+    $col = $('<th>');
+    $col.attr('style', 'text-align: center;')
+    $col.html(i+1);
+    $col.appendTo($row);
   }
 
   // Adding the rest of the rows
   for (var i = 0; i < this.rows; i++) {
-    row = $('<tr>');
-    row.appendTo(table);
+    $row = $('<tr>');
+    $row.appendTo($table);
     // Adding row name - From: http://stackoverflow.com/a/12504060
-    col = $('<td>');
-    col.html(String.fromCharCode('A'.charCodeAt() + i));
-    col.appendTo(row);
+    $col = $('<td>');
+    $col.html(String.fromCharCode('A'.charCodeAt() + i));
+    $col.appendTo($row);
     // Adding the rest of the rows
     for (var j = 0; j < this.cols; j++) {
-      col = $('<td>');
-      col.appendTo(row);
-      well = this.constructWell(i, j);
-      well.appendTo(col);
+      $col = $('<td>');
+      $col.appendTo($row);
+      $well = this.constructWell(i, j);
+      $well.appendTo($col);
     }
   }
 
   // Add the Notes text area
   $('<b>Plate notes: </b></br>').appendTo(this.target);
-  textArea = $('<textarea cols="200" id="notes-input"></textarea></br>').appendTo(this.target);
+  $textArea = $('<textarea cols="200" id="notes-input"></textarea></br>').appendTo(this.target);
   if (this.notes !== undefined) {
-    textArea.val(this.notes);
+    $textArea.val(this.notes);
   }
 
   // Add the per well comments summary
@@ -448,12 +448,12 @@ PlateMap.prototype.drawPlate = function() {
   // Add the comments modal - Note that this modal gets added to the body
   // This is to avoid some undesired behavior with modals, in which they
   // get blocked "behind" the faded background
-  $('<div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">' +
+  $('<div class="modal fade" id="wellCommentModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">' +
     '<div class="modal-dialog" role="document">' +
       '<div class="modal-content">' +
         '<div class="modal-header">' +
           '<h4 class="modal-title" id="exampleModalLabel"></h4>' +
-          '<button type="button" class="close" data-dismiss="modal" aria-label="Close">' +
+          '<button class="close" data-dismiss="modal" aria-label="Close">' +
             '<span aria-hidden="true">&times;</span>' +
           '</button>' +
         '</div>' +
@@ -461,27 +461,27 @@ PlateMap.prototype.drawPlate = function() {
           '<textarea class="form-control" id="well-comment-textarea"></textarea>' +
         '</div>' +
         '<div class="modal-footer">' +
-          '<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>' +
-          '<button type="button" class="btn btn-primary" id="save-cmt-btn" disabled>Save comment</button>' +
+          '<button class="btn btn-secondary" data-dismiss="modal">Cancel</button>' +
+          '<button class="btn btn-primary" id="save-cmt-btn" disabled>Save comment</button>' +
         '</div>' +
       '</div>' +
     '</div>' +
   '</div>').appendTo($('body'));
 
   // Attach a handler to the modal show event
-  $('#myModal').on('show.bs.modal', function (e) {
-    obj.commentModalShow();
+  $('#wellCommentModal').on('show.bs.modal', function (e) {
+    that.commentModalShow();
   });
 
   // Attach a handler to the modal shown event
-  $('#myModal').on('shown.bs.modal', function (e) {
+  $('#wellCommentModal').on('shown.bs.modal', function (e) {
     // We just need to make sure that the modal text area gets focused
     $('#well-comment-textarea').focus();
   });
 
   // Attach a handler to the save button
   $('#save-cmt-btn').click(function(e) {
-    obj.commentModalSave();
+    that.commentModalSave();
   });
 
   // Attach a handler to the keyup event of the well comment text area
@@ -499,13 +499,13 @@ PlateMap.prototype.drawPlate = function() {
       '<div class="modal-content">' +
         '<div class="modal-header">' +
           '<h4 class="modal-title" id="myHelpModalLabel">Plate Map legend</h4>' +
-          '<button type="button" class="close" data-dismiss="modal" aria-label="Close">' +
+          '<button class="close" data-dismiss="modal" aria-label="Close">' +
             '<span aria-hidden="true">&times;</span>' +
           '</button>' +
         '</div>' +
         '<div class="modal-body">' +
-          '<span><input placeholder="Example sample" type="text" disabled="True" class="pm_sample_plated" /> &nbsp;&nbsp; Sample already plated</span>' +
-          '<span><input placeholder="Example sample" type="text" disabled="True" class="pm_well_commented" /> &nbsp;&nbsp; Well has a comment</span>' +
+          '<span><input placeholder="Example sample" type="text" disabled="True" class="pm-sample-plated" /> &nbsp;&nbsp; Sample already plated</span>' +
+          '<span><input placeholder="Example sample" type="text" disabled="True" class="pm-well-commented" /> &nbsp;&nbsp; Well has a comment</span>' +
           '<span><input placeholder="Example sample" type="text" disabled="True" style="background-color: red;" /> &nbsp;&nbsp; Sample not recognized</span>' +
         '</div>' +
       '</div>' +

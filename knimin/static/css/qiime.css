@@ -374,7 +374,7 @@ ul.mainmenu li a:hover {
 /*	background: rgba(25, 25, 25, .1);*/
 }
 
-.pm_study_autocomplete {
+.pm-study-autocomplete {
 	font-weight: bold;
 	font-size: 14px;
 	padding: .2em .4em;
@@ -382,11 +382,11 @@ ul.mainmenu li a:hover {
 	line-height: 1.5;
 }
 
-.pm_well_commented {
+.pm-well-commented {
   	box-shadow: 0px 0px 10px 5px rgba(0,0,0,0.75);
 }
 
-.pm_sample_plated {
+.pm-sample-plated {
 	border: 5px solid black;
   	border-style: double;
 }
