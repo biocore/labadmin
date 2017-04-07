@@ -1171,5 +1171,6 @@ class TestDataAccess(TestCase):
             db.delete_dna_plate(0)
         self.assertEqual(ctx.exception.message, "DNA plate 0 does not exist")
 
+
 if __name__ == "__main__":
     main()
