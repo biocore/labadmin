@@ -1,0 +1,62 @@
+{% extends logged_in_index.html %}
+{% block head %}
+<script>
+  /**
+   *
+   * Submits the selected plates for extraction
+   *
+   **/
+  function submit_plate_extraction() {
+    console.log("something");
+  };
+
+  $(document).ready(function() {
+    var plates = {% raw [ [int(p[0]), p[1]] for p in plates ] %};
+
+    // I need this modal to be added to the body, otherwise it doesn't behave
+    // correctly. The block content is already in a div
+    $('<div class="modal fade" id="addPlateModal" tabindex="-1" role="dialog" aria-labelledby="addPlateModalLabel" aria-hidden="true">' +
+        '<div class="modal-dialog" role="document">' +
+          '<div class="modal-content">' +
+            '<div class="modal-header">' +
+              '<h4 class="modal-title" id="addPlateModalLabel">Add plate</h4>' +
+              '<button type="button" class="close" data-dismiss="modal" aria-label="Close">' +
+                '<span aria-hidden="true">&times;</span>' +
+              '</button>' +
+            '</div>' +
+            '<div class="modal-body">' +
+              '<div class="input-group">' +
+                '<select id="plate-select">' +
+                  '<option selected value="-1">Choose a plate</option>' +
+                '</select>' +
+              '</div>' +
+            '</div>' +
+            '<div class="modal-footer">' +
+              '<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>' +
+              '<button type="button" class="btn btn-primary" id="add-plate-btn" disabled>Add</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>').appendTo($('body'));
+
+    $.each(plates, function(idx, plate) {
+      $('<option>').attr('value', plate[0]).html('(ID: ' + plate[0] + ') ' + plate[1]).appendTo($("#plate-select"));
+    });
+
+    // Initialize the plate autocomplete
+    $(".plate-select").select2();
+  });
+</script>
+{% end %}
+{% block content %}
+<label><h3>Extract plates</h3></label>
+</br>
+<div class='container'>
+
+  <label>Plates being extracted: <button class="btn btn-success btn-add" data-toggle='modal' data-target="#addPlateModal"><span class="glyphicon glyphicon-plus"></span></button></label>
+  <div class="form-group">
+    <button onclick="submit_plate_extraction();" class="btn button-sm btn-primary">Extract plates</button>
+  </div>
+</div>
+
+{% end %}

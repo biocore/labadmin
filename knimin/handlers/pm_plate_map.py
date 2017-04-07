@@ -116,3 +116,34 @@ class PMSamplePlateHandler(BaseHandler):
 
         self.write(plate_info)
         self.finish()
+
+
+@set_access(['Admin'])
+class PMExtractPlateHandler(BaseHandler):
+    @authenticated
+    def get(self):
+        plate_id = self.get_argument('plate_id')
+        plates = [[p['id'], p['name']] for p in db.get_sample_plate_list()]
+
+        self.render("pm_extract_plate.html", currentuser=self.get_current_user,
+                    plate_id=plate_id, plates=plates)
+
+    # @authenticated
+    # def post(self):
+    #     plate_id = self.get_argument('plate_id')
+    #     action = self.get_argument('action')
+    #     layout = json_decode(self.get_argument('layout'))
+    #
+    #     if action not in ('save', 'extract'):
+    #         raise HTTPError(400, 'Action should be save or extract')
+    #     else:
+    #         # In any of the two cases we need to save the plate layout
+    #         db.write_sample_plate_layout(plate_id, layout)
+    #
+    #         if action == 'save':
+    #             # At this point we are done! Simply return a 200
+    #             self.set_status(200)
+    #             self.finish()
+    #         elif action == 'extract':
+    #             # The plate is promoted for extraction
+    #             self.redirect("/pm_extract_plate?plate_id=%s" % plate_id)
