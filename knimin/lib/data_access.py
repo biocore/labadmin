@@ -3197,6 +3197,59 @@ class KniminAccess(object):
                                prop + '_id'))
             return [dict(x) for x in TRN.execute_fetchindex()]
 
+    def get_or_create_property_option_id(self, prop, option_name):
+        """Retrieves the id of the given property
+
+        If the property with the given name doesn't exist, it will create it
+        and return the id of the newly created value
+
+        Parameters
+        ----------
+        prop : str
+            Property name, i.e., name of a table under schema "pm"
+        option_name : str
+            The new option
+        """
+        prop_id_col = prop + '_id'
+        with TRN:
+            # Insert if it doesn't exist
+            sql = """INSERT INTO pm.{} (name)
+                        SELECT %s
+                        WHERE NOT EXISTS(SELECT 1 FROM pm.{} WHERE name = %s)
+                        RETURNING {}""".format(prop, prop, prop_id_col)
+            TRN.add(sql, [option_name, option_name])
+            res = TRN.execute_fetchindex()
+            if res:
+                # This means that the previous sql call inserted a new value
+                # so we just need to return the value
+                # Magic numbers [0][0] - There is only one row and with
+                # a single value
+                return res[0][0]
+
+            # If the code reaches this point it means that the previous sql
+            # call did not insert anything, i.e. the option already existed
+            # return the id of that option
+            sql = "SELECT {} FROM pm.{} WHERE name = %s".format(
+                prop_id_col, prop)
+            TRN.add(sql, [option_name])
+            return TRN.execute_fetchlast()
+
+    def delete_property_option(self, prop, prop_id):
+        """Deletes the given property option
+
+        Parameters
+        ----------
+        prop : str
+            Property name, i.e., name of a table under schema "pm"
+        prop_id : int
+            The id of the property to remove
+        """
+        prop_id_col = prop + '_id'
+        with TRN:
+            sql = "DELETE FROM pm.{} WHERE {} = %s".format(prop, prop_id_col)
+            TRN.add(sql, [prop_id])
+            TRN.execute()
+
     def get_plate_types(self):
         """Gets all available plate types
 

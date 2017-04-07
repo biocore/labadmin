@@ -974,6 +974,29 @@ class TestDataAccess(TestCase):
                {'id': 4, 'name': 'HOWE_KF4', 'notes': None}]
         self.assertListEqual(obs, exp)
 
+    def test_get_or_create_property_option_id(self):
+        existing = db.get_property_options("extraction_robot")
+
+        # Correctly retrieves an option that already exists
+        obs = db.get_or_create_property_option_id(
+            "extraction_robot", existing[0]['name'])
+        self.assertEqual(obs, existing[0]['id'])
+
+        # Test that it creates the property option correctly
+        obs = db.get_or_create_property_option_id(
+            "extraction_robot", 'LabAdminTest')
+        self._clean_up_funcs.append(
+            partial(db.delete_property_option, "extraction_robot", obs))
+        self.assertTrue(obs > max([e['id'] for e in existing]))
+
+    def test_delete_property_option(self):
+        obs = db.get_or_create_property_option_id("extraction_robot",
+                                                  "LabAdminTest")
+        exp = {'id': obs, 'name': 'LabAdminTest', 'notes': None}
+        self.assertIn(exp, db.get_property_options("extraction_robot"))
+        db.delete_property_option("extraction_robot", obs)
+        self.assertNotIn(exp, db.get_property_options("extraction_robot"))
+
     def test_get_plate_types(self):
         # Get available plate types
         obs = db.get_plate_types()
