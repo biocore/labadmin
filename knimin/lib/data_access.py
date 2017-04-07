@@ -814,9 +814,11 @@ class KniminAccess(object):
                     birthdate = datetime(
                         int(responses['BIRTH_YEAR']),
                         int(month_int_lookup[responses['BIRTH_MONTH']]), 1)
-                    now = datetime.now()
-                    md[1][barcode]['AGE_YEARS'] = int(
-                        self._months_between_dates(birthdate, now) / 12.0)
+                    age_in_month = self._months_between_dates(
+                        birthdate, datetime(bc_info['sample_date'].year,
+                                            bc_info['sample_date'].month,
+                                            bc_info['sample_date'].day))
+                    md[1][barcode]['AGE_YEARS'] = int(age_in_month / 12.0)
                 else:
                     md[1][barcode]['AGE_YEARS'] = 'Unspecified'
 
