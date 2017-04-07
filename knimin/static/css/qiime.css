@@ -390,3 +390,7 @@ ul.mainmenu li a:hover {
 	border: 5px solid black;
   	border-style: double;
 }
+
+.pm-warning {
+	background-color: rgba(250,235,215,1);
+}

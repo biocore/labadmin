@@ -6,9 +6,59 @@
    * Submits the selected plates for extraction
    *
    **/
-  function submit_plate_extraction() {
-    console.log("something");
+  function submitPlateExtraction() {
+    // Clean up warnings
+    $("#robot-warning").hide();
+    $("#tool-warning").hide();
+    $("#kit-warning").hide();
+
+    // Retrieve information
+    var plates = [];
+    $.each($(".list-group-item"), function(idx, item) {
+      plates.push($(item).attr("pm-id"));
+    });
+
+    var robot = $("#extraction-robot-select").val();
+    var tool = $("#extraction-tool-select").val();
+    var kit = $("#extraction-kit-input").val().trim();
+
+    // Validation
+    var success = true;
+    if (robot === "-1") {
+      success = false;
+      $("#robot-warning").show();
+    }
+    if (tool === "-1") {
+      success = false;
+      $("#tool-warning").show();
+    }
+    if (kit.length < 1) {
+      success = false;
+      $("#kit-warning").show();
+    }
+
+    if (success) {
+      var form = $('<form>', {action: $(location).attr('href'), method: 'post'});
+      var fields = {'plates': JSON.stringify(plates), 'robot': robot, 'tool': tool, 'kit': kit};
+      $.each(fields, function(key, val) {
+        $('<input>').attr({type: "hidden", name: key, value: val}).appendTo(form);
+      });
+      form.appendTo('body').submit();
+    }
   };
+
+  /**
+   *
+   * Formats the background color of the kit lot select
+   *
+   **/
+  function formatKitLot(kits) {
+    var val = $("#extraction-kit-input").val().trim();
+    $("#extraction-kit-input").removeClass('pm-warning');
+    if(val.length > 0 && $.inArray(val, kits) === -1) {
+      $("#extraction-kit-input").addClass('pm-warning');
+    }
+  }
 
   $(document).ready(function() {
     var plates = {% raw [ [int(p[0]), p[1]] for p in plates ] %};
@@ -78,6 +128,20 @@
       $(this).prop("disabled", true);
     });
 
+    // Initialize the searchable dropdown
+    $(".search-select-2").select2();
+
+    // Initialize the input autocompletion
+    var kits = {% raw [ k['name'] for k in kits] %};
+    $(".autocomplete").autocomplete({source: kits,
+                                     select: function (e, ui) {
+                                       formatKitLot(kits);
+                                     }
+                                    });
+    $("#extraction-kit-input").keyup(function(e) {
+      formatKitLot(kits);
+    });
+
   });
 </script>
 {% end %}
@@ -86,12 +150,36 @@
 </br>
 <div class='container'>
 
+  <!-- List of plates being extracted -->
   <label>Plates being extracted: <button class="btn btn-success btn-add" data-toggle='modal' data-target="#addPlateModal"><span class="glyphicon glyphicon-plus"></span></button></label>
   <ul class="list-group" id="lu-plate-list">
-    <li class="list-group-item" id="li-plate-{{plate_id}}">(ID: {{plate_id}}) {{plate_name}}</li>
+    <li class="list-group-item" id="li-plate-{{plate_id}}" pm-id="{{plate_id}}">(ID: {{plate_id}}) {{plate_name}}</li>
   </ul>
+
+  <!-- Extraction robot select -->
+  <label>Extraction robot: <b id='robot-warning' class='warning' hidden>* Required</b></label>
+  <select id='extraction-robot-select' class='form-control search-select-2'>
+    <option value="-1">Choose a robot...</option>
+    {% for robot in robots %}
+      <option value="{{robot['id']}}">{{robot['name']}}</option>
+    {% end %}
+  </select>
+
+  <!-- Extraction tool select -->
+  <label>Extraction tool: <b id='tool-warning' class='warning' hidden>* Required</b></label>
+  <select id='extraction-tool-select' class='form-control search-select-2'>
+    <option value="-1">Choose a tool...</option>
+    {% for tool in tools %}
+      <option value="{{tool['id']}}">{{tool['name']}}</option>
+    {% end %}
+  </select>
+
+  <!-- Extraction kit input -->
+  <label>Extraction kit lot: <b id='kit-warning' class='warning' hidden>* Required</b></label>
+  <input class="form-control autocomplete" placeholder="Type kit id" type="text" id="extraction-kit-input"/>
+
   <div class="form-group">
-    <button onclick="submit_plate_extraction();" class="btn button-sm btn-primary">Extract plates</button>
+    <button onclick="submitPlateExtraction();" class="btn button-sm btn-primary">Extract plates</button>
   </div>
 </div>
 
