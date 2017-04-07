@@ -125,26 +125,22 @@ class PMExtractPlateHandler(BaseHandler):
         plate_id = self.get_argument('plate_id')
         plate_name = db.read_sample_plate(plate_id)['name']
         plates = [[p['id'], p['name']] for p in db.get_sample_plate_list()]
+        robots = db.get_property_options('extraction_robot')
+        tools = db.get_property_options('extraction_tool')
+        kits = db.get_property_options('extraction_kit_lot')
 
         self.render("pm_extract_plate.html", currentuser=self.get_current_user,
-                    plate_id=plate_id, plate_name=plate_name, plates=plates)
+                    plate_id=plate_id, plate_name=plate_name, plates=plates,
+                    robots=robots, tools=tools, kits=kits)
 
-    # @authenticated
-    # def post(self):
-    #     plate_id = self.get_argument('plate_id')
-    #     action = self.get_argument('action')
-    #     layout = json_decode(self.get_argument('layout'))
-    #
-    #     if action not in ('save', 'extract'):
-    #         raise HTTPError(400, 'Action should be save or extract')
-    #     else:
-    #         # In any of the two cases we need to save the plate layout
-    #         db.write_sample_plate_layout(plate_id, layout)
-    #
-    #         if action == 'save':
-    #             # At this point we are done! Simply return a 200
-    #             self.set_status(200)
-    #             self.finish()
-    #         elif action == 'extract':
-    #             # The plate is promoted for extraction
-    #             self.redirect("/pm_extract_plate?plate_id=%s" % plate_id)
+    @authenticated
+    def post(self):
+        plates = json_decode(self.get_argument('plates'))
+        robot = self.get_argument('robot')
+        tool = self.get_argument('tool')
+        kit = self.get_argument('kit')
+        user = self.current_user
+
+        db.extract_sample_plates(plates, user, robot, kit, tool)
+
+        self.redirect("/pm_plate_list/")
