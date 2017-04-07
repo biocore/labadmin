@@ -642,6 +642,7 @@ class TestDataAccess(TestCase):
             row = []
         layout[0][0]['sample_id'] = '9999.sample1'
         layout[0][1]['sample_id'] = '9999.sample2'
+        layout[0][2]['sample_id'] = '9999.sample1'
         db.write_sample_plate_layout(plate_id, layout)
         layout[0][1]['sample_id'] = '9999.sample3'
         db.write_sample_plate_layout(plate_id_2, layout)
@@ -877,12 +878,21 @@ class TestDataAccess(TestCase):
         obs = db.read_sample_plate_layout(plate_id)
         self.assertEqual(obs, layout)
 
-        # Store an incomplete plate
+        # Store an incomplete plate, either by providing None one everything...
         layout[0][0]['sample_id'] = None
         layout[0][0]['name'] = None
         layout[0][0]['notes'] = None
         db.write_sample_plate_layout(plate_id, layout)
         obs = db.read_sample_plate_layout(plate_id)
+        self.assertEqual(obs, layout)
+
+        # ... or by providing an empty dict (easier for GUI interaction)
+        layout[0][0] = {}
+        db.write_sample_plate_layout(plate_id, layout)
+        obs = db.read_sample_plate_layout(plate_id)
+        layout[0][0]['sample_id'] = None
+        layout[0][0]['name'] = None
+        layout[0][0]['notes'] = None
         self.assertEqual(obs, layout)
 
         # Attempt to write the layout of a sample plate that doesn't exist
