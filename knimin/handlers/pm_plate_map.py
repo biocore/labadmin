@@ -123,10 +123,11 @@ class PMExtractPlateHandler(BaseHandler):
     @authenticated
     def get(self):
         plate_id = self.get_argument('plate_id')
+        plate_name = db.read_sample_plate(plate_id)['name']
         plates = [[p['id'], p['name']] for p in db.get_sample_plate_list()]
 
         self.render("pm_extract_plate.html", currentuser=self.get_current_user,
-                    plate_id=plate_id, plates=plates)
+                    plate_id=plate_id, plate_name=plate_name, plates=plates)
 
     # @authenticated
     # def post(self):

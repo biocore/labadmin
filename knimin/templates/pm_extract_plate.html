@@ -39,12 +39,45 @@
         '</div>' +
       '</div>').appendTo($('body'));
 
+    // Add
     $.each(plates, function(idx, plate) {
-      $('<option>').attr('value', plate[0]).html('(ID: ' + plate[0] + ') ' + plate[1]).appendTo($("#plate-select"));
+      $('<option>').attr('value', plate[0]).attr('pm-name', plate[1]).html('(ID: ' + plate[0] + ') ' + plate[1]).appendTo($("#plate-select"));
     });
 
-    // Initialize the plate autocomplete
-    $(".plate-select").select2();
+    // Remove the plate that is already selected
+    $("#plate-select option[value={{plate_id}}]").remove();
+
+    // Attach handler to the change even of the select
+    $("#plate-select").change(function(e) {
+      $("#add-plate-btn").prop("disabled", this.value === "-1");
+    });
+
+    $("#add-plate-btn").click(function (e) {
+      var plateId = $("#plate-select").val();
+      var plateName = $("#plate-select option[value=" + plateId + "]").attr('pm-name');
+
+      // Add the new plate to the list
+      var $li = $('<li>').addClass('list-group-item justify-content-between').attr('id', 'li-plate-' + plateId).attr('pm-id', plateId).html('(ID: ' + plateId + ') ' + plateName).appendTo($("#lu-plate-list"));
+      var $btn = $('<button>').addClass('btn-danger glyphicon glyphicon-remove pull-right').html(" ").appendTo($li);
+      $btn.attr('pm-name', plateName).attr('pm-id', plateId);
+      $btn.click(function (e) {
+        // Add this plate back to the select
+        $("#plate-select").append($('<option>', {value: $(this).attr('pm-id'),
+                                                 text: '(ID: ' + $(this).attr('pm-id') + ') ' + $(this).attr('pm-name'),
+                                                 "pm-name": $(this).attr('pm-name')}));
+        $li.remove();
+      });
+
+      // Set the selected value to -1
+      $("#plate-select").val("-1");
+      // Delete the selected plate from the option list
+      $("#plate-select option[value=" + plateId + "]").remove();
+      // Hide the modal
+      $('#addPlateModal').modal('hide');
+      // Disable the button again
+      $(this).prop("disabled", true);
+    });
+
   });
 </script>
 {% end %}
@@ -54,6 +87,9 @@
 <div class='container'>
 
   <label>Plates being extracted: <button class="btn btn-success btn-add" data-toggle='modal' data-target="#addPlateModal"><span class="glyphicon glyphicon-plus"></span></button></label>
+  <ul class="list-group" id="lu-plate-list">
+    <li class="list-group-item" id="li-plate-{{plate_id}}">(ID: {{plate_id}}) {{plate_name}}</li>
+  </ul>
   <div class="form-group">
     <button onclick="submit_plate_extraction();" class="btn button-sm btn-primary">Extract plates</button>
   </div>
