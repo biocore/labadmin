@@ -92,11 +92,7 @@
 {% block content %}
 <h3 id="page-title">{{target[0].upper() + target[1:]}} Plate List</h3>
 <p>
-  <button id="btn-new"><i class="fa fa-plus"></i> Create new</button>
-  <button id="btn-delete"><i class="fa fa-remove"></i> Delete selected</button>
-  <button id="btn-edit"><i class="fa fa-edit"></i> Batch-edit selected</button>
-  <button id="btn-dna"><i class="fa fa-flask"></i> Convert to DNA plate</button>
-  <button id="btn-edit"><i class="fa fa-download"></i> Export list</button>
+  <a class="btn btn-default" href="/pm_create_plate/"><span class="fa fa-plus"></span> Create new</a>
 </p>
 
 <table id="plate-list">
@@ -106,7 +102,7 @@
       <th width="225px">Name</th>
       <th width="75px">Type</th>
       <th width="50px">Filled</th>
-      <th width="50px">Study</th>
+      <th width="50px">Studies</th>
       <th width="75px">Person</th>
       <th width="75px">Date</th>
       <th width="100px">Actions</th>
@@ -133,7 +129,7 @@
           <i class="fa fa-battery-empty"></i>
           {% end %}
         </span></td>
-      <td title="{{plate['study'][3]}}">{{plate['study'][1]}}</td>
+      <td title="{{plate['studies'][0]}}">{{plate['studies'][0]}}</td>
       <td>{{plate['person'] or "-"}}</td>
       <td>{{plate['date'] or "-"}}</td>
       <td style="padding:2px;">
