@@ -3383,6 +3383,11 @@ class KniminAccess(object):
             The name of the tool used for extraction
         notes : str, optional
             Notes added to the extracted plates
+
+        Raises
+        ------
+        ValueError
+            If sample_plate_ids is an empty list
         """
         if not sample_plate_ids:
             raise ValueError("Provide at least one sample plate to extract")
@@ -3431,7 +3436,7 @@ class KniminAccess(object):
         Raises
         ------
         ValueError
-            If the dna plate with ID `dna_plate_id` does not exist
+            If the DNA plate with ID `dna_plate_id` does not exist
         """
         with TRN:
             sql = """SELECT dna_plate_id as id,
@@ -3465,7 +3470,7 @@ class KniminAccess(object):
         Raises
         ------
         ValueError
-            If the dna plate does not exist
+            If the DNA plate does not exist
         """
         with TRN:
             sql = """DELETE FROM pm.dna_plate

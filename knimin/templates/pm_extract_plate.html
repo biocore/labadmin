@@ -55,7 +55,7 @@
   function formatKitLot(kits) {
     var val = $("#extraction-kit-input").val().trim();
     $("#extraction-kit-input").removeClass('pm-warning');
-    if(val.length > 0 && $.inArray(val, kits) === -1) {
+    if (val.length > 0 && $.inArray(val, kits) === -1) {
       $("#extraction-kit-input").addClass('pm-warning');
     }
   }
