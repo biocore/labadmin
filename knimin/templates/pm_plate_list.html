@@ -112,7 +112,7 @@
     {% for plate in plates %}
     <tr>
       <td>{{plate['id']}}</td>
-      <td><a href="/pm_plate_map/?target=sample&id={{plate['id']}}">{{plate['name']}}</a></td>
+      <td><a href="/pm_plate_map?plate_id={{plate['id']}}">{{plate['name']}}</a></td>
       <td title="{{plate['type'][1]}}">{{plate['type'][0]}}</td>
       <td>{{plate['fill'][0]}}
         <span style="font-size:80%">
