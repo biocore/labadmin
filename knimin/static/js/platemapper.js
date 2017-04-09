@@ -662,7 +662,7 @@ PlateMap.prototype._drawPlate = function() {
     var row = parseInt($('#comment-modal-btn').attr('pm-row'));
     var col = parseInt($('#comment-modal-btn').attr('pm-col'));
     var cmt = $('#well-comment-textarea').val();
-    this.updateWellComment(row, col, cmt);
+    that.updateWellComment(row, col, cmt);
     $('#wellCommentModal').modal('hide');
   });
 
