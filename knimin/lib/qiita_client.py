@@ -62,7 +62,6 @@ class QiitaClient(object):
         self._client_id = client_id
         self._client_secret = client_secret
         self._authenticate_url = "%s/qiita_db/authenticate/" % self._server_url
-        print self._authenticate_url
 
         # Fetch the access token
         self._fetch_token()
