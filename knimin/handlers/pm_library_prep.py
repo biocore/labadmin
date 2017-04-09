@@ -13,13 +13,6 @@ from knimin.handlers.access_decorators import set_access
 
 
 @set_access(['Admin'])
-class PMLibraryPrepHandler(BaseHandler):
-    @authenticated
-    def get(self):
-        self.render("pm_library_prep.html", current_user=self.current_user)
-
-
-@set_access(['Admin'])
 class PMTargetGeneLibraryPrepHandler(BaseHandler):
     @authenticated
     def get(self):

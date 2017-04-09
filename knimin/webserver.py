@@ -38,7 +38,7 @@ from knimin.handlers.pm_plate_map import (
     PMSamplePlateHandler, PMExtractPlateHandler)
 from knimin.handlers.pm_create_study import PMCreateStudyHandler
 from knimin.handlers.pm_library_prep import (
-    PMLibraryPrepHandler, PMTargetGeneLibraryPrepHandler,
+    PMTargetGeneLibraryPrepHandler,
     PMMetagenomicsLibraryPrepHandler)
 
 define("port", default=config.http_port, type=int)
@@ -83,7 +83,6 @@ class WebApplication(Application):
             (r"/admin/edit/", AGEditAccessHandler),
             (r"/consent_check", AGConsentCheckHandler),
             # PlateMapper Handlers
-            (r"/pm_library_prep/", PMLibraryPrepHandler),
             (r"/pm_library_prep/target_gene/", PMTargetGeneLibraryPrepHandler),
             (r"/pm_library_prep/metagenomics/",
              PMMetagenomicsLibraryPrepHandler),

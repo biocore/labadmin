@@ -1,1 +1,23 @@
-<h3>Target gene library prep</h3>
+{% extends logged_in_index.html %}
+{% block head %}
+<script type="text/javascript">
+  $(document).ready(function() {
+  });
+</script>
+{% end %}
+{% block content %}
+<h3>Prepare a new Target Gene library</h3>
+
+<div class="container">
+  <div class="row">
+    <div class="col-xs-12 form-group">
+      <label>Select library type:</label>
+      <select class="form-control" id='library-prep-select'>
+        <option value="" selected disabled>Please select</option>
+        <option value="target-gene">Target Gene survey</option>
+        <option value="metagenomics">Metagenomics</option>
+      </select>
+    </div>
+  </div>
+</div>
+{% end %}
