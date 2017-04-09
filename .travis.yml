@@ -36,7 +36,6 @@ install:
   - source activate labadmin
   - pip install -U pip
   - pip install -U click natsort coverage coveralls
-  - pip install https://github.com/qiita-spots/qiita_client/archive/master.zip
   - travis_retry pip install -U .[test]
 before_script:
   - source activate qiita_env

@@ -5,11 +5,11 @@
 #
 # The full license is in the file LICENSE, distributed with this software.
 # -----------------------------------------------------------------------------
-from qiita_client import QiitaClient
 
 from knimin.lib.configuration import config
 from knimin.lib.data_access import KniminAccess
 from knimin.lib.ag_jira import create_jira_handler
+from knimin.lib.qiita_client import QiitaClient
 
 db = KniminAccess(config)
 jira_handler = create_jira_handler(config)
