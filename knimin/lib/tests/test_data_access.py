@@ -1198,6 +1198,17 @@ class TestDataAccess(TestCase):
                 'date': datetime.date.today()}]
         self.assertEqual(db.get_dna_plate_list(), exp)
 
+    def test_get_barcode_sequence_plates(self):
+        exp = [{'id': 1, 'name': 'Primer plate 1', 'notes': None},
+               {'id': 2, 'name': 'Primer plate 2', 'notes': None},
+               {'id': 3, 'name': 'Primer plate 3', 'notes': None},
+               {'id': 4, 'name': 'Primer plate 4', 'notes': None},
+               {'id': 5, 'name': 'Primer plate 5', 'notes': None},
+               {'id': 6, 'name': 'Primer plate 6', 'notes': None},
+               {'id': 7, 'name': 'Primer plate 7', 'notes': None},
+               {'id': 8, 'name': 'Primer plate 8', 'notes': None}]
+        self.assertEqual(db.get_barcode_sequence_plates(), exp)
+
 
 if __name__ == "__main__":
     main()

@@ -3498,6 +3498,21 @@ class KniminAccess(object):
             TRN.add(sql)
             return [dict(row) for row in TRN.execute_fetchindex()]
 
+    def get_barcode_sequence_plates(self):
+        """Returns the list of all barcode sequence plates
+
+        Returns
+        -------
+        list of dict
+            {id: int, name: str, notes: str}
+        """
+        with TRN:
+            sql = """SELECT barcode_sequence_plate_id AS id, name, notes
+                     FROM pm.barcode_sequence_plate
+                     ORDER BY id"""
+            TRN.add(sql)
+            return [dict(row) for row in TRN.execute_fetchindex()]
+
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""
         self._con.execute('DELETE FROM %s.%s' % (schema, table))
