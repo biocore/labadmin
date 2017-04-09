@@ -128,7 +128,12 @@ class QiitaClient(object):
                 kwargs['headers']['Authorization'] = 'Bearer %s' % self._token
                 r = req(url, verify=self._verify, **kwargs)
 
-        return r.status_code, r.json()
+        try:
+            r_json = r.json()
+        except Exception:
+            r_json = None
+
+        return r.status_code, r_json
 
     def get(self, url, **kwargs):
         """Execute a get request against the Qiita server
