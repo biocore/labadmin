@@ -63,5 +63,6 @@ class TestPMPlateListHandler(TestHandlerBase):
         self.assertIn(exp, response.body)
         self.assertIn('<i class="fa fa-battery-full"></i>', response.body)
 
+
 if __name__ == '__main__':
     main()
