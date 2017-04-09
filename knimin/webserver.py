@@ -35,7 +35,7 @@ from knimin.handlers.ag_results_ready import AGResultsReadyHandler
 from knimin.handlers.pm_plate_list import PMPlateListHandler
 from knimin.handlers.pm_plate_map import (
     PMCreatePlateHandler, PMPlateNameCheckerHandler, PMPlateMapHandler,
-    PMSamplePlateHandler)
+    PMSamplePlateHandler, PMExtractPlateHandler)
 
 define("port", default=config.http_port, type=int)
 
@@ -84,6 +84,7 @@ class WebApplication(Application):
             (r"/pm_sample_plate/name_check", PMPlateNameCheckerHandler),
             (r"/pm_sample_plate", PMSamplePlateHandler),
             (r"/pm_plate_map", PMPlateMapHandler),
+            (r"/pm_extract_plate", PMExtractPlateHandler),
             (r".*", NoPageHandler)
         ]
         settings = {

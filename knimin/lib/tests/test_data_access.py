@@ -974,6 +974,29 @@ class TestDataAccess(TestCase):
                {'id': 4, 'name': 'HOWE_KF4', 'notes': None}]
         self.assertListEqual(obs, exp)
 
+    def test_get_or_create_property_option_id(self):
+        existing = db.get_property_options("extraction_robot")
+
+        # Correctly retrieves an option that already exists
+        obs = db.get_or_create_property_option_id(
+            "extraction_robot", existing[0]['name'])
+        self.assertEqual(obs, existing[0]['id'])
+
+        # Test that it creates the property option correctly
+        obs = db.get_or_create_property_option_id(
+            "extraction_robot", 'LabAdminTest')
+        self._clean_up_funcs.append(
+            partial(db.delete_property_option, "extraction_robot", obs))
+        self.assertTrue(obs > max([e['id'] for e in existing]))
+
+    def test_delete_property_option(self):
+        obs = db.get_or_create_property_option_id("extraction_robot",
+                                                  "LabAdminTest")
+        exp = {'id': obs, 'name': 'LabAdminTest', 'notes': None}
+        self.assertIn(exp, db.get_property_options("extraction_robot"))
+        db.delete_property_option("extraction_robot", obs)
+        self.assertNotIn(exp, db.get_property_options("extraction_robot"))
+
     def test_get_plate_types(self):
         # Get available plate types
         obs = db.get_plate_types()
@@ -1101,6 +1124,52 @@ class TestDataAccess(TestCase):
                 'studies': ['LabAdmin test project',
                             'LabAdmin test project 2']}]
         self.assertEqual(obs, exp)
+
+    def test_extract_sample_plates(self):
+        # Create a study
+        db.create_study(9999, title='LabAdmin test project', alias='LTP',
+                        jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+
+        # Create a sample plate
+        pt = db.get_plate_types()[0]
+        plate_id = db.create_sample_plate('Test plate', pt['id'],
+                                          'test', [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id))
+
+        exp_robot = db.get_property_options("extraction_robot")[0]
+        exp_kit = db.get_property_options("extraction_kit_lot")[0]
+        exp_tool = db.get_property_options("extraction_tool")[0]
+        before = datetime.datetime.now()
+        obs = db.extract_sample_plates(
+            [plate_id], 'test', exp_robot['name'], exp_kit['name'],
+            exp_tool['name'])
+        self._clean_up_funcs.insert(0, partial(db.delete_dna_plate, obs[0]))
+        after = datetime.datetime.now()
+        self.assertEqual(len(obs), 1)
+        obs_info = db.read_dna_plate(obs[0])
+        obs_created = obs_info.pop('created_on')
+        self.assertTrue(before <= obs_created <= after)
+        exp = {'id': obs[0], 'name': 'Test plate', 'email': 'test',
+               'sample_plate_id': plate_id,
+               'extraction_robot': exp_robot['name'],
+               'extraction_kit_lot': exp_kit['name'],
+               'extraction_tool': exp_tool['name'],
+               'notes': None}
+        self.assertEqual(obs_info, exp)
+
+    def test_read_dna_plate(self):
+        # Success is already tested in "test_extract_sample_plates"
+        with self.assertRaises(ValueError) as ctx:
+            db.read_dna_plate(0)
+        self.assertEqual(ctx.exception.message, "DNA plate 0 does not exist")
+
+    def test_delete_dna_plate(self):
+        # Success is already tested in "test_extract_sample_plates" cleanup
+        with self.assertRaises(ValueError) as ctx:
+            db.delete_dna_plate(0)
+        self.assertEqual(ctx.exception.message, "DNA plate 0 does not exist")
 
 
 if __name__ == "__main__":
