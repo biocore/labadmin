@@ -3482,6 +3482,22 @@ class KniminAccess(object):
                 # plate did not exist
                 raise ValueError("DNA plate %s does not exist" % dna_plate_id)
 
+    def get_dna_plate_list(self):
+        """Gets the list of all dna plates
+
+        Returns
+        -------
+        list of dict
+            {id : int, name : str, date : datetime}
+            Plate id, plate name and date
+        """
+        with TRN:
+            sql = """SELECT dna_plate_id as id, name, created_on::date as date
+                     FROM pm.dna_plate
+                     ORDER BY date DESC"""
+            TRN.add(sql)
+            return [dict(row) for row in TRN.execute_fetchindex()]
+
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""
         self._con.execute('DELETE FROM %s.%s' % (schema, table))

@@ -1171,6 +1171,33 @@ class TestDataAccess(TestCase):
             db.delete_dna_plate(0)
         self.assertEqual(ctx.exception.message, "DNA plate 0 does not exist")
 
+    def test_get_dna_plate_list(self):
+        self.assertEqual(db.get_dna_plate_list(), [])
+
+        # Create a study
+        db.create_study(9999, title='LabAdmin test project', alias='LTP',
+                        jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+        # Create a sample plate
+        pt = db.get_plate_types()[0]
+        plate_id = db.create_sample_plate('Test plate', pt['id'],
+                                          'test', [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id))
+
+        # Create a dna plate
+        exp_robot = db.get_property_options("extraction_robot")[0]
+        exp_kit = db.get_property_options("extraction_kit_lot")[0]
+        exp_tool = db.get_property_options("extraction_tool")[0]
+        obs = db.extract_sample_plates(
+            [plate_id], 'test', exp_robot['name'], exp_kit['name'],
+            exp_tool['name'])
+        self._clean_up_funcs.insert(0, partial(db.delete_dna_plate, obs[0]))
+
+        exp = [{'id': obs[0], 'name': 'Test plate',
+                'date': datetime.date.today()}]
+        self.assertEqual(db.get_dna_plate_list(), exp)
+
 
 if __name__ == "__main__":
     main()
