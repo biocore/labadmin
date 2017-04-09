@@ -36,6 +36,11 @@ def create_study(title, abstract, description, alias, qiita_user,
     jira_template : str, optional
         The JIRA template name
 
+    Returns
+    -------
+    int
+        The study ID
+
     Raises
     ------
     ValueError
