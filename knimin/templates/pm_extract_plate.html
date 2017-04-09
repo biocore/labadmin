@@ -1,5 +1,6 @@
 {% extends logged_in_index.html %}
 {% block head %}
+{% from json import dumps %}
 <script>
   /**
    *
@@ -61,15 +62,15 @@
   }
 
   $(document).ready(function() {
-    var plates = {% raw [ [int(p[0]), p[1]] for p in plates ] %};
+    var plates = {% raw dumps(plates) %};
 
     // I need this modal to be added to the body, otherwise it doesn't behave
     // correctly. The block content is already in a div
-    $('<div class="modal fade" id="addPlateModal" tabindex="-1" role="dialog" aria-labelledby="addPlateModalLabel" aria-hidden="true">' +
+    $('<div class="modal fade" id="add-plate-modal" tabindex="-1" role="dialog" aria-labelledby="add-plate-modal-label" aria-hidden="true">' +
         '<div class="modal-dialog" role="document">' +
           '<div class="modal-content">' +
             '<div class="modal-header">' +
-              '<h4 class="modal-title" id="addPlateModalLabel">Add plate</h4>' +
+              '<h4 class="modal-title" id="add-plate-modal-label">Add plate</h4>' +
               '<button type="button" class="close" data-dismiss="modal" aria-label="Close">' +
                 '<span aria-hidden="true">&times;</span>' +
               '</button>' +
@@ -123,7 +124,7 @@
       // Delete the selected plate from the option list
       $("#plate-select option[value=" + plateId + "]").remove();
       // Hide the modal
-      $('#addPlateModal').modal('hide');
+      $('#add-plate-modal').modal('hide');
       // Disable the button again
       $(this).prop("disabled", true);
     });
@@ -151,7 +152,7 @@
 <div class='container'>
 
   <!-- List of plates being extracted -->
-  <label>Plates being extracted: <button class="btn btn-success btn-add" data-toggle='modal' data-target="#addPlateModal"><span class="glyphicon glyphicon-plus"></span></button></label>
+  <label>Plates being extracted: <button class="btn btn-success btn-add" data-toggle='modal' data-target="#add-plate-modal"><span class="glyphicon glyphicon-plus"></span></button></label>
   <ul class="list-group" id="lu-plate-list">
     <li class="list-group-item" id="li-plate-{{plate_id}}" pm-id="{{plate_id}}">(ID: {{plate_id}}) {{plate_name}}</li>
   </ul>
