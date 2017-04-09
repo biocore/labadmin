@@ -316,6 +316,7 @@ PlateMap.prototype._updateTechnicalReplicate = function (sampleInfo) {
     }
     // Mark all wells as technical
     for (var well of sampleInfo.wells) {
+      // Well is an array of two ints, in which well[0] -> row and well[1] -> col
       this.wellInformation[well[0]][well[1]].inputTag.addClass('pm-technical-replicate');
     }
   } else {
@@ -343,8 +344,8 @@ PlateMap.prototype.updateErrorList = function () {
   $("#pm-error-list").html("");
 
   // First look for any warning/error in a per well basis
-  for (var i = 0; i < this.wellInformation.length; i++) {
-    for (var j = 0; j < this.wellInformation[i].length; j++) {
+  for (var i = 0; i < this.rows; i++) {
+    for (var j = 0; j < this.cols; j++) {
       well = this.wellInformation[i][j];
       if (well.inputTag.hasClass('pm-wrong-sample')) {
         // Add an error to the list
@@ -400,7 +401,7 @@ PlateMap.prototype.changeWell = function (current, e) {
     // We had another sample in this well before, update the wells list
     // of that sample
     prevSampleInfo.wells = $.grep(prevSampleInfo.wells, function(value) {
-      return (value[0] != wellId[0]) || (value[1] != wellId[1]);
+      return (value[0] !== wellId[0]) || (value[1] !== wellId[1]);
     });
     this._updateTechnicalReplicate(prevSampleInfo);
   }
