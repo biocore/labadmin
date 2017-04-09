@@ -20,6 +20,8 @@ class PMCreateStudyHandler(BaseHandler):
     @authenticated
     def get(self):
         _, qiita_persons = qiita_client.get('/api/v1/person')
+        # We don't have an id for each person. "Create" one by jsonizing
+        # the information of each person
         for q in qiita_persons:
             q['json'] = json_encode(q)
 
