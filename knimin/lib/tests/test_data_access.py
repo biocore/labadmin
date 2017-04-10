@@ -1209,6 +1209,83 @@ class TestDataAccess(TestCase):
                {'id': 8, 'name': 'Primer plate 8', 'notes': None}]
         self.assertEqual(db.get_barcode_sequence_plates(), exp)
 
+    def test_prepare_targeted_libraries(self):
+        # Create a study
+        db.create_study(9999, title='LabAdmin test project', alias='LTP',
+                        jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+
+        # Create some sample plates
+        pt = db.get_plate_types()[0]
+        plate_id = db.create_sample_plate('Test plate', pt['id'], 'test',
+                                          [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id))
+        plate_id_2 = db.create_sample_plate('Test plate 2', pt['id'], 'test',
+                                            [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id_2))
+
+        # Create DNA plates
+        robot = db.get_property_options("extraction_robot")[0]
+        kit = db.get_property_options("extraction_kit_lot")[0]
+        tool = db.get_property_options("extraction_tool")[0]
+        dna_plate_ids = db.extract_sample_plates(
+            [plate_id, plate_id_2], 'test', robot['name'], kit['name'],
+            tool['name'])
+        for p_id in dna_plate_ids:
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_dna_plate, p_id))
+
+        # Create the target gene plates
+        plate_links = [
+            {'dna_plate_id': dna_plate_ids[0], 'barcode_plate_id': 1},
+            {'dna_plate_id': dna_plate_ids[1], 'barcode_plate_id': 2}]
+        exp_robot = db.get_property_options("processing_robot")[0]
+        exp_tm300 = db.get_property_options("tm300_8_tool")[0]
+        exp_tm50 = db.get_property_options("tm50_8_tool")[0]
+        exp_mix = db.get_property_options("master_mix_lot")[0]
+        exp_water = db.get_property_options("water_lot")[0]
+        before = datetime.datetime.now()
+        obs_ids = db.prepare_targeted_libraries(
+            plate_links, 'test', exp_robot['name'], exp_tm300['name'],
+            exp_tm50['name'], exp_mix['name'], exp_water['name'])
+        after = datetime.datetime.now()
+
+        for o_id in obs_ids:
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_target_gene_plate, o_id))
+
+        self.assertEqual(len(obs_ids), 2)
+        exp = [
+            {'id': obs_ids[0], 'name': 'Test plate', 'email': 'test',
+             'dna_plate_id': dna_plate_ids[0], 'barcode_plate_id': 1,
+             'master_mix_lot': exp_mix['name'], 'robot': exp_robot['name'],
+             'tm300_8_tool': exp_tm300['name'],
+             'tm50_8_tool': exp_tm50['name'], 'water_lot': exp_water['name']},
+            {'id': obs_ids[1], 'name': 'Test plate 2', 'email': 'test',
+             'dna_plate_id': dna_plate_ids[1], 'barcode_plate_id': 2,
+             'master_mix_lot': exp_mix['name'], 'robot': exp_robot['name'],
+             'tm300_8_tool': exp_tm300['name'],
+             'tm50_8_tool': exp_tm50['name'], 'water_lot': exp_water['name']}]
+        for obs_id, exp in zip(obs_ids, exp):
+            obs = db.read_target_gene_plate(obs_id)
+            self.assertTrue(before <= obs.pop('created_on') <= after)
+            self.assertEqual(obs, exp)
+
+    def test_read_target_gene_plate(self):
+        # Success is already tested in "test_prepare_targeted_libraries"
+        with self.assertRaises(ValueError) as ctx:
+            db.read_target_gene_plate(0)
+        self.assertEqual(ctx.exception.message,
+                         "Target Gene plate 0 does not exist")
+
+    def test_delete_target_gene_plate(self):
+        # Success is already tested in "test_prepare_targeted_libraries"
+        with self.assertRaises(ValueError) as ctx:
+            db.delete_target_gene_plate(0)
+        self.assertEqual(ctx.exception.message,
+                         "Target Gene plate 0 does not exist")
 
 if __name__ == "__main__":
     main()
