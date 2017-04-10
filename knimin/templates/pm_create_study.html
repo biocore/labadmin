@@ -1,0 +1,71 @@
+{% extends logged_in_index.html %}
+{% block head %}
+<script type="text/javascript">
+  $(document).ready(function() {
+    $(".search-select").select2();
+  });
+</script>
+{% end %}
+{% block content %}
+<h3>Create new project</h3>
+<h4>* All entries are required</h4>
+<form action"/pm_create_study/" method="post">
+  <div class="container">
+    <div class="row">
+      <div class="col-xs-6 form-group">
+        <label>Your Qiita user:</label>
+        <input class="form-control" type="email" name="qiita-user" required/>
+      </div>
+      <div class="col-xs-6 form-group">
+        <label>Your Jira user:</label>
+        <input class="form-control" type="text" name="jira-user" required/>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-xs-12 form-group">
+        <label>Study title:</label>
+        <input class="form-control" type="text" name="study-title" required/>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-xs-6 form-group">
+        <label>Study alias:</label>
+        <input class="form-control" type="text" name="study-alias" required/>
+      </div>
+      <div class="col-xs-6 form-group">
+        <label>Study description:</label>
+        <input class="form-control" type="text" name="study-description" required/>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-xs-12 form-group">
+        <label>Study abstract:</label>
+        <textarea class="form-control" type="text" name="study-abstract" style="resize: vertical;" required></textarea>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-xs-6 form-group">
+        <label>Qiita Principal Investigator:</label>
+        <select name="qiita-pi" class="form-control search-select" required>
+          {% for qp in qiita_persons %}
+            <option value='{{ qp['json'] }}'>{{qp['name']}} ({{qp['affiliation']}})</option>
+          {% end %}
+        </select>
+      </div>
+      <div class="col-xs-6 form-group">
+        <label>Qiita Lab Person:</label>
+        <select name="qiita-lp" class="form-control search-select" required>
+          {% for qp in qiita_persons %}
+            <option value='{{ qp['json'] }}'>{{qp['name']}} ({{qp['affiliation']}})</option>
+          {% end %}
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-xs-12 form-group">
+        <button type="submit" class="btn btn-primary">Create</button>
+      </div>
+    </div>
+  </div>
+</form>
+{% end %}

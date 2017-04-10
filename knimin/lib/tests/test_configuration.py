@@ -54,6 +54,13 @@ class ConfigurationTests(TestCase):
         self.assertEqual(config.jira_password, 'admin')
         self.assertEqual(config.jira_passkey, 'mykey')
 
+    def test_get_qiita(self):
+        config = KniminConfig(self.config_fp)
+        self.assertEqual(config.qiita_host, 'https://127.0.0.1:21174')
+        self.assertEqual(config.qiita_client_id, 'CLIENTID')
+        self.assertEqual(config.qiita_client_secret, 'CLIENTSECRET')
+        self.assertEqual(config.qiita_server_cert, '/some/path/to/server.crt')
+
 
 test_config = """[main]
 debug = True
@@ -83,6 +90,12 @@ HOST = http://127.0.0.1:2990/jira
 USERNAME = admin
 PASSWORD = admin
 PASSKEY = mykey
+
+[qiita]
+HOST = https://127.0.0.1:21174
+CLIENT_ID = CLIENTID
+CLIENT_SECRET = CLIENTSECRET
+SERVER_CERT = /some/path/to/server.crt
 """
 
 
