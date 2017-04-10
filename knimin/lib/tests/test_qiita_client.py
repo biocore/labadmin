@@ -58,7 +58,7 @@ class QiitaClientTests(TestCase):
                                                u'knight lab']}}
         status_code, data = self.tester.post('/api/v1/study', data=payload,
                                              as_json=True)
-        # self.assertEqual(status_code, 403)
+        self.assertEqual(status_code, 403)
         self.assertEqual(data, {'message': 'Unknown user'})
 
     def test_patch(self):
