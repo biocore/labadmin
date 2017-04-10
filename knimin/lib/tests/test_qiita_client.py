@@ -70,5 +70,6 @@ class QiitaClientTests(TestCase):
         self.assertEqual(status_code, 404)
         self.assertEqual(data, exp)
 
+
 if __name__ == '__main__':
     main()
