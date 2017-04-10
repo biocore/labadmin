@@ -62,6 +62,8 @@ class QiitaClient(object):
         self._client_secret = client_secret
         self._authenticate_url = "%s/qiita_db/authenticate/" % self._server_url
 
+        self._session = requests.Session()
+
         # Fetch the access token
         self._fetch_token()
 
@@ -76,8 +78,8 @@ class QiitaClient(object):
         data = {'client_id': self._client_id,
                 'client_secret': self._client_secret,
                 'grant_type': 'client'}
-        r = requests.post(self._authenticate_url, verify=self._verify,
-                          data=data)
+        r = self._session.post(self._authenticate_url, verify=self._verify,
+                               data=data)
         if r.status_code != 200:
             raise ValueError("Can't authenticate with the Qiita server")
         self._token = r.json()['access_token']
@@ -144,7 +146,7 @@ class QiitaClient(object):
         int, dict
             The status code and the JSON response from the server
         """
-        return self._request_oauth2(requests.get, url, **kwargs)
+        return self._request_oauth2(self._session.get, url, **kwargs)
 
     def post(self, url, **kwargs):
         """Execute a post request against the Qiita server
@@ -161,7 +163,7 @@ class QiitaClient(object):
         int, dict
             The status code and the JSON response from the server
         """
-        return self._request_oauth2(requests.post, url, **kwargs)
+        return self._request_oauth2(self._session.post, url, **kwargs)
 
     def patch(self, url, **kwargs):
         """Executes a patch request against the Qiita server
@@ -178,4 +180,4 @@ class QiitaClient(object):
         int, dict
             The status code and the JSON response from the server
         """
-        return self._request_oauth2(requests.patch, url, **kwargs)
+        return self._request_oauth2(self._session.patch, url, **kwargs)
