@@ -27,6 +27,18 @@ class TestPMCreatePlateHandler(TestHandlerBase):
         self.assertIn('<h3>Create new project</h3>', response.body)
         self.assertIn('LabDude (knight lab)</option>', response.body)
 
+    def test_post_not_authed(self):
+        data = {'qiita-user': 'demo@microbio.me',
+                'jira-user': 'admin',
+                'study-title': 'LabAdmin test project',
+                'study-description': 'Description',
+                'study-abstract': 'Abstract',
+                'study-alias': 'Alias',
+                'qiita-pi': '{"affiliation": "Wash U", "name": "PIDude"}',
+                'qiita-lp': '{"affiliation": "Wash U", "name": "PIDude"}'}
+        response = self.post('/pm_create_study/', data=data)
+        self.assertEqual(response.code, 403)
+
     def test_post(self):
         self.mock_login_admin()
         data = {'qiita-user': 'demo@microbio.me',
@@ -51,6 +63,9 @@ class TestPMCreatePlateHandler(TestHandlerBase):
         exp = ('<h3>Study "LabAdmin test project" successfully created with '
                'ID %s</h3>' % study_id)
         self.assertIn(exp, response.body)
+
+        response = self.post('/pm_create_study/', data=data)
+        self.assertEqual(response.code, 500)
 
 
 if __name__ == '__main__':

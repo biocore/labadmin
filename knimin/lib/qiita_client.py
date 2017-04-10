@@ -42,8 +42,7 @@ class QiitaClient(object):
 
         # The attribute self._verify is used to provide the parameter `verify`
         # to the get/post requests. According to their documentation (link:
-        # http://docs.python-requests.org/en/latest/user/
-        # advanced/#ssl-cert-verification ) verify can be a boolean indicating
+        # https://goo.gl/ZNsmk2 ) verify can be a boolean indicating
         # if certificate verification should be performed or not, or a
         # string with the path to the certificate file that needs to be used
         # to verify the identity of the server.
@@ -114,23 +113,19 @@ class QiitaClient(object):
 
         r = req(url, verify=self._verify, **kwargs)
         r.close()
-        if r.status_code == 400:
-            try:
-                r_json = r.json()
-            except ValueError:
-                r_json = None
 
+        try:
+            r_json = r.json()
+        except Exception:
+            r_json = None
+
+        if r.status_code == 400:
             if r_json and r_json.get('error_description') == \
                     'Oauth2 error: token has timed out':
                 # The token expired - get a new one and re-try the request
                 self._fetch_token()
                 kwargs['headers']['Authorization'] = 'Bearer %s' % self._token
                 r = req(url, verify=self._verify, **kwargs)
-
-        try:
-            r_json = r.json()
-        except Exception:
-            r_json = None
 
         return r.status_code, r_json
 
