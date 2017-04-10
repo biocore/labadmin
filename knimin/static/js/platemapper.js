@@ -81,6 +81,7 @@ PlateMap.prototype.initialize = function (data) {
     this.rows = data.plate_type.rows;
     this.cols = data.plate_type.cols;
     this.studies = data.studies;
+    this.technicalReplicates = [];
 
     // Construct a dictionary keyed by sample, for easy access to the sample
     // information
@@ -93,13 +94,15 @@ PlateMap.prototype.initialize = function (data) {
       color = PlateMap._qiimeColors[idx];
       // Iterate over all samples
       for (var sample of study.samples.all) {
-        this.samples[sample] = {color: color, plates: []};
+        this.samples[sample] = {color: color, plates: [], wells: [], sampleId: sample};
         this.autoCompleteSamples.push({label: sample, category: study.title, color: color});
       }
       // Iterate over all plates to get the already plated samples
       for (var plate in study.samples.plated) {
         if (study.samples.plated.hasOwnProperty(plate)) {
-          this.samples[sample].plates.push(plate);
+          for (var sample of study.samples.plated[plate]) {
+            this.samples[sample].plates.push(plate);
+          }
         }
       }
     }
@@ -113,8 +116,39 @@ PlateMap.prototype.initialize = function (data) {
       }
     }
 
+    // Create the GUI
     this._drawPlate();
+
+    // If this plate was already partially full, populate the interface with
+    // the information received
+    if (data.layout.length > 0) {
+      this._populatePlate(data.layout);
+    }
 };
+
+/**
+ *
+ * Populates the GUI with the plate information
+ *
+ * @param {Array} layout The plate information
+ **/
+PlateMap.prototype._populatePlate = function (layout) {
+  var well, sample;
+  for (var i = 0; i < this.rows; i++) {
+    for (var j = 0; j < this.cols; j++) {
+      well = layout[i][j];
+      this.updateWellComment(i, j, well.notes);
+      sample = "";
+      if (well.sample_id) {
+        sample = well.sample_id;
+      } else if (well.name) {
+        sample = well.name;
+      }
+      this.wellInformation[i][j].inputTag.val(sample);
+      this.wellInformation[i][j].inputTag.trigger('change');
+    }
+  }
+}
 
 /**
  *
@@ -269,6 +303,78 @@ PlateMap.prototype.keypressWell = function (current, e) {
 
 /**
  *
+ * Updates the GUI to show the technical replicates
+ *
+ * @param {Object} sampleInfo The sample information object
+ *
+ **/
+PlateMap.prototype._updateTechnicalReplicate = function (sampleInfo) {
+  if (sampleInfo.wells.length > 1) {
+    // Update the list of technical replicates
+    if ($.inArray(sampleInfo, this.technicalReplicates) == -1) {
+      this.technicalReplicates.push(sampleInfo);
+    }
+    // Mark all wells as technical
+    for (var well of sampleInfo.wells) {
+      // Well is an array of two ints, in which well[0] -> row and well[1] -> col
+      this.wellInformation[well[0]][well[1]].inputTag.addClass('pm-technical-replicate');
+    }
+  } else {
+    // Using a for loop to avoid to special case - If the wells list is
+    // empty, this for loop will not execute anything. If there is one element
+    // it will correctly remove the mark for techincal replicates
+    for (var well of sampleInfo.wells) {
+      this.wellInformation[well[0]][well[1]].inputTag.removeClass('pm-technical-replicate');
+    }
+    // Remove from the techincal replicates list
+    this.technicalReplicates = $.grep(this.technicalReplicates, function(value) {
+      return value != sampleInfo;
+    });
+  }
+}
+
+/**
+ *
+ * Updates the GUI to show the error list
+ *
+ **/
+PlateMap.prototype.updateErrorList = function () {
+  var well, message, $li;
+  // Empty the current list
+  $("#pm-error-list").html("");
+
+  // First look for any warning/error in a per well basis
+  for (var i = 0; i < this.rows; i++) {
+    for (var j = 0; j < this.cols; j++) {
+      well = this.wellInformation[i][j];
+      if (well.inputTag.hasClass('pm-wrong-sample')) {
+        // Add an error to the list
+        message = 'Well ' + this._formatWellId(i, j) + ': Sample "' + well.inputTag.val().trim() + '" not found in any study';
+        $('<li>').addClass('list-group-item').addClass('list-group-item-danger').html(message).appendTo('#pm-error-list');
+      } else if (well.inputTag.hasClass('pm-sample-plated')) {
+        // Add a warning to the list
+        sample = well.inputTag.val().trim();
+        message = 'Well ' + this._formatWellId(i, j) + ': Sample "' + sample + '" previously plated in plate(s): ';
+        $li = $('<li>').addClass('list-group-item').addClass('list-group-item-warning').html(message).appendTo('#pm-error-list');
+        // Add a link for each plate that the sample is already plated
+        for (var plate of this.samples[sample].plates) {
+          $('<a>').attr('href', '/pm_plate_map?plate_id=' + plate).attr('target', '_blank').text(plate + ' ').appendTo($li);
+        }
+      }
+    }
+  }
+
+  for (var sampleInfo of this.technicalReplicates) {
+    message = 'Sample "' + sampleInfo.sampleId + '" plated multiple times on wells: ';
+    for (var well of sampleInfo.wells) {
+      message += this._formatWellId(well[0], well[1]) + ' ';
+    }
+    $('<li>').addClass('list-group-item').addClass('list-group-item-info').html(message).appendTo('#pm-error-list');
+  }
+};
+
+/**
+ *
  * Change event handler on the well input
  *
  * @param {Element} current The <input> element where the event has been trigered
@@ -276,29 +382,59 @@ PlateMap.prototype.keypressWell = function (current, e) {
  *
  **/
 PlateMap.prototype.changeWell = function (current, e) {
-  var sample, sampleInfo, row, col;
+  var sample, sampleInfo, prevSampleInfo, wellId;
   sample = $(current).val().trim();
 
   sampleInfo = this.samples[sample];
 
   // Clean any extra style that we added
-  $(current).removeClass('pm-sample_plated');
+  $(current).removeClass('pm-sample-plated').removeClass('pm-wrong-sample').removeClass('pm-technical-replicate');
 
-  if (sampleInfo === undefined) {
-    // This sample is not recognized - mark the well as problematic
-    $(current).css({'background-color': 'red'});
-  } else {
-    // This sample belongs to a study - label the background with the
-    // same color as the study
-    $(current).css({'background-color': sampleInfo.color});
-    // Check if it has been plated before
-    if (sampleInfo.plates.length > 0) {
-      $(current).addClass('pm-sample-plated');
-    }
+  // Check if there was a sample plated here, so we can update technical
+  // duplicate information
+  prevSampleInfo = this.samples[$(current).data('pm-sample')];
+  // Store the well Id as a list with 2 elements: the row # and the col #
+  // This will simplify updating the interface
+  wellId = [parseInt($(current).attr('pm-well-row')),
+            parseInt($(current).attr('pm-well-column'))];
+  if (prevSampleInfo !== undefined) {
+    // We had another sample in this well before, update the wells list
+    // of that sample
+    prevSampleInfo.wells = $.grep(prevSampleInfo.wells, function(value) {
+      return (value[0] !== wellId[0]) || (value[1] !== wellId[1]);
+    });
+    this._updateTechnicalReplicate(prevSampleInfo);
   }
 
-  this.updateWellCommentsArea();
-  // TODO: control the proceed to extraction button
+  if (sample.length > 0) {
+    if (sampleInfo === undefined) {
+      // This sample is not recognized - mark the well as problematic
+      $(current).css({'background-color': 'red'}).addClass('pm-wrong-sample');
+    } else {
+      // This sample belongs to a study - label the background with the
+      // same color as the study
+      $(current).css({'background-color': sampleInfo.color});
+
+      // Add the current well to the sample information
+      $(current).data('pm-sample', sample);
+      sampleInfo.wells.push(wellId);
+      // Check for technical duplicates
+      this._updateTechnicalReplicate(sampleInfo);
+
+      // Check if it has been plated before
+      if (sampleInfo.plates.length > 0) {
+        $(current).addClass('pm-sample-plated');
+      }
+    }
+  } else {
+    $(current).css({'background-color': 'rgba(0,0,0,0)'});
+  }
+
+  // Control the proceed to extraction button
+  $('#extract-btn').prop('disabled', $('.pm-wrong-sample').length > 0);
+
+  // Update the plate errors/warnings text area
+  this.updateErrorList();
 }
 
 /**
@@ -323,17 +459,22 @@ PlateMap.prototype.commentModalShow = function () {
 
 /**
  *
- * Click event handler on the save button form the comment modal
+ * Updates the comment of a well and handles all the GUI changes
+ *
+ * @param {int} row The row of the well
+ * @param {int} col The col of the well
+ * @param {string} comment The comment to attach to the well
  *
  **/
-PlateMap.prototype.commentModalSave = function () {
-  var row = parseInt($('#comment-modal-btn').attr('pm-row'));
-  var col = parseInt($('#comment-modal-btn').attr('pm-col'));
+PlateMap.prototype.updateWellComment = function (row, col, comment) {
   var wellInfo = this.wellInformation[row][col];
-  wellInfo.comment = $('#well-comment-textarea').val();
-  wellInfo.inputTag.addClass('pm-well-commented');
+  wellInfo.comment = comment;
+  if (comment) {
+    wellInfo.inputTag.addClass('pm-well-commented');
+  } else {
+    wellInfo.inputTag.removeClass('pm-well-commented');
+  }
   this.updateWellCommentsArea();
-  $('#wellCommentModal').modal('hide');
 }
 
 
@@ -369,6 +510,7 @@ PlateMap.prototype.constructWell = function(row, column) {
   $i.addClass('form-control').addClass('autocomplete').addClass('pm-well');
   $i.attr('placeholder', 'Type sample').attr('pm-well-row', row).attr('pm-well-column', column).attr('type', 'text');
   $i.appendTo($d);
+  $i.data('pm-sample', null);
   // Store the input in the array for easy access when navigating on the
   // plate map
   this.wellInformation[row][column].inputTag = $i;
@@ -397,7 +539,7 @@ PlateMap.prototype._drawPlate = function() {
   $('<span>').attr('id', 'save-btn-icon').addClass('glyphicon glyphicon-save').prependTo($btn);
   this.target.append(' ');
   // Proceed to extraction button
-  $btn = $('<button>').addClass('btn btn-success').appendTo(this.target).append(' Extract');
+  $btn = $('<button>').addClass('btn btn-success').attr('id', 'extract-btn').appendTo(this.target).append(' Extract');
   $('<span>').addClass('glyphicon glyphicon-share').prependTo($btn);
   $btn.click(function (e) {
     that.extractPlate();
@@ -414,7 +556,7 @@ PlateMap.prototype._drawPlate = function() {
   $btn.appendTo($span);
   this.target.append(' ');
   // Add the help button
-  $btn = $('<button>').addClass('btn btn-info').appendTo(this.target).append(' help');
+  $btn = $('<button>').addClass('btn btn-info').appendTo(this.target).append(' Help');
   $btn.attr('data-toggle', 'modal').attr('data-target', '#myHelpModal');
   $('<span>').addClass('glyphicon glyphicon-info-sign').prependTo($btn);
 
@@ -478,6 +620,9 @@ PlateMap.prototype._drawPlate = function() {
   $('<b>Per well comments: </b></br>').appendTo(this.target);
   $('<textarea cols="200" id="well-comments-area" readonly></textarea></br>').appendTo(this.target);
 
+  // Add the plate warnings/error summary
+  $('<b>Plate errors and warnings: </b></br>').appendTo(this.target);
+  $('<ul class="list-group" id="pm-error-list">').appendTo(this.target);
 
   // Add the comments modal - Note that this modal gets added to the body
   // This is to avoid some undesired behavior with modals, in which they
@@ -515,7 +660,11 @@ PlateMap.prototype._drawPlate = function() {
 
   // Attach a handler to the save button
   $('#save-cmt-btn').click(function(e) {
-    that.commentModalSave();
+    var row = parseInt($('#comment-modal-btn').attr('pm-row'));
+    var col = parseInt($('#comment-modal-btn').attr('pm-col'));
+    var cmt = $('#well-comment-textarea').val();
+    that.updateWellComment(row, col, cmt);
+    $('#wellCommentModal').modal('hide');
   });
 
   // Attach a handler to the keyup event of the well comment text area

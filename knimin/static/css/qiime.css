@@ -394,3 +394,8 @@ ul.mainmenu li a:hover {
 .pm-warning {
 	background-color: rgba(250,235,215,1);
 }
+
+.pm-technical-replicate {
+	font-weight: bold;
+	font-style: italic;
+}

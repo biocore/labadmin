@@ -157,7 +157,8 @@ class TestPMSamplePlateHandler(TestHandlerBase):
                 {'alias': 'LTP', 'jira_id': 'KL9999', 'study_id': 9999,
                  'title': 'LabAdmin test project',
                  'samples': {'all': [],
-                             'plated': {}}}]}
+                             'plated': {}}}],
+               'layout': []}
         self.assertEqual(json_decode(response.body), exp)
 
         # Add some samples to the study
@@ -181,6 +182,13 @@ class TestPMSamplePlateHandler(TestHandlerBase):
         response = self.get('/pm_sample_plate?plate_id=%s' % plate_id)
         self.assertEqual(response.code, 200)
         exp['studies'][0]['samples']['plated'][str(plate_id_2)] = [samples[0]]
+        self.assertEqual(json_decode(response.body), exp)
+
+        # Plate some samples in the current plate
+        db.write_sample_plate_layout(plate_id, layout)
+        response = self.get('/pm_sample_plate?plate_id=%s' % plate_id)
+        self.assertEqual(response.code, 200)
+        exp['layout'] = layout
         self.assertEqual(json_decode(response.body), exp)
 
         # Check response when plate doesn't exist

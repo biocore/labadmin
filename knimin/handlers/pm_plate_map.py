@@ -107,12 +107,17 @@ class PMSamplePlateHandler(BaseHandler):
             study['samples'] = {}
             study['samples']['all'] = db.get_study_samples(s_id)
             study['samples']['plated'] = db.get_study_plated_samples(s_id)
+            # Remove the entry for the current plate if it exists
+            # Note: casting to long because the keys in the dictionary are
+            # longs, so we need the cast to safely remove the entry
+            study['samples']['plated'].pop(long(plate_id), None)
             studies.append(study)
 
         plate_info['studies'] = studies
 
         plate_info['plate_id'] = plate_id
         plate_info['created_on'] = plate_info['created_on'].isoformat(sep=' ')
+        plate_info['layout'] = db.read_sample_plate_layout(plate_id)
 
         self.write(plate_info)
         self.finish()
