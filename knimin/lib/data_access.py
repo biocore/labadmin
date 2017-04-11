@@ -3654,6 +3654,28 @@ class KniminAccess(object):
                 raise ValueError("Target Gene plate %s does not exist"
                                  % plate_id)
 
+    def get_targeted_plate_list(self):
+        """Gets the list of all targeted plates
+
+        Returns
+        -------
+        list of dict
+            {id : int, name : str, date : datetime}
+            Plate id, plate name and date
+        """
+        with TRN:
+            sql = """SELECT targeted_plate_id as id,
+                            p.name as name,
+                            p.created_on::date as date,
+                            COUNT(sample_id) as num_samples
+                     FROM pm.targeted_plate p
+                        JOIN pm.dna_plate d USING (dna_plate_id)
+                        JOIN pm.sample_plate_layout l USING (sample_plate_id)
+                     GROUP BY id, p.name, p.created_on
+                     ORDER BY date DESC"""
+            TRN.add(sql)
+            return [dict(row) for row in TRN.execute_fetchindex()]
+
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""
         self._con.execute('DELETE FROM %s.%s' % (schema, table))
