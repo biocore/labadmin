@@ -1171,6 +1171,129 @@ class TestDataAccess(TestCase):
             db.delete_dna_plate(0)
         self.assertEqual(ctx.exception.message, "DNA plate 0 does not exist")
 
+    def test_get_dna_plate_list(self):
+        self.assertEqual(db.get_dna_plate_list(), [])
+
+        # Create a study
+        db.create_study(9999, title='LabAdmin test project', alias='LTP',
+                        jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+        # Create a sample plate
+        pt = db.get_plate_types()[0]
+        plate_id = db.create_sample_plate('Test plate', pt['id'],
+                                          'test', [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id))
+
+        # Create a dna plate
+        exp_robot = db.get_property_options("extraction_robot")[0]
+        exp_kit = db.get_property_options("extraction_kit_lot")[0]
+        exp_tool = db.get_property_options("extraction_tool")[0]
+        obs = db.extract_sample_plates(
+            [plate_id], 'test', exp_robot['name'], exp_kit['name'],
+            exp_tool['name'])
+        self._clean_up_funcs.insert(0, partial(db.delete_dna_plate, obs[0]))
+
+        exp = [{'id': obs[0], 'name': 'Test plate',
+                'date': datetime.date.today()}]
+        self.assertEqual(db.get_dna_plate_list(), exp)
+
+    def test_get_targeted_primer_plates(self):
+        exp = [{'id': 1, 'name': 'Primer plate 1', 'notes': None,
+                'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
+                'target_gene': '16S', 'target_subfragment': 'V4'},
+               {'id': 2, 'name': 'Primer plate 2', 'notes': None,
+                'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
+                'target_gene': '16S', 'target_subfragment': 'V4'},
+               {'id': 3, 'name': 'Primer plate 3', 'notes': None,
+                'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
+                'target_gene': '16S', 'target_subfragment': 'V4'},
+               {'id': 4, 'name': 'Primer plate 4', 'notes': None,
+                'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
+                'target_gene': '16S', 'target_subfragment': 'V4'},
+               {'id': 5, 'name': 'Primer plate 5', 'notes': None,
+                'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
+                'target_gene': '16S', 'target_subfragment': 'V4'},
+               {'id': 6, 'name': 'Primer plate 6', 'notes': None,
+                'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
+                'target_gene': '16S', 'target_subfragment': 'V4'},
+               {'id': 7, 'name': 'Primer plate 7', 'notes': None,
+                'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
+                'target_gene': '16S', 'target_subfragment': 'V4'},
+               {'id': 8, 'name': 'Primer plate 8', 'notes': None,
+                'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
+                'target_gene': '16S', 'target_subfragment': 'V4'}]
+        self.assertEqual(db.get_targeted_primer_plates(), exp)
+
+    def test_prepare_targeted_libraries(self):
+        # Create a study
+        db.create_study(9999, title='LabAdmin test project', alias='LTP',
+                        jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+
+        # Create some sample plates
+        pt = db.get_plate_types()[0]
+        plate_id = db.create_sample_plate('Test plate', pt['id'], 'test',
+                                          [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id))
+        plate_id_2 = db.create_sample_plate('Test plate 2', pt['id'], 'test',
+                                            [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id_2))
+
+        # Create DNA plates
+        dna_plate_ids = db.extract_sample_plates(
+            [plate_id, plate_id_2], 'test', 'HOWE_KF1', 'PM16B11', '108379Z')
+        for p_id in dna_plate_ids:
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_dna_plate, p_id))
+
+        # Create the target gene plates
+        plate_links = [
+            {'dna_plate_id': dna_plate_ids[0], 'primer_plate_id': 1},
+            {'dna_plate_id': dna_plate_ids[1], 'primer_plate_id': 2}]
+        before = datetime.datetime.now()
+        obs_ids = db.prepare_targeted_libraries(
+            plate_links, 'test', 'ROBE', '208484Z', '108364Z', '14459',
+            'RNBD9959')
+        after = datetime.datetime.now()
+
+        for o_id in obs_ids:
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_targeted_plate, o_id))
+
+        self.assertEqual(len(obs_ids), 2)
+        exp = [
+            {'id': obs_ids[0], 'name': 'Test plate', 'email': 'test',
+             'dna_plate_id': dna_plate_ids[0], 'primer_plate_id': 1,
+             'master_mix_lot': '14459', 'robot': 'ROBE',
+             'tm300_8_tool': '208484Z', 'tm50_8_tool': '108364Z',
+             'water_lot': 'RNBD9959'},
+            {'id': obs_ids[1], 'name': 'Test plate 2', 'email': 'test',
+             'dna_plate_id': dna_plate_ids[1], 'primer_plate_id': 2,
+             'master_mix_lot': '14459', 'robot': 'ROBE',
+             'tm300_8_tool': '208484Z', 'tm50_8_tool': '108364Z',
+             'water_lot': 'RNBD9959'}]
+        for obs_id, exp in zip(obs_ids, exp):
+            obs = db.read_targeted_plate(obs_id)
+            self.assertTrue(before <= obs.pop('created_on') <= after)
+            self.assertEqual(obs, exp)
+
+    def test_read_targeted_plate(self):
+        # Success is already tested in "test_prepare_targeted_libraries"
+        with self.assertRaises(ValueError) as ctx:
+            db.read_targeted_plate(0)
+        self.assertEqual(ctx.exception.message,
+                         "Target Gene plate 0 does not exist")
+
+    def test_delete_targeted_plate(self):
+        # Success is already tested in "test_prepare_targeted_libraries"
+        with self.assertRaises(ValueError) as ctx:
+            db.delete_targeted_plate(0)
+        self.assertEqual(ctx.exception.message,
+                         "Target Gene plate 0 does not exist")
+
 
 if __name__ == "__main__":
     main()

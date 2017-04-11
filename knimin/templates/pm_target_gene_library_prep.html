@@ -1,0 +1,279 @@
+{% extends logged_in_index.html %}
+{% block head %}
+{% from json import dumps %}
+<script type="text/javascript">
+
+  /**
+   *
+   * Submit the information
+   **/
+  function processDNAPlates() {
+    var plates = new Array();
+    var success = true;
+    $.each($('.entry'), function (idx, entry) {
+      var dnaId = $(entry).find('.dna-plate:first').val();
+      var primerId = $(entry).find('.primer-plate:first').val();
+
+      $(entry).removeClass('has-error').find('.glyphicon-warning-sign:first').hide();
+
+      if (dnaId === "-1" && primerId === "-1") {
+        // If none of the DNA plate and the barcode plate are selected
+        // simply ignore this row
+      } else if (dnaId === "-1") {
+        // Mark the DNA plate with an error
+        success = false;
+        $(entry).addClass('has-error').find('.glyphicon-warning-sign:first').show();
+      } else if (primerId === "-1") {
+        // Mark the barcode plate with an error
+        success = false;
+        $(entry).addClass('has-error').find('.glyphicon-warning-sign:first').show();
+      } else {
+        plates.push({'dna_plate_id': dnaId, 'primer_plate_id': primerId});
+      }
+    });
+
+    if (plates.length === 0) {
+      success = false;
+      $('.entry').addClass('has-error').find('.glyphicon-warning-sign:first').show();
+    }
+
+    var robot = $('#robot-select').val();
+    var tm300 = $('#tm300-select').val();
+    var tm50 = $('#tm50-select').val();
+    var masterMix = $('#master-mix-input').val().trim();
+    var water = $('#water-input').val().trim();
+
+    if (robot === null) {
+      $('#robot-select').parents(':first').addClass('has-error');
+      success = false;
+    }
+
+    if (tm300 === null) {
+      $('#tm300-select').parents(':first').addClass('has-error');
+      success = false;
+    }
+    if (tm50 === null) {
+      $('#tm50-select').parents(':first').addClass('has-error');
+      success = false;
+    }
+    if (masterMix.length === 0) {
+      $('#master-mix-input').parents(':first').addClass('has-error');
+      success = false;
+    }
+    if (water.length === 0) {
+      $('#water-input').parents(':first').addClass('has-error');
+      success = false;
+    }
+
+    if (success) {
+      var form = $('<form>', {action: '/pm_library_prep/target_gene/', method: 'post'});
+      var fields = {'plates': JSON.stringify(plates), 'robot': robot, 'tm300': tm300,
+                    'tm50': tm50, 'master_mix': masterMix, 'water': water};
+      $.each(fields, function(key, val) {
+        $('<input>').attr({type: "hidden", name: key, value: val}).appendTo(form);
+      });
+      form.appendTo('body').submit();
+    }
+  }
+
+  /**
+   *
+   * Checks if the current value of the element exists in the given array
+   * and updated its style accordingly
+   *
+   * @param {Element} elem The input DOM element
+   * @param {Array} existing The array of existing elements
+   *
+   **/
+  function formatInput(elem, existing) {
+    var val = $(elem).val().trim();
+    $(elem).removeClass('pm-warning');
+    if (val.length > 0 && $.inArray(val, existing) === -1) {
+      $(elem).addClass('pm-warning');
+    }
+  };
+
+  /**
+   *
+   * Adds the list of plates to the given select element
+   *
+   * @param {Element} elem The select DOM element
+   *
+   **/
+  function addDNAPlateOptions(elem) {
+    var plates = {% raw dumps(dna_plates) %};
+    $.each(plates, function (idx, plate) {
+      var display = "(ID: " + plate.id + ") " + plate.name + " - " + plate.date;
+      $('<option>').attr('value', plate.id).text(display).appendTo(elem);
+    });
+  };
+
+  /**
+   *
+   * Add the list of barcode plates to the given select element
+   *
+   * @param {Element} elem The select DOM element
+   *
+   **/
+  function addBarcodePlateOptions(elem) {
+    var plates = {% raw dumps(primer_plates) %};
+    $.each(plates, function (idx, plate) {
+      var display = plate.name + " - " + plate.target_gene + ' ' + plate.target_subfragment;
+      $('<option>').attr('value', plate.id).text(display).appendTo(elem);
+    });
+  };
+
+  $(document).ready(function() {
+    var masterMixLots = {% raw dumps([v['name'] for v in mastermixlots]) %};
+    var waterLots = {% raw dumps([v['name'] for v in waterlots]) %};
+
+    // Initialize the master mix lot autocompletion
+    $(".autocomplete-master-mix").autocomplete({source: masterMixLots,
+                                                select: function (e, ui){
+                                                  formatInput(this, masterMixLots)
+                                              }});
+    $(".autocomplete-master-mix").keyup(function(e) {
+      formatInput(this, masterMixLots);
+    });
+
+    // Initialize the water lot autocompletion
+    $(".autocomplete-water").autocomplete({source: waterLots,
+                                           select: function (e, ui){
+                                             formatInput(this, waterLots)
+                                           }});
+    $(".autocomplete-water").keyup(function(e) {
+      formatInput(this, waterLots);
+    });
+
+    addDNAPlateOptions($('#init-plate-select'));
+    addBarcodePlateOptions($('#init-primer-select'));
+    $('.plate-select').select2();
+    $('.glyphicon-warning-sign').hide();
+
+    // Dynamically add/remove plate list
+    $(document).on('click', '.btn-add', function(e) {
+      e.preventDefault();
+
+      var controlForm = $('.tag-controls');
+      var currentEntry = $(this).parents('.entry:first');
+      var newEntry = $('<div class="entry row">' +
+                         '<div class="col-xs-5 form-group">' +
+                           '<select class="form-control plate-select dna-plate">' +
+                             '<option selected value="-1">Choose a dna plate</option>' +
+                           '</select>' +
+                         '</div>' +
+                         '<div class="col-xs-5 form-group">' +
+                           '<select class="form-control plate-select primer-plate">' +
+                             '<option selected value="-1">Choose a primer plate</option>' +
+                           '</select>' +
+                         '</div>' +
+                         '<div class="col-xs-1 form-group">' +
+                           '<button class="btn btn-success btn-add form-control" type="button"><span class="glyphicon glyphicon-plus"></span></button>' +
+                         '</div>' +
+                         '<div class="col-xs-1 form-group">' +
+                           '<span class="form-control glyphicon glyphicon-warning-sign text-center alert-danger"></span>' +
+                         '</div>' +
+                       '</div>');
+
+      addDNAPlateOptions(newEntry.find('.dna-plate:first'));
+      addBarcodePlateOptions(newEntry.find('.primer-plate:first'));
+      newEntry.appendTo(controlForm);
+      $('.plate-select').select2();
+      $('.glyphicon-warning-sign').hide();
+
+      controlForm.find('.entry:not(:last) .btn-add')
+        .removeClass('btn-add').addClass('btn-remove')
+        .removeClass('btn-success').addClass('btn-info')
+        .html($('<span>').addClass('glyphicon glyphicon-minus'));
+    }).on('click', '.btn-remove', function(e) {
+      $(this).parents('.entry:first').remove();
+      e.preventDefault();
+      return false;
+    });
+  });
+</script>
+{% end %}
+{% block content %}
+<h3>Prepare a new Target Gene library</h3>
+
+<div class="container">
+  <!-- Plates header -->
+  <div class="row">
+    <div class="col-xs-5 form-group">
+      <label class="center-block">DNA plate</label>
+    </div>
+    <div class="col-xs-5 form-group">
+      <label class="center-block">Primer plate</label>
+    </div>
+    <div class="col-xs-2 form-group"></div>
+  </div>
+  <!-- 1st row of plates -->
+  <div class="tag-controls">
+    <div class="entry row">
+      <div class="col-xs-5 form-group">
+        <select class="form-control plate-select dna-plate" id='init-plate-select'>
+          <option value='-1' selected>Choose a dna plate...</option>
+        </select>
+      </div>
+      <div class="col-xs-5 form-group">
+        <select class="form-control plate-select primer-plate" id='init-primer-select'>
+          <option value='-1' selected>Choose a primer plate...</option>
+        </select>
+      </div>
+      <div class="col-xs-1 form-group">
+        <button class="btn btn-success btn-add form-control" type="button"><span class="glyphicon glyphicon-plus"></span></button>
+      </div>
+      <div class="col-xs-1 form-group">
+        <span class="form-control glyphicon glyphicon-warning-sign text-center alert-danger"></span>
+      </div>
+    </div>
+  </div>
+  <!-- Robot information -->
+  <div class="row">
+    <div class="col-xs-4 form-group">
+        <label>Processing robot:</label>
+        <select class="form-control" id='robot-select'>
+          <option value='-1' selected disabled>Choose a processing robot...</option>
+          {% for robot in robots %}
+            <option value='{{robot['id']}}'>{{robot['name']}}</option>
+          {% end %}
+        </select>
+    </div>
+    <div class="col-xs-4 form-group">
+        <label>TM300-8 tool:</label>
+        <select class="form-control" id='tm300-select'>
+          <option selected value='-1' selected disabled>Choose a TM300-8 tool...</option>
+          {% for tool in tm300tools %}
+            <option value='{{tool['id']}}'>{{tool['name']}}</option>
+          {% end %}
+        </select>
+    </div>
+    <div class="col-xs-4 form-group">
+        <label>TM50-8 tool:</label>
+        <select class="form-control" id='tm50-select'>
+          <option selected value='-1' selected disabled>Choose a TM50-8 tool...</option>
+          {% for tool in tm50tools %}
+            <option value='{{tool['id']}}'>{{tool['name']}}</option>
+          {% end %}
+        </select>
+    </div>
+  </div>
+  <!-- Water/master mix information -->
+  <div class="row">
+    <div class="col-xs-6 form-group">
+        <label>Master mix lot:</label>
+        <input class="form-control autocomplete-master-mix" placeholder="Type Master mix lot" type="text" id="master-mix-input"/>
+    </div>
+    <div class="col-xs-6 form-group">
+        <label>Water lot:</label>
+        <input class="form-control autocomplete-water" placeholder="Type water lot" type="text" id="water-input"/>
+    </div>
+  </div>
+  <!-- Submit button -->
+  <div class="row">
+    <div class="col-xs-12 form-group">
+      <button class="btn btn-primary" onclick="processDNAPlates()">Process</button>
+    </div>
+  </div>
+</div>
+{% end %}
