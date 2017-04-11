@@ -3654,6 +3654,152 @@ class KniminAccess(object):
                 raise ValueError("Target Gene plate %s does not exist"
                                  % plate_id)
 
+    def get_targeted_plate_list(self):
+        """Gets the list of all targeted plates
+
+        Returns
+        -------
+        list of dict
+            {id : int, name : str, date : datetime}
+            Plate id, plate name and date
+        """
+        with TRN:
+            sql = """SELECT targeted_plate_id as id,
+                            p.name as name,
+                            p.created_on::date as date,
+                            COUNT(sample_id) as num_samples
+                     FROM pm.targeted_plate p
+                        JOIN pm.dna_plate d USING (dna_plate_id)
+                        JOIN pm.sample_plate_layout l USING (sample_plate_id)
+                     GROUP BY id, p.name, p.created_on
+                     ORDER BY date DESC"""
+            TRN.add(sql)
+            return [dict(row) for row in TRN.execute_fetchindex()]
+
+    def pool_plates(self, pools, name, volume):
+        """Stores the pooling information
+
+        Parameters
+        ----------
+        pools : list of dicts
+            A list of {'targeted_plate_id': int, 'volume': float,
+            'percentage': float}
+        name : str
+            The name of the pool
+        volume : float
+            The total volume of the pool
+
+        Returns
+        -------
+        int
+            The run pool id
+
+        Raises
+        ------
+        ValueError
+            If pools is an empty list
+        """
+        if len(pools) == 0:
+            raise ValueError("Provide at least on plate to pool.")
+        with TRN:
+            for p in pools:
+                sql = """INSERT INTO pm.targeted_pool
+                            (name, targeted_plate_id, volume)
+                         VALUES (%s, %s, %s)
+                         RETURNING targeted_pool_id"""
+                sql_args = [
+                    self.read_targeted_plate(p['targeted_plate_id'])['name'],
+                    p['targeted_plate_id'], p['volume']]
+                TRN.add(sql, sql_args)
+                target_pool_id = TRN.execute_fetchlast()
+                p['id'] = target_pool_id
+
+            sql = """INSERT INTO pm.run_pool (name, volume)
+                     VALUES (%s, %s)
+                     RETURNING run_pool_id"""
+            TRN.add(sql, [name, volume])
+            run_pool_id = TRN.execute_fetchlast()
+
+            sql = """INSERT INTO pm.protocol_run_pool
+                        (run_pool_id, targeted_pool_id, percentage)
+                     VALUES (%s, %s, %s)"""
+            sql_args = [[run_pool_id, p['id'], p['percentage']] for p in pools]
+            TRN.add(sql, sql_args, many=True)
+            TRN.execute()
+            return run_pool_id
+
+    def read_pool(self, pool_id):
+        """Returns the information of the pools
+
+        Parameters
+        ----------
+        pool_id : int
+            The id of the pool
+
+        Returns
+        -------
+        dict
+            {'id': int, 'name': str, 'volume': float, 'notes': str,
+             'targeted_pools': [{'id': int, 'name': str, 'volume': float,
+                                 'percentage': float,
+                                 'targeted_plate_id': int}]}
+
+        Raises
+        ------
+        ValueError
+            If the pool with ID `pool_id` does not exist
+        """
+        with TRN:
+            sql = """SELECT run_pool_id as id, name, volume, notes
+                     FROM pm.run_pool
+                     WHERE run_pool_id = %s"""
+            TRN.add(sql, [pool_id])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError("Pool %s does not exist" % pool_id)
+
+            # Magic number 0 -> there is only 1 result row
+            res = dict(res[0])
+            sql = """SELECT targeted_pool_id as id, name, volume, percentage,
+                            targeted_plate_id
+                     FROM pm.targeted_pool
+                        JOIN pm.protocol_run_pool USING (targeted_pool_id)
+                     WHERE run_pool_id = %s
+                     ORDER BY targeted_pool_id"""
+            TRN.add(sql, [pool_id])
+            res['targeted_pools'] = [dict(p) for p in TRN.execute_fetchindex()]
+            return res
+
+    def delete_pool(self, pool_id):
+        """Deletes a pool
+
+        Parameters
+        ----------
+        pool_id : int
+            The id of the pool
+
+        Raises
+        ------
+        ValueError
+            If the pool with ID `pool_id` does not exist
+        """
+        with TRN:
+            sql = """SELECT DISTINCT targeted_pool_id
+                     FROM pm.protocol_run_pool
+                     WHERE run_pool_id = %s"""
+            TRN.add(sql, [pool_id])
+            targeted_pools = TRN.execute_fetchflatten()
+            if not targeted_pools:
+                raise ValueError("Pool %s does not exist" % pool_id)
+
+            sql = "DELETE FROM pm.protocol_run_pool WHERE run_pool_id = %s"
+            TRN.add(sql, [pool_id])
+            sql = "DELETE FROM pm.targeted_pool WHERE targeted_pool_id IN %s"
+            TRN.add(sql, [tuple(targeted_pools)])
+            sql = "DELETE FROM pm.run_pool WHERE run_pool_id = %s"
+            TRN.add(sql, [pool_id])
+            TRN.execute()
+
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""
         self._con.execute('DELETE FROM %s.%s' % (schema, table))
