@@ -11,10 +11,8 @@
     var plates = new Array();
     var success = true;
     $.each($('.entry'), function (idx, entry) {
-      var dnaSel = $(entry).find('.dna-plate:first');
-      var primerSel = $(entry).find('.primer-plate:first');
-      var dnaId = dnaSel.val();
-      var primerId = primerSel.val();
+      var dnaId = $(entry).find('.dna-plate:first').val();
+      var primerId = $(entry).find('.primer-plate:first').val();
 
       $(entry).removeClass('has-error').find('.glyphicon-warning-sign:first').hide();
 
@@ -25,7 +23,7 @@
         // Mark the DNA plate with an error
         success = false;
         $(entry).addClass('has-error').find('.glyphicon-warning-sign:first').show();
-    } else if (primerId === "-1") {
+      } else if (primerId === "-1") {
         // Mark the barcode plate with an error
         success = false;
         $(entry).addClass('has-error').find('.glyphicon-warning-sign:first').show();
