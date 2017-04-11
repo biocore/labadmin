@@ -121,5 +121,6 @@ class TestPMPoolPlatesHandler(TestHandlerBase):
 
         self.assertIsNotNone(db.read_pool(pool_ids[0]))
 
+
 if __name__ == '__main__':
     main()
