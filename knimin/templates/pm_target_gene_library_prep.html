@@ -19,7 +19,7 @@
       $(entry).removeClass('has-error').find('.glyphicon-warning-sign:first').hide();
 
       if (dnaId === "-1" && primerId === "-1") {
-        // If none of the DNA plate and the barcode plate are select
+        // If none of the DNA plate and the barcode plate are selected
         // simply ignore this row
       } else if (dnaId === "-1") {
         // Mark the DNA plate with an error
@@ -36,7 +36,7 @@
 
     if (plates.length === 0) {
       success = false;
-      $('.entry').addClass('has-error').find('.glyphicon-warning-sign:first').show();;
+      $('.entry').addClass('has-error').find('.glyphicon-warning-sign:first').show();
     }
 
     var robot = $('#robot-select').val();
@@ -120,7 +120,7 @@
   function addBarcodePlateOptions(elem) {
     var plates = {% raw dumps(primer_plates) %};
     $.each(plates, function (idx, plate) {
-      var display = plate.name + " - " + plate.target_gene_region;
+      var display = plate.name + " - " + plate.target_gene + ' ' + plate.target_subfragment;
       $('<option>').attr('value', plate.id).text(display).appendTo(elem);
     });
   };

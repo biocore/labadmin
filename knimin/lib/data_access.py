@@ -3509,7 +3509,8 @@ class KniminAccess(object):
         """
         with TRN:
             sql = """SELECT targeted_primer_plate_id AS id, name, notes,
-                            linker_primer_sequence, target_gene_region
+                            linker_primer_sequence, target_gene,
+                            target_subfragment
                      FROM pm.targeted_primer_plate
                      ORDER BY id"""
             TRN.add(sql)
@@ -3517,7 +3518,7 @@ class KniminAccess(object):
 
     def prepare_targeted_libraries(self, plate_links, email, robot, tm300tool,
                                    tm50tool, mastermix_lot, water_lot):
-        """Stores the target gene library prep information
+        """Stores the targeted plate library information
 
         Parameters
         ----------
@@ -3548,7 +3549,7 @@ class KniminAccess(object):
             If plate_links is an empty list
         """
         if not plate_links:
-            raise ValueError("Provide at least on DNA - Primer plate link")
+            raise ValueError("Provide at least one DNA - Primer plate link")
 
         with TRN:
             # Note: We don't need to validate if the given DNA plates ids
@@ -3584,12 +3585,12 @@ class KniminAccess(object):
             return list(chain.from_iterable(chain.from_iterable(res)))
 
     def read_targeted_plate(self, plate_id):
-        """Returns the information of the Target Gene plate
+        """Returns the information of the targeted plate
 
         Parameters
         ----------
         plate_id : int
-            The id of the target gene plate
+            The id of the targeted plate
 
         Returns
         -------
@@ -3602,7 +3603,7 @@ class KniminAccess(object):
         Raises
         ------
         ValueError
-            If the Target Gene plate with ID `plate_id` does not exist
+            If the targeted plate with ID `plate_id` does not exist
         """
         with TRN:
             sql = """SELECT targeted_plate_id as id,
@@ -3630,17 +3631,17 @@ class KniminAccess(object):
             return dict(res[0])
 
     def delete_targeted_plate(self, plate_id):
-        """Deletes a Target Gene plate
+        """Deletes a targeted plate
 
         Parameters
         ----------
         plate_id : int
-            The id of the Target Gene plate
+            The id of the targeted plate
 
         Raises
         ------
         ValueError
-            If the Target Gene plate does not exist
+            If the targeted plate does not exist
         """
         with TRN:
             sql = """DELETE FROM pm.targeted_plate

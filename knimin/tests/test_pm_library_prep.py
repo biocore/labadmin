@@ -58,12 +58,8 @@ class TestPMTargetGeneLibraryPrepHandler(TestHandlerBase):
             0, partial(db.delete_sample_plate, plate_id_2))
 
         # Create DNA plates
-        robot = db.get_property_options("extraction_robot")[0]
-        kit = db.get_property_options("extraction_kit_lot")[0]
-        tool = db.get_property_options("extraction_tool")[0]
         dna_plate_ids = db.extract_sample_plates(
-            [plate_id, plate_id_2], 'test', robot['name'], kit['name'],
-            tool['name'])
+            [plate_id, plate_id_2], 'test', 'HOWE_KF1', 'PM16B11', '108379Z')
         for p_id in dna_plate_ids:
             self._clean_up_funcs.insert(
                 0, partial(db.delete_dna_plate, p_id))

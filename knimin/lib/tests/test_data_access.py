@@ -1201,28 +1201,28 @@ class TestDataAccess(TestCase):
     def test_get_targeted_primer_plates(self):
         exp = [{'id': 1, 'name': 'Primer plate 1', 'notes': None,
                 'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
-                'target_gene_region': '16S V4'},
+                'target_gene': '16S', 'target_subfragment': 'V4'},
                {'id': 2, 'name': 'Primer plate 2', 'notes': None,
                 'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
-                'target_gene_region': '16S V4'},
+                'target_gene': '16S', 'target_subfragment': 'V4'},
                {'id': 3, 'name': 'Primer plate 3', 'notes': None,
                 'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
-                'target_gene_region': '16S V4'},
+                'target_gene': '16S', 'target_subfragment': 'V4'},
                {'id': 4, 'name': 'Primer plate 4', 'notes': None,
                 'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
-                'target_gene_region': '16S V4'},
+                'target_gene': '16S', 'target_subfragment': 'V4'},
                {'id': 5, 'name': 'Primer plate 5', 'notes': None,
                 'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
-                'target_gene_region': '16S V4'},
+                'target_gene': '16S', 'target_subfragment': 'V4'},
                {'id': 6, 'name': 'Primer plate 6', 'notes': None,
                 'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
-                'target_gene_region': '16S V4'},
+                'target_gene': '16S', 'target_subfragment': 'V4'},
                {'id': 7, 'name': 'Primer plate 7', 'notes': None,
                 'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
-                'target_gene_region': '16S V4'},
+                'target_gene': '16S', 'target_subfragment': 'V4'},
                {'id': 8, 'name': 'Primer plate 8', 'notes': None,
                 'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
-                'target_gene_region': '16S V4'}]
+                'target_gene': '16S', 'target_subfragment': 'V4'}]
         self.assertEqual(db.get_targeted_primer_plates(), exp)
 
     def test_prepare_targeted_libraries(self):
@@ -1243,12 +1243,8 @@ class TestDataAccess(TestCase):
             0, partial(db.delete_sample_plate, plate_id_2))
 
         # Create DNA plates
-        robot = db.get_property_options("extraction_robot")[0]
-        kit = db.get_property_options("extraction_kit_lot")[0]
-        tool = db.get_property_options("extraction_tool")[0]
         dna_plate_ids = db.extract_sample_plates(
-            [plate_id, plate_id_2], 'test', robot['name'], kit['name'],
-            tool['name'])
+            [plate_id, plate_id_2], 'test', 'HOWE_KF1', 'PM16B11', '108379Z')
         for p_id in dna_plate_ids:
             self._clean_up_funcs.insert(
                 0, partial(db.delete_dna_plate, p_id))
@@ -1257,15 +1253,10 @@ class TestDataAccess(TestCase):
         plate_links = [
             {'dna_plate_id': dna_plate_ids[0], 'primer_plate_id': 1},
             {'dna_plate_id': dna_plate_ids[1], 'primer_plate_id': 2}]
-        exp_robot = db.get_property_options("processing_robot")[0]
-        exp_tm300 = db.get_property_options("tm300_8_tool")[0]
-        exp_tm50 = db.get_property_options("tm50_8_tool")[0]
-        exp_mix = db.get_property_options("master_mix_lot")[0]
-        exp_water = db.get_property_options("water_lot")[0]
         before = datetime.datetime.now()
         obs_ids = db.prepare_targeted_libraries(
-            plate_links, 'test', exp_robot['name'], exp_tm300['name'],
-            exp_tm50['name'], exp_mix['name'], exp_water['name'])
+            plate_links, 'test', 'ROBE', '208484Z', '108364Z', '14459',
+            'RNBD9959')
         after = datetime.datetime.now()
 
         for o_id in obs_ids:
@@ -1276,14 +1267,14 @@ class TestDataAccess(TestCase):
         exp = [
             {'id': obs_ids[0], 'name': 'Test plate', 'email': 'test',
              'dna_plate_id': dna_plate_ids[0], 'primer_plate_id': 1,
-             'master_mix_lot': exp_mix['name'], 'robot': exp_robot['name'],
-             'tm300_8_tool': exp_tm300['name'],
-             'tm50_8_tool': exp_tm50['name'], 'water_lot': exp_water['name']},
+             'master_mix_lot': '14459', 'robot': 'ROBE',
+             'tm300_8_tool': '208484Z', 'tm50_8_tool': '108364Z',
+             'water_lot': 'RNBD9959'},
             {'id': obs_ids[1], 'name': 'Test plate 2', 'email': 'test',
              'dna_plate_id': dna_plate_ids[1], 'primer_plate_id': 2,
-             'master_mix_lot': exp_mix['name'], 'robot': exp_robot['name'],
-             'tm300_8_tool': exp_tm300['name'],
-             'tm50_8_tool': exp_tm50['name'], 'water_lot': exp_water['name']}]
+             'master_mix_lot': '14459', 'robot': 'ROBE',
+             'tm300_8_tool': '208484Z', 'tm50_8_tool': '108364Z',
+             'water_lot': 'RNBD9959'}]
         for obs_id, exp in zip(obs_ids, exp):
             obs = db.read_targeted_plate(obs_id)
             self.assertTrue(before <= obs.pop('created_on') <= after)
