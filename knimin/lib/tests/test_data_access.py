@@ -1294,5 +1294,6 @@ class TestDataAccess(TestCase):
         self.assertEqual(ctx.exception.message,
                          "Target Gene plate 0 does not exist")
 
+
 if __name__ == "__main__":
     main()
