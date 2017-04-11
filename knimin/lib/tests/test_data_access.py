@@ -965,6 +965,28 @@ class TestDataAccess(TestCase):
         err = 'Sample plate ID %s does not exist.' % plate_id
         self.assertEqual(str(context.exception), err)
 
+    def test_get_sequencers(self):
+        obs = db.get_sequencers()
+        exp = [{'id': 1, 'name': 'Knight Lab In house MiSeq',
+                'platform': 'Illumina', 'instrument_model': 'MiSeq'}]
+        self.assertEqual(obs, exp)
+
+    def test_get_reagents_kit_lot(self):
+        obs = db.get_reagents_kit_lot()
+        exp = [{'id': 1, 'name': 'MS1234', 'notes': None,
+                'reagent_kit_type': 'MiSeq v3 150 cycle'}]
+        self.assertEqual(obs, exp)
+
+    def test_get_or_create_reagent_kit_lot(self):
+        obs = db.get_or_create_reagent_kit_lot('MS1234', 'MiSeq v3 150 cycle')
+        self.assertEqual(obs, 1)
+
+        obs = db.get_or_create_reagent_kit_lot('MS4321', 'MiSeq v3 150 cycle')
+        self._clean_up_funcs.append(
+            partial(db.delete_property_option, "reagent_kit_lot", obs))
+        # The actual id changes
+        self.assertGreater(obs, 1)
+
     def test_get_property_options(self):
         # Get available extraction robots
         obs = db.get_property_options("extraction_robot")
