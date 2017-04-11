@@ -13,7 +13,7 @@ from knimin.tests.tornado_test_base import TestHandlerBase
 from knimin import db
 
 
-class TestPMPoolPlatesHandler(TestHandlerBase):
+class TestPMSequenceHandler(TestHandlerBase):
     def _create_data(self):
         # Create a study
         db.create_study(9999, title='LabAdmin test project', alias='LTP',
