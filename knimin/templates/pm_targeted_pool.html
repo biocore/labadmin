@@ -40,6 +40,15 @@
       $('#run-pool-volume-input').parents(':first').addClass('has-error');
     }
 
+    // Check the total percentage
+    $('.glyphicon-warning-sign').hide();
+    var totalPercent = parseFloat($('#total-percentage').val());
+    if (totalPercent > 100) {
+      success = false;
+      $('.pm-total').addClass('has-error');
+      $('.glyphicon-warning-sign').show();
+    }
+
     var pools = new Array();
     $.each($('.entry'), function (idx, entry) {
       $(entry).removeClass('has-error');
@@ -150,6 +159,7 @@
   function initGUI() {
     // The initial percentage value is the same for all the plates
     $('.entry .pm-percentage').val(100 / $('.entry').length);
+    $('.entry .pm-plate-pool').val(parseFloat($('#run-pool-volume-input').val()) / $('.entry').length);
 
     // Attach handlers to change events
     $('.pm-plate-pool').change(function() {
@@ -164,7 +174,7 @@
     $('.plate-select').change(function () {
       var numSamples = $(".plate-select option[value=" + $(this).val() + "]").data('pm-samples');
       $(this).parents('.entry:first').find('.pm-num-samples:first').val(numSamples);
-      updateTotalValues();
+      $(this).parents('.entry:first').find('.pm-percentage:first').trigger('change');
     });
 
     // Update the computed values
@@ -177,6 +187,8 @@
       .removeClass('btn-remove').addClass('btn-add')
       .removeClass('btn-info').addClass('btn-success')
       .html($('<span>').addClass('glyphicon glyphicon-plus'));
+
+    $('.glyphicon-warning-sign').hide();
 
     $('#run-pool-volume-input').change(function() {
       runTotalPoolVolumeUpdated();
@@ -215,11 +227,11 @@
 
       addPlateOptions(newEntry.find('.plate-select:first'));
       newEntry.appendTo(controlForm);
-
       initGUI();
     }).on('click', '.btn-remove', function(e) {
       $(this).parents('.entry:first').remove();
       e.preventDefault();
+      initGUI();
       return false;
     });
   });
@@ -286,7 +298,7 @@
     </div>
   {% end %}
   </div>
-  <div class="row">
+  <div class="row pm-total">
     <div class="col-xs-5 form-group"></div>
     <div class="col-xs-2 form-group"><label class="center-block text-right">Total:</label></div>
     <div class="col-xs-1 form-group">
@@ -297,6 +309,9 @@
     </div>
     <div class="col-xs-2 form-group">
       <input class="form-control" type="number" id='total-pool-volume' step="0.1" disabled/>
+    </div>
+    <div class="col-xs-1 form-group">
+      <span class="form-control glyphicon glyphicon-warning-sign text-center alert-danger"></span>
     </div>
   </div>
   <div class="row">
