@@ -34,6 +34,65 @@ class TestDataAccess(TestCase):
                 print("Database clean-up failed. Downstream tests might be "
                       "affected by this! Reason: %s" % format_exc(e))
 
+    def _create_test_data_targeted_plate(self):
+        # Create a study
+        db.create_study(9999, title='LabAdmin test project', alias='LTP',
+                        jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+
+        # Create some sample plates
+        pt = db.get_plate_types()[0]
+        plate_id = db.create_sample_plate('Test plate', pt['id'], 'test',
+                                          [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id))
+        plate_id_2 = db.create_sample_plate('Test plate 2', pt['id'], 'test',
+                                            [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id_2))
+
+        # Plate some samples
+        # Add samples to the study
+        samples = ['9999.Sample_1', '9999.Sample_2', '9999.Sample_3',
+                   '9999.Sample_3']
+        db.set_study_samples(9999, samples)
+
+        # Create the layout
+        layout = []
+        row = []
+        for i in range(pt['rows']):
+            for j in range(pt['cols']):
+                row.append({'sample_id': None, 'name': None, 'notes': None})
+            layout.append(row)
+            row = []
+        layout[0][0]['sample_id'] = samples[0]
+        layout[0][1]['sample_id'] = samples[1]
+        layout[0][2]['sample_id'] = samples[2]
+        db.write_sample_plate_layout(plate_id, layout)
+        layout[0][3]['sample_id'] = samples[3]
+        db.write_sample_plate_layout(plate_id_2, layout)
+
+        # Create DNA plates
+        dna_plate_ids = db.extract_sample_plates(
+            [plate_id, plate_id_2], 'test', 'HOWE_KF1', 'PM16B11', '108379Z')
+        for p_id in dna_plate_ids:
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_dna_plate, p_id))
+
+        # Create the target gene plates
+        plate_links = [
+            {'dna_plate_id': dna_plate_ids[0], 'primer_plate_id': 1},
+            {'dna_plate_id': dna_plate_ids[1], 'primer_plate_id': 2}]
+        targeted_plate_ids = db.prepare_targeted_libraries(
+            plate_links, 'test', 'ROBE', '208484Z', '108364Z', '14459',
+            'RNBD9959')
+
+        for p_id in targeted_plate_ids:
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_targeted_plate, p_id))
+
+        return targeted_plate_ids
+
     def test_pulldown_third_party(self):
         # Add survey answers
         with open(self.ext_survey_fp, 'rU') as f:
@@ -1295,124 +1354,16 @@ class TestDataAccess(TestCase):
                          "Target Gene plate 0 does not exist")
 
     def test_get_targeted_plate_list(self):
-        # Create a study
-        db.create_study(9999, title='LabAdmin test project', alias='LTP',
-                        jira_id='KL9999')
-        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+        targeted_plate_ids = self._create_test_data_targeted_plate()
 
-        # Create some sample plates
-        pt = db.get_plate_types()[0]
-        plate_id = db.create_sample_plate('Test plate', pt['id'], 'test',
-                                          [9999])
-        self._clean_up_funcs.insert(
-            0, partial(db.delete_sample_plate, plate_id))
-        plate_id_2 = db.create_sample_plate('Test plate 2', pt['id'], 'test',
-                                            [9999])
-        self._clean_up_funcs.insert(
-            0, partial(db.delete_sample_plate, plate_id_2))
-
-        # Plate some samples
-        # Add samples to the study
-        samples = ['9999.Sample_1', '9999.Sample_2', '9999.Sample_3',
-                   '9999.Sample_4']
-        db.set_study_samples(9999, samples)
-
-        # Create the layout
-        layout = []
-        row = []
-        for i in range(pt['rows']):
-            for j in range(pt['cols']):
-                row.append({'sample_id': None, 'name': None, 'notes': None})
-            layout.append(row)
-            row = []
-        layout[0][0]['sample_id'] = samples[0]
-        layout[0][1]['sample_id'] = samples[1]
-        layout[0][2]['sample_id'] = samples[2]
-        db.write_sample_plate_layout(plate_id, layout)
-        layout[0][3]['sample_id'] = samples[3]
-        db.write_sample_plate_layout(plate_id_2, layout)
-
-        # Create DNA plates
-        dna_plate_ids = db.extract_sample_plates(
-            [plate_id, plate_id_2], 'test', 'HOWE_KF1', 'PM16B11', '108379Z')
-        for p_id in dna_plate_ids:
-            self._clean_up_funcs.insert(
-                0, partial(db.delete_dna_plate, p_id))
-
-        # Create the target gene plates
-        plate_links = [
-            {'dna_plate_id': dna_plate_ids[0], 'primer_plate_id': 1},
-            {'dna_plate_id': dna_plate_ids[1], 'primer_plate_id': 2}]
-        obs_ids = db.prepare_targeted_libraries(
-            plate_links, 'test', 'ROBE', '208484Z', '108364Z', '14459',
-            'RNBD9959')
-
-        for o_id in obs_ids:
-            self._clean_up_funcs.insert(
-                0, partial(db.delete_targeted_plate, o_id))
-
-        exp = [{'id': obs_ids[0], 'name': 'Test plate',
+        exp = [{'id': targeted_plate_ids[0], 'name': 'Test plate',
                 'date': datetime.date.today(), 'num_samples': 3},
-               {'id': obs_ids[1], 'name': 'Test plate 2',
+               {'id': targeted_plate_ids[1], 'name': 'Test plate 2',
                 'date': datetime.date.today(), 'num_samples': 4}]
         self.assertEqual(db.get_targeted_plate_list(), exp)
 
     def test_pool_plates(self):
-        # Create a study
-        db.create_study(9999, title='LabAdmin test project', alias='LTP',
-                        jira_id='KL9999')
-        self._clean_up_funcs.append(partial(db.delete_study, 9999))
-
-        # Create some sample plates
-        pt = db.get_plate_types()[0]
-        plate_id = db.create_sample_plate('Test plate', pt['id'], 'test',
-                                          [9999])
-        self._clean_up_funcs.insert(
-            0, partial(db.delete_sample_plate, plate_id))
-        plate_id_2 = db.create_sample_plate('Test plate 2', pt['id'], 'test',
-                                            [9999])
-        self._clean_up_funcs.insert(
-            0, partial(db.delete_sample_plate, plate_id_2))
-
-        # Plate some samples
-        # Add samples to the study
-        samples = ['9999.Sample_1', '9999.Sample_2', '9999.Sample_3',
-                   '9999.Sample_3']
-        db.set_study_samples(9999, samples)
-
-        # Create the layout
-        layout = []
-        row = []
-        for i in range(pt['rows']):
-            for j in range(pt['cols']):
-                row.append({'sample_id': None, 'name': None, 'notes': None})
-            layout.append(row)
-            row = []
-        layout[0][0]['sample_id'] = samples[0]
-        layout[0][1]['sample_id'] = samples[1]
-        layout[0][2]['sample_id'] = samples[2]
-        db.write_sample_plate_layout(plate_id, layout)
-        layout[0][3]['sample_id'] = samples[3]
-        db.write_sample_plate_layout(plate_id_2, layout)
-
-        # Create DNA plates
-        dna_plate_ids = db.extract_sample_plates(
-            [plate_id, plate_id_2], 'test', 'HOWE_KF1', 'PM16B11', '108379Z')
-        for p_id in dna_plate_ids:
-            self._clean_up_funcs.insert(
-                0, partial(db.delete_dna_plate, p_id))
-
-        # Create the target gene plates
-        plate_links = [
-            {'dna_plate_id': dna_plate_ids[0], 'primer_plate_id': 1},
-            {'dna_plate_id': dna_plate_ids[1], 'primer_plate_id': 2}]
-        targeted_plate_ids = db.prepare_targeted_libraries(
-            plate_links, 'test', 'ROBE', '208484Z', '108364Z', '14459',
-            'RNBD9959')
-
-        for p_id in targeted_plate_ids:
-            self._clean_up_funcs.insert(
-                0, partial(db.delete_targeted_plate, p_id))
+        targeted_plate_ids = self._create_test_data_targeted_plate()
 
         # Pool samples
         pools = [
@@ -1439,6 +1390,11 @@ class TestDataAccess(TestCase):
             self.assertAlmostEqual(o.pop('volume'), e.pop('volume'))
             self.assertAlmostEqual(o.pop('percentage'), e.pop('percentage'))
             self.assertEqual(o, e)
+
+        with self.assertRaises(ValueError) as ctx:
+            pool_id = db.pool_plates([], 'LabAdmin test pool', 5)
+        self.assertEqual(ctx.exception.message,
+                         "Provide at least on plate to pool.")
 
     def test_read_pool(self):
         # Success is already tested in "test_pool_plates"

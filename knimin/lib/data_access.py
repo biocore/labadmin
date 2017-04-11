@@ -3699,6 +3699,8 @@ class KniminAccess(object):
         ValueError
             If pools is an empty list
         """
+        if len(pools) == 0:
+            raise ValueError("Provide at least on plate to pool.")
         with TRN:
             for p in pools:
                 sql = """INSERT INTO pm.targeted_pool

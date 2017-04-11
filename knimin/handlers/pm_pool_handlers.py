@@ -18,14 +18,14 @@ from knimin import db
 class PMPoolPlatesHandler(BaseHandler):
     @authenticated
     def get(self):
-        arg_plates = map(int, self.get_arguments('plate'))
+        plates_arg = map(int, self.get_arguments('plate'))
 
         all_plates = []
         plates = []
         for plate in db.get_targeted_plate_list():
             plate['date'] = plate['date'].isoformat()
             all_plates.append(plate)
-            if plate['id'] in arg_plates:
+            if plate['id'] in plates_arg:
                 plates.append(plate)
 
         self.render("pm_targeted_pool.html", all_plates=all_plates,
