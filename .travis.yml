@@ -70,7 +70,8 @@ script:
   - export PYTHONPATH=
   - $PYTHONPATH
   - cd $TRAVIS_BUILD_DIR
-  - sed "\$s/.*/SERVER_CERT = ${QIITA_SERVER_CERT}/" $TRAVIS_BUILD_DIR/knimin/config.txt.example $TRAVIS_BUILD_DIR/knimin/config.txt
+  # We need to add the Qiita server cert path to the config file
+  - sed "s:SERVER_CERT =:SERVER_CERT = $QIITA_SERVER_CERT:g" $TRAVIS_BUILD_DIR/knimin/config.txt.example > $TRAVIS_BUILD_DIR/knimin/config.txt
   - nosetests --verbose --with-doctest --with-coverage
   - flake8 knimin setup.py scripts
   - phantomjs knimin/tests/javascript/runner.js knimin/tests/javascript/index.html
