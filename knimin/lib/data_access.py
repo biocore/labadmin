@@ -3798,6 +3798,27 @@ class KniminAccess(object):
             TRN.add(sql, [pool_id])
             TRN.execute()
 
+    def get_pool_list(self):
+        """Gets the list of all pools
+
+        Returns
+        -------
+        list of dict
+            {id : int, name : str, targeted_pools : [list of str]}
+            Plate id, plate name and date
+        """
+        with TRN:
+            sql = """SELECT run_pool_id AS id,
+                            p.name AS name,
+                            ARRAY_AGG(t.name ORDER BY t.name) AS targeted_pools
+                     FROM pm.run_pool p
+                        JOIN pm.protocol_run_pool r USING (run_pool_id)
+                        JOIN pm.targeted_pool t USING (targeted_pool_id)
+                     GROUP BY id, p.name
+                     ORDER BY run_pool_id ASC"""
+            TRN.add(sql)
+            return [dict(row) for row in TRN.execute_fetchindex()]
+
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""
         self._con.execute('DELETE FROM %s.%s' % (schema, table))
