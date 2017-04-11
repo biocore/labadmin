@@ -11,7 +11,7 @@ from traceback import format_exc
 from functools import partial
 
 from knimin import qiita_client, jira_handler, db
-from knimin.lib.qiita_jira_util import create_study
+from knimin.lib.qiita_jira_util import create_study, _create_kl_jira_project
 
 
 class TestQiitaJiraUtil(TestCase):
@@ -30,6 +30,19 @@ class TestQiitaJiraUtil(TestCase):
     def tearDownClass(cls):
         # Reset the qiita DB to make tests independent
         qiita_client.post("/apitest/reset/")
+
+    def test_create_kl_jira_project(self):
+        obs = _create_kl_jira_project('admin', 'Task management', 1000,
+                                      'LabAdmin test project')
+        self._clean_up_funcs.append(
+            partial(jira_handler.delete_project, 'TM1000'))
+
+        self.assertEqual(obs['projectKey'], 'TM1000')
+
+        # Check that the issues have been created
+        issues = jira_handler.search_issues(
+            'issuetype=Task AND project=TM1000')
+        self.assertEqual(len(issues), 7)
 
     def test_create_study(self):
         study_id = create_study(
