@@ -43,7 +43,6 @@ from knimin.handlers.pm_library_prep import (
 from knimin.handlers.pm_pool_handlers import PMPoolPlatesHandler
 from knimin.handlers.pm_sequence import PMSequenceHandler
 
-
 define("port", default=config.http_port, type=int)
 
 DIRNAME = dirname(__file__)
