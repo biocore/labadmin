@@ -1489,5 +1489,6 @@ class TestDataAccess(TestCase):
             db.delete_sequencing_run(0)
         self.assertEqual(ctx.exception.message, 'Run 0 does not exist')
 
+
 if __name__ == "__main__":
     main()
