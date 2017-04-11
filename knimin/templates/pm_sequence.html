@@ -60,7 +60,7 @@
       <div class='col-xs-4 form-group'>
         <label>Reagent Kit type:</label>
         <select name="reagent_kit_type" class="form-control" id="reagent-kit-type" required>
-          {% for idx, r in enumerate(reagents) %}
+          {% for r in reagents %}
             <option value='{{r}}' >{{r}}</option>
           {% end %}
         </select>

@@ -20,7 +20,7 @@ class PMSequenceHandler(BaseHandler):
     def get(self):
         pool_id = self.get_argument('pool_id')
         reagents = defaultdict(list)
-        for r in db.get_reagents_kit_lot():
+        for r in db.get_reagent_kit_lots():
             reagent_type = r.pop('reagent_kit_type')
             reagents[reagent_type].append(r['name'])
 
