@@ -29,3 +29,10 @@ HOST = http://127.0.0.1:2990/jira
 USERNAME = admin
 PASSWORD = admin
 PASSKEY =
+
+[qiita]
+# SERVER_CERT is only needed if the Qiita server doesn't have a valid certificate
+HOST = https://localhost:21174
+CLIENT_ID = 19ndkO3oMKsoChjVVWluF7QkxHRfYhTKSFbAVt8IhK7gZgDaO4
+CLIENT_SECRET = J7FfQ7CQdOxuKhQAf1eoGgBAE81Ns8Gu3EKaWFm3IO2JKhAmmCWZuabe0O5Mp28s1
+SERVER_CERT =

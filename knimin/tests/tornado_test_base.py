@@ -17,10 +17,20 @@ from knimin import db
 class TestHandlerBase(AsyncHTTPTestCase, LogTrapTestCase):
     orig_func = BaseHandler.get_current_user
 
+    def setUp(self):
+        super(TestHandlerBase, self).setUp()
+        self._clean_up_funcs = []
+
     def tearDown(self):
         BaseHandler.get_current_user = self.orig_func
         # Remove all access privileges user may hve been given by a test
         db.alter_access_levels('test', [])
+        for f in self._clean_up_funcs:
+            try:
+                f()
+            except Exception as e:
+                print("Database clean-up failed. Downstream tests might be "
+                      "affected by this! Reason: %s" % e.message)
         super(TestHandlerBase, self).tearDown()
 
     def get_app(self):

@@ -1,0 +1,14 @@
+{% extends logged_in_index.html %}
+{% block head %}
+
+<script type="text/javascript">
+  $(document).ready(function() {
+    var pm = new PlateMap('plate-map-div', {{plate_id}});
+  });
+</script>
+
+{% end %}
+{% block content %}
+
+<div id='plate-map-div'></div>
+{% end %}

@@ -1,0 +1,144 @@
+<!-- The Plate Mapper module -->
+<!-- Plate list -->
+
+{% extends logged_in_index.html %}
+{% block head %}
+{% from json import dumps %}
+<script type="text/javascript" src="/static/js/labmin.js"></script>
+<script type="text/javascript" src="/static/vendor/js/jquery.validate.min.js"></script>
+<script type="text/javascript" src="/static/vendor/js/jquery.dataTables.min.js"></script>
+<link rel="stylesheet" type="text/css" href="/static/vendor/css/jquery.dataTables.min.css">
+<link rel="stylesheet" href="/static/vendor/font-awesome/css/font-awesome.min.css">
+<style>
+  p {
+    font-weight: bold;
+  }
+  a {
+    color: black;
+  }
+  button {
+    padding: 5px 10px 5px 10px;
+    text-decoration: none;
+    font-size: 80%;
+  }
+  select {
+    border: 1px solid black;
+    padding: 5px 10px 5px 10px;
+    height: 25px;
+    margin-bottom: 1px;
+  }
+  button.inline {
+    height: 25px;
+    width: 25px;
+    padding: 2px 4px 2px 4px;
+    border: 0;
+    background-color: transparent;
+    text-decoration: none;
+    font-size: 80%;
+  }
+  button.inline:hover {
+    background-color: dimgrey;
+    color: white;
+  }
+  table {
+    border-top: 1px solid black;
+  }
+  table.dataTable thead th {
+    text-align: left;
+    padding: 5px 10px 5px 10px;
+  }
+  tbody.list tr td {
+    vertical-align: middle;
+    padding: 5px 10px 5px 10px;
+  }
+  tbody.list tr:hover {
+    background-color: lightgray;
+  }
+  tbody.list a:hover {
+    color: darkblue;
+    text-decoration: underline;
+  }
+  .dataTables_wrapper .dataTables_info {
+    font-size: 90%;
+  }
+  .dataTables_wrapper .dataTables_filter {
+    font-size: 90%;
+  }
+  .dataTables_wrapper .dataTables_length {
+    font-size: 90%;
+  }
+  .dataTables_wrapper .dataTables_paginate {
+    font-size: 90%;
+  }
+  .dataTables_wrapper .dataTables_paginate .paginate_button {
+    padding: 4px 8px 4px 8px;
+    text-decoration: none;
+  }
+</style>
+<script type="text/javascript">
+  $(document).ready(function(){
+    $('#plate-list').DataTable({
+      scrollY: 450,
+      scrollCollapse: true,
+      pageLength: 50
+    });
+    $('#plate-list tbody').on('click', 'tr', function(){
+        $(this).toggleClass('selected');
+    });
+  });
+</script>
+{% end %}
+
+{% block content %}
+<h3 id="page-title">{{target[0].upper() + target[1:]}} Plate List</h3>
+<p>
+  <a class="btn btn-default" href="/pm_create_plate/"><span class="fa fa-plus"></span> Create new</a>
+</p>
+
+<table id="plate-list">
+  <thead>
+    <tr>
+      <th width="50px">ID</th>
+      <th width="225px">Name</th>
+      <th width="75px">Type</th>
+      <th width="50px">Filled</th>
+      <th width="50px">Studies</th>
+      <th width="75px">Person</th>
+      <th width="75px">Date</th>
+      <th width="100px">Actions</th>
+    </tr>
+  </thead>
+  <tbody class="list">
+    {% for plate in plates %}
+    <tr>
+      <td>{{plate['id']}}</td>
+      <td><a href="/pm_plate_map?plate_id={{plate['id']}}">{{plate['name']}}</a></td>
+      <td title="{{plate['type'][1]}}">{{plate['type'][0]}}</td>
+      <td>{{plate['fill'][0]}}
+        <span style="font-size:80%">
+          {% set x = plate['fill'][1] %}
+          {% if x == 1.0 %}
+          <i class="fa fa-battery-full"></i>
+          {% elif x >= 0.667 %}
+          <i class="fa fa-battery-three-quarters"></i>
+          {% elif x > 0.333 %}
+          <i class="fa fa-battery-half"></i>
+          {% elif x > 0.0 %}
+          <i class="fa fa-battery-quarter"></i>
+          {% else %}
+          <i class="fa fa-battery-empty"></i>
+          {% end %}
+        </span></td>
+      <td title="{{','.join(plate['studies'])}}">{{ '\n'.join(plate['studies']) }}</td>
+      <td>{{plate['person'] or "-"}}</td>
+      <td>{{plate['date'] or "-"}}</td>
+      <td style="padding:2px;">
+        <button class="inline" title="View/edit plate properties" onclick="location.href='/pm_plate_map/?target=sample&id={{plate['id']}}';"><i class="fa fa-edit"></i></button>
+        <button class="inline" title="View/edit plate layout"><i class="fa fa-table"></i></button>
+        <button class="inline" title="Delete plate"><i class="fa fa-remove"></i></button>
+      </td>
+    </tr>
+    {% end %}
+  </tbody>
+</table>
+{% end %}

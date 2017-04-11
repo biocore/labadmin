@@ -63,6 +63,7 @@ class KniminConfig(object):
         self._get_tornado(config)
         self._get_email(config)
         self._get_jira(config)
+        self._get_qiita(config)
 
     def _get_main(self, config):
         """Get the configuration of the main section"""
@@ -95,6 +96,12 @@ class KniminConfig(object):
         self.jira_user = config.get('jira', 'USERNAME')
         self.jira_password = config.get('jira', 'PASSWORD')
         self.jira_passkey = config.get('jira', 'PASSKEY')
+
+    def _get_qiita(self, config):
+        self.qiita_host = config.get('qiita', 'HOST')
+        self.qiita_client_id = config.get('qiita', 'CLIENT_ID')
+        self.qiita_client_secret = config.get('qiita', 'CLIENT_SECRET')
+        self.qiita_server_cert = config.get('qiita', 'SERVER_CERT')
 
 
 config = KniminConfig()
