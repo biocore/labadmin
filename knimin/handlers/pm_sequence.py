@@ -40,5 +40,4 @@ class PMSequenceHandler(BaseHandler):
             pool_id, self.get_current_user(), sequencer,
             reagent_type, reagent_lot)
         run = db.read_sequencing_run(run_id)
-        self.render("pm_sequence_success.html",
-                    run=run, projects=[{'key': 'KEY', 'name': 'NAME'}])
+        self.render("pm_sequence_success.html", run=run)

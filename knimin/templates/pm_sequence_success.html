@@ -2,13 +2,6 @@
 {% block head %}
 {% end %}
 {% block content %}
-{% from knimin import config %}
 <h3>Sequencing run {{run['name']}} successfully submitted with ID {{run['id']}}</h3>
-<p> You can now access to the sample sheet in the differen JIRA projects: </p>
-<ul>
-  {% for p in projects %}
-    <li><a target="_blank" href="{{config.jira_host}}/projects/{{p['key']}}">{{p['name']}}<a/></li>
-  {% end %}
-</ul>
 
 {% end %}
