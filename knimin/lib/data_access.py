@@ -3499,13 +3499,13 @@ class KniminAccess(object):
             return [dict(row) for row in TRN.execute_fetchindex()]
 
     def get_targeted_primer_plates(self):
-        """Returns the list of all targeted primer plates plates
+        """Returns the list of all targeted primer plates
 
         Returns
         -------
         list of dict
             {id: int, name: str, notes: str, linker_primer_sequence: str
-             target_gene_region: str}
+             target_gene: str, target_subfragment: str}
         """
         with TRN:
             sql = """SELECT targeted_primer_plate_id AS id, name, notes,
