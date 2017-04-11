@@ -3498,17 +3498,19 @@ class KniminAccess(object):
             TRN.add(sql)
             return [dict(row) for row in TRN.execute_fetchindex()]
 
-    def get_barcode_sequence_plates(self):
-        """Returns the list of all barcode sequence plates
+    def get_targeted_primer_plates(self):
+        """Returns the list of all targeted primer plates plates
 
         Returns
         -------
         list of dict
-            {id: int, name: str, notes: str}
+            {id: int, name: str, notes: str, linker_primer_sequence: str
+             target_gene_region: str}
         """
         with TRN:
-            sql = """SELECT barcode_sequence_plate_id AS id, name, notes
-                     FROM pm.barcode_sequence_plate
+            sql = """SELECT targeted_primer_plate_id AS id, name, notes,
+                            linker_primer_sequence, target_gene_region
+                     FROM pm.targeted_primer_plate
                      ORDER BY id"""
             TRN.add(sql)
             return [dict(row) for row in TRN.execute_fetchindex()]
@@ -3520,8 +3522,8 @@ class KniminAccess(object):
         Parameters
         ----------
         plate_links : list of dicts
-            A list of {'dna_plate_id': int, 'barcode_plate_id': int} linking
-            a DNA plate with the barcode sequence plate used
+            A list of {'dna_plate_id': int, 'primer_plate_id': int} linking
+            a DNA plate with the primer plate used
         email : str
             The email of the user doing the library prep
         robot : str
@@ -3538,15 +3540,15 @@ class KniminAccess(object):
         Returns
         -------
         list of int
-            The new target_gene_plate ids created
+            The new target_plate ids created
 
         Raises
         ------
         ValueError
-            If palte_links is an empty list
+            If plate_links is an empty list
         """
         if not plate_links:
-            raise ValueError("Provide at least on DNA - Barcode plate link")
+            raise ValueError("Provide at least on DNA - Primer plate link")
 
         with TRN:
             # Note: We don't need to validate if the given DNA plates ids
@@ -3562,15 +3564,15 @@ class KniminAccess(object):
                 "water_lot", water_lot)
             robot_id = self.get_or_create_property_option_id(
                 "processing_robot", robot)
-            sql = """INSERT INTO pm.target_gene_plate
+            sql = """INSERT INTO pm.targeted_plate
                         (name, email, created_on, dna_plate_id,
-                         barcode_sequence_plate_id, master_mix_lot_id,
+                         targeted_primer_plate_id, master_mix_lot_id,
                          tm300_8_tool_id, tm50_8_tool_id, water_lot_id,
                          processing_robot_id)
                      VALUES (%s, %s, now(), %s, %s, %s, %s, %s, %s, %s)
-                     RETURNING target_gene_plate_id"""
+                     RETURNING targeted_plate_id"""
             sql_args = [[self.read_dna_plate(l['dna_plate_id'])['name'],
-                         email, l['dna_plate_id'], l['barcode_plate_id'],
+                         email, l['dna_plate_id'], l['primer_plate_id'],
                          master_mix_id, tm300_id, tm50_id, water_id, robot_id]
                         for l in plate_links]
             TRN.add(sql, sql_args, many=True)
@@ -3581,7 +3583,7 @@ class KniminAccess(object):
             # list into the desired output: [plate_id, plate_id, ...]
             return list(chain.from_iterable(chain.from_iterable(res)))
 
-    def read_target_gene_plate(self, plate_id):
+    def read_targeted_plate(self, plate_id):
         """Returns the information of the Target Gene plate
 
         Parameters
@@ -3593,7 +3595,7 @@ class KniminAccess(object):
         -------
         dict
             {'id': int, 'name': str, 'email': str, 'created_on': datetime,
-             'dna_plate_id': int, 'barcode_plate_id': int,
+             'dna_plate_id': int, 'primer_plate_id': int,
              'master_mix_lot': str, 'robot': str, 'tm300_8_tool': str,
              'tm50_8_tool': str, 'water_lot': str}
 
@@ -3603,22 +3605,22 @@ class KniminAccess(object):
             If the Target Gene plate with ID `plate_id` does not exist
         """
         with TRN:
-            sql = """SELECT target_gene_plate_id as id,
+            sql = """SELECT targeted_plate_id as id,
                             p.name as name,
                             email, created_on, dna_plate_id,
-                            barcode_sequence_plate_id as barcode_plate_id,
+                            targeted_primer_plate_id as primer_plate_id,
                             mm.name as master_mix_lot,
                             r.name as robot,
                             t300.name as tm300_8_tool,
                             t50.name as tm50_8_tool,
                             w.name as water_lot
-                     FROM pm.target_gene_plate p
+                     FROM pm.targeted_plate p
                         JOIN pm.master_mix_lot mm USING (master_mix_lot_id)
                         JOIN pm.processing_robot r USING (processing_robot_id)
                         JOIN pm.tm300_8_tool t300 USING (tm300_8_tool_id)
                         JOIN pm.tm50_8_tool t50 USING (tm50_8_tool_id)
                         JOIN pm.water_lot w USING (water_lot_id)
-                     WHERE target_gene_plate_id = %s"""
+                     WHERE targeted_plate_id = %s"""
             TRN.add(sql, [plate_id])
             res = TRN.execute_fetchindex()
             if not res:
@@ -3627,7 +3629,7 @@ class KniminAccess(object):
             # Magic number 0 -> there is only 1 result row
             return dict(res[0])
 
-    def delete_target_gene_plate(self, plate_id):
+    def delete_targeted_plate(self, plate_id):
         """Deletes a Target Gene plate
 
         Parameters
@@ -3641,9 +3643,9 @@ class KniminAccess(object):
             If the Target Gene plate does not exist
         """
         with TRN:
-            sql = """DELETE FROM pm.target_gene_plate
-                     WHERE target_gene_plate_id = %s
-                     RETURNING target_gene_plate_id"""
+            sql = """DELETE FROM pm.targeted_plate
+                     WHERE targeted_plate_id = %s
+                     RETURNING targeted_plate_id"""
             TRN.add(sql, [plate_id])
             if not TRN.execute_fetchindex():
                 # If the output from the SQL query is empty, it means that the

@@ -24,7 +24,7 @@ class PMTargetGeneLibraryPrepHandler(BaseHandler):
 
         self.render("pm_target_gene_library_prep.html",
                     dna_plates=dna_plates,
-                    primer_plates=db.get_barcode_sequence_plates(),
+                    primer_plates=db.get_targeted_primer_plates(),
                     robots=db.get_property_options("processing_robot"),
                     tm300tools=db.get_property_options("tm300_8_tool"),
                     tm50tools=db.get_property_options("tm50_8_tool"),

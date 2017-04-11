@@ -70,8 +70,8 @@ class TestPMTargetGeneLibraryPrepHandler(TestHandlerBase):
 
         # Create the target gene plates
         plate_links = [
-            {'dna_plate_id': dna_plate_ids[0], 'barcode_plate_id': 1},
-            {'dna_plate_id': dna_plate_ids[1], 'barcode_plate_id': 2}]
+            {'dna_plate_id': dna_plate_ids[0], 'primer_plate_id': 1},
+            {'dna_plate_id': dna_plate_ids[1], 'primer_plate_id': 2}]
 
         self.mock_login_admin()
         data = {'plates': json_encode(plate_links),
@@ -83,14 +83,14 @@ class TestPMTargetGeneLibraryPrepHandler(TestHandlerBase):
         for match in re.findall("plate=[0-9]*", response.effective_url):
             plate_id = match.split('=')[1]
             self._clean_up_funcs.insert(
-                0, partial(db.delete_target_gene_plate, plate_id))
+                0, partial(db.delete_targeted_plate, plate_id))
             plate_ids.append(plate_id)
 
         self.assertEqual(response.code, 200)
         self.assertEqual(len(plate_ids), 2)
 
         for plate_id in plate_ids:
-            obs = db.read_target_gene_plate(plate_id)
+            obs = db.read_targeted_plate(plate_id)
             self.assertIsNotNone(obs)
 
 

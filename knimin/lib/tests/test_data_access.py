@@ -1198,16 +1198,32 @@ class TestDataAccess(TestCase):
                 'date': datetime.date.today()}]
         self.assertEqual(db.get_dna_plate_list(), exp)
 
-    def test_get_barcode_sequence_plates(self):
-        exp = [{'id': 1, 'name': 'Primer plate 1', 'notes': None},
-               {'id': 2, 'name': 'Primer plate 2', 'notes': None},
-               {'id': 3, 'name': 'Primer plate 3', 'notes': None},
-               {'id': 4, 'name': 'Primer plate 4', 'notes': None},
-               {'id': 5, 'name': 'Primer plate 5', 'notes': None},
-               {'id': 6, 'name': 'Primer plate 6', 'notes': None},
-               {'id': 7, 'name': 'Primer plate 7', 'notes': None},
-               {'id': 8, 'name': 'Primer plate 8', 'notes': None}]
-        self.assertEqual(db.get_barcode_sequence_plates(), exp)
+    def test_get_targeted_primer_plates(self):
+        exp = [{'id': 1, 'name': 'Primer plate 1', 'notes': None,
+                'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
+                'target_gene_region': '16S V4'},
+               {'id': 2, 'name': 'Primer plate 2', 'notes': None,
+                'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
+                'target_gene_region': '16S V4'},
+               {'id': 3, 'name': 'Primer plate 3', 'notes': None,
+                'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
+                'target_gene_region': '16S V4'},
+               {'id': 4, 'name': 'Primer plate 4', 'notes': None,
+                'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
+                'target_gene_region': '16S V4'},
+               {'id': 5, 'name': 'Primer plate 5', 'notes': None,
+                'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
+                'target_gene_region': '16S V4'},
+               {'id': 6, 'name': 'Primer plate 6', 'notes': None,
+                'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
+                'target_gene_region': '16S V4'},
+               {'id': 7, 'name': 'Primer plate 7', 'notes': None,
+                'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
+                'target_gene_region': '16S V4'},
+               {'id': 8, 'name': 'Primer plate 8', 'notes': None,
+                'linker_primer_sequence': 'GTGTGCCAGCMGCCGCGGTAA',
+                'target_gene_region': '16S V4'}]
+        self.assertEqual(db.get_targeted_primer_plates(), exp)
 
     def test_prepare_targeted_libraries(self):
         # Create a study
@@ -1239,8 +1255,8 @@ class TestDataAccess(TestCase):
 
         # Create the target gene plates
         plate_links = [
-            {'dna_plate_id': dna_plate_ids[0], 'barcode_plate_id': 1},
-            {'dna_plate_id': dna_plate_ids[1], 'barcode_plate_id': 2}]
+            {'dna_plate_id': dna_plate_ids[0], 'primer_plate_id': 1},
+            {'dna_plate_id': dna_plate_ids[1], 'primer_plate_id': 2}]
         exp_robot = db.get_property_options("processing_robot")[0]
         exp_tm300 = db.get_property_options("tm300_8_tool")[0]
         exp_tm50 = db.get_property_options("tm50_8_tool")[0]
@@ -1254,36 +1270,36 @@ class TestDataAccess(TestCase):
 
         for o_id in obs_ids:
             self._clean_up_funcs.insert(
-                0, partial(db.delete_target_gene_plate, o_id))
+                0, partial(db.delete_targeted_plate, o_id))
 
         self.assertEqual(len(obs_ids), 2)
         exp = [
             {'id': obs_ids[0], 'name': 'Test plate', 'email': 'test',
-             'dna_plate_id': dna_plate_ids[0], 'barcode_plate_id': 1,
+             'dna_plate_id': dna_plate_ids[0], 'primer_plate_id': 1,
              'master_mix_lot': exp_mix['name'], 'robot': exp_robot['name'],
              'tm300_8_tool': exp_tm300['name'],
              'tm50_8_tool': exp_tm50['name'], 'water_lot': exp_water['name']},
             {'id': obs_ids[1], 'name': 'Test plate 2', 'email': 'test',
-             'dna_plate_id': dna_plate_ids[1], 'barcode_plate_id': 2,
+             'dna_plate_id': dna_plate_ids[1], 'primer_plate_id': 2,
              'master_mix_lot': exp_mix['name'], 'robot': exp_robot['name'],
              'tm300_8_tool': exp_tm300['name'],
              'tm50_8_tool': exp_tm50['name'], 'water_lot': exp_water['name']}]
         for obs_id, exp in zip(obs_ids, exp):
-            obs = db.read_target_gene_plate(obs_id)
+            obs = db.read_targeted_plate(obs_id)
             self.assertTrue(before <= obs.pop('created_on') <= after)
             self.assertEqual(obs, exp)
 
-    def test_read_target_gene_plate(self):
+    def test_read_targeted_plate(self):
         # Success is already tested in "test_prepare_targeted_libraries"
         with self.assertRaises(ValueError) as ctx:
-            db.read_target_gene_plate(0)
+            db.read_targeted_plate(0)
         self.assertEqual(ctx.exception.message,
                          "Target Gene plate 0 does not exist")
 
-    def test_delete_target_gene_plate(self):
+    def test_delete_targeted_plate(self):
         # Success is already tested in "test_prepare_targeted_libraries"
         with self.assertRaises(ValueError) as ctx:
-            db.delete_target_gene_plate(0)
+            db.delete_targeted_plate(0)
         self.assertEqual(ctx.exception.message,
                          "Target Gene plate 0 does not exist")
 

@@ -12,25 +12,25 @@
     var success = true;
     $.each($('.entry'), function (idx, entry) {
       var dnaSel = $(entry).find('.dna-plate:first');
-      var barcodeSel = $(entry).find('.primer-plate:first');
+      var primerSel = $(entry).find('.primer-plate:first');
       var dnaId = dnaSel.val();
-      var barcodeId = barcodeSel.val();
+      var primerId = primerSel.val();
 
       $(entry).removeClass('has-error').find('.glyphicon-warning-sign:first').hide();
 
-      if (dnaId === "-1" && barcodeId === "-1") {
+      if (dnaId === "-1" && primerId === "-1") {
         // If none of the DNA plate and the barcode plate are select
         // simply ignore this row
       } else if (dnaId === "-1") {
         // Mark the DNA plate with an error
         success = false;
         $(entry).addClass('has-error').find('.glyphicon-warning-sign:first').show();
-      } else if (barcodeId === "-1") {
+    } else if (primerId === "-1") {
         // Mark the barcode plate with an error
         success = false;
         $(entry).addClass('has-error').find('.glyphicon-warning-sign:first').show();
       } else {
-        plates.push({'dna_plate_id': dnaId, 'barcode_plate_id': barcodeId});
+        plates.push({'dna_plate_id': dnaId, 'primer_plate_id': primerId});
       }
     });
 
@@ -120,7 +120,8 @@
   function addBarcodePlateOptions(elem) {
     var plates = {% raw dumps(primer_plates) %};
     $.each(plates, function (idx, plate) {
-      $('<option>').attr('value', plate.id).text(plate.name).appendTo(elem);
+      var display = plate.name + " - " + plate.target_gene_region;
+      $('<option>').attr('value', plate.id).text(display).appendTo(elem);
     });
   };
 
