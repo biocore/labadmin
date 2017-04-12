@@ -1111,6 +1111,27 @@ class TestDataAccess(TestCase):
         self.assertEqual(ctx.exception.message,
                          'Sample plate ID 1000 does not exist.')
 
+    def test_read_sample(self):
+        # Create a study
+        db.create_study(9999, title='LabAdmin test project',
+                        alias='LTP', jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+        samples = ['9999.Sample_1', '9999.Sample_2', '9999.Sample_3']
+        db.set_study_samples(9999, samples)
+
+        exp = {'sample_id': '9999.Sample_1', 'is_blank': False,
+               'details': None, 'study_id': 9999}
+        self.assertEqual(db.read_sample('9999.Sample_1'), exp)
+        exp = {'sample_id': 'BLANK', 'is_blank': True,
+               'details': None, 'study_id': None}
+        self.assertEqual(db.read_sample('BLANK'), exp)
+
+        # Attempt to read a leayout of a plate that doesn't exist
+        with self.assertRaises(ValueError) as ctx:
+            db.read_sample('NOTASAMPLE')
+        self.assertEqual(ctx.exception.message,
+                         "Sample NOTASAMPLE does not exist")
+
     def test_delete_sample_plate(self):
         # Create a study
         db.create_study(9999, title='LabAdmin test project',

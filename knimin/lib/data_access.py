@@ -3031,6 +3031,30 @@ class KniminAccess(object):
             TRN.add(sql, [plate_id])
             return dict(TRN.execute_fetchindex()[0])
 
+    def read_sample(self, sample_id):
+        """Returns the properties of a sample
+
+        Parameters
+        ----------
+        sample_id : str
+            The id of the sample to read
+
+        Returns
+        -------
+        dict
+            {sample_id: str, is_blank: bool, details: str, study_id: int}
+        """
+        with TRN:
+            sql = """SELECT sample_id, is_blank, details, study_id
+                     FROM pm.sample
+                        LEFT JOIN pm.study_sample USING (sample_id)
+                     WHERE sample_id = %s"""
+            TRN.add(sql, [sample_id])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError("Sample %s does not exist" % sample_id)
+            return dict(res[0])
+
     def _clear_sample_plate_layout(self, sample_plate_id):
         """Deletes the entire layout of a sample plate
 
