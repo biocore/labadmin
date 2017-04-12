@@ -1416,31 +1416,62 @@ class TestDataAccess(TestCase):
 
         # plates creation
         dna_plates = []
+        exp_robot = db.get_property_options("extraction_robot")[0]
+        exp_kit = db.get_property_options("extraction_kit_lot")[0]
+        exp_tool = db.get_property_options("extraction_tool")[0]
         for i in range(4):
-            pid = db.create_sample_plate('Test %d' % i, 2, 'test', [9999])
+            pid = db.create_sample_plate('Test %s' % i, 2, 'test', [9999])
             self._clean_up_funcs.insert(
                 0, partial(db.delete_sample_plate, pid))
-            dna_plates.append((pid, i))
 
-        # user creation
-        email = 'testmail@testdomain.com'
-        password = ('$2a$10$2.6Y9HmBqUFmSvKCjWmBte70'
-                    'WF.zd3h4VqbhLMQK1xP67Aj3rei86')
-        sql = """INSERT INTO ag.labadmin_users (email, password)
-                 VALUES (%s, %s)"""
-        db._con.execute(sql, [email, password])
+            dp_pid = db.extract_sample_plates(
+                [pid], 'test', exp_robot['name'], exp_kit['name'],
+                exp_tool['name'])[0]
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_dna_plate, dp_pid))
+            dna_plates.append((dp_pid, i))
 
-        dna_plates = [(2, 0), (1, 1), (4, 2), (3, 3)]
+        email = 'test'
         name = "full plate"
         robot = 'HOWE_KF1'
-        plate_type = 2
+        plate_type = 2L
         volume = 0.22
-        obs = db.condense_dna_plates(dna_plates, name, email,
+        cid = db.condense_dna_plates(dna_plates, name, email,
                                      robot, plate_type, volume)
+        self._clean_up_funcs.insert(0, partial(db.delete_shotgun_plate, cid))
+        obs = db.read_shotgun_plate(cid)
+        # not testing time to avoid problems
+        del obs['created_on']
+        # just testing dna_plates
+        self.assertItemsEqual(obs['condensed_plates'], dna_plates)
+        del obs['condensed_plates']
+        exp = {
+            'plate_type_id': plate_type,
+            'dna_q_volume': None,
+            'name': name,
+            'robot': 'ROBE',
+            'dna_q_mail': None, 'volume': volume,
+            'plate_reader_id': None,
+            'email': email,
+            'dna_q_date': None,
+            'id': cid}
+        self.assertEqual(obs, exp)
 
-        # cleaning left participants
-        sql = """DELETE FROM ag.labadmin_users WHERE email=%s"""
-        db._con.execute(sql, [email])
+    def test_read_shotgun_plate(self):
+        # functional testing is part of test_condense_dna_plates, just testing
+        # errors
+        with self.assertRaises(ValueError) as ctx:
+            db.read_shotgun_plate(100000)
+            self.assertEqual(
+                ctx.exception.message, "Shotgun Plate 100000 does not exist")
+
+    def test_delete_shotgun_plate(self):
+        # functional testing is part of test_condense_dna_plates, just testing
+        # errors
+        with self.assertRaises(ValueError) as ctx:
+            db.delete_shotgun_plate(100000)
+            self.assertEqual(
+                ctx.exception.message, "Shotgun Plate 100000 does not exist")
 
 
 if __name__ == "__main__":

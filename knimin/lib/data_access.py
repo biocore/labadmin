@@ -3802,8 +3802,8 @@ class KniminAccess(object):
             TRN.add(sql, [pool_id])
             TRN.execute()
 
-    def condense_dna_plates(
-        self, dna_plates, name, email, robot, plate_type, volume):
+    def condense_dna_plates(self, dna_plates, name, email, robot,
+                            plate_type, volume):
         """Generates a new shotgun plate
 
         Parameters
@@ -3878,6 +3878,85 @@ class KniminAccess(object):
             TRN.execute()
 
             return shotgun_pid
+
+    def read_shotgun_plate(self, plate_id):
+        """Returns the information of the shotgun plate
+
+        Parameters
+        ----------
+        plate_id : int
+            The if of the shotgun plate
+
+        Returns
+        -------
+        dict
+            {'id': int, 'name': str, 'email': str, 'created_on': datetime,
+             'robot': str, 'plate_type_id': int, 'volume': float,
+             'dna_q_date': datetime, 'dna_q_mail': str, 'dna_q_volume': float,
+             'plate_reader': str,
+             'condensed_plates': list of (int - id, int - position)}
+
+        Raises
+        ------
+        ValueError
+            If the shotgun plate `plate_id` doesn't exist
+        """
+        with TRN:
+            sql = """SELECT sp.shotgun_plate_id AS id, sp.name as name, email,
+                        created_on, prr.name AS robot, plate_type_id, volume,
+                        dna_quantification_date AS dna_q_date,
+                        dna_quantification_email AS dna_q_mail,
+                        dna_quantification_volume AS dna_q_volume,
+                        plate_reader_id, ARRAY_AGG(
+                            (cp.dna_plate_id, cp.position)) AS condensed_plates
+                     FROM pm.shotgun_plate sp
+                     LEFT JOIN pm.processing_robot prr
+                        USING (processing_robot_id)
+                     LEFT JOIN pm.plate_reader as plr USING (plate_reader_id)
+                     LEFT JOIN pm.condensed_plates as cp
+                        USING (shotgun_plate_id)
+                     WHERE shotgun_plate_id = %s
+                     GROUP BY id, sp.name, email, created_on, robot,
+                        plate_type_id, volume, dna_q_date, dna_q_mail,
+                        dna_q_volume, plate_reader_id"""
+            TRN.add(sql, [plate_id])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError("Shotgun Plate %s does not exist" % plate_id)
+
+            # Magic number 0 -> there is only 1 result row
+            res = dict(res[0])
+            res['condensed_plates'] = [eval(v)
+                                       for v in eval(res['condensed_plates'])]
+            return res
+
+    def delete_shotgun_plate(self, plate_id):
+        """Deletes the shotgun plate
+
+        Parameters
+        ----------
+        plate_id : int
+            The if of the shotgun plate
+
+        Raises
+        ------
+        ValueError
+            If the shotgun plate `plate_id` doesn't exist
+        """
+        with TRN:
+            sql = """DELETE FROM pm.condensed_plates
+                     WHERE shotgun_plate_id = %s"""
+            TRN.add(sql, [plate_id])
+
+            sql = """DELETE FROM pm.shotgun_plate
+                     WHERE shotgun_plate_id = %s
+                     RETURNING shotgun_plate_id"""
+            TRN.add(sql, [plate_id])
+
+            if not TRN.execute_fetchindex():
+                # If the output from the SQL query is empty, it means that the
+                # plate_id did not exist
+                raise ValueError('Shotgun Plate %s does not exist' % plate_id)
 
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""
