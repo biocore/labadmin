@@ -41,6 +41,7 @@ from knimin.handlers.pm_library_prep import (
     PMTargetGeneLibraryPrepHandler,
     PMMetagenomicsLibraryPrepHandler)
 from knimin.handlers.pm_pool_handlers import PMPoolPlatesHandler
+from knimin.handlers.pm_sequence import PMSequenceHandler
 
 define("port", default=config.http_port, type=int)
 
@@ -88,6 +89,7 @@ class WebApplication(Application):
             (r"/pm_library_prep/metagenomics/",
              PMMetagenomicsLibraryPrepHandler),
             (r"/pm_pool_plates/", PMPoolPlatesHandler),
+            (r"/pm_sequence/", PMSequenceHandler),
             (r"/pm_create_study/", PMCreateStudyHandler),
             (r"/pm_plate_list/", PMPlateListHandler),
             (r"/pm_create_plate/", PMCreatePlateHandler),

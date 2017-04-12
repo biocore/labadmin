@@ -93,6 +93,23 @@ class TestDataAccess(TestCase):
 
         return targeted_plate_ids
 
+    def _create_test_data_pool(self):
+        targeted_plate_ids = self._create_test_data_targeted_plate()
+
+        # Pool samples
+        pools = [
+            {'targeted_plate_id': targeted_plate_ids[0], 'volume': 240,
+             'percentage': 100}]
+        pool_id = db.pool_plates(pools, 'LabAdmin test pool', 5)
+        pools = [
+            {'targeted_plate_id': targeted_plate_ids[1], 'volume': 240,
+             'percentage': 100}]
+        pool_id_2 = db.pool_plates(pools, 'LabAdmin test pool 2', 5)
+        self._clean_up_funcs.insert(0, partial(db.delete_pool, pool_id))
+        self._clean_up_funcs.insert(0, partial(db.delete_pool, pool_id_2))
+
+        return [pool_id, pool_id_2]
+
     def test_pulldown_third_party(self):
         # Add survey answers
         with open(self.ext_survey_fp, 'rU') as f:
@@ -1024,6 +1041,28 @@ class TestDataAccess(TestCase):
         err = 'Sample plate ID %s does not exist.' % plate_id
         self.assertEqual(str(context.exception), err)
 
+    def test_get_sequencers(self):
+        obs = db.get_sequencers()
+        exp = [{'id': 1, 'name': 'Knight Lab In house MiSeq',
+                'platform': 'Illumina', 'instrument_model': 'MiSeq'}]
+        self.assertEqual(obs, exp)
+
+    def test_get_reagent_kit_lots(self):
+        obs = db.get_reagent_kit_lots()
+        exp = [{'id': 1, 'name': 'MS1234', 'notes': None,
+                'reagent_kit_type': 'MiSeq v3 150 cycle'}]
+        self.assertEqual(obs, exp)
+
+    def test_get_or_create_reagent_kit_lot(self):
+        obs = db.get_or_create_reagent_kit_lot('MS1234', 'MiSeq v3 150 cycle')
+        self.assertEqual(obs, 1)
+
+        obs = db.get_or_create_reagent_kit_lot('MS4321', 'MiSeq v3 150 cycle')
+        self._clean_up_funcs.append(
+            partial(db.delete_property_option, "reagent_kit_lot", obs))
+        # The actual id changes
+        self.assertGreater(obs, 1)
+
     def test_get_property_options(self):
         # Get available extraction robots
         obs = db.get_property_options("extraction_robot")
@@ -1061,8 +1100,11 @@ class TestDataAccess(TestCase):
         obs = db.get_plate_types()
         exp = [{'id': 1, 'name': '96-well',
                 'notes': 'Standard 96-well plate',
-                'cols': 12, 'rows': 8}]
-        self.assertEqual(obs, exp)
+                'cols': 12, 'rows': 8},
+               {'id': 2, 'name': '384-well',
+                'notes': 'Standard 384-well plate',
+                'cols': 24, 'rows': 16}]
+        self.assertItemsEqual(obs, exp)
 
     def test_read_plate_type(self):
         obs = db.read_plate_type(1)
@@ -1472,6 +1514,48 @@ class TestDataAccess(TestCase):
             db.delete_shotgun_plate(100000)
             self.assertEqual(
                 ctx.exception.message, "Shotgun Plate 100000 does not exist")
+
+    def test_get_pool_list(self):
+        self.assertEqual(db.get_pool_list(), [])
+
+        pool_ids = self._create_test_data_pool()
+        exp = [{'id': pool_ids[0], 'name': 'LabAdmin test pool',
+                'targeted_pools': ['Test plate']},
+               {'id': pool_ids[1], 'name': 'LabAdmin test pool 2',
+                'targeted_pools': ['Test plate 2']}]
+
+        self.assertEqual(db.get_pool_list(), exp)
+
+    def test_create_sequencing_run(self):
+        pool_ids = self._create_test_data_pool()
+
+        # Create the run
+        before = datetime.datetime.now()
+        run_id = db.create_sequencing_run(
+            pool_ids[0], 'test', 1, 'MiSeq v3 150 cycle', 'MS1234')
+        after = datetime.datetime.now()
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sequencing_run, run_id))
+
+        obs = db.read_sequencing_run(run_id)
+        self.assertTrue(before <= obs.pop('created_on') <= after)
+        exp = {'id': run_id, 'name': 'LabAdmin test pool', 'notes': None,
+               'sequencer': 'Knight Lab In house MiSeq',
+               'pool_id': pool_ids[0], 'reagent_kit_lot': 'MS1234',
+               'email': 'test'}
+        self.assertEqual(obs, exp)
+
+    def test_read_sequencing_run(self):
+        # Success is already tested in "test_pool_plates"
+        with self.assertRaises(ValueError) as ctx:
+            db.read_sequencing_run(0)
+        self.assertEqual(ctx.exception.message, 'Run 0 does not exist')
+
+    def test_delete_sequencing_run(self):
+        # Success is already tested in "test_pool_plates"
+        with self.assertRaises(ValueError) as ctx:
+            db.delete_sequencing_run(0)
+        self.assertEqual(ctx.exception.message, 'Run 0 does not exist')
 
 
 if __name__ == "__main__":

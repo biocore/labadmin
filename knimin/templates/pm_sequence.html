@@ -1,0 +1,80 @@
+{% extends logged_in_index.html %}
+{% block head %}
+{% from json import dumps %}
+<script>
+  /**
+   *
+   * Checks if the current value of the element exists in the given array
+   * and updated its style accordingly
+   *
+   * @param {Element} elem The input DOM element
+   * @param {Array} existing The array of existing elements
+   *
+   **/
+  function formatInput(elem, existing) {
+    var val = $(elem).val().trim();
+    $(elem).removeClass('pm-warning');
+    if (val.length > 0 && $.inArray(val, existing) === -1) {
+      $(elem).addClass('pm-warning');
+    }
+  };
+
+  /**
+   *
+   * Updates the kit lots values based on the current value of reagent type
+   **/
+  function updateKitLotsValues () {
+    var reagents = {% raw dumps(reagents) %};
+    var currVals = reagents[$('#reagent-kit-type').val()];
+    $(".autocomplete-reagent").autocomplete({source: currVals,
+                                             select: function (e, ui) {
+                                               formatInput(this, currVals)
+                                             }});
+    $(".autocomplete-reagent").keyup(function(e) {
+      formatInput(this, currVals);
+    });
+  };
+
+  $(document).ready(function() {
+    updateKitLotsValues();
+    $("#reagent-kit-type").change(function() {
+      updateKitLotsValues();
+    });
+  });
+</script>
+{% end %}
+{% block content %}
+<h3>Prepare sequencing run for sample pool: {{pool['name']}} (ID: {{pool['id']}})</h3>
+<div class='container'>
+  <form action="/pm_sequence/" method="post">
+    <input type="hidden" name="pool_id" value="{{pool['id']}}"/>
+    <div class='row'>
+      <div class='col-xs-4 form-group'>
+        <label>Sequencer:</label>
+        <select name="sequencer" class="form-control" required>
+          {% for seq in sequencers %}
+            <option value='{{seq['id']}}'>{{seq['name']}} ({{seq['platform']}}, {{seq['instrument_model']}})</option>
+          {% end %}
+        </select>
+      </div>
+      <div class='col-xs-4 form-group'>
+        <label>Reagent Kit type:</label>
+        <select name="reagent_kit_type" class="form-control" id="reagent-kit-type" required>
+          {% for r in reagents %}
+            <option value='{{r}}' >{{r}}</option>
+          {% end %}
+        </select>
+      </div>
+      <div class='col-xs-4 form-group'>
+        <label>Reagent Kit Lot:</label>
+        <input name="reagent_kit_lot" class="form-control autocomplete-reagent" placeholder="Type reagent kit lot" type="text" id="reagent-kit" required/>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-xs-12 form-group">
+        <button type="submit" class="btn btn-primary">Submit</button>
+      </div>
+    </div>
+  <form>
+</div>
+{% end %}
