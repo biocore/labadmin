@@ -3920,15 +3920,17 @@ class KniminAccess(object):
             if plate_type != 2:
                 raise ValueError("plate_map should be 2: '384-well plate' but "
                                  "it's %d" % plate_type)
-            if len(dna_plates) != 4:
-                raise ValueError("You should have 3 plates and you "
-                                 "have %d" % len(dna_plates))
+            #  check size
+            len_dna_plates = len(dna_plates)
+            if len_dna_plates < 1 or len_dna_plates > 4:
+                raise ValueError("You should have between 1 and 4 plates but "
+                                 "you have %d" % len_dna_plates)
+            # check exists and position
             wrong_vals = [(pid, pos) for pid, pos in dna_plates
                           if not self.read_sample_plate(pid) or
                           (pos < 0 or pos > 3)]
             if wrong_vals:
-                raise ValueError("There are errors in these "
-                                 "vals: %s" % wrong_vals)
+                raise ValueError("Wrong dna plates position: %s" % wrong_vals)
 
             # adding shotgun_plate
             sql = """INSERT INTO pm.shotgun_plate (
