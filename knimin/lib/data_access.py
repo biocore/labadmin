@@ -10,6 +10,7 @@ from hashlib import sha512
 from datetime import datetime, time, timedelta
 import json
 import re
+import numpy as np
 
 from bcrypt import hashpw, gensalt
 from future.utils import viewitems
@@ -3531,6 +3532,168 @@ class KniminAccess(object):
                 raise ValueError("DNA plate %s does not exist" % dna_plate_id)
             # Magic number 0 -> there is only 1 result row
             return dict(res[0])
+
+    def normalize_shotgun_plate(self, shotgun_plate_id, email, echo,
+                                plate_normalization_sample,
+                                plate_normalization_water):
+	"""Adds a normalized shotgun plate to the system
+
+	Parameters
+	----------
+	shotgun_plate_id : int
+	    The shotgun plate id
+	email : str
+	    The email of the user
+	echo : str
+	    The echo machine performing the normalization
+	plate_normalization_sample : 2D np.array of float
+	    The sample volume in nanoliters for each well
+	plate_normalization_water : 2D np.array of float
+	    The water volume in nanoliters for each well
+
+	Raises
+	------
+	ValueError
+	    If the shotgun plate `shotgun_plate_id` does not exist
+	    If `plate_normalization_sample` dimensions doesn't match the plate
+	        type
+	    If `plate_normalization_water` dimensions doesn't match the plate
+	        type
+	    If the echo instrument does not exist
+
+	Returns
+	-------
+	int
+	    The created normalized_shotgun_plate_id
+	"""
+        with TRN:
+            # verify the plate exists
+            sql = """SELECT EXISTS(
+                        SELECT 1
+                        FROM pm.shotgun_plate
+                        WHERE shotgun_plate_id = %s"""
+            TRN.add(sql, [shotgun_plate_id])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError("shotgun plate %s does not exist" %
+                                 shotgun_plate_id)
+
+            # obtain and verify the echo exists
+            sql = """SELECT echo_id
+                     FROM pm.echo
+                     WHERE echo.name = %s"""
+            TRN.add(sql, [echo])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError("echo machine %s does not exist" % echo)
+            else:
+                echo_id = dict(res[0])['echo_id']
+
+            # verify the shape of the plate
+            sql = """SELECT rows, cols
+                     FROM pm.shotgun_plate JOIN
+                          pm.plate_type USING(plate_type_id)
+                     WHERE shotgun_plate_id = %s"""
+            TRN.add(sql, [shotgun_plate_id])
+            res = dict(TRN.execute_fetchindex()[0])
+            n_rows = res['rows']
+            n_cols = res['cols']
+
+            if plate_normalization_sample.shape != (n_rows, n_cols):
+                obs = repr(plate_normalization_sample.shape)
+                exp = repr((n_rows, n_cols))
+                raise ValueError("plate_normalization_sample has an unexpected "
+                                 "shape %s; expected %s" % (obs, exp))
+
+            if plate_normalization_water.shape != (n_rows, n_cols):
+                obs = repr(plate_normalization_water.shape)
+                exp = repr((n_rows, n_cols))
+                raise ValueError("plate_normalization_water has an unexpected "
+                                 "shape %s; expected %s" % (obs, exp))
+
+            # create the instance of the normalized plate
+            sql = """INSERT INTO pm.shotgun_normalized_plate
+                        (shotgun_plate_id, created_on, email, echo_id)
+                     VALUES (%s, now(), %s, %s)
+                     RETURNING shotgun_normalized_plate_id"""
+
+            TRN.add(sql, [shotgun_plate_id, email, echo_id])
+            shotgun_normalized_plate_id = TRN.execute()[0]
+
+            # add all of the volume details for the normalized plate
+            sql = """INSERT INTO pm.shotgun_normalized_plate_well_values
+                        (shotgun_normalized_plate_id, row, col,
+                         sample_volume_nl, water_volume_nl)
+                     VALUES (%s, %s, %s, %s, %s)"""
+            sql_args = []
+            for row in np.arange(n_rows):
+                for col in np.arange(n_cols):
+                    sql_args.append((shotgun_normalized_plate_id,
+                                     row, col,
+                                     plate_normalization_sample[row, col],
+                                     plate_normalization_water[row, col]))
+            TRN.add(sql, sql_args, many=True)
+            TRN.execute()
+        return shotgun_normalized_plate_id
+
+    def read_normalized_shotgun_plate(self, shotgun_normalized_plate_id):
+        """Obtain the normalized shotgun plate details
+
+        Parameters
+        ----------
+        shotgun_normalized_plate_id : int
+            The ID of the normalized shotgun plate to retrieve.
+
+        Raises
+        ------
+        ValueError
+            If the normalized_shotgun_plate_id does not exist
+
+        Returns
+        -------
+        dict
+            A dict populated by the columns details in
+            pm.shotgun_normalized_plate, as well as two numpy matrices
+            corresponding to the normalized water and sample volumes
+        """
+        with TRN:
+            # get plate details
+            sql = """SELECT *
+                     FROM pm.shotgun_normalized_plate
+                     WHERE shotgun_normalized_plate_id = %s"""
+            TRN.add(sql, [normalized_shotgun_plate_id])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError("normalized shotgun plate %s does not exist" %
+                                 shotgun_normalized_plate_id)
+            res = dict(res)
+            res.pop('shotgun_normalized_plate_id')
+
+            # get plate shape
+            sql = """SELECT rows, cols
+                     FROM pm.shotgun_plate JOIN
+                          pm.plate_type USING(plate_type_id)
+                     WHERE shotgun_plate_id = %s"""
+            TRN.add(sql, [res['shotgun_plate_id']])
+            plate_shape = dict(TRN.execute_fetchindex()[0])
+            n_rows = plate_shape['rows']
+            n_cols = plate_shape['cols']
+            sample_volumes = np.zeros((n_rows, n_cols))
+            water_volumes = np.zeros((n_rows, n_cols))
+
+            # get well values
+            sql = """SELECT row, col, sample_volume_nl, water_volume_nl
+                     FROM pm.shotgun_normalized_plate_well_values
+                     WHERE shotgun_normalized_plate_id = %s"""
+            TRN.add(sql, [normalized_shotgun_plate_id])
+            well_values = TRN.execute()
+            for row, col, sample_volume_nl, water_volume_nl in well_values:
+                sample_volumes[row, col] = sample_volume_nl
+                water_volumes[row, col] = water_volume_nl
+            res['plate_normalization_water'] = water_volumes
+            res['plate_normalization_sample'] = sample_volumes
+
+        return res
 
     def delete_dna_plate(self, dna_plate_id):
         """Deletes a DNA plate

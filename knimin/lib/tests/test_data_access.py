@@ -6,6 +6,7 @@ from traceback import format_exc
 import datetime
 
 import pandas as pd
+import numpy.testing as npt
 
 from knimin import db
 from knimin.lib.constants import ebi_remove
@@ -1259,6 +1260,69 @@ class TestDataAccess(TestCase):
                'extraction_tool': exp_tool['name'],
                'notes': None}
         self.assertEqual(obs_info, exp)
+
+    def test_normalize_shotgun_plate_bad_id(self):
+        with self.assertRaisesRegex(ValueError, "plate_normalization_water"):
+            db.normalize_shotgun_plate(99999999, 'test', 'a valid echo name',
+                                       np.zeros((16, 24)), np.zeros((16, 24)))
+
+    def test_normalize_shotgun_plate_bad_water_shape(self):
+        # this test assumes that the plate is a 384 well format, so we'll specify
+        # a water matrix in 96 well format
+        with self.assertRaisesRegex(ValueError, "plate_normalization_water"):
+            db.normalize_shotgun_plate(0, 'test', 'a valid echo name',
+                                       np.zeros((16, 24)), np.zeros((8, 12)))
+
+    def test_normalize_shotgun_plate_bad_sample_shape(self):
+        # this test assumes that the plate is a 384 well format, so we'll specify
+        # a sample matrix in 96 well format
+        with self.assertRaisesRegex(ValueError, "plate_normalization_sample"):
+            db.normalize_shotgun_plate(0, 'test', 'a valid echo name',
+                                       np.zeros((8, 12)), np.zeros((16, 24)))
+
+    def test_normalize_shotgun_plate_bad_echo_name(self):
+        ### there does not appear to be any loaded echo names in patch 0041
+        with self.assertRaisesRegex(ValueError, "echo machine"):
+            db.normalize_shotgun_plate(0, 'test', 'does not exist',
+                                       np.zeros((16, 24)), np.zeros((16, 24)))
+
+    def test_normalize_shotgun_plate(self):
+        db.normalize_shotgun_plate(0, 'test', 'a valid echo name',
+                                   np.arange(384).reshape(16, 24),
+                                   np.arange(384).reshape(16, 24) * 10)
+        exp_sample = np.arange(384).reshape(16, 24)
+        exp_water = np.arange(384).reshape(16, 24) * 10
+
+        ### many of these values are ignored at this time as dont know
+        ### where they get established
+        exp = {'created_on': 'ignored',  # now() will differ slightly
+               'email': 'test',
+               'echo_id': 'ignored',  # this is assertable via inline sql
+               'lp_date': 'ignored',
+               'lp_email': 'ignored',
+               'mosquito': 'ignored',
+               'shotgun_library_prep_kit_id': 'ignored',
+               'shotgun_adapter_aliquot_id': 'ignored',
+               'qpcr_date': 'ignored',
+               'qpcr_email': 'ignored',
+               'qpcr_std_ladder': 'ignored',
+               'qpcr_id': 'ignored',
+               'discarded': 'ignored',
+               'plate_normalization_water': exp_water,
+               'plate_normalization_sample': exp_sample}
+
+        ### should this call count as the test for read_normalized_shotgun_plate?
+        obs = db.read_normalized_shotgun_plate(0)
+        self.assertEqual(obs.keys(), exp.keys())
+        self.assertEqual(obs['email'], exp['email'])
+        npt.assert_equal(obs['plate_normalization_water'],
+                         exp['plate_normalization_water'])
+        npt.assert_equal(obs['plate_normalization_sample'],
+                         exp['plate_normalization_sample'])
+
+    def test_read_normalized_shotgun_plate_bad_id(self):
+        with self.assertRaises(ValueError):
+            db.read_normalized_shotgun_plate(99999999)
 
     def test_read_dna_plate(self):
         # Success is already tested in "test_extract_sample_plates"
