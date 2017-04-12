@@ -3108,6 +3108,30 @@ class KniminAccess(object):
             TRN.add(sql, sql_args, many=True)
             TRN.execute()
 
+    def get_blanks_from_sample_plate(self, sample_plate_id):
+        """Returns the blanks from the sample plate
+
+        Parameters
+        ----------
+        sample_plate_id : int
+            ID of the sample plate whose layout is to be read
+
+        Returns
+        -------
+        list of DictCursor
+            The sample id, the row and the col
+        """
+        with TRN:
+            self._sample_plate_exists(sample_plate_id)
+
+            sql = """SELECT sample_id, row, col
+                     FROM pm.sample_plate_layout
+                        JOIN pm.sample USING (sample_id)
+                     WHERE sample_plate_id = %s AND is_blank=true
+                     ORDER BY row, col"""
+            TRN.add(sql, [sample_plate_id])
+            return TRN.execute_fetchindex()
+
     def read_sample_plate_layout(self, sample_plate_id):
         """Reads the layout of a sample plate
 

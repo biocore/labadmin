@@ -891,6 +891,45 @@ class TestDataAccess(TestCase):
         self.assertEqual(ctx.exception.message,
                          'Email does@not.exist does not exist.')
 
+    def test_get_blanks_from_sample_plate(self):
+        # Create a study
+        db.create_study(9999, title='LabAdmin test project',
+                        alias='LTP', jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+
+        # Add samples to the study
+        samples = ['9999.Sample_1', '9999.Sample_2', '9999.Sample_3']
+        db.set_study_samples(9999, samples)
+
+        # Create a plate
+        pt = db.get_plate_types()[0]
+        plate_id = db.create_sample_plate('Test plate', pt['id'],
+                                          'test', [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id))
+
+        # plate some samples
+        layout = [[{}] * pt['cols']] * pt['rows']
+        # Set the first column and 3rd column to be all blanks. Is a bit subtle
+        # but this is happening because in all the rows we have the same list
+        # given how we have constructed the layout
+        layout[0][0] = {'sample_id': 'BLANK'}
+        layout[0][1] = {'sample_id': '9999.Sample_1'}
+        layout[0][2] = {'sample_id': '9999.Sample_2'}
+        layout[0][3] = {'sample_id': 'BLANK'}
+        db.write_sample_plate_layout(plate_id, layout)
+
+        obs = db.get_blanks_from_sample_plate(plate_id)
+        exp = [['BLANK', 0, 0], ['BLANK', 0, 3],
+               ['BLANK', 1, 0], ['BLANK', 1, 3],
+               ['BLANK', 2, 0], ['BLANK', 2, 3],
+               ['BLANK', 3, 0], ['BLANK', 3, 3],
+               ['BLANK', 4, 0], ['BLANK', 4, 3],
+               ['BLANK', 5, 0], ['BLANK', 5, 3],
+               ['BLANK', 6, 0], ['BLANK', 6, 3],
+               ['BLANK', 7, 0], ['BLANK', 7, 3]]
+        self.assertEqual(obs, exp)
+
     def test_read_sample_plate(self):
         # Create a study
         db.create_study(9999, title='LabAdmin test project',
