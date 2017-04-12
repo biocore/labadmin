@@ -3132,6 +3132,34 @@ class KniminAccess(object):
             TRN.add(sql, [sample_plate_id])
             return TRN.execute_fetchindex()
 
+    def get_replicates_from_sample_plate(self, sample_plate_id):
+        """Returns the technical replicates present in the sample plate
+
+        Parameters
+        ----------
+        sample_plate_id : int
+            Sample plate id
+
+        Returns
+        -------
+        dict
+            For each sample, a list of tuples with the well locations
+        """
+        with TRN:
+            self._sample_plate_exists(sample_plate_id)
+            sql = """SELECT sample_id, ARRAY_AGG((row, col)) AS wells
+                     FROM pm.sample_plate_layout
+                        JOIN pm.sample USING (sample_id)
+                     WHERE sample_plate_id = %s
+                        AND is_blank = false
+                     GROUP BY sample_id"""
+            TRN.add(sql, [sample_plate_id])
+            replicates = {}
+            for sql_row in TRN.execute_fetchindex():
+                replicates[sql_row['sample_id']] = [
+                    eval(i) for i in eval(sql_row['wells'])]
+            return replicates
+
     def read_sample_plate_layout(self, sample_plate_id):
         """Reads the layout of a sample plate
 
