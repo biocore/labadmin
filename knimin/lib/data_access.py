@@ -3927,8 +3927,7 @@ class KniminAccess(object):
                                  "you have %d" % len_dna_plates)
             # check exists and position
             wrong_vals = [(pid, pos) for pid, pos in dna_plates
-                          if not self.read_sample_plate(pid) or
-                          (pos < 0 or pos > 3)]
+                          if pos < 0 or pos > 3]
             if wrong_vals:
                 raise ValueError("Wrong dna plates position: %s" % wrong_vals)
 

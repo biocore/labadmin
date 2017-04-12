@@ -1559,21 +1559,7 @@ class TestDataAccess(TestCase):
                                    volume)
         self.assertEqual(
             ctx.exception.message,
-            "Sample plate ID 0 does not exist.")
-        pid = db.create_sample_plate('Test', 2, 'test', [9999])
-        self._clean_up_funcs.insert(0, partial(db.delete_sample_plate, pid))
-        dp_pid = db.extract_sample_plates(
-            [pid], 'test', exp_robot['name'], exp_kit['name'],
-            exp_tool['name'])[0]
-        self._clean_up_funcs.insert(
-            0, partial(db.delete_dna_plate, dp_pid))
-        dna_plates = [(dp_pid, 10)]
-        with self.assertRaises(ValueError) as ctx:
-            db.condense_dna_plates(dna_plates, name, email, robot, plate_type,
-                                   volume)
-        self.assertEqual(
-            ctx.exception.message,
-            "Wrong dna plates position: [(%dL, 10)]" % dp_pid)
+            "Wrong dna plates position: [(0, 10)]")
 
     def test_read_shotgun_plate(self):
         # functional testing is part of test_condense_dna_plates, just testing
