@@ -4036,6 +4036,163 @@ class KniminAccess(object):
             TRN.add(sql, [pool_id])
             TRN.execute()
 
+    def condense_dna_plates(self, dna_plates, name, email, robot,
+                            plate_type, volume):
+        """Generates a new shotgun plate
+
+        Parameters
+        ----------
+        dna_plates : list of [(int, int)]
+            The dna plate and the position in which they are condensed
+        name : str
+            The plate name
+        email : str
+            The email of the user
+        robot : str
+            The robot performing the plate condensation
+        plate_type : int
+            The plate type id of the shotgun plate
+        volume : float
+            The volume plated in the shotgun plate from the original DNA plates
+
+        Returns
+        -------
+        int
+            The id of the new shotgun plate
+
+        Raises
+        ------
+        ValueError
+            If plate_type is not a 384-well plate and dna_plates are not four
+            96-well plates in positions from 0-3.
+
+        Notes
+        -----
+        Right know we only know one way of condensing plates, as other
+        configurations are known, they can be added. This is coded like this to
+        make the system more flexible
+        """
+        with TRN:
+            self._plate_type_exists(plate_type)
+            self._email_exists(email)
+            robot_id = self.get_or_create_property_option_id(
+                "extraction_robot", robot)
+
+            # 2 is 384-well plate
+            if plate_type != 2:
+                raise ValueError("plate_map should be 2: '384-well plate' but "
+                                 "it's %d" % plate_type)
+            #  check size
+            len_dna_plates = len(dna_plates)
+            if len_dna_plates < 1 or len_dna_plates > 4:
+                raise ValueError("You should have between 1 and 4 plates but "
+                                 "you have %d" % len_dna_plates)
+            # check exists and position
+            wrong_vals = [(pid, pos) for pid, pos in dna_plates
+                          if pos < 0 or pos > 3]
+            if wrong_vals:
+                raise ValueError("Wrong dna plates position: %s" % wrong_vals)
+
+            # adding shotgun_plate
+            sql = """INSERT INTO pm.shotgun_plate (
+                        name, email, created_on, processing_robot_id,
+                        plate_type_id, volume)
+                     VALUES (%s, %s, now(), %s, %s, %s)
+                     RETURNING shotgun_plate_id"""
+            sql_args = [name, email, robot_id, plate_type, volume]
+            TRN.add(sql, sql_args)
+            shotgun_pid = TRN.execute_fetchlast()
+
+            # adding condensed_plates
+            sql = """INSERT INTO pm.condensed_plates
+                        (shotgun_plate_id, dna_plate_id, position)
+                     VALUES (%s, %s, %s)"""
+            sql_args = [[shotgun_pid, pid, pos] for pid, pos in dna_plates]
+            TRN.add(sql, sql_args, many=True)
+            TRN.execute()
+
+            return shotgun_pid
+
+    def read_shotgun_plate(self, plate_id):
+        """Returns the information of the shotgun plate
+
+        Parameters
+        ----------
+        plate_id : int
+            The if of the shotgun plate
+
+        Returns
+        -------
+        dict
+            {'id': int, 'name': str, 'email': str, 'created_on': datetime,
+             'robot': str, 'plate_type_id': int, 'volume': float,
+             'dna_q_date': datetime, 'dna_q_mail': str, 'dna_q_volume': float,
+             'plate_reader': str,
+             'condensed_plates': list of (int - id, int - position)}
+
+        Raises
+        ------
+        ValueError
+
+            If the shotgun plate `plate_id` doesn't exist
+        """
+        with TRN:
+            sql = """SELECT sp.shotgun_plate_id AS id, sp.name as name, email,
+                        created_on, prr.name AS robot, plate_type_id, volume,
+                        dna_quantification_date AS dna_q_date,
+                        dna_quantification_email AS dna_q_mail,
+                        dna_quantification_volume AS dna_q_volume,
+                        plate_reader_id, ARRAY_AGG(
+                            (cp.dna_plate_id, cp.position)) AS condensed_plates
+                     FROM pm.shotgun_plate sp
+                     LEFT JOIN pm.processing_robot prr
+                        USING (processing_robot_id)
+                     LEFT JOIN pm.plate_reader as plr USING (plate_reader_id)
+                     LEFT JOIN pm.condensed_plates as cp
+                        USING (shotgun_plate_id)
+                     WHERE shotgun_plate_id = %s
+                     GROUP BY id, sp.name, email, created_on, robot,
+                        plate_type_id, volume, dna_q_date, dna_q_mail,
+                        dna_q_volume, plate_reader_id"""
+            TRN.add(sql, [plate_id])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError("Shotgun Plate %s does not exist" % plate_id)
+
+            # Magic number 0 -> there is only 1 result row
+            res = dict(res[0])
+            res['condensed_plates'] = [eval(v)
+                                       for v in eval(res['condensed_plates'])]
+            return res
+
+    def delete_shotgun_plate(self, plate_id):
+        """Deletes the shotgun plate
+
+        Parameters
+        ----------
+        plate_id : int
+            The if of the shotgun plate
+
+        Raises
+        ------
+        ValueError
+            If the shotgun plate `plate_id` doesn't exist
+        """
+        with TRN:
+            sql = """DELETE FROM pm.condensed_plates
+                     WHERE shotgun_plate_id = %s"""
+            TRN.add(sql, [plate_id])
+
+            sql = """DELETE FROM pm.shotgun_plate
+                     WHERE shotgun_plate_id = %s
+                     RETURNING shotgun_plate_id"""
+            TRN.add(sql, [plate_id])
+
+            if not TRN.execute_fetchindex():
+                # If the output from the SQL query is empty, it means that the
+                # plate_id did not exist
+                raise ValueError('Shotgun Plate %s does not exist' % plate_id)
+
     def get_pool_list(self):
         """Gets the list of all pools
 
