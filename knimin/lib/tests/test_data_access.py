@@ -1047,8 +1047,8 @@ class TestDataAccess(TestCase):
                 'platform': 'Illumina', 'instrument_model': 'MiSeq'}]
         self.assertEqual(obs, exp)
 
-    def test_gget_reagent_kit_lots(self):
-        obs = db.gget_reagent_kit_lots()
+    def test_get_reagent_kit_lots(self):
+        obs = db.get_reagent_kit_lots()
         exp = [{'id': 1, 'name': 'MS1234', 'notes': None,
                 'reagent_kit_type': 'MiSeq v3 150 cycle'}]
         self.assertEqual(obs, exp)
