@@ -3802,6 +3802,83 @@ class KniminAccess(object):
             TRN.add(sql, [pool_id])
             TRN.execute()
 
+    def condense_dna_plates(
+        self, dna_plates, name, email, robot, plate_type, volume):
+        """Generates a new shotgun plate
+
+        Parameters
+        ----------
+        dna_plates : list of [(int, int)]
+            The dna plate and the position in which they are condensed
+        name : str
+            The plate name
+        email : str
+            The email of the user
+        robot : str
+            The robot performing the plate condensation
+        plate_type : int
+            The plate type id of the shotgun plate
+        volume : float
+            The volume plated in the shotgun plate from the original DNA plates
+
+        Returns
+        -------
+        int
+            The id of the new shotgun plate
+
+        Raises
+        ------
+        ValueError
+            If plate_type is not a 384-well plate and dna_plates are not four
+            96-well plates in positions from 0-3.
+
+        Notes
+        -----
+        Right know we only know one way of condensing plates, as other
+        configurations are known, they can be added. This is coded like this to
+        make the system more flexible
+        """
+        with TRN:
+            self._sample_plate_is_unique(name)
+            self._plate_type_exists(plate_type)
+            self._email_exists(email)
+            robot_id = self.get_or_create_property_option_id(
+                "extraction_robot", robot)
+
+            # 2 is 384-well plate
+            if plate_type != 2:
+                raise ValueError("plate_map should be 2: '384-well plate' but "
+                                 "it's %d" % plate_type)
+            if len(dna_plates) != 4:
+                raise ValueError("You should have 3 plates and you "
+                                 "have %d" % len(dna_plates))
+            wrong_vals = [(pid, pos) for pid, pos in dna_plates
+                          if not self.read_sample_plate(pid) or
+                          (pos < 0 or pos > 3)]
+            if wrong_vals:
+                raise ValueError("There are errors in these "
+                                 "vals: %s" % wrong_vals)
+
+            # adding shotgun_plate
+            sql = """INSERT INTO pm.shotgun_plate (
+                        name, email, created_on, processing_robot_id,
+                        plate_type_id, volume)
+                     VALUES (%s, %s, now(), %s, %s, %s)
+                     RETURNING shotgun_plate_id"""
+            sql_args = [name, email, robot_id, plate_type, volume]
+            TRN.add(sql, sql_args)
+            shotgun_pid = TRN.execute_fetchlast()
+
+            # adding condensed_plates
+            sql = """INSERT INTO pm.condensed_plates
+                        (shotgun_plate_id, dna_plate_id, position)
+                     VALUES (%s, %s, %s)"""
+            sql_args = [[shotgun_pid, pid, pos] for pid, pos in dna_plates]
+            TRN.add(sql, sql_args, many=True)
+            TRN.execute()
+
+            return shotgun_pid
+
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""
         self._con.execute('DELETE FROM %s.%s' % (schema, table))

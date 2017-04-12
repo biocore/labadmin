@@ -1408,6 +1408,40 @@ class TestDataAccess(TestCase):
             db.delete_pool(0)
         self.assertEqual(ctx.exception.message, "Pool 0 does not exist")
 
+    def test_condense_dna_plates(self):
+        # study creation
+        db.create_study(9999, title='LabAdmin test project',
+                        alias='LTP', jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+
+        # plates creation
+        dna_plates = []
+        for i in range(4):
+            pid = db.create_sample_plate('Test %d' % i, 2, 'test', [9999])
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_sample_plate, pid))
+            dna_plates.append((pid, i))
+
+        # user creation
+        email = 'testmail@testdomain.com'
+        password = ('$2a$10$2.6Y9HmBqUFmSvKCjWmBte70'
+                    'WF.zd3h4VqbhLMQK1xP67Aj3rei86')
+        sql = """INSERT INTO ag.labadmin_users (email, password)
+                 VALUES (%s, %s)"""
+        db._con.execute(sql, [email, password])
+
+        dna_plates = [(2, 0), (1, 1), (4, 2), (3, 3)]
+        name = "full plate"
+        robot = 'HOWE_KF1'
+        plate_type = 2
+        volume = 0.22
+        obs = db.condense_dna_plates(dna_plates, name, email,
+                                     robot, plate_type, volume)
+
+        # cleaning left participants
+        sql = """DELETE FROM ag.labadmin_users WHERE email=%s"""
+        db._con.execute(sql, [email])
+
 
 if __name__ == "__main__":
     main()
