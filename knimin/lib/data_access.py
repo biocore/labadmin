@@ -3910,7 +3910,6 @@ class KniminAccess(object):
         make the system more flexible
         """
         with TRN:
-            self._sample_plate_is_unique(name)
             self._plate_type_exists(plate_type)
             self._email_exists(email)
             robot_id = self.get_or_create_property_option_id(

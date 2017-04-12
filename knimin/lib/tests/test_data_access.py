@@ -1402,7 +1402,7 @@ class TestDataAccess(TestCase):
                 'date': datetime.date.today(), 'num_samples': 3},
                {'id': targeted_plate_ids[1], 'name': 'Test plate 2',
                 'date': datetime.date.today(), 'num_samples': 4}]
-        self.assertEqual(db.get_targeted_plate_list(), exp)
+        self.assertItemsEqual(db.get_targeted_plate_list(), exp)
 
     def test_pool_plates(self):
         targeted_plate_ids = self._create_test_data_targeted_plate()
