@@ -1,0 +1,17 @@
+{% extends logged_in_index.html %}
+{% block head %}
+<script type="text/javascript">
+  $(document).ready(function() {
+    $(".search-select").select2();
+  });
+</script>
+{% end %}
+{% block content %}
+{% from knimin import config %}
+
+<h3>Study "{{title}}" successfully created with ID {{study_id}}</h3>
+<p> You can now access to your study in
+    <a target="_blank" href="{{config.qiita_host}}/study/description/{{study_id}}">Qiita</a>
+    or <a target="_blank" href="{{config.jira_host}}/projects/{{jira_key}}">Jira<a/>.
+</p>
+{% end %}

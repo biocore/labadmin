@@ -1,0 +1,124 @@
+{% extends logged_in_index.html %}
+{% block head %}
+
+
+<script type="text/javascript">
+
+  function add_study_options(selDom) {
+    var studies = {% raw [ [int(s[0]), s[1], s[2], s[3]] for s in studies] %};
+    $.each(studies, function(idx, study) {
+      $('<option>').attr('value', study[0]).html('(ID: ' + study[0] +') ' + study[1]).appendTo(selDom);
+    });
+  };
+
+  function submit_plate_creation() {
+    // Retrieve the values introduced by the user
+    var plateType = $('#plate-type-select').val();
+    var studies = [];
+    $.each($('.study-select'), function(idx, studySel) {
+      if (studySel.value !== '-1') {
+        studies.push(studySel.value);
+      }
+    });
+    var plateName = $('#plate-name').val().trim();
+
+    // Do some checks with the values introduced by the user
+    $('#studies-warning').hide();
+    $('#plate-name-warning').hide();
+
+    if (studies.length === 0) {
+      // The user didn't choose any study
+      $('#studies-warning').show();
+    }
+    if (plateName.length === 0) {
+      // The plate name is empty or is just spaces
+      $('#plate-name-warning').html('* Please introduce a plate name');
+      $('#plate-name-warning').show();
+    } else {
+      $.get('/pm_sample_plate/name_check?name=' + plateName, function(data) {
+        if (data.result) {
+          // The plate name already exists
+          $('#plate-name-warning').html('* The given plate name already exists');
+          $('#plate-name-warning').show();
+        }
+      })
+        .fail(function(jqXHR, textStatus, errorThrown) {
+          if(jqXHR.status === 404) {
+            var data = $.parseJSON(jqXHR.responseText);
+            if (!data.result) {
+              // Construct a form and submit it
+              var form = $('<form>', {action: $(location).attr('href'), method: 'post'});
+              var fields = {'plate_type': plateType, 'studies': studies,
+                            'plate_name': plateName};
+              $.each(fields, function(key, val) {
+                $('<input>').attr({type: "hidden", name: key, value: val}).appendTo(form);
+              });
+              form.appendTo('body').submit();
+            }
+          }
+        });
+    }
+  };
+
+  $(document).ready(function() {
+    // Code to dynamically add and remove studies input dropdowns
+    // Adapted from http://stackoverflow.com/q/24999006
+    $(document).on('click', '.btn-add', function(e) {
+      e.preventDefault();
+
+      var controlForm = $('.tag-controls');
+      var currentEntry = $(this).parents('.entry:first');
+
+      var newEntry = $("<div class='entry input-group'><select class='study-select'><option selected value='-1'>Choose a study</option></select><button class='btn btn-success btn-add' type='button'><span class='glyphicon glyphicon-plus'></span></button></div>");
+      add_study_options(newEntry.find('.study-select:first'));
+      newEntry.appendTo(controlForm);
+
+      $(".study-select").select2();
+      controlForm.find('.entry:not(:last) .btn-add')
+        .removeClass('btn-add').addClass('btn-remove')
+        .removeClass('btn-success').addClass('btn-info')
+        .html('<span class="glyphicon glyphicon-minus"></span>');
+    }).on('click', '.btn-remove', function(e) {
+        $(this).parents('.entry:first').remove();
+        e.preventDefault();
+        return false;
+    });
+
+    // Add the study options to the initial study select
+    add_study_options($('#init-study-select'));
+
+    // Initialize the study autocompletion
+    $(".study-select").select2();
+  });
+</script>
+{% end %}
+{% block content %}
+
+<label><h3>Create new plate</h3></label>
+</br>
+<!-- Plate type selector -->
+<div class="container">
+  <label>Plate type:</label>
+  <select id='plate-type-select' class='form-control'>
+    {% for pt in plate_types %}
+      <option value="{{pt['id']}}">{{pt['name']}} ({{pt['notes']}})</option>
+    {% end %}
+  </select>
+  <!-- Studies selector -->
+  <label>Studies being plated: <b id='studies-warning' class='warning' hidden>* Please choose at least one study</b></label>
+  <div class="tag-controls">
+    <div class="entry input-group">
+      <select class="study-select" id='init-study-select'>
+          <option selected value='-1'>Choose a study</option>
+      </select>
+      <button class="btn btn-success btn-add" type="button"><span class="glyphicon glyphicon-plus"></span></button>
+    </div>
+  </div>
+  <label>Plate name: <b id='plate-name-warning' class='warning' hidden></b></label>
+  <input class='form-control' id='plate-name'>
+  </br>
+  <div class="form-group">
+    <button onclick="submit_plate_creation();" class="btn button-sm btn-primary">Create plate</button>
+  </div>
+</div>
+{% end %}

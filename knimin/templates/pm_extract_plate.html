@@ -1,0 +1,187 @@
+{% extends logged_in_index.html %}
+{% block head %}
+{% from json import dumps %}
+<script>
+  /**
+   *
+   * Submits the selected plates for extraction
+   *
+   **/
+  function submitPlateExtraction() {
+    // Clean up warnings
+    $("#robot-warning").hide();
+    $("#tool-warning").hide();
+    $("#kit-warning").hide();
+
+    // Retrieve information
+    var plates = [];
+    $.each($(".list-group-item"), function(idx, item) {
+      plates.push($(item).attr("pm-id"));
+    });
+
+    var robot = $("#extraction-robot-select").val();
+    var tool = $("#extraction-tool-select").val();
+    var kit = $("#extraction-kit-input").val().trim();
+
+    // Validation
+    var success = true;
+    if (robot === "-1") {
+      success = false;
+      $("#robot-warning").show();
+    }
+    if (tool === "-1") {
+      success = false;
+      $("#tool-warning").show();
+    }
+    if (kit.length < 1) {
+      success = false;
+      $("#kit-warning").show();
+    }
+
+    if (success) {
+      var form = $('<form>', {action: $(location).attr('href'), method: 'post'});
+      var fields = {'plates': JSON.stringify(plates), 'robot': robot, 'tool': tool, 'kit': kit};
+      $.each(fields, function(key, val) {
+        $('<input>').attr({type: "hidden", name: key, value: val}).appendTo(form);
+      });
+      form.appendTo('body').submit();
+    }
+  };
+
+  /**
+   *
+   * Formats the background color of the kit lot select
+   *
+   **/
+  function formatKitLot(kits) {
+    var val = $("#extraction-kit-input").val().trim();
+    $("#extraction-kit-input").removeClass('pm-warning');
+    if (val.length > 0 && $.inArray(val, kits) === -1) {
+      $("#extraction-kit-input").addClass('pm-warning');
+    }
+  }
+
+  $(document).ready(function() {
+    var plates = {% raw dumps(plates) %};
+
+    // I need this modal to be added to the body, otherwise it doesn't behave
+    // correctly. The block content is already in a div
+    $('<div class="modal fade" id="add-plate-modal" tabindex="-1" role="dialog" aria-labelledby="add-plate-modal-label" aria-hidden="true">' +
+        '<div class="modal-dialog" role="document">' +
+          '<div class="modal-content">' +
+            '<div class="modal-header">' +
+              '<h4 class="modal-title" id="add-plate-modal-label">Add plate</h4>' +
+              '<button type="button" class="close" data-dismiss="modal" aria-label="Close">' +
+                '<span aria-hidden="true">&times;</span>' +
+              '</button>' +
+            '</div>' +
+            '<div class="modal-body">' +
+              '<div class="input-group">' +
+                '<select id="plate-select">' +
+                  '<option selected value="-1">Choose a plate</option>' +
+                '</select>' +
+              '</div>' +
+            '</div>' +
+            '<div class="modal-footer">' +
+              '<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>' +
+              '<button type="button" class="btn btn-primary" id="add-plate-btn" disabled>Add</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>').appendTo($('body'));
+
+    // Add
+    $.each(plates, function(idx, plate) {
+      $('<option>').attr('value', plate[0]).attr('pm-name', plate[1]).html('(ID: ' + plate[0] + ') ' + plate[1]).appendTo($("#plate-select"));
+    });
+
+    // Remove the plate that is already selected
+    $("#plate-select option[value={{plate_id}}]").remove();
+
+    // Attach handler to the change even of the select
+    $("#plate-select").change(function(e) {
+      $("#add-plate-btn").prop("disabled", this.value === "-1");
+    });
+
+    $("#add-plate-btn").click(function (e) {
+      var plateId = $("#plate-select").val();
+      var plateName = $("#plate-select option[value=" + plateId + "]").attr('pm-name');
+
+      // Add the new plate to the list
+      var $li = $('<li>').addClass('list-group-item justify-content-between').attr('id', 'li-plate-' + plateId).attr('pm-id', plateId).html('(ID: ' + plateId + ') ' + plateName).appendTo($("#lu-plate-list"));
+      var $btn = $('<button>').addClass('btn-danger glyphicon glyphicon-remove pull-right').html(" ").appendTo($li);
+      $btn.attr('pm-name', plateName).attr('pm-id', plateId);
+      $btn.click(function (e) {
+        // Add this plate back to the select
+        $("#plate-select").append($('<option>', {value: $(this).attr('pm-id'),
+                                                 text: '(ID: ' + $(this).attr('pm-id') + ') ' + $(this).attr('pm-name'),
+                                                 "pm-name": $(this).attr('pm-name')}));
+        $li.remove();
+      });
+
+      // Set the selected value to -1
+      $("#plate-select").val("-1");
+      // Delete the selected plate from the option list
+      $("#plate-select option[value=" + plateId + "]").remove();
+      // Hide the modal
+      $('#add-plate-modal').modal('hide');
+      // Disable the button again
+      $(this).prop("disabled", true);
+    });
+
+    // Initialize the searchable dropdown
+    $(".search-select-2").select2();
+
+    // Initialize the input autocompletion
+    var kits = {% raw [ k['name'] for k in kits] %};
+    $(".autocomplete").autocomplete({source: kits,
+                                     select: function (e, ui) {
+                                       formatKitLot(kits);
+                                     }
+                                    });
+    $("#extraction-kit-input").keyup(function(e) {
+      formatKitLot(kits);
+    });
+
+  });
+</script>
+{% end %}
+{% block content %}
+<label><h3>Extract plates</h3></label>
+</br>
+<div class='container'>
+
+  <!-- List of plates being extracted -->
+  <label>Plates being extracted: <button class="btn btn-success btn-add" data-toggle='modal' data-target="#add-plate-modal"><span class="glyphicon glyphicon-plus"></span></button></label>
+  <ul class="list-group" id="lu-plate-list">
+    <li class="list-group-item" id="li-plate-{{plate_id}}" pm-id="{{plate_id}}">(ID: {{plate_id}}) {{plate_name}}</li>
+  </ul>
+
+  <!-- Extraction robot select -->
+  <label>Extraction robot: <b id='robot-warning' class='warning' hidden>* Required</b></label>
+  <select id='extraction-robot-select' class='form-control search-select-2'>
+    <option value="-1">Choose a robot...</option>
+    {% for robot in robots %}
+      <option value="{{robot['name']}}">{{robot['name']}}</option>
+    {% end %}
+  </select>
+
+  <!-- Extraction tool select -->
+  <label>Extraction tool: <b id='tool-warning' class='warning' hidden>* Required</b></label>
+  <select id='extraction-tool-select' class='form-control search-select-2'>
+    <option value="-1">Choose a tool...</option>
+    {% for tool in tools %}
+      <option value="{{tool['name']}}">{{tool['name']}}</option>
+    {% end %}
+  </select>
+
+  <!-- Extraction kit input -->
+  <label>Extraction kit lot: <b id='kit-warning' class='warning' hidden>* Required</b></label>
+  <input class="form-control autocomplete" placeholder="Type kit id" type="text" id="extraction-kit-input"/>
+
+  <div class="form-group">
+    <button onclick="submitPlateExtraction();" class="btn button-sm btn-primary">Extract plates</button>
+  </div>
+</div>
+
+{% end %}

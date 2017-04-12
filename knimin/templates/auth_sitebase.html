@@ -6,13 +6,27 @@
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
 <script src="/static/vendor/js/jquery-1.9.1.js"></script>
 <script src="/static/vendor/js/jquery-ui-1.10.1.custom.min.js"></script>
+<script src="/static/vendor/js/bootstrap.min.js"></script>
+<script src="/static/vendor/js/select2.min.js"></script>
 <script src="/static/vendor/js/chosen.jquery.min.js"></script>
 <script src="/static/vendor/js/util.js"></script>
 <script type="text/javascript" src="/static/js/labmin.js"></script>
+<script type="text/javascript" src="/static/js/platemapper.js"></script>
 <link rel="stylesheet" type="text/css" href="/static/vendor/css/ui-lightness/jquery-ui-1.10.1.custom.min.css">
 <link rel="stylesheet" type="text/css" href="/static/vendor/css/chosen.min.css">
+<link rel="stylesheet" type="text/css" href="/static/vendor/css/bootstrap.min.css">
+<link rel="stylesheet" type="text/css" href="/static/vendor/css/select2.min.css">
+<link rel="stylesheet" type="text/css" href="/static/vendor/css/select2-bootstrap.min.css">
 <link rel="stylesheet" href="/static/css/qiime.css" type="text/css">
-<style>body, html {width:100%; height:100%; background-image: url(/static/img/background3.jpg); background-repeat:no-repeat; background-size:cover;}</style>
+<style>
+    body, html {
+        width: 100%;
+        height: 100%;
+        background-image: url(/static/img/background3.jpg);
+        background-repeat:no-repeat;
+        background-size:cover;
+    }
+</style>
 
 {% block head %}
 {% end %}
@@ -49,12 +63,30 @@
             {% end %}
         </ul>
 
+        <h3>Plate Mapper</h3>
+        <ul class="mainmenu">
+            {% if admin or db.has_access(current_user, ['Admin']) %}
+            <li><a href="/pm_plate_list/">View Plate List</a></li>
+            <li><a href="/pm_create_plate/">Create new plate</a></li>
+            <li><h4>Prepare libraries</h4>
+                <ul class="mainmenu">
+                    <li><a href="/pm_library_prep/target_gene/">Target gene</a></li>
+                    <li><a href="/pm_library_prep/metagenomics/">Metagenomics</a></li>
+                </ul>
+            </li>
+            {% end %}
+        </ul>
+
         <h3>General Project Utilities</h3>
         <ul class="mainmenu">
+            {% if admin or db.has_access(current_user, ['Admin']) %}
+            <li><a href="/pm_create_study/">Create study</a></li>
+            {% end %}
             {% if admin or db.has_access(current_user, ['Scan Barcodes']) %}
             <li><a href="/barcode_util/">Scan Barcode</a></li>
             {% end %}
         </ul>
+
         {% if admin %}
         <h3>Admin Utilities</h3>
         <ul class="mainmenu">

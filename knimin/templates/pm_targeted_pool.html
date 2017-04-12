@@ -1,0 +1,324 @@
+{% extends logged_in_index.html %}
+{% block head %}
+{% from json import dumps %}
+<script>
+  /**
+  *
+  * Adds the list of plates to the given select element
+  *
+  * @param {Element} elem The select DOM element
+  *
+  **/
+  function addPlateOptions(elem) {
+    var plates = {% raw dumps(all_plates) %};
+    $.each(plates, function (idx, plate) {
+      var display = "(ID: " + plate.id + ") " + plate.name + " - " + plate.date;
+      $('<option>').attr('value', plate.id).data('pm-samples', plate.num_samples).text(display).appendTo(elem);
+    });
+  };
+
+  /**
+   *
+   * Submit the information
+   *
+   **/
+  function poolPlates() {
+    var success = true;
+    // Check the pool name
+    $("#pool-name-input").parents(':first').removeClass('has-error');
+    var runPoolName = $("#pool-name-input").val().trim();
+    if (runPoolName.length === 0) {
+      success = false;
+      $("#pool-name-input").parents(':first').addClass('has-error');
+    }
+
+    // Check the total pool volume
+    $('#run-pool-volume-input').parents(':first').removeClass('has-error');
+    var runTotalPoolVolume = parseFloat($('#run-pool-volume-input').val());
+    if (runTotalPoolVolume < 1) {
+      success = false;
+      $('#run-pool-volume-input').parents(':first').addClass('has-error');
+    }
+
+    // Check the total percentage
+    $('.glyphicon-warning-sign').hide();
+    var totalPercent = parseFloat($('#total-percentage').val());
+    if (totalPercent > 100) {
+      success = false;
+      $('.pm-total').addClass('has-error');
+      $('.glyphicon-warning-sign').show();
+    }
+
+    var pools = new Array();
+    $.each($('.entry'), function (idx, entry) {
+      $(entry).removeClass('has-error');
+      var plateId = $(entry).find('.plate-select:first').val();
+      if (plateId === null) {
+        success = false;
+        $(entry).addClass('has-error');
+      }
+      else {
+        var plateVolume = parseInt($(entry).find('.pm-volume:first').val());
+        var platePerc = $(entry).find('.pm-percentage:first').val();
+        pools.push({'targeted_plate_id': plateId, 'volume': plateVolume, 'percentage': platePerc});
+      }
+    });
+
+    if (success) {
+      var form = $('<form>', {acion: '/pm_pool_plates/', method: 'post'});
+      var fields = {'pools': JSON.stringify(pools), 'name': runPoolName, 'volume': runTotalPoolVolume};
+      $.each(fields, function(key, val) {
+        $('<input>').attr({type: "hidden", name: key, value: val}).appendTo(form);
+      });
+      form.appendTo('body').submit();
+    }
+  }
+
+  /**
+   *
+   * Update the computed values when the run pool volume is changed
+   *
+   * @param {Element} input The inpute element that has been updated
+   *
+   **/
+  function runPoolVolumeUpdated(input) {
+    var currentEntry = $(input).parents('.entry:first');
+    var runTotalPoolVolume = parseFloat($('#run-pool-volume-input').val());
+    var runPoolVolume = parseFloat($(input).val());
+    // Magic number 10 -> pool-input is in micrograms, so we need
+    // to multiply 1000 to get nanograms (pool plate volume), since
+    // we have to divide by 100 due to the percentage value: 1000/100 = 10s
+    $(currentEntry).find('.pm-percentage').val(runPoolVolume / (runTotalPoolVolume * 10));
+    updateTotalValues();
+  }
+
+  /**
+   *
+   * Update the computed values when the plate percentage is changed
+   *
+   * @param {Element} input The input element that has been updated
+   *
+   **/
+  function platePercentageUpdated(input) {
+    var currentEntry = $(input).parents('.entry:first');
+    var runTotalPoolVolume = parseFloat($('#run-pool-volume-input').val());
+    var perc = parseFloat($(input).val());
+    // Magic number 10 -> pool-input is in micrograms, so we need
+    // to multiply 1000 to get nanograms (pool plate volume), since
+    // we have to divide by 100 due to the percentage value: 1000/100 = 10s
+    $(currentEntry).find('.pm-plate-pool').val(runTotalPoolVolume * 10 * perc);
+    updateTotalValues();
+  }
+
+  /**
+   *
+   * Update the computed values when the Total pool volume is changes
+   *
+   **/
+  function runTotalPoolVolumeUpdated() {
+    var runTotalPoolVolume = parseFloat($('#run-pool-volume-input').val());
+    $.each($('.entry'), function (idx, entry) {
+      var perc = parseFloat($(entry).find('.pm-percentage').val());
+      // Magic number 10 -> pool-input is in micrograms, so we need
+      // to multiply 1000 to get nanograms (pool plate volume), since
+      // we have to divide by 100 due to the percentage value: 1000/100 = 10s
+      $(entry).find('.pm-plate-pool').val(runTotalPoolVolume * 10 * perc);
+    });
+    updateTotalValues();
+  }
+  /**
+   *
+   * Updates the total values in the GUI
+   *
+   **/
+  function updateTotalValues() {
+    var totalSamples = 0;
+    $.each($('.entry .pm-num-samples'), function (idx, input) {
+      totalSamples += parseInt($(input).val());
+    });
+    $('#total-samples').val(totalSamples);
+
+    var totalPerc = 0;
+    $.each($('.entry .pm-percentage'), function (idx, input) {
+      totalPerc += parseInt($(input).val());
+    });
+    $('#total-percentage').val(totalPerc);
+
+    var totalVol = 0;
+    $.each($('.entry .pm-plate-pool'), function (idx, input) {
+      totalVol += parseInt($(input).val());
+    });
+    $('#total-pool-volume').val(totalVol);
+  };
+
+  /**
+   *
+   * Initialized the different GUI bits
+   *
+   **/
+  function initGUI() {
+    // The initial percentage value is the same for all the plates
+    $('.entry .pm-percentage').val(100 / $('.entry').length);
+    $('.entry .pm-plate-pool').val(parseFloat($('#run-pool-volume-input').val()) / $('.entry').length);
+
+    // Attach handlers to change events
+    $('.pm-plate-pool').change(function() {
+      runPoolVolumeUpdated(this);
+    });
+
+    $('.pm-percentage').change(function() {
+      platePercentageUpdated(this);
+    });
+
+    $('.plate-select').select2();
+    $('.plate-select').change(function () {
+      var numSamples = $(".plate-select option[value=" + $(this).val() + "]").data('pm-samples');
+      $(this).parents('.entry:first').find('.pm-num-samples:first').val(numSamples);
+      $(this).parents('.entry:first').find('.pm-percentage:first').trigger('change');
+    });
+
+    // Update the computed values
+    updateTotalValues();
+  }
+
+  $(document).ready(function () {
+    // Modofy the button of the last plate entry to have a + sign instead of -
+    $('.entry:first .btn-remove')
+      .removeClass('btn-remove').addClass('btn-add')
+      .removeClass('btn-info').addClass('btn-success')
+      .html($('<span>').addClass('glyphicon glyphicon-plus'));
+
+    $('.glyphicon-warning-sign').hide();
+
+    $('#run-pool-volume-input').change(function() {
+      runTotalPoolVolumeUpdated();
+    });
+
+    initGUI();
+
+    // Dynamically add/remove plate list
+    $(document).on('click', '.btn-add', function(e) {
+      e.preventDefault();
+
+      var controlForm = $('.tag-controls');
+      var currentEntry = $(this).parents('.entry:first');
+      var newEntry = $('<div class="entry row">' +
+                         '<div class="col-xs-5 form-group">' +
+                           '<select class="form-control plate-select">' +
+                             '<option value="-1" selected disabled>Choose a dna-plate</option>' +
+                           '</select>' +
+                         '</div>' +
+                         '<div class="col-xs-2 form-group">' +
+                           '<input class="form-control pm-volume" type="number" value="240"/>' +
+                         '</div>' +
+                         '<div class="col-xs-1 form-group">' +
+                           '<input class="form-control pm-num-samples" type="number" min="0" value="0" disabled/>' +
+                         '</div>' +
+                         '<div class="col-xs-1 form-group">' +
+                           '<input class="form-control pm-percentage" type="number" min="0" max=100 value="10" step="0.1"/>' +
+                         '</div>' +
+                         '<div class="col-xs-2 form-group">' +
+                           '<input class="form-control pm-plate-pool" type="number" min="0" value="0" step="0.1"/>' +
+                         '</div>' +
+                         '<div class="col-xs-1 form-group">' +
+                           '<button class="btn btn-info btn-remove form-control" type="button"><span class="glyphicon glyphicon-minus"></span></button>' +
+                         '</div>' +
+                       '</div>');
+
+      addPlateOptions(newEntry.find('.plate-select:first'));
+      newEntry.appendTo(controlForm);
+      initGUI();
+    }).on('click', '.btn-remove', function(e) {
+      $(this).parents('.entry:first').remove();
+      e.preventDefault();
+      initGUI();
+      return false;
+    });
+  });
+</script>
+{% end %}
+{% block content %}
+<h3>Prepare targeted pool</h3>
+<div class="container">
+  <!-- Pool run information -->
+  <div class="row">
+    <div class="col-xs-5 form-group">
+      <label>Pool name:</label>
+      <input class="form-control" placeholder="Type pool name" type="text" id="pool-name-input"/>
+    </div>
+    <div class="col-xs-4 form-group">
+      <label>Total pool volume (&mu;g):</label>
+      <input class="form-control" type="number" id="run-pool-volume-input" min="0" value="0"/>
+    </div>
+  </div>
+  <!-- Header -->
+  <div class="row">
+    <div class="col-xs-5 form-group">
+      <label class="center-block text-center">Targeted plate</label>
+    </div>
+    <div class="col-xs-2 form-group">
+      <label class="center-block text-center">Plate Pool Volume (ng)</label>
+    </div>
+    <div class="col-xs-1 form-group">
+      <label class="center-block text-center">Samples</label>
+    </div>
+    <div class="col-xs-1 form-group">
+      <label class="center-block text-center">Percentage</label>
+    </div>
+    <div class="col-xs-2 form-group">
+      <label class="center-block text-center">Run Pool Volume (ng)</label>
+    </div>
+    <div class="col-xs-1 form-group"></div>
+  </div>
+  <!-- Plates pool -->
+  <div class="tag-controls">
+  {% for plate in plates %}
+    <div class="entry row">
+      <div class="col-xs-5 form-group">
+        <select class="form-control plate-select">
+          <option value='{{plate['id']}}' selected>(ID: {{plate['id']}}) {{plate['name']}} - {{plate['date']}}</option>
+        </select>
+      </div>
+    <div class="col-xs-2 form-group">
+      <!-- Magic number 240: In general, the pooling is always done at 240, so prepopulating to facilitate wet-lab -->
+      <input class="form-control pm-volume" type="number" value="240"/>
+    </div>
+    <div class="col-xs-1 form-group">
+      <input class="form-control pm-num-samples" type="number" min="0" value="{{plate['num_samples']}}" disabled/>
+    </div>
+    <div class="col-xs-1 form-group">
+      <input class="form-control pm-percentage" type="number" min="0" max=100 value="10" step="0.1"/>
+     </div>
+     <div class="col-xs-2 form-group">
+      <input class="form-control pm-plate-pool" type="number" min="0" value="0" step="0.1"/>
+     </div>
+     <div class="col-xs-1 form-group">
+       <button class="btn btn-info btn-remove form-control" type="button"><span class="glyphicon glyphicon-minus"></span></button>
+     </div>
+    </div>
+  {% end %}
+  </div>
+  <div class="row pm-total">
+    <div class="col-xs-5 form-group"></div>
+    <div class="col-xs-2 form-group"><label class="center-block text-right">Total:</label></div>
+    <div class="col-xs-1 form-group">
+      <input class="form-control" type="number" id='total-samples' disabled/>
+    </div>
+    <div class="col-xs-1 form-group">
+      <input class="form-control" type="number" id='total-percentage' step="0.1" disabled/>
+    </div>
+    <div class="col-xs-2 form-group">
+      <input class="form-control" type="number" id='total-pool-volume' step="0.1" disabled/>
+    </div>
+    <div class="col-xs-1 form-group">
+      <span class="form-control glyphicon glyphicon-warning-sign text-center alert-danger"></span>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-xs-10 form-group"></div>
+    <div class="col-xs-2 form-group">
+      <button class="btn btn-primary form-control" onclick="poolPlates()">Pool plates</button>
+    </div>
+  </div>
+</div>
+{% end %}
