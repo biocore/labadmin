@@ -3214,7 +3214,7 @@ class KniminAccess(object):
             TRN.add(sql)
             return [dict(x) for x in TRN.execute_fetchindex()]
 
-    def get_reagents_kit_lot(self):
+    def get_reagent_kit_lots(self):
         """Retrieves a list of available reagent kit lots
 
         Returns
