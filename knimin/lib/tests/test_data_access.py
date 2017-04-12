@@ -1139,8 +1139,11 @@ class TestDataAccess(TestCase):
         obs = db.get_plate_types()
         exp = [{'id': 1, 'name': '96-well',
                 'notes': 'Standard 96-well plate',
-                'cols': 12, 'rows': 8}]
-        self.assertEqual(obs, exp)
+                'cols': 12, 'rows': 8},
+               {'id': 2, 'name': '384-well',
+                'notes': 'Standard 384-well plate',
+                'cols': 24, 'rows': 16}]
+        self.assertItemsEqual(obs, exp)
 
     def test_read_plate_type(self):
         obs = db.read_plate_type(1)
