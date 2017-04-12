@@ -1402,7 +1402,7 @@ class TestDataAccess(TestCase):
                 'date': datetime.date.today(), 'num_samples': 3},
                {'id': targeted_plate_ids[1], 'name': 'Test plate 2',
                 'date': datetime.date.today(), 'num_samples': 4}]
-        self.assertEqual(db.get_targeted_plate_list(), exp)
+        self.assertItemsEqual(db.get_targeted_plate_list(), exp)
 
     def test_pool_plates(self):
         targeted_plate_ids = self._create_test_data_targeted_plate()
@@ -1449,6 +1449,133 @@ class TestDataAccess(TestCase):
         with self.assertRaises(ValueError) as ctx:
             db.delete_pool(0)
         self.assertEqual(ctx.exception.message, "Pool 0 does not exist")
+
+    def test_condense_dna_plates(self):
+        # study creation
+        db.create_study(9999, title='LabAdmin test project',
+                        alias='LTP', jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+
+        # plates creation
+        dna_plates = []
+        exp_robot = db.get_property_options("extraction_robot")[0]
+        exp_kit = db.get_property_options("extraction_kit_lot")[0]
+        exp_tool = db.get_property_options("extraction_tool")[0]
+        for i in range(4):
+            pid = db.create_sample_plate('Test %s' % i, 2, 'test', [9999])
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_sample_plate, pid))
+
+            dp_pid = db.extract_sample_plates(
+                [pid], 'test', exp_robot['name'], exp_kit['name'],
+                exp_tool['name'])[0]
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_dna_plate, dp_pid))
+            dna_plates.append((dp_pid, i))
+
+        email = 'test'
+        name = "full plate"
+        robot = 'HOWE_KF1'
+        plate_type = 2L
+        volume = 0.22
+        cid = db.condense_dna_plates(dna_plates, name, email,
+                                     robot, plate_type, volume)
+        self._clean_up_funcs.insert(0, partial(db.delete_shotgun_plate, cid))
+        obs = db.read_shotgun_plate(cid)
+        # not testing time to avoid problems
+        del obs['created_on']
+        # just testing dna_plates
+        self.assertItemsEqual(obs['condensed_plates'], dna_plates)
+        del obs['condensed_plates']
+        exp = {
+            'plate_type_id': plate_type,
+            'dna_q_volume': None,
+            'name': name,
+            'robot': 'ROBE',
+            'dna_q_mail': None, 'volume': volume,
+            'plate_reader_id': None,
+            'email': email,
+            'dna_q_date': None,
+            'id': cid}
+        self.assertEqual(obs, exp)
+
+    def test_condense_dna_plates_errors(self):
+        # study creation
+        db.create_study(9999, title='LabAdmin test project',
+                        alias='LTP', jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+
+        # plates creation
+        dna_plates = []
+        exp_robot = db.get_property_options("extraction_robot")[0]
+        exp_kit = db.get_property_options("extraction_kit_lot")[0]
+        exp_tool = db.get_property_options("extraction_tool")[0]
+        for i in range(4):
+            pid = db.create_sample_plate('Test %s' % i, 2, 'test', [9999])
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_sample_plate, pid))
+
+            dp_pid = db.extract_sample_plates(
+                [pid], 'test', exp_robot['name'], exp_kit['name'],
+                exp_tool['name'])[0]
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_dna_plate, dp_pid))
+            dna_plates.append((dp_pid, i))
+
+        email = 'test'
+        name = "full plate"
+        robot = 'HOWE_KF1'
+        plate_type = 100
+        volume = 0.22
+
+        # error with plate_type
+        with self.assertRaises(ValueError) as ctx:
+            db.condense_dna_plates(dna_plates, name, email, robot, plate_type,
+                                   volume)
+        self.assertEqual(
+            ctx.exception.message, "Plate type ID 100 does not exist.")
+
+        # error with number of plates
+        plate_type = 2
+        dna_plates = []
+        with self.assertRaises(ValueError) as ctx:
+            db.condense_dna_plates(dna_plates, name, email, robot, plate_type,
+                                   volume)
+        self.assertEqual(
+            ctx.exception.message,
+            "You should have between 1 and 4 plates but you have 0")
+        dna_plates = [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)]
+        with self.assertRaises(ValueError) as ctx:
+            db.condense_dna_plates(dna_plates, name, email, robot, plate_type,
+                                   volume)
+        self.assertEqual(
+            ctx.exception.message,
+            "You should have between 1 and 4 plates but you have 5")
+
+        # error dna plates positions/existance
+        dna_plates = [(0, 10)]
+        with self.assertRaises(ValueError) as ctx:
+            db.condense_dna_plates(dna_plates, name, email, robot, plate_type,
+                                   volume)
+        self.assertEqual(
+            ctx.exception.message,
+            "Wrong dna plates position: [(0, 10)]")
+
+    def test_read_shotgun_plate(self):
+        # functional testing is part of test_condense_dna_plates, just testing
+        # errors
+        with self.assertRaises(ValueError) as ctx:
+            db.read_shotgun_plate(100000)
+        self.assertEqual(
+            ctx.exception.message, "Shotgun Plate 100000 does not exist")
+
+    def test_delete_shotgun_plate(self):
+        # functional testing is part of test_condense_dna_plates, just testing
+        # errors
+        with self.assertRaises(ValueError) as ctx:
+            db.delete_shotgun_plate(100000)
+        self.assertEqual(
+            ctx.exception.message, "Shotgun Plate 100000 does not exist")
 
     def test_get_pool_list(self):
         self.assertEqual(db.get_pool_list(), [])
