@@ -221,8 +221,53 @@ class TestQiitaJiraUtil(TestCase):
         self.assertEqual(obs, 'Samples have been plated')
 
     def test_prepare_targeted_libraries(self):
-        # prepare_targeted_libraries()
-        pass
+        study_id = create_study(
+            'Test prepare targeted libraries', 'Abstract', 'Description', 'Alias',
+            'demo@microbio.me',
+            {'name': 'LabDude', 'affiliation': 'knight lab'},
+            {'name': 'LabDude', 'affiliation': 'knight lab'},
+            'admin')
+        obs = db.read_study(study_id)
+        jira_id = obs['jira_id']
+        self._clean_up_funcs.append(
+            partial(jira_handler.delete_project, jira_id))
+        self._clean_up_funcs.append(partial(db.delete_study, study_id))
+
+        # Crate a plate
+        pt = db.get_plate_types()[0]
+        plate_id = db.create_sample_plate('TARGETEDTEST', pt['id'], 'test',
+                                          [study_id])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id))
+        plate_id_2 = db.create_sample_plate('TARGETEDTEST 2', pt['id'], 'test',
+                                            [study_id])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id_2))
+
+        # Create DNA plates
+        dna_plate_ids = db.extract_sample_plates(
+            [plate_id, plate_id_2], 'test', 'HOWE_KF1', 'PM16B11', '108379Z')
+        for p_id in dna_plate_ids:
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_dna_plate, p_id))
+
+        # Create the target gene plates
+        plate_links = [
+            {'dna_plate_id': dna_plate_ids[0], 'primer_plate_id': 1},
+            {'dna_plate_id': dna_plate_ids[1], 'primer_plate_id': 2}]
+        obs_ids = prepare_targeted_libraries(
+            plate_links, 'test', 'ROBE', '208484Z', '108364Z', '14459',
+            'RNBD9959')
+        for p_id in dna_plate_ids:
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_targeted_plate, p_id))
+
+        # Check that the DB is not empty
+        self.assertIsNotNone(db.read_targeted_plate(obs_ids[0]))
+
+        # Check that JIRA has been updated
+        obs = jira_handler.comments('%s-4' % jira_id)[0].body
+        self.assertEqual(obs, 'Target gene libraries have been prepared')
 
     def test_create_sequencing_run(self):
         # create_sequencing_run()

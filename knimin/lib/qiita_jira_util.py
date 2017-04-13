@@ -317,8 +317,24 @@ def prepare_targeted_libraries(plate_links, email, robot, tm300tool,
     list of int
         The new target_plate ids created
     """
-    return db.prepare_targeted_libraries(plate_links, email, robot, tm300tool,
-                                         tm50tool, mastermix_lot, water_lot)
+    targeted_plate_ids = db.prepare_targeted_libraries(
+        plate_links, email, robot, tm300tool, tm50tool,
+        mastermix_lot, water_lot)
+
+    studies = []
+    for val in plate_links:
+        sample_plate = db.read_sample_plate(
+            db.read_dna_plate(val['dna_plate_id'])['sample_plate_id'])
+
+        studies.extend(sample_plate['studies'])
+
+    for study_id in set(studies):
+        study = db.read_study(study_id)
+        issue_key = '%s-4' % study['jira_id']
+        jira_handler.add_comment(
+            issue_key, "Target gene libraries have been prepared")
+
+    return targeted_plate_ids
 
 
 def create_sequencing_run(pool_id, email, sequencer, reagent_type,
