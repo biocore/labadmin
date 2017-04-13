@@ -964,17 +964,19 @@ class TestDataAccess(TestCase):
         layout[0][3] = {'sample_id': 'BLANK'}
         layout[0][4] = {'sample_id': '9998.Sample_1'}
         layout[0][5] = {'sample_id': '9998.Sample_2'}
+        layout[1] = [{}] * pt['cols']
+        layout[1][6] = {'sample_id': '9998.Sample_3'}
         db.write_sample_plate_layout(plate_id, layout)
 
         obs = db.get_replicates_from_sample_plate(plate_id)
-        exp = {'9999.Sample_1': [(0, 1), (1, 1), (2, 1), (3, 1),
-                                 (4, 1), (5, 1), (6, 1), (7, 1)],
-               '9999.Sample_2': [(0, 2), (1, 2), (2, 2), (3, 2),
-                                 (4, 2), (5, 2), (6, 2), (7, 2)],
-               '9998.Sample_1': [(0, 4), (1, 4), (2, 4), (3, 4),
-                                 (4, 4), (5, 4), (6, 4), (7, 4)],
-               '9998.Sample_2': [(0, 5), (1, 5), (2, 5), (3, 5),
-                                 (4, 5), (5, 5), (6, 5), (7, 5)]}
+        exp = {'9999.Sample_1': [(0, 1), (2, 1), (3, 1), (4, 1),
+                                 (5, 1), (6, 1), (7, 1)],
+               '9999.Sample_2': [(0, 2), (2, 2), (3, 2), (4, 2),
+                                 (5, 2), (6, 2), (7, 2)],
+               '9998.Sample_1': [(0, 4), (2, 4), (3, 4), (4, 4),
+                                 (5, 4), (6, 4), (7, 4)],
+               '9998.Sample_2': [(0, 5), (2, 5), (3, 5), (4, 5),
+                                 (5, 5), (6, 5), (7, 5)]}
         # This tests that the keys are the same
         self.assertItemsEqual(obs, exp)
         for sample in exp:

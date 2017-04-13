@@ -3180,8 +3180,9 @@ class KniminAccess(object):
             TRN.add(sql, [sample_plate_id])
             replicates = {}
             for sql_row in TRN.execute_fetchindex():
-                replicates[sql_row['sample_id']] = [
-                    eval(i) for i in eval(sql_row['wells'])]
+                wells = eval(sql_row['wells'])
+                if len(wells) > 1:
+                    replicates[sql_row['sample_id']] = [eval(i) for i in wells]
             return replicates
 
     def read_sample_plate_layout(self, sample_plate_id):
