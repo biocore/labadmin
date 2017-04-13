@@ -6,6 +6,8 @@ from traceback import format_exc
 import datetime
 
 import pandas as pd
+import numpy.testing as npt
+import numpy as np
 
 from knimin import db
 from knimin.lib.constants import ebi_remove
@@ -109,6 +111,45 @@ class TestDataAccess(TestCase):
         self._clean_up_funcs.insert(0, partial(db.delete_pool, pool_id_2))
 
         return [pool_id, pool_id_2]
+
+    def _create_test_echo(self):
+        echo_id = db.get_or_create_property_option_id('echo',
+                                                      'a valid echo name')
+        f = partial(db.delete_property_option, 'echo', echo_id)
+        self._clean_up_funcs.append(f)
+
+    def _create_test_shotgun_plate(self):
+        # study creation
+        db.create_study(9999, title='LabAdmin test project',
+                        alias='LTP', jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+
+        # plates creation
+        dna_plates = []
+        exp_robot = db.get_property_options("extraction_robot")[0]
+        exp_kit = db.get_property_options("extraction_kit_lot")[0]
+        exp_tool = db.get_property_options("extraction_tool")[0]
+        for i in range(4):
+            pid = db.create_sample_plate('Test %s' % i, 2, 'test', [9999])
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_sample_plate, pid))
+
+            dp_pid = db.extract_sample_plates(
+                [pid], 'test', exp_robot['name'], exp_kit['name'],
+                exp_tool['name'])[0]
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_dna_plate, dp_pid))
+            dna_plates.append((dp_pid, i))
+
+        email = 'test'
+        name = "full plate"
+        robot = 'HOWE_KF1'
+        plate_type = 2L
+        volume = 0.22
+        cid = db.condense_dna_plates(dna_plates, name, email,
+                                     robot, plate_type, volume)
+        self._clean_up_funcs.insert(0, partial(db.delete_shotgun_plate, cid))
+        return cid
 
     def test_pulldown_third_party(self):
         # Add survey answers
@@ -1259,6 +1300,97 @@ class TestDataAccess(TestCase):
                'extraction_tool': exp_tool['name'],
                'notes': None}
         self.assertEqual(obs_info, exp)
+
+    def test_normalize_shotgun_plate_bad_id(self):
+        with self.assertRaisesRegexp(ValueError, "shotgun plate"):
+            db.normalize_shotgun_plate(99999999, 'test', 'a valid echo name',
+                                       np.zeros((16, 24)), np.zeros((16, 24)))
+
+    def test_normalize_shotgun_plate_bad_water_shape(self):
+        # this test assumes that the plate is a 384 well format, so we'll
+        # specify a water matrix in 96 well format
+        self._create_test_echo()
+        cid = self._create_test_shotgun_plate()
+        with self.assertRaisesRegexp(ValueError, "plate_normalization_water"):
+            db.normalize_shotgun_plate(cid, 'test', 'a valid echo name',
+                                       np.zeros((16, 24)), np.zeros((8, 12)))
+
+    def test_normalize_shotgun_plate_bad_sample_shape(self):
+        # this test assumes that the plate is a 384 well format, so we'll
+        # specify a sample matrix in 96 well format
+        self._create_test_echo()
+        cid = self._create_test_shotgun_plate()
+        with self.assertRaisesRegexp(ValueError, "plate_normalization_sample"):
+            db.normalize_shotgun_plate(cid, 'test', 'a valid echo name',
+                                       np.zeros((8, 12)), np.zeros((16, 24)))
+
+    def test_normalize_shotgun_plate_bad_echo_name(self):
+        cid = self._create_test_shotgun_plate()
+        with self.assertRaisesRegexp(ValueError, "echo machine"):
+            db.normalize_shotgun_plate(cid, 'test', 'does not exist',
+                                       np.zeros((16, 24)), np.zeros((16, 24)))
+
+    def test_normalize_shotgun_plate(self):
+        before = datetime.datetime.now()
+        self._create_test_echo()
+        cid = self._create_test_shotgun_plate()
+        nid = db.normalize_shotgun_plate(cid, 'test', 'a valid echo name',
+                                         np.arange(384).reshape(16, 24),
+                                         np.arange(384).reshape(16, 24) * 10)
+        after = datetime.datetime.now()
+        exp_sample = np.arange(384).reshape(16, 24)
+        exp_water = np.arange(384).reshape(16, 24) * 10
+        exp_qpcr_con = np.zeros((16, 24))
+        exp_qpcr_cp = np.zeros((16, 24))
+        exp_qpcr_con[:, :] = None
+        exp_qpcr_cp[:, :] = None
+
+        exp = {'created_on': datetime.date.today(),
+               'email': 'test',
+               'echo': 'a valid echo name',
+               'lp_date': None,
+               'lp_email': None,
+               'mosquito': None,
+               'shotgun_plate_id': cid,
+               'shotgun_normalized_plate_id': nid,
+               'shotgun_library_prep_kit': None,
+               'shotgun_adapter_aliquot': None,
+               'qpcr_date': None,
+               'qpcr_email': None,
+               'qpcr_std_ladder': None,
+               'qpcr': None,
+               'discarded': False,
+               'plate_normalization_water': exp_water,
+               'plate_normalization_sample': exp_sample,
+               'plate_qpcr_concentrations': exp_qpcr_con,
+               'plate_qpcr_cps': exp_qpcr_cp}
+
+        obs = db.read_normalized_shotgun_plate(nid)
+
+        self.assertEqual(set(obs.keys()), set(exp.keys()))
+        self.assertTrue(before <= obs['created_on'] <= after)
+        npt.assert_equal(obs['plate_normalization_water'],
+                         exp['plate_normalization_water'])
+        npt.assert_equal(obs['plate_normalization_sample'],
+                         exp['plate_normalization_sample'])
+        npt.assert_equal(obs['plate_qpcr_concentrations'],
+                         exp['plate_qpcr_concentrations'])
+        npt.assert_equal(obs['plate_qpcr_cps'],
+                         exp['plate_qpcr_cps'])
+        for k in set(obs.keys()) - set(['plate_normalization_water',
+                                        'created_on',
+                                        'plate_qpcr_concentrations',
+                                        'plate_qpcr_cps',
+                                        'plate_normalization_sample']):
+            self.assertEqual(obs[k], exp[k])
+
+    def test_read_normalized_shotgun_plate_bad_id(self):
+        with self.assertRaises(ValueError):
+            db.read_normalized_shotgun_plate(99999999)
+
+    def test_delete_normalized_shotgun_plate_bad_id(self):
+        with self.assertRaises(ValueError):
+            db.delete_normalized_shotgun_plate(99999999)
 
     def test_read_dna_plate(self):
         # Success is already tested in "test_extract_sample_plates"
