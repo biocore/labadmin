@@ -1659,8 +1659,9 @@ class TestDataAccess(TestCase):
             'plate_type_id': 2L, 'dna_q_volume': None, 'name': "full plate",
             'robot': 'ROBE', 'dna_q_mail': None, 'volume': 0.22,
             'plate_reader_id': None, 'email': 'test', 'dna_q_date': None,
-            'id': cid, 'shotgun_plate_layout': [[None for c in range(24)]
-                                                for r in range(16)]}
+            'id': cid, 'shotgun_plate_layout': [[{
+                'sample_id': None, 'dna_concentration': None}
+                for c in range(24)] for r in range(16)]}
         self.assertEqual(obs, exp)
 
     def test_condense_dna_plates_errors(self):
