@@ -3662,12 +3662,12 @@ class KniminAccess(object):
                      FROM pm.shotgun_normalized_plate
                      WHERE shotgun_normalized_plate_id = %s"""
             TRN.add(sql, [shotgun_normalized_plate_id])
-            res = TRN.execute_fetchindex()[0]
+            res = TRN.execute_fetchindex()
             if not res:
                 raise ValueError("normalized shotgun plate %s does not exist" %
                                  shotgun_normalized_plate_id)
 
-            res = dict(res)
+            res = dict(res[0])
             res.pop('shotgun_normalized_plate_id')  # it's redundant
 
             # get plate shape
