@@ -1502,16 +1502,54 @@ class TestDataAccess(TestCase):
              'dna_plate_id': dna_plate_ids[0], 'primer_plate_id': 1,
              'master_mix_lot': '14459', 'robot': 'ROBE',
              'tm300_8_tool': '208484Z', 'tm50_8_tool': '108364Z',
+             'raw_concentration': None, 'mod_concentration': None,
              'water_lot': 'RNBD9959'},
             {'id': obs_ids[1], 'name': 'Test plate 2', 'email': 'test',
              'dna_plate_id': dna_plate_ids[1], 'primer_plate_id': 2,
              'master_mix_lot': '14459', 'robot': 'ROBE',
              'tm300_8_tool': '208484Z', 'tm50_8_tool': '108364Z',
+             'raw_concentration': None, 'mod_concentration': None,
              'water_lot': 'RNBD9959'}]
         for obs_id, exp in zip(obs_ids, exp):
             obs = db.read_targeted_plate(obs_id)
             self.assertTrue(before <= obs.pop('created_on') <= after)
+            for k in obs:
+                self.assertEqual(obs[k], exp[k])
             self.assertEqual(obs, exp)
+
+        # testing quantify_targeted_plate on only one of the plates
+        pid = obs_ids[0]
+        vals = np.random.rand(8, 12)
+        # this shouldn't change anything as raw_concentration should be first
+        db.quantify_targeted_plate(pid, 'mod_concentration', vals)
+        obs = db.read_targeted_plate(pid)
+        self.assertIsNone(obs['raw_concentration'])
+        self.assertIsNone(obs['mod_concentration'])
+        # this should change only raw_concentration
+        db.quantify_targeted_plate(pid, 'raw_concentration', vals)
+        obs = db.read_targeted_plate(pid)
+        npt.assert_almost_equal(obs['raw_concentration'], vals, decimal=5)
+        self.assertIsNone(obs['mod_concentration'])
+        # now changin mod_concentration
+        vals_mod = np.random.rand(8, 12)
+        db.quantify_targeted_plate(pid, 'mod_concentration', vals_mod)
+        obs = db.read_targeted_plate(pid)
+        npt.assert_almost_equal(obs['raw_concentration'], vals, decimal=5)
+        npt.assert_almost_equal(obs['mod_concentration'], vals_mod, decimal=5)
+
+        # testing errors
+        with self.assertRaises(ValueError) as ctx:
+            db.quantify_targeted_plate(obs_ids[0], 'should fail', vals)
+        self.assertEqual(
+            ctx.exception.message, "Not a valid data: should fail, should "
+            "be: [u'raw_concentration', u'mod_concentration']")
+
+        vals = np.random.rand(16, 24)
+        with self.assertRaises(ValueError) as ctx:
+            db.quantify_targeted_plate(obs_ids[0], 'raw_concentration', vals)
+        self.assertEqual(
+            ctx.exception.message, 'values wrong shape, should be: (8, 12) '
+            'but is: (16, 24)')
 
     def test_read_targeted_plate(self):
         # Success is already tested in "test_prepare_targeted_libraries"

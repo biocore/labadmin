@@ -3875,6 +3875,70 @@ class KniminAccess(object):
             # list into the desired output: [plate_id, plate_id, ...]
             return list(chain.from_iterable(chain.from_iterable(res)))
 
+    def quantify_targeted_plate(self, plate_id, data, vals):
+        """Adds quantification information to the target plate
+
+        Parameters
+        ----------
+        plate_id : int
+            The target plate id
+        data : str
+            Which information to add, it can be 'raw_concentration' or
+            'mod_concentration'.
+        vals : 2d numpy array of floats
+            The per-well DNA concentration
+
+        Raises
+        ------
+        ValueError
+            If data is not one of the valid values, see Parameters
+            If vals shape is not the same than the plate
+
+        Notes
+        -----
+            You always will need to first add raw_concentration as it's an
+            insert and mod_concentration, which is an update
+        """
+        valid_data = ['raw_concentration', 'mod_concentration']
+        if data not in valid_data:
+            raise ValueError(
+                "Not a valid data: %s, should be: %s" % (data, valid_data))
+
+        tp = self.read_targeted_plate(plate_id)
+        rp = dict(self.read_plate_type(tp['primer_plate_id']))
+        vals_rows, vals_cols = vals.shape
+        if vals_rows != rp['rows'] or vals_cols != rp['cols']:
+            raise ValueError('values wrong shape, should '
+                             'be: (%d, %d) but is: (%d, %d)' % (
+                                rp['rows'], rp['cols'], vals_rows, vals_cols))
+
+        with TRN:
+            if data == 'raw_concentration':
+                # we assume we want to clean the info
+                sql = """DELETE FROM pm.targeted_plate_well_values
+                         WHERE targeted_plate_id = %s"""
+                TRN.add(sql, [plate_id])
+
+                sql = """INSERT INTO pm.targeted_plate_well_values
+                            (targeted_plate_id, row, col, raw_concentration)
+                         VALUES (%s, %s, %s, %s)"""
+            else:
+                sql = """UPDATE pm.targeted_plate_well_values
+                         SET mod_concentration = %s
+                         WHERE targeted_plate_id = %s AND
+                            row = %s AND col = %s"""
+            sql_args = []
+            for row in np.arange(vals_rows):
+                for col in np.arange(vals_cols):
+                    if data == 'raw_concentration':
+                        sql_args.append((plate_id, row, col, vals[row, col]))
+                    else:
+                        sql_args.append((vals[row, col], plate_id, row, col))
+
+            TRN.add(sql, sql_args, many=True)
+
+            TRN.execute()
+
     def read_targeted_plate(self, plate_id):
         """Returns the information of the targeted plate
 
@@ -3901,6 +3965,7 @@ class KniminAccess(object):
                             p.name as name,
                             email, created_on, dna_plate_id,
                             targeted_primer_plate_id as primer_plate_id,
+                            pt.rows as rows, pt.cols as cols,
                             mm.name as master_mix_lot,
                             r.name as robot,
                             t300.name as tm300_8_tool,
@@ -3912,6 +3977,8 @@ class KniminAccess(object):
                         JOIN pm.tm300_8_tool t300 USING (tm300_8_tool_id)
                         JOIN pm.tm50_8_tool t50 USING (tm50_8_tool_id)
                         JOIN pm.water_lot w USING (water_lot_id)
+                        JOIN pm.plate_type pt ON
+                            p.targeted_primer_plate_id = plate_type_id
                      WHERE targeted_plate_id = %s"""
             TRN.add(sql, [plate_id])
             res = TRN.execute_fetchindex()
@@ -3919,7 +3986,28 @@ class KniminAccess(object):
                 raise ValueError("Target Gene plate %s does not exist"
                                  % plate_id)
             # Magic number 0 -> there is only 1 result row
-            return dict(res[0])
+            res = dict(res[0])
+            rows = res.pop('rows')
+            cols = res.pop('cols')
+
+            # get well values
+            res['raw_concentration'] = None
+            res['mod_concentration'] = None
+            sql = """SELECT row, col, raw_concentration, mod_concentration
+                     FROM pm.targeted_plate_well_values
+                     WHERE targeted_plate_id = %s"""
+            TRN.add(sql, [plate_id])
+            vals = TRN.execute_fetchindex()
+            if vals:
+                res['raw_concentration'] = np.zeros((rows, cols))
+                for (row, col, raw_concentration, mod_concentration) in vals:
+                    res['raw_concentration'][row, col] = raw_concentration
+                    if mod_concentration is not None:
+                        if res['mod_concentration'] is None:
+                            res['mod_concentration'] = np.zeros((rows, cols))
+                        res['mod_concentration'][row, col] = mod_concentration
+
+            return res
 
     def delete_targeted_plate(self, plate_id):
         """Deletes a targeted plate
@@ -3935,6 +4023,10 @@ class KniminAccess(object):
             If the targeted plate does not exist
         """
         with TRN:
+            sql = """DELETE FROM pm.targeted_plate_well_values
+                     WHERE targeted_plate_id = %s"""
+            TRN.add(sql, [plate_id])
+
             sql = """DELETE FROM pm.targeted_plate
                      WHERE targeted_plate_id = %s
                      RETURNING targeted_plate_id"""
