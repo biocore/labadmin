@@ -359,8 +359,23 @@ def create_sequencing_run(pool_id, email, sequencer, reagent_type,
     int
         The run id
     """
-    return db.create_sequencing_run(pool_id, email, sequencer, reagent_type,
-                                    reagent_lot)
+    run_id = db.create_sequencing_run(pool_id, email, sequencer, reagent_type,
+                                      reagent_lot)
+    studies = []
+    for targeted_pool in db.read_pool(pool_id)['targeted_pools']:
+        targeted_plate = db.read_targeted_plate(
+            targeted_pool['targeted_plate_id'])
+        dna_plate = db.read_dna_plate(targeted_plate['dna_plate_id'])
+        sample_plate = db.read_sample_plate(dna_plate['sample_plate_id'])
+        studies.extend(sample_plate['studies'])
+
+    for study_id in set(studies):
+        study = db.read_study(study_id)
+        issue_key = '%s-4' % study['jira_id']
+        jira_handler.add_comment(
+            issue_key, "Pools have been sent for sequencing")
+
+    return run_id
 
 
 ISSUE1_DESC = """

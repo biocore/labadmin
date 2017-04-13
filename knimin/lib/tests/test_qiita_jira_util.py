@@ -273,8 +273,62 @@ class TestQiitaJiraUtil(TestCase):
         self.assertEqual(obs, 'Target gene libraries have been prepared')
 
     def test_create_sequencing_run(self):
-        # create_sequencing_run()
-        pass
+        study_id = create_study(
+            'Test create sequencing run', 'Abstract', 'Description',
+            'Alias', 'demo@microbio.me',
+            {'name': 'LabDude', 'affiliation': 'knight lab'},
+            {'name': 'LabDude', 'affiliation': 'knight lab'},
+            'admin')
+        obs = db.read_study(study_id)
+        jira_id = obs['jira_id']
+        self._clean_up_funcs.append(
+            partial(jira_handler.delete_project, jira_id))
+        self._clean_up_funcs.append(partial(db.delete_study, study_id))
+
+        # Crate a plate
+        pt = db.get_plate_types()[0]
+        plate_id = db.create_sample_plate('SEQTEST', pt['id'], 'test',
+                                          [study_id])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id))
+        layout = [[{}] * pt['cols']] * pt['rows']
+        db.write_sample_plate_layout(plate_id, layout)
+
+        # Create DNA plates
+        dna_plate_ids = db.extract_sample_plates(
+            [plate_id], 'test', 'HOWE_KF1', 'PM16B11', '108379Z')
+        for p_id in dna_plate_ids:
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_dna_plate, p_id))
+
+        # Create the target gene plates
+        plate_links = [
+            {'dna_plate_id': dna_plate_ids[0], 'primer_plate_id': 1}]
+        targeted_plate_ids = prepare_targeted_libraries(
+            plate_links, 'test', 'ROBE', '208484Z', '108364Z', '14459',
+            'RNBD9959')
+        for p_id in targeted_plate_ids:
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_targeted_plate, p_id))
+
+        # Create pool samples
+        pools = [
+            {'targeted_plate_id': targeted_plate_ids[0], 'volume': 240,
+             'percentage': 100}]
+        pool_id = db.pool_plates(pools, 'LabAdmin test pool', 5)
+        self._clean_up_funcs.insert(0, partial(db.delete_pool, pool_id))
+
+        run_id = create_sequencing_run(
+            pool_id, 'test', 1, 'MiSeq v3 150 cycle', 'MS1234')
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sequencing_run, run_id))
+
+        # Check that the DB is not empty
+        self.assertIsNotNone(db.read_sequencing_run(run_id))
+
+        # Check that JIRA has been updated
+        obs = jira_handler.comments('%s-4' % jira_id)[0].body
+        self.assertEqual(obs, 'Target gene libraries have been prepared')
 
 
 if __name__ == '__main__':
