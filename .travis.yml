@@ -54,7 +54,7 @@ before_script:
   - cd myConfluenceMacro
   # to start jira we need to wait for ~12min but after this we will install AGP
   # and other libs so 9min should be sufficient.
-  # -DskipAllPrompts=true - https://goo.gl/MaVeLx
+  # -DskipAllPrompts=true --> https://goo.gl/MaVeLx
   # </dev/zero 2>&1 & --> https://goo.gl/n7BYnh
   # this will install the latest version of JIRA but we could install other ones
   # via --version 6.4.7
