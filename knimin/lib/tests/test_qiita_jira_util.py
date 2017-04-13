@@ -222,8 +222,8 @@ class TestQiitaJiraUtil(TestCase):
 
     def test_prepare_targeted_libraries(self):
         study_id = create_study(
-            'Test prepare targeted libraries', 'Abstract', 'Description', 'Alias',
-            'demo@microbio.me',
+            'Test prepare targeted libraries', 'Abstract', 'Description',
+            'Alias', 'demo@microbio.me',
             {'name': 'LabDude', 'affiliation': 'knight lab'},
             {'name': 'LabDude', 'affiliation': 'knight lab'},
             'admin')
@@ -243,6 +243,9 @@ class TestQiitaJiraUtil(TestCase):
                                             [study_id])
         self._clean_up_funcs.insert(
             0, partial(db.delete_sample_plate, plate_id_2))
+        layout = [[{}] * pt['cols']] * pt['rows']
+        db.write_sample_plate_layout(plate_id, layout)
+        db.write_sample_plate_layout(plate_id_2, layout)
 
         # Create DNA plates
         dna_plate_ids = db.extract_sample_plates(
@@ -258,7 +261,7 @@ class TestQiitaJiraUtil(TestCase):
         obs_ids = prepare_targeted_libraries(
             plate_links, 'test', 'ROBE', '208484Z', '108364Z', '14459',
             'RNBD9959')
-        for p_id in dna_plate_ids:
+        for p_id in obs_ids:
             self._clean_up_funcs.insert(
                 0, partial(db.delete_targeted_plate, p_id))
 
