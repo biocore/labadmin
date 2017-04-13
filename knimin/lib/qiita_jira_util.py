@@ -59,7 +59,7 @@ def _update_qiita_samples(study_id, blanks, replicates):
     sc, categories = qiita_client.get(
         '/api/v1/study/%s/samples/info' % study_id)
     if sc != 200:
-        msg = categories['message'] if categories else 'No error specfied'
+        msg = categories['message'] if categories else 'No error specified'
         raise ValueError(
             "Can't retrieve study (%s) metadata categories from Qiita: %s %s"
             % (study_id, sc, msg))
@@ -69,7 +69,7 @@ def _update_qiita_samples(study_id, blanks, replicates):
     sc, md = qiita_client.get('/api/v1/study/%s/samples/categories=%s'
                               % (study_id, ','.join(categories)))
     if sc != 200:
-        msg = md['message'] if md else 'No error specfied'
+        msg = md['message'] if md else 'No error specified'
         raise ValueError(
             "Can't retrieve study (%s) metadata from Qiita: %s %s"
             % (study_id, sc, msg))
@@ -98,7 +98,7 @@ def _update_qiita_samples(study_id, blanks, replicates):
         sc, msg = qiita_client.patch('/api/v1/study/%s/samples' % (study_id),
                                      data=json_encode(new_md))
         if sc not in (200, 201):
-            msg = msg['message'] if msg else 'No error specfied'
+            msg = msg['message'] if msg else 'No error specified'
             raise ValueError("Can't create samples in Qiita: %s %s"
                              % (sc, msg))
 
@@ -214,7 +214,7 @@ def sync_qiita_study_samples(study_id):
     """
     sc, samples = qiita_client.get('/api/v1/study/%s/samples' % study_id)
     if sc != 200:
-        msg = samples['message'] if samples else 'No error specfied'
+        msg = samples['message'] if samples else 'No error specified'
         raise ValueError(
             "Can't retrieve samples from Qiita for study (%s): %s %s"
             % (study_id, sc, msg))
