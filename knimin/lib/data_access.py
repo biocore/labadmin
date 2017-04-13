@@ -4229,16 +4229,15 @@ class KniminAccess(object):
             TRN.add(sql, [plate_id])
             values = TRN.execute_fetchindex()
             # getting rows/cols and discarding them from res
-            rows = res['rows']
-            del res['rows']
-            cols = res['cols']
-            del res['cols']
-            res['shotgun_plate_layout'] = [[None for c in range(cols)]
-                                           for r in range(rows)]
+            rows = res.pop('rows')
+            cols = res.pop('cols')
+            res['shotgun_plate_layout'] = [[{
+                'sample_id': None, 'dna_concentration': None}
+                for c in range(cols)] for r in range(rows)]
             for (row, col, sample_id, dna_concentration) in values:
-                res['shotgun_plate_layout'][row][col] = {
-                    'sample_id': sample_id,
-                    'dna_concentration': dna_concentration}
+                res['shotgun_plate_layout'][row][col]['sample_id'] = sample_id
+                res['shotgun_plate_layout'][row][col][
+                    'dna_concentration'] = dna_concentration
 
             return res
 
@@ -4325,24 +4324,31 @@ class KniminAccess(object):
 
             # now we start creating the merged plate
             data = []
-            for rid, row in enumerate(zip_longest(*orders, fillvalue=None)):
+            for rid, row in enumerate(zip_longest(*orders, fillvalue=[])):
                 for cid, (a, b, c, d) in enumerate(zip_longest(*row,
                                                    fillvalue=None)):
                     new_cid = 2 * cid
                     new_rid = 2 * rid
-                    data.append([
-                        shotgun_plate_id, new_rid, new_cid, a['sample_id'],
-                        plate_concentration[new_rid, new_cid]])
-                    data.append([
-                        shotgun_plate_id, new_rid, 1 + new_cid, b['sample_id'],
-                        plate_concentration[new_rid, 1 + new_cid]])
-                    data.append([
-                        shotgun_plate_id, 1 + new_rid, new_cid, c['sample_id'],
-                        plate_concentration[1 + new_rid, new_cid]])
-                    data.append([
-                        shotgun_plate_id, 1 + new_rid, 1 + new_cid,
-                        d['sample_id'],
-                        plate_concentration[1 + new_rid, 1 + new_cid]])
+                    if a is not None:
+                        data.append([
+                            shotgun_plate_id, new_rid, new_cid,
+                            a['sample_id'],
+                            plate_concentration[new_rid, new_cid]])
+                    if b is not None:
+                        data.append([
+                            shotgun_plate_id, new_rid, 1 + new_cid,
+                            b['sample_id'],
+                            plate_concentration[new_rid, 1 + new_cid]])
+                    if c is not None:
+                        data.append([
+                            shotgun_plate_id, 1 + new_rid, new_cid,
+                            c['sample_id'],
+                            plate_concentration[1 + new_rid, new_cid]])
+                    if d is not None:
+                        data.append([
+                            shotgun_plate_id, 1 + new_rid, 1 + new_cid,
+                            d['sample_id'],
+                            plate_concentration[1 + new_rid, 1 + new_cid]])
 
             # cleaning DB
             sql = """DELETE FROM pm.shotgun_plate_layout

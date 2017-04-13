@@ -1582,7 +1582,7 @@ class TestDataAccess(TestCase):
             db.delete_pool(0)
         self.assertEqual(ctx.exception.message, "Pool 0 does not exist")
 
-    def _generate_condense_dna_plates(self):
+    def _generate_condense_dna_plates(self, just_one_plate=False):
         # study creation
         study_id = 9999
         db.create_study(study_id, title='LabAdmin test project',
@@ -1617,6 +1617,10 @@ class TestDataAccess(TestCase):
             pids.append(pid)
 
         # creating dna plates
+        plate_to_use = 2
+        if just_one_plate:
+            pids = [pids[plate_to_use]]
+
         pid_plates = db.extract_sample_plates(
             pids, 'test', exp_robot['name'], exp_kit['name'],
             exp_tool['name'])
@@ -1627,6 +1631,10 @@ class TestDataAccess(TestCase):
             self._clean_up_funcs.insert(
                 0, partial(db.delete_dna_plate, v))
             dna_plates.append((v, i))
+
+        if just_one_plate:
+            # it's always the only one [0]
+            dna_plates = [(pid_plates[0], plate_to_use)]
 
         email = 'test'
         name = "full plate"
@@ -1735,7 +1743,6 @@ class TestDataAccess(TestCase):
 
     def test_quantify_shotgun_plate(self):
         sgp_id, dna_plates = self._generate_condense_dna_plates()
-
         email = 'test'
         volume = .002
         plate_reader = 'PR1234'
@@ -1761,6 +1768,49 @@ class TestDataAccess(TestCase):
             npt.assert_almost_equal(
                 to_test['dna_concentration'], plate_concentration[r, c],
                 decimal=5)
+        del obs['shotgun_plate_layout']
+        exp = {
+            'plate_type_id': 2L,
+            'dna_q_volume': None,
+            'name': 'full plate',
+            'dna_q_mail': None,
+            'robot': 'ROBE',
+            'volume': 0.002,
+            'plate_reader_id': 1L,
+            'email': 'test',
+            'dna_q_date': None,
+            'id': sgp_id
+        }
+        self.assertEqual(obs, exp)
+
+    def test_quantify_shotgun_plate_one_plate(self):
+        sgp_id, dna_plates = self._generate_condense_dna_plates(True)
+        email = 'test'
+        volume = .002
+        plate_reader = 'PR1234'
+        plate_concentration = np.random.rand(16, 24)
+        db.quantify_shotgun_plate(sgp_id, email, volume, plate_reader,
+                                  plate_concentration)
+        obs = db.read_shotgun_plate(sgp_id)
+        # not testing time to avoid problems
+        del obs['created_on']
+        # just testing dna_plates
+        self.assertItemsEqual(obs['condensed_plates'], dna_plates)
+        del obs['condensed_plates']
+        # testing layout, we only gonna check 10 specific values
+        test_vals = [
+            (5, 3, None), (12, 10, None),
+            (11, 11, None), (14, 5, None),
+            (10, 9, None), (8, 8, None),
+            (5, 15, None), (7, 0, '9999.y.3.0'),
+            (12, 9, None), (15, 4, '9999.y.7.2')]
+        for r, c, sn in test_vals:
+            to_test = obs['shotgun_plate_layout'][r][c]
+            self.assertEqual(to_test['sample_id'], sn)
+            if sn is not None:
+                npt.assert_almost_equal(
+                    to_test['dna_concentration'], plate_concentration[r, c],
+                    decimal=5)
         del obs['shotgun_plate_layout']
         exp = {
             'plate_type_id': 2L,
