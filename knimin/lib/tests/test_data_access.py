@@ -7,6 +7,7 @@ import datetime
 
 import pandas as pd
 import numpy.testing as npt
+import numpy as np
 
 from knimin import db
 from knimin.lib.constants import ebi_remove
@@ -110,6 +111,45 @@ class TestDataAccess(TestCase):
         self._clean_up_funcs.insert(0, partial(db.delete_pool, pool_id_2))
 
         return [pool_id, pool_id_2]
+
+    def _create_test_echo(self):
+        echo_id = db.get_or_create_property_option_id('echo',
+                                                      'a valid echo name')
+        f = partial(db.delete_property_option, 'echo', echo_id)
+        self._clean_up_funcs.append(f)
+
+    def _create_test_shotgun_plate(self):
+        # study creation
+        db.create_study(9999, title='LabAdmin test project',
+                        alias='LTP', jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+
+        # plates creation
+        dna_plates = []
+        exp_robot = db.get_property_options("extraction_robot")[0]
+        exp_kit = db.get_property_options("extraction_kit_lot")[0]
+        exp_tool = db.get_property_options("extraction_tool")[0]
+        for i in range(4):
+            pid = db.create_sample_plate('Test %s' % i, 2, 'test', [9999])
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_sample_plate, pid))
+
+            dp_pid = db.extract_sample_plates(
+                [pid], 'test', exp_robot['name'], exp_kit['name'],
+                exp_tool['name'])[0]
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_dna_plate, dp_pid))
+            dna_plates.append((dp_pid, i))
+
+        email = 'test'
+        name = "full plate"
+        robot = 'HOWE_KF1'
+        plate_type = 2L
+        volume = 0.22
+        cid = db.condense_dna_plates(dna_plates, name, email,
+                                     robot, plate_type, volume)
+        self._clean_up_funcs.insert(0, partial(db.delete_shotgun_plate, cid))
+        return cid
 
     def test_pulldown_third_party(self):
         # Add survey answers
@@ -1262,32 +1302,39 @@ class TestDataAccess(TestCase):
         self.assertEqual(obs_info, exp)
 
     def test_normalize_shotgun_plate_bad_id(self):
-        with self.assertRaisesRegex(ValueError, "plate_normalization_water"):
+        with self.assertRaisesRegexp(ValueError, "shotgun plate"):
             db.normalize_shotgun_plate(99999999, 'test', 'a valid echo name',
                                        np.zeros((16, 24)), np.zeros((16, 24)))
 
     def test_normalize_shotgun_plate_bad_water_shape(self):
         # this test assumes that the plate is a 384 well format, so we'll specify
         # a water matrix in 96 well format
-        with self.assertRaisesRegex(ValueError, "plate_normalization_water"):
-            db.normalize_shotgun_plate(0, 'test', 'a valid echo name',
+        self._create_test_echo()
+        cid = self._create_test_shotgun_plate()
+        with self.assertRaisesRegexp(ValueError, "plate_normalization_water"):
+            db.normalize_shotgun_plate(cid, 'test', 'a valid echo name',
                                        np.zeros((16, 24)), np.zeros((8, 12)))
 
     def test_normalize_shotgun_plate_bad_sample_shape(self):
         # this test assumes that the plate is a 384 well format, so we'll specify
         # a sample matrix in 96 well format
-        with self.assertRaisesRegex(ValueError, "plate_normalization_sample"):
-            db.normalize_shotgun_plate(0, 'test', 'a valid echo name',
+        self._create_test_echo()
+        cid = self._create_test_shotgun_plate()
+        with self.assertRaisesRegexp(ValueError, "plate_normalization_sample"):
+            db.normalize_shotgun_plate(cid, 'test', 'a valid echo name',
                                        np.zeros((8, 12)), np.zeros((16, 24)))
 
     def test_normalize_shotgun_plate_bad_echo_name(self):
         ### there does not appear to be any loaded echo names in patch 0041
-        with self.assertRaisesRegex(ValueError, "echo machine"):
-            db.normalize_shotgun_plate(0, 'test', 'does not exist',
+        cid = self._create_test_shotgun_plate()
+        with self.assertRaisesRegexp(ValueError, "echo machine"):
+            db.normalize_shotgun_plate(cid, 'test', 'does not exist',
                                        np.zeros((16, 24)), np.zeros((16, 24)))
 
     def test_normalize_shotgun_plate(self):
-        db.normalize_shotgun_plate(0, 'test', 'a valid echo name',
+        self._create_test_echo()
+        cid = self._create_test_shotgun_plate()
+        db.normalize_shotgun_plate(cid, 'test', 'a valid echo name',
                                    np.arange(384).reshape(16, 24),
                                    np.arange(384).reshape(16, 24) * 10)
         exp_sample = np.arange(384).reshape(16, 24)
@@ -1301,6 +1348,7 @@ class TestDataAccess(TestCase):
                'lp_date': 'ignored',
                'lp_email': 'ignored',
                'mosquito': 'ignored',
+               'shotgun_plate_id': cid,
                'shotgun_library_prep_kit_id': 'ignored',
                'shotgun_adapter_aliquot_id': 'ignored',
                'qpcr_date': 'ignored',
@@ -1312,8 +1360,8 @@ class TestDataAccess(TestCase):
                'plate_normalization_sample': exp_sample}
 
         ### should this call count as the test for read_normalized_shotgun_plate?
-        obs = db.read_normalized_shotgun_plate(0)
-        self.assertEqual(obs.keys(), exp.keys())
+        obs = db.read_normalized_shotgun_plate(cid)
+        self.assertEqual(set(obs.keys()), set(exp.keys()))
         self.assertEqual(obs['email'], exp['email'])
         npt.assert_equal(obs['plate_normalization_water'],
                          exp['plate_normalization_water'])
@@ -1323,6 +1371,10 @@ class TestDataAccess(TestCase):
     def test_read_normalized_shotgun_plate_bad_id(self):
         with self.assertRaises(ValueError):
             db.read_normalized_shotgun_plate(99999999)
+
+    def test_delete_normalized_shotgun_plate(self):
+        # cannot write this without a means to create a plate...?
+        self.fail()
 
     def test_read_dna_plate(self):
         # Success is already tested in "test_extract_sample_plates"

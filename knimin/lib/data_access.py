@@ -3571,10 +3571,10 @@ class KniminAccess(object):
             sql = """SELECT EXISTS(
                         SELECT 1
                         FROM pm.shotgun_plate
-                        WHERE shotgun_plate_id = %s"""
+                        WHERE shotgun_plate_id = %s)"""
             TRN.add(sql, [shotgun_plate_id])
-            res = TRN.execute_fetchindex()
-            if not res:
+            res = TRN.execute_fetchindex()[0]
+            if not res[0]:
                 raise ValueError("shotgun plate %s does not exist" %
                                  shotgun_plate_id)
 
@@ -3618,7 +3618,7 @@ class KniminAccess(object):
                      RETURNING shotgun_normalized_plate_id"""
 
             TRN.add(sql, [shotgun_plate_id, email, echo_id])
-            shotgun_normalized_plate_id = TRN.execute()[0]
+            shotgun_normalized_plate_id = TRN.execute_fetchindex()[0][0]
 
             # add all of the volume details for the normalized plate
             sql = """INSERT INTO pm.shotgun_normalized_plate_well_values
@@ -3661,13 +3661,14 @@ class KniminAccess(object):
             sql = """SELECT *
                      FROM pm.shotgun_normalized_plate
                      WHERE shotgun_normalized_plate_id = %s"""
-            TRN.add(sql, [normalized_shotgun_plate_id])
-            res = TRN.execute_fetchindex()
+            TRN.add(sql, [shotgun_normalized_plate_id])
+            res = TRN.execute_fetchindex()[0]
             if not res:
                 raise ValueError("normalized shotgun plate %s does not exist" %
                                  shotgun_normalized_plate_id)
+
             res = dict(res)
-            res.pop('shotgun_normalized_plate_id')
+            res.pop('shotgun_normalized_plate_id')  # it's redundant
 
             # get plate shape
             sql = """SELECT rows, cols
@@ -3685,8 +3686,8 @@ class KniminAccess(object):
             sql = """SELECT row, col, sample_volume_nl, water_volume_nl
                      FROM pm.shotgun_normalized_plate_well_values
                      WHERE shotgun_normalized_plate_id = %s"""
-            TRN.add(sql, [normalized_shotgun_plate_id])
-            well_values = TRN.execute()
+            TRN.add(sql, [shotgun_normalized_plate_id])
+            well_values = TRN.execute_fetchindex()
             for row, col, sample_volume_nl, water_volume_nl in well_values:
                 sample_volumes[row, col] = sample_volume_nl
                 water_volumes[row, col] = water_volume_nl
@@ -3694,6 +3695,41 @@ class KniminAccess(object):
             res['plate_normalization_sample'] = sample_volumes
 
         return res
+
+    def delete_normalized_shotgun_plate(self, shotgun_normalized_plate_id):
+        """Delete a normalized shotgun plate
+
+        Parameters
+        ----------
+        shotgun_normalized_plate_id : int
+            The ID of the normalized shotgun plate to delete.
+
+        Raises
+        ------
+        ValueError
+            If the normalized_shotgun_plate_id does not exist
+        """
+        ### what mechanisms exist to prohibit the execution of this method for
+        ### an already sequenced set of plates?
+        with TRN:
+            # get plate details
+            sql = """SELECT *
+                     FROM pm.shotgun_normalized_plate
+                     WHERE shotgun_normalized_plate_id = %s"""
+            TRN.add(sql, [shotgun_normalized_plate_id])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError("normalized shotgun plate %s does not exist" %
+                                 shotgun_normalized_plate_id)
+
+            sql = """DELETE FROM pm.shotgun_normalized_plate_well_values
+                     WHERE shotgun_normalized_plate_id = %s"""
+            TRN.add(sql, [shotgun_normalized_plate_id])
+
+            sql = """DELETE FROM pm.shotgun_normalized_plate
+                     WHERE shotgun_normalized_plate_id = %s"""
+            TRN.add(sql, [shotgun_normalized_plate_id])
+            TRN.execute()
 
     def delete_dna_plate(self, dna_plate_id):
         """Deletes a DNA plate
@@ -4179,6 +4215,16 @@ class KniminAccess(object):
             If the shotgun plate `plate_id` doesn't exist
         """
         with TRN:
+            sql = """SELECT shotgun_normalized_plate_id
+                     FROM pm.shotgun_normalized_plate
+                     WHERE shotgun_plate_id = %s"""
+            TRN.add(sql, [plate_id])
+            res = TRN.execute_fetchindex()
+
+            if res:
+                for id_ in res:
+                    self.delete_normalized_shotgun_plate(id_[0])
+
             sql = """DELETE FROM pm.condensed_plates
                      WHERE shotgun_plate_id = %s"""
             TRN.add(sql, [plate_id])
