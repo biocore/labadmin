@@ -11,8 +11,9 @@ import re
 
 from tornado.escape import json_encode
 
+from knimin.lib.qiita_jira_util import _create_kl_jira_project
 from knimin.tests.tornado_test_base import TestHandlerBase
-from knimin import db
+from knimin import db, jira_handler
 
 
 class TestPMTargetGeneLibraryPrepHandler(TestHandlerBase):
@@ -41,9 +42,14 @@ class TestPMTargetGeneLibraryPrepHandler(TestHandlerBase):
         self.assertEqual(response.code, 403)
 
     def test_post(self):
+        _create_kl_jira_project('admin', 'Task management', 9999,
+                                'LabAdmin test project')
+        self._clean_up_funcs.append(
+            partial(jira_handler.delete_project, 'TM9999'))
+
         # Create a study
         db.create_study(9999, title='LabAdmin test project', alias='LTP',
-                        jira_id='KL9999')
+                        jira_id='TM9999')
         self._clean_up_funcs.append(partial(db.delete_study, 9999))
 
         # Create some sample plates

@@ -10,14 +10,20 @@ from functools import partial
 import re
 
 from knimin.tests.tornado_test_base import TestHandlerBase
-from knimin import db
+from knimin import db, jira_handler
+from knimin.lib.qiita_jira_util import _create_kl_jira_project
 
 
 class TestPMSequenceHandler(TestHandlerBase):
     def _create_data(self):
+        _create_kl_jira_project('admin', 'Task management', 9999,
+                                'LabAdmin test project')
+        self._clean_up_funcs.append(
+            partial(jira_handler.delete_project, 'TM9999'))
+
         # Create a study
         db.create_study(9999, title='LabAdmin test project', alias='LTP',
-                        jira_id='KL9999')
+                        jira_id='TM9999')
         self._clean_up_funcs.append(partial(db.delete_study, 9999))
 
         # Create some sample plates

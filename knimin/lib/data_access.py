@@ -3034,6 +3034,30 @@ class KniminAccess(object):
             TRN.add(sql, [plate_id])
             return dict(TRN.execute_fetchindex()[0])
 
+    def read_sample(self, sample_id):
+        """Returns the properties of a sample
+
+        Parameters
+        ----------
+        sample_id : str
+            The id of the sample to read
+
+        Returns
+        -------
+        dict
+            {sample_id: str, is_blank: bool, details: str, study_id: int}
+        """
+        with TRN:
+            sql = """SELECT sample_id, is_blank, details, study_id
+                     FROM pm.sample
+                        LEFT JOIN pm.study_sample USING (sample_id)
+                     WHERE sample_id = %s"""
+            TRN.add(sql, [sample_id])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError("Sample %s does not exist" % sample_id)
+            return dict(res[0])
+
     def _clear_sample_plate_layout(self, sample_plate_id):
         """Deletes the entire layout of a sample plate
 
@@ -3110,6 +3134,59 @@ class KniminAccess(object):
                                      values.get('notes')])
             TRN.add(sql, sql_args, many=True)
             TRN.execute()
+
+    def get_blanks_from_sample_plate(self, sample_plate_id):
+        """Returns the blanks from the sample plate
+
+        Parameters
+        ----------
+        sample_plate_id : int
+            ID of the sample plate whose layout is to be read
+
+        Returns
+        -------
+        list of DictCursor
+            The sample id, the row and the col
+        """
+        with TRN:
+            self._sample_plate_exists(sample_plate_id)
+
+            sql = """SELECT sample_id, row, col
+                     FROM pm.sample_plate_layout
+                        JOIN pm.sample USING (sample_id)
+                     WHERE sample_plate_id = %s AND is_blank=true
+                     ORDER BY row, col"""
+            TRN.add(sql, [sample_plate_id])
+            return TRN.execute_fetchindex()
+
+    def get_replicates_from_sample_plate(self, sample_plate_id):
+        """Returns the technical replicates present in the sample plate
+
+        Parameters
+        ----------
+        sample_plate_id : int
+            Sample plate id
+
+        Returns
+        -------
+        dict
+            For each sample, a list of tuples with the well locations
+        """
+        with TRN:
+            self._sample_plate_exists(sample_plate_id)
+            sql = """SELECT sample_id, ARRAY_AGG((row, col)) AS wells
+                     FROM pm.sample_plate_layout
+                        JOIN pm.sample USING (sample_id)
+                     WHERE sample_plate_id = %s
+                        AND is_blank = false
+                     GROUP BY sample_id"""
+            TRN.add(sql, [sample_plate_id])
+            replicates = {}
+            for sql_row in TRN.execute_fetchindex():
+                wells = eval(sql_row['wells'])
+                if len(wells) > 1:
+                    replicates[sql_row['sample_id']] = [eval(i) for i in wells]
+            return replicates
 
     def read_sample_plate_layout(self, sample_plate_id):
         """Reads the layout of a sample plate
