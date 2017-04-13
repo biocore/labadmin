@@ -3663,7 +3663,8 @@ class KniminAccess(object):
                             created_on,email,e.name as echo,lp_date,lp_email,
                             mosquito,slpk.name as shotgun_library_prep_kit,
                             saa.name as shotgun_adapter_aliquot,qpcr_date,
-                            qpcr_email,qpcr_std_ladder,q.name as qpcr,discarded
+                            qpcr_email,qpcr_std_ladder,q.name as qpcr,
+                            discarded
                      FROM pm.shotgun_normalized_plate snp
                           JOIN pm.echo e USING(echo_id)
                           LEFT JOIN pm.shotgun_library_prep_kit slpk
@@ -3692,18 +3693,27 @@ class KniminAccess(object):
             n_cols = plate_shape['cols']
             sample_volumes = np.zeros((n_rows, n_cols))
             water_volumes = np.zeros((n_rows, n_cols))
+            qpcr_concentrations = np.zeros((n_rows, n_cols))
+            qpcr_cps = np.zeros((n_rows, n_cols))
 
             # get well values
-            sql = """SELECT row, col, sample_volume_nl, water_volume_nl
+            sql = """SELECT row, col, sample_volume_nl, water_volume_nl,
+                            qpcr_concentration,qpcr_cp
                      FROM pm.shotgun_normalized_plate_well_values
                      WHERE shotgun_normalized_plate_id = %s"""
             TRN.add(sql, [shotgun_normalized_plate_id])
             well_values = TRN.execute_fetchindex()
-            for row, col, sample_volume_nl, water_volume_nl in well_values:
+            for (row, col, sample_volume_nl, water_volume_nl,
+                 qpcr_concentration, qpcr_cp) in well_values:
                 sample_volumes[row, col] = sample_volume_nl
                 water_volumes[row, col] = water_volume_nl
+                qpcr_concentrations[row, col] = qpcr_concentration
+                qpcr_cps[row, col] = qpcr_cp
+
             res['plate_normalization_water'] = water_volumes
             res['plate_normalization_sample'] = sample_volumes
+            res['plate_qpcr_concentrations'] = qpcr_concentrations
+            res['plate_qpcr_cps'] = qpcr_cps
 
         return res
 

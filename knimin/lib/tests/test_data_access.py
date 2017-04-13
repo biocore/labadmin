@@ -1340,6 +1340,10 @@ class TestDataAccess(TestCase):
         after = datetime.datetime.now()
         exp_sample = np.arange(384).reshape(16, 24)
         exp_water = np.arange(384).reshape(16, 24) * 10
+        exp_qpcr_con = np.zeros((16, 24))
+        exp_qpcr_cp = np.zeros((16, 24))
+        exp_qpcr_con[:, :] = None
+        exp_qpcr_cp[:, :] = None
 
         exp = {'created_on': datetime.date.today(),
                'email': 'test',
@@ -1357,7 +1361,9 @@ class TestDataAccess(TestCase):
                'qpcr': None,
                'discarded': False,
                'plate_normalization_water': exp_water,
-               'plate_normalization_sample': exp_sample}
+               'plate_normalization_sample': exp_sample,
+               'plate_qpcr_concentrations': exp_qpcr_con,
+               'plate_qpcr_cps': exp_qpcr_cp}
 
         obs = db.read_normalized_shotgun_plate(nid)
 
@@ -1367,8 +1373,14 @@ class TestDataAccess(TestCase):
                          exp['plate_normalization_water'])
         npt.assert_equal(obs['plate_normalization_sample'],
                          exp['plate_normalization_sample'])
+        npt.assert_equal(obs['plate_qpcr_concentrations'],
+                         exp['plate_qpcr_concentrations'])
+        npt.assert_equal(obs['plate_qpcr_cps'],
+                         exp['plate_qpcr_cps'])
         for k in set(obs.keys()) - set(['plate_normalization_water',
                                         'created_on',
+                                        'plate_qpcr_concentrations',
+                                        'plate_qpcr_cps',
                                         'plate_normalization_sample']):
             self.assertEqual(obs[k], exp[k])
 
