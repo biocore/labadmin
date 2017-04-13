@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 from contextlib import contextmanager
 from collections import defaultdict, namedtuple
-from itertools import chain
+from itertools import chain, zip_longest
 from os import walk
 from os.path import join, splitext, isdir, abspath
 from copy import copy
@@ -4193,7 +4193,9 @@ class KniminAccess(object):
         """
         with TRN:
             sql = """SELECT sp.shotgun_plate_id AS id, sp.name as name, email,
-                        created_on, prr.name AS robot, plate_type_id, volume,
+                        created_on, prr.name AS robot, volume,
+                        pt.plate_type_id as plate_type_id, pt.cols as cols,
+                        pt.rows as rows,
                         dna_quantification_date AS dna_q_date,
                         dna_quantification_email AS dna_q_mail,
                         dna_quantification_volume AS dna_q_volume,
@@ -4205,10 +4207,12 @@ class KniminAccess(object):
                      LEFT JOIN pm.plate_reader as plr USING (plate_reader_id)
                      LEFT JOIN pm.condensed_plates as cp
                         USING (shotgun_plate_id)
+                     LEFT JOIN pm.plate_type as pt
+                        USING (plate_type_id)
                      WHERE shotgun_plate_id = %s
-                     GROUP BY id, sp.name, email, created_on, robot,
-                        plate_type_id, volume, dna_q_date, dna_q_mail,
-                        dna_q_volume, plate_reader_id"""
+                     GROUP BY id, sp.name, email, created_on, robot, volume,
+                        pt.plate_type_id, pt.cols, pt.rows, dna_q_date,
+                        dna_q_mail, dna_q_volume, plate_reader_id"""
             TRN.add(sql, [plate_id])
             res = TRN.execute_fetchindex()
             if not res:
@@ -4218,6 +4222,24 @@ class KniminAccess(object):
             res = dict(res[0])
             res['condensed_plates'] = [eval(v)
                                        for v in eval(res['condensed_plates'])]
+            # Get positions
+            sql = """SELECT row, col, sample_id, dna_concentration
+                     FROM pm.shotgun_plate_layout
+                     WHERE shotgun_plate_id = %s"""
+            TRN.add(sql, [plate_id])
+            values = TRN.execute_fetchindex()
+            # getting rows/cols and discarding them from res
+            rows = res['rows']
+            del res['rows']
+            cols = res['cols']
+            del res['cols']
+            res['shotgun_plate_layout'] = [[None for c in range(cols)]
+                                           for r in range(rows)]
+            for (row, col, sample_id, dna_concentration) in values:
+                res['shotgun_plate_layout'][row][col] = {
+                    'sample_id': sample_id,
+                    'dna_concentration': dna_concentration}
+
             return res
 
     def delete_shotgun_plate(self, plate_id):
@@ -4244,6 +4266,10 @@ class KniminAccess(object):
                 for id_ in res:
                     self.delete_normalized_shotgun_plate(id_[0])
 
+            sql = """DELETE FROM pm.shotgun_plate_layout
+                     WHERE shotgun_plate_id = %s"""
+            TRN.add(sql, [plate_id])
+
             sql = """DELETE FROM pm.condensed_plates
                      WHERE shotgun_plate_id = %s"""
             TRN.add(sql, [plate_id])
@@ -4257,6 +4283,84 @@ class KniminAccess(object):
                 # If the output from the SQL query is empty, it means that the
                 # plate_id did not exist
                 raise ValueError('Shotgun Plate %s does not exist' % plate_id)
+
+    def quantify_shotgun_plate(self, shotgun_plate_id, email, volume,
+                               plate_reader, plate_concentration):
+        """Adds the DNA quantification information to the shotgun plate
+
+        Parameters
+        ----------
+        shotgun_plate_id : int
+            The shotgun plate id
+        email : str
+            The email of the user
+        volume : float
+            The volume used for DNA quantification
+        plate_reader : str
+            The plate reader used
+        plate_concentration : 2d numpy array of floats
+            The per-well DNA concentration
+
+        Raises
+        ------
+        ValueError
+            If `plate_concentration` dimensions doesn't match the plate type
+        """
+        with TRN:
+            sgp = self.read_shotgun_plate(shotgun_plate_id)
+            rp = dict(self.read_plate_type(sgp['plate_type_id']))
+            pc_rows, pc_cols = plate_concentration.shape
+            processing_robot_id = self.get_or_create_property_option_id(
+                "plate_reader", plate_reader)
+
+            if pc_rows != rp['rows'] or pc_cols != rp['cols']:
+                raise ValueError('plate_concentration wrong shape, should '
+                                 'be: (%d, %d) but is: (%d, %d)' % (
+                                    rp['rows'], rp['cols'], pc_rows, pc_cols))
+            # we expect 4 plates, thus 4 empty rows
+            orders = [[], [], [], []]
+            for pid, order in sgp['condensed_plates']:
+                sp_id = self.read_dna_plate(pid)['sample_plate_id']
+                orders[order] = self.read_sample_plate_layout(sp_id)
+
+            # now we start creating the merged plate
+            data = []
+            for rid, row in enumerate(zip_longest(*orders, fillvalue=None)):
+                for cid, (a, b, c, d) in enumerate(zip_longest(*row,
+                                                   fillvalue=None)):
+                    new_cid = 2 * cid
+                    new_rid = 2 * rid
+                    data.append([
+                        shotgun_plate_id, new_rid, new_cid, a['sample_id'],
+                        plate_concentration[new_rid, new_cid]])
+                    data.append([
+                        shotgun_plate_id, new_rid, 1 + new_cid, b['sample_id'],
+                        plate_concentration[new_rid, 1 + new_cid]])
+                    data.append([
+                        shotgun_plate_id, 1 + new_rid, new_cid, c['sample_id'],
+                        plate_concentration[1 + new_rid, new_cid]])
+                    data.append([
+                        shotgun_plate_id, 1 + new_rid, 1 + new_cid,
+                        d['sample_id'],
+                        plate_concentration[1 + new_rid, 1 + new_cid]])
+
+            # cleaning DB
+            sql = """DELETE FROM pm.shotgun_plate_layout
+                     WHERE shotgun_plate_id = %s"""
+            TRN.add(sql, [shotgun_plate_id])
+            # inserting new values
+            sql = """INSERT INTO pm.shotgun_plate_layout
+                        (shotgun_plate_id, row, col, sample_id,
+                         dna_concentration)
+                     VALUES (%s, %s, %s, %s, %s)"""
+            TRN.add(sql, data, many=True)
+            # finish by updating the original shotgun_plate_id
+            sql = """UPDATE pm.shotgun_plate
+                     SET plate_reader_id = %s, volume = %s
+                     WHERE shotgun_plate_id = %s"""
+            TRN.add(sql, [processing_robot_id, volume, shotgun_plate_id])
+
+            TRN.execute()
 
     def get_pool_list(self):
         """Gets the list of all pools
