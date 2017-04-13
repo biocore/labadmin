@@ -6,7 +6,101 @@
 # The full license is in the file LICENSE, distributed with this software.
 # -----------------------------------------------------------------------------
 
+from collections import defaultdict
+
+from tornado.escape import json_encode
+
 from knimin import jira_handler, qiita_client, db
+
+
+def _format_sample_id(sample_id, plate_id, row, col):
+    """Formats the name of the samples to include the plate and well
+
+    Parameters
+    ----------
+    sample_id : str
+        the sample id
+    plate_id : int
+        The plate id
+    row : int
+        The row # of the well
+    col : int
+        The col # of the well
+    """
+    # Fix for the fact that we start indexing at 0
+    col = col + 1
+    # Use letters only for the first 26 rows of the plate
+    if row < 26:
+        row = chr(ord('A') + row)
+        well = "%s%s" % (row, col)
+    else:
+        well = "%s.%s" % (row, col)
+    return "%s.%s.%s" % (sample_id, plate_id, well)
+
+
+def _update_qiita_samples(study_id, blanks, replicates):
+    """Updates the qiita study with blanks and technical replicates
+
+    Parameters
+    ----------
+    study_id : int
+        The study id
+    blanks : list of (str, int, int, int)
+        For each blank to add, the blank name, plate, row and column
+    replicates : list of (str, int, int, int)
+        For each technical replicate, the sample id, plate, row and column
+
+    Raises
+    ------
+    ValueError
+        If there is any problem accessing the Qiita REST API
+    """
+    # Existing metadata_categories
+    sc, categories = qiita_client.get(
+        '/api/v1/study/%s/samples/info' % study_id)
+    if sc != 200:
+        msg = categories['message'] if categories else 'No error specfied'
+        raise ValueError(
+            "Can't retrieve study (%s) metadata categories from Qiita: %s %s"
+            % (study_id, sc, msg))
+    categories = categories['categories']
+
+    # Get the current metadata
+    sc, md = qiita_client.get('/api/v1/study/%s/samples/categories=%s'
+                              % (study_id, ','.join(categories)))
+    if sc != 200:
+        msg = md['message'] if md else 'No error specfied'
+        raise ValueError(
+            "Can't retrieve study (%s) metadata from Qiita: %s %s"
+            % (study_id, sc, msg))
+
+    new_md = {}
+    # This is the blanks metadata, mark all categories as not applicable
+    blanks_md = {c: 'Not applicable' for c in categories}
+    # Construct the metadata for the blanks
+    for sample_id, plate, row, col in blanks:
+        # We need to make sure that the blanks are also pre-fixed with the
+        # study id. Otherwise, is both blanks and study samples are being
+        # added at once, the study samples will be prefixed twice
+        new_sample_id = "%s.%s" % (
+            study_id, _format_sample_id(sample_id, plate, row, col))
+        new_md[new_sample_id] = blanks_md
+
+    # Construct the metadata for the technical replicates
+    for sample_id, plate, row, col in replicates:
+        new_sample_id = _format_sample_id(sample_id, plate, row, col)
+        # Use the metadata of the original sample
+        new_md[new_sample_id] = {
+            c: v for c, v in zip(categories, md['samples'][sample_id])}
+
+    # Making sure that there is something to send
+    if new_md:
+        sc, msg = qiita_client.patch('/api/v1/study/%s/samples' % (study_id),
+                                     data=json_encode(new_md))
+        if sc not in (200, 201):
+            msg = msg['message'] if msg else 'No error specfied'
+            raise ValueError("Can't create samples in Qiita: %s %s"
+                             % (sc, msg))
 
 
 def _create_kl_jira_project(jira_user, jira_template, study_id, title):
@@ -108,6 +202,149 @@ def create_study(title, abstract, description, alias, qiita_user,
     db.create_study(study_id, title, alias, jira_project['projectKey'])
 
     return study_id
+
+
+def sync_qiita_study_samples(study_id):
+    """Syncs the DB with the samples in the Qiita study
+
+    Parameters
+    ----------
+    study_id : int
+        The id of the study to sync
+    """
+    sc, samples = qiita_client.get('/api/v1/study/%s/samples' % study_id)
+    if sc != 200:
+        msg = samples['message'] if samples else 'No error specfied'
+        raise ValueError(
+            "Can't retrieve samples from Qiita for study (%s): %s %s"
+            % (study_id, sc, msg))
+
+    db.set_study_samples(study_id, samples)
+
+
+def extract_sample_plates(sample_plate_ids, email, robot, kit_lot,
+                          tool, notes=None):
+    """Stores the extraction information for the given sample_plates
+
+    Updates Qiita and Jira accordingly
+
+    Parameters
+    ----------
+    sample_plate_ids : list of int
+        The sample plates being extracted
+    email : str
+        The email of the user preparing the extraction
+    robot : str
+        The name of the robot used for extraction
+    kit_lot : str
+        The kit lot used for extraction
+    tool : str
+        The name of the tool used for extraction
+    notes : str, optional
+        Notes added to the extracted plates
+
+    Returns
+    -------
+    list of int
+        The extracted DNA plates ids
+    """
+    # Store the DNA extraction information on the DB
+    dna_plates = db.extract_sample_plates(sample_plate_ids, email, robot,
+                                          kit_lot, tool, notes)
+
+    study_br = defaultdict(lambda: {'blanks': [], 'replicates': []})
+
+    for dna_plate_id, sample_plate_id in zip(dna_plates, sample_plate_ids):
+        sample_plate = db.read_sample_plate(sample_plate_id)
+
+        # Retrieve the blank samples from the plate
+        blanks = [(s_id, dna_plate_id, row, col)
+                  for s_id, row, col in db.get_blanks_from_sample_plate(
+                    sample_plate_id)]
+
+        if blanks:
+            for study in sample_plate['studies']:
+                study_br[study]['blanks'].extend(blanks)
+
+        # Retrieve the technical replicates from the plate
+        replicates = db.get_replicates_from_sample_plate(sample_plate_id)
+        for sample_id in replicates:
+            sample = db.read_sample(sample_id)
+            wells = replicates[sample_id]
+            study_br[sample['study_id']]['replicates'].extend(
+                [(sample_id, dna_plate_id, well[0], well[1])
+                 for well in wells])
+
+    for study_id in study_br:
+        # Need to update Qiita with the blanks and replicates
+        _update_qiita_samples(study_id, study_br[study_id]['blanks'],
+                              study_br[study_id]['replicates'])
+
+        # Need to update Jira - the issue to update is issue 4
+        study = db.read_study(study_id)
+        issue_key = '%s-4' % study['jira_id']
+        jira_handler.add_comment(
+            issue_key, "Samples have been plated")
+
+    jira_handler
+    return dna_plates
+
+
+def prepare_targeted_libraries(plate_links, email, robot, tm300tool,
+                               tm50tool, mastermix_lot, water_lot):
+    """Stores the targeted plate library information
+
+    Parameters
+    ----------
+    plate_links : list of dicts
+        A list of {'dna_plate_id': int, 'primer_plate_id': int} linking
+        a DNA plate with the primer plate used
+    email : str
+        The email of the user doing the library prep
+    robot : str
+        The name of the robot used
+    tm300tool : str
+        The name of the TM300-8 tool used
+    tm50tool : str
+        The name of the TM50-8 tool used
+    mastermix_lot : str
+        The mastermix lot used
+    water_lot : str
+        The water lot used
+
+    Returns
+    -------
+    list of int
+        The new target_plate ids created
+    """
+    return db.prepare_targeted_libraries(plate_links, email, robot, tm300tool,
+                                         tm50tool, mastermix_lot, water_lot)
+
+
+def create_sequencing_run(pool_id, email, sequencer, reagent_type,
+                          reagent_lot):
+    """Stores the sequencing run information
+
+    Parameters
+    ----------
+    pool_id : int
+        The pool being sequenced
+    email : str
+        The email of the user preparing the run
+    sequencer : id
+        The sequencer id
+    reagent_type : str
+        The reagent type
+    reagent_lot : str
+        The reagent lot
+
+    Returns
+    -------
+    int
+        The run id
+    """
+    return db.create_sequencing_run(pool_id, email, sequencer, reagent_type,
+                                    reagent_lot)
 
 
 ISSUE1_DESC = """
