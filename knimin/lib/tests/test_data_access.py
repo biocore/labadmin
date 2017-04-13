@@ -932,6 +932,97 @@ class TestDataAccess(TestCase):
         self.assertEqual(ctx.exception.message,
                          'Email does@not.exist does not exist.')
 
+    def test_get_blanks_from_sample_plate(self):
+        # Create a study
+        db.create_study(9999, title='LabAdmin test project',
+                        alias='LTP', jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+
+        # Add samples to the study
+        samples = ['9999.Sample_1', '9999.Sample_2', '9999.Sample_3']
+        db.set_study_samples(9999, samples)
+
+        # Create a plate
+        pt = db.get_plate_types()[0]
+        plate_id = db.create_sample_plate('Test plate', pt['id'],
+                                          'test', [9999])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id))
+
+        # plate some samples
+        layout = [[{}] * pt['cols']] * pt['rows']
+        # Set the first column and 3rd column to be all blanks. Is a bit subtle
+        # but this is happening because in all the rows we have the same list
+        # given how we have constructed the layout
+        layout[0][0] = {'sample_id': 'BLANK'}
+        layout[0][1] = {'sample_id': '9999.Sample_1'}
+        layout[0][2] = {'sample_id': '9999.Sample_2'}
+        layout[0][3] = {'sample_id': 'BLANK'}
+        db.write_sample_plate_layout(plate_id, layout)
+
+        obs = db.get_blanks_from_sample_plate(plate_id)
+        exp = [['BLANK', 0, 0], ['BLANK', 0, 3],
+               ['BLANK', 1, 0], ['BLANK', 1, 3],
+               ['BLANK', 2, 0], ['BLANK', 2, 3],
+               ['BLANK', 3, 0], ['BLANK', 3, 3],
+               ['BLANK', 4, 0], ['BLANK', 4, 3],
+               ['BLANK', 5, 0], ['BLANK', 5, 3],
+               ['BLANK', 6, 0], ['BLANK', 6, 3],
+               ['BLANK', 7, 0], ['BLANK', 7, 3]]
+        self.assertEqual(obs, exp)
+
+    def test_get_replicates_from_sample_plate(self):
+        # Create two study
+        db.create_study(9999, title='LabAdmin test project',
+                        alias='LTP', jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+        db.create_study(9998, title='LabAdmin test project 2', alias='LTP',
+                        jira_id='KL9998')
+        self._clean_up_funcs.append(partial(db.delete_study, 9998))
+
+        # Add samples to the studies
+        samples = ['9999.Sample_1', '9999.Sample_2', '9999.Sample_3']
+        db.set_study_samples(9999, samples)
+        samples = ['9998.Sample_1', '9998.Sample_2', '9998.Sample_3']
+        db.set_study_samples(9998, samples)
+
+        # Create a plate
+        pt = db.get_plate_types()[0]
+        plate_id = db.create_sample_plate('Test plate', pt['id'],
+                                          'test', [9999, 9998])
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sample_plate, plate_id))
+
+        # plate some samples
+        layout = [[{}] * pt['cols']] * pt['rows']
+        # Set the first column and 3rd column to be all blanks. Is a bit subtle
+        # but this is happening because in all the rows we have the same list
+        # given how we have constructed the layout. Similarly, the second
+        # column has the sample sample in all rows
+        layout[0][0] = {'sample_id': 'BLANK'}
+        layout[0][1] = {'sample_id': '9999.Sample_1'}
+        layout[0][2] = {'sample_id': '9999.Sample_2'}
+        layout[0][3] = {'sample_id': 'BLANK'}
+        layout[0][4] = {'sample_id': '9998.Sample_1'}
+        layout[0][5] = {'sample_id': '9998.Sample_2'}
+        layout[1] = [{}] * pt['cols']
+        layout[1][6] = {'sample_id': '9998.Sample_3'}
+        db.write_sample_plate_layout(plate_id, layout)
+
+        obs = db.get_replicates_from_sample_plate(plate_id)
+        exp = {'9999.Sample_1': [(0, 1), (2, 1), (3, 1), (4, 1),
+                                 (5, 1), (6, 1), (7, 1)],
+               '9999.Sample_2': [(0, 2), (2, 2), (3, 2), (4, 2),
+                                 (5, 2), (6, 2), (7, 2)],
+               '9998.Sample_1': [(0, 4), (2, 4), (3, 4), (4, 4),
+                                 (5, 4), (6, 4), (7, 4)],
+               '9998.Sample_2': [(0, 5), (2, 5), (3, 5), (4, 5),
+                                 (5, 5), (6, 5), (7, 5)]}
+        # This tests that the keys are the same
+        self.assertItemsEqual(obs, exp)
+        for sample in exp:
+            self.assertItemsEqual(obs[sample], exp[sample])
+
     def test_read_sample_plate(self):
         # Create a study
         db.create_study(9999, title='LabAdmin test project',
@@ -1062,6 +1153,27 @@ class TestDataAccess(TestCase):
             db.read_sample_plate_layout(1000)
         self.assertEqual(ctx.exception.message,
                          'Sample plate ID 1000 does not exist.')
+
+    def test_read_sample(self):
+        # Create a study
+        db.create_study(9999, title='LabAdmin test project',
+                        alias='LTP', jira_id='KL9999')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+        samples = ['9999.Sample_1', '9999.Sample_2', '9999.Sample_3']
+        db.set_study_samples(9999, samples)
+
+        exp = {'sample_id': '9999.Sample_1', 'is_blank': False,
+               'details': None, 'study_id': 9999}
+        self.assertEqual(db.read_sample('9999.Sample_1'), exp)
+        exp = {'sample_id': 'BLANK', 'is_blank': True,
+               'details': None, 'study_id': None}
+        self.assertEqual(db.read_sample('BLANK'), exp)
+
+        # Attempt to read a leayout of a plate that doesn't exist
+        with self.assertRaises(ValueError) as ctx:
+            db.read_sample('NOTASAMPLE')
+        self.assertEqual(ctx.exception.message,
+                         "Sample NOTASAMPLE does not exist")
 
     def test_delete_sample_plate(self):
         # Create a study

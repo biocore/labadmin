@@ -12,6 +12,7 @@ from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
 from knimin.handlers.access_decorators import set_access
 from knimin import db
+from knimin.lib.qiita_jira_util import create_sequencing_run
 
 
 @set_access(['Admin'])
@@ -36,7 +37,7 @@ class PMSequenceHandler(BaseHandler):
         reagent_type = self.get_argument('reagent_kit_type')
         reagent_lot = self.get_argument('reagent_kit_lot')
 
-        run_id = db.create_sequencing_run(
+        run_id = create_sequencing_run(
             pool_id, self.get_current_user(), sequencer,
             reagent_type, reagent_lot)
         run = db.read_sequencing_run(run_id)

@@ -12,6 +12,7 @@ from tornado.escape import json_decode
 from knimin.handlers.base import BaseHandler
 from knimin.handlers.access_decorators import set_access
 from knimin import db
+from knimin.lib.qiita_jira_util import prepare_targeted_libraries
 
 
 @set_access(['Admin'])
@@ -41,7 +42,7 @@ class PMTargetGeneLibraryPrepHandler(BaseHandler):
         water = self.get_argument('water')
         user = self.current_user
 
-        plate_ids = db.prepare_targeted_libraries(
+        plate_ids = prepare_targeted_libraries(
             plates, user, robot, tm300, tm50, master_mix, water)
 
         self.redirect(
