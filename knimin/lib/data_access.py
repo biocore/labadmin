@@ -3536,36 +3536,36 @@ class KniminAccess(object):
     def normalize_shotgun_plate(self, shotgun_plate_id, email, echo,
                                 plate_normalization_sample,
                                 plate_normalization_water):
-	"""Adds a normalized shotgun plate to the system
+        """Adds a normalized shotgun plate to the system
 
-	Parameters
-	----------
-	shotgun_plate_id : int
-	    The shotgun plate id
-	email : str
-	    The email of the user
-	echo : str
-	    The echo machine performing the normalization
-	plate_normalization_sample : 2D np.array of float
-	    The sample volume in nanoliters for each well
-	plate_normalization_water : 2D np.array of float
-	    The water volume in nanoliters for each well
+        Parameters
+        ----------
+        shotgun_plate_id : int
+            The shotgun plate id
+        email : str
+            The email of the user
+        echo : str
+            The echo machine performing the normalization
+        plate_normalization_sample : 2D np.array of float
+            The sample volume in nanoliters for each well
+        plate_normalization_water : 2D np.array of float
+            The water volume in nanoliters for each well
 
-	Raises
-	------
-	ValueError
-	    If the shotgun plate `shotgun_plate_id` does not exist
-	    If `plate_normalization_sample` dimensions doesn't match the plate
-	        type
-	    If `plate_normalization_water` dimensions doesn't match the plate
-	        type
-	    If the echo instrument does not exist
+        Raises
+        ------
+        ValueError
+            If the shotgun plate `shotgun_plate_id` does not exist
+            If `plate_normalization_sample` dimensions doesn't match the plate
+                type
+            If `plate_normalization_water` dimensions doesn't match the plate
+                type
+            If the echo instrument does not exist
 
-	Returns
-	-------
-	int
-	    The created normalized_shotgun_plate_id
-	"""
+        Returns
+        -------
+        int
+            The created normalized_shotgun_plate_id
+        """
         with TRN:
             # verify the plate exists
             sql = """SELECT EXISTS(
@@ -3602,8 +3602,9 @@ class KniminAccess(object):
             if plate_normalization_sample.shape != (n_rows, n_cols):
                 obs = repr(plate_normalization_sample.shape)
                 exp = repr((n_rows, n_cols))
-                raise ValueError("plate_normalization_sample has an unexpected "
-                                 "shape %s; expected %s" % (obs, exp))
+                raise ValueError("plate_normalization_sample has an "
+                                 "unexpected shape %s; expected %s" % (obs,
+                                                                       exp))
 
             if plate_normalization_water.shape != (n_rows, n_cols):
                 obs = repr(plate_normalization_water.shape)

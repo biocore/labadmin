@@ -1307,8 +1307,8 @@ class TestDataAccess(TestCase):
                                        np.zeros((16, 24)), np.zeros((16, 24)))
 
     def test_normalize_shotgun_plate_bad_water_shape(self):
-        # this test assumes that the plate is a 384 well format, so we'll specify
-        # a water matrix in 96 well format
+        # this test assumes that the plate is a 384 well format, so we'll
+        # specify a water matrix in 96 well format
         self._create_test_echo()
         cid = self._create_test_shotgun_plate()
         with self.assertRaisesRegexp(ValueError, "plate_normalization_water"):
@@ -1316,8 +1316,8 @@ class TestDataAccess(TestCase):
                                        np.zeros((16, 24)), np.zeros((8, 12)))
 
     def test_normalize_shotgun_plate_bad_sample_shape(self):
-        # this test assumes that the plate is a 384 well format, so we'll specify
-        # a sample matrix in 96 well format
+        # this test assumes that the plate is a 384 well format, so we'll
+        # specify a sample matrix in 96 well format
         self._create_test_echo()
         cid = self._create_test_shotgun_plate()
         with self.assertRaisesRegexp(ValueError, "plate_normalization_sample"):
