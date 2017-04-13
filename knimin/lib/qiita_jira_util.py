@@ -90,8 +90,7 @@ def _update_qiita_samples(study_id, blanks, replicates):
     for sample_id, plate, row, col in replicates:
         new_sample_id = _format_sample_id(sample_id, plate, row, col)
         # Use the metadata of the original sample
-        new_md[new_sample_id] = {
-            c: v for c, v in zip(categories, md['samples'][sample_id])}
+        new_md[new_sample_id] = dict(zip(categories, md['samples'][sample_id]))
 
     # Making sure that there is something to send
     if new_md:
@@ -286,7 +285,6 @@ def extract_sample_plates(sample_plate_ids, email, robot, kit_lot,
         jira_handler.add_comment(
             issue_key, "Samples have been plated")
 
-    jira_handler
     return dna_plates
 
 
@@ -378,6 +376,7 @@ def create_sequencing_run(pool_id, email, sequencer, reagent_type,
     return run_id
 
 
+# 1 - Project initiation
 ISSUE1_DESC = """
 When this step is complete, we will have:
 
@@ -389,33 +388,37 @@ When this step is complete, we will have:
 """
 
 
+# 2 - Experimental design
 ISSUE2_DESC = """
-When task is complete there will be a powerpoint or pdf that clearly describes:
+When this task is complete there will be a Powerpoint or PDF that clearly \
+describes:
 
-goal of project
-experimental design
-# samples
-# subjects
-variables that will be analyzed (technical and biological)
-potential pitfalls
-plan for how the analysis will be done
+- The goal of project
+- The experimental design
+- The number of samples
+- The number of subjects
+- The variables that will be analyzed (technical and biological)
+- Potential pitfalls
+- A plan for how the analysis will be done
 """
 
 
+# 3 - Sample receipt
 ISSUE3_DESC = """
 When this task is complete we will have:
 
 - inventory of the samples (number and kind)
 - location of where the samples are
 - information about whether and how the samples can be re-used
-- contact information for the specific people involved in gathering, labeling\
- and shipping the samples
+- contact information (name and email) for the specific people involved in\
+ gathering, labeling and shipping the samples
 - sample manifest that is labeled exactly the same way the samples are
 - if appropriate, an MTA allowing us to actually use the samples and/or\
  resulting data
 """
 
 
+# 4 - Library preparation
 ISSUE4_DESC = """
 When this task is complete we will have some or all of the following ready \
 to run on instrument:
@@ -430,9 +433,11 @@ to run on instrument:
 - proteomics
 - cells captured for culture
 - stock cultures
+- metabolomics
 """
 
 
+# 5 - Molecular characterization and data transfer
 ISSUE5_DESC = """
 When this task is complete, the data will have been generated on the \
 appropriate instrument, and transferred to the correct file stores and \
@@ -440,6 +445,7 @@ uploaded to qiita and/or gnps as appropriate
 """
 
 
+# 6 - Data analysis
 ISSUE6_DESC = """
 When this step is complete, the data will have been analyzed and the \
 following will be available:
@@ -450,6 +456,7 @@ following will be available:
 """
 
 
+# 7 - Manuscript preparation and submission
 ISSUE7_DESC = """
 When this task is complete:
 

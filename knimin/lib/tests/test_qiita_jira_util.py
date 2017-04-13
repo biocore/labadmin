@@ -233,7 +233,7 @@ class TestQiitaJiraUtil(TestCase):
             partial(jira_handler.delete_project, jira_id))
         self._clean_up_funcs.append(partial(db.delete_study, study_id))
 
-        # Crate a plate
+        # Create a plate
         pt = db.get_plate_types()[0]
         plate_id = db.create_sample_plate('TARGETEDTEST', pt['id'], 'test',
                                           [study_id])
@@ -285,7 +285,7 @@ class TestQiitaJiraUtil(TestCase):
             partial(jira_handler.delete_project, jira_id))
         self._clean_up_funcs.append(partial(db.delete_study, study_id))
 
-        # Crate a plate
+        # Create a plate
         pt = db.get_plate_types()[0]
         plate_id = db.create_sample_plate('SEQTEST', pt['id'], 'test',
                                           [study_id])
