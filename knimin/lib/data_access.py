@@ -3573,8 +3573,8 @@ class KniminAccess(object):
                         FROM pm.shotgun_plate
                         WHERE shotgun_plate_id = %s)"""
             TRN.add(sql, [shotgun_plate_id])
-            res = TRN.execute_fetchindex()[0]
-            if not res[0]:
+            res = TRN.execute_fetchlast()
+            if not res:
                 raise ValueError("shotgun plate %s does not exist" %
                                  shotgun_plate_id)
 
@@ -3586,8 +3586,8 @@ class KniminAccess(object):
             res = TRN.execute_fetchindex()
             if not res:
                 raise ValueError("echo machine %s does not exist" % echo)
-            else:
-                echo_id = dict(res[0])['echo_id']
+
+            echo_id = dict(res[0])['echo_id']
 
             # verify the shape of the plate
             sql = """SELECT rows, cols
@@ -3618,7 +3618,7 @@ class KniminAccess(object):
                      RETURNING shotgun_normalized_plate_id"""
 
             TRN.add(sql, [shotgun_plate_id, email, echo_id])
-            shotgun_normalized_plate_id = TRN.execute_fetchindex()[0][0]
+            shotgun_normalized_plate_id = TRN.execute_fetchlast()
 
             # add all of the volume details for the normalized plate
             sql = """INSERT INTO pm.shotgun_normalized_plate_well_values
@@ -3658,17 +3658,27 @@ class KniminAccess(object):
         """
         with TRN:
             # get plate details
-            sql = """SELECT *
-                     FROM pm.shotgun_normalized_plate
-                     WHERE shotgun_normalized_plate_id = %s"""
+            sql = """SELECT shotgun_normalized_plate_id,shotgun_plate_id,
+                            created_on,email,e.name as echo,lp_date,lp_email,
+                            mosquito,slpk.name as shotgun_library_prep_kit,
+                            saa.name as shotgun_adapter_aliquot,qpcr_date,
+                            qpcr_email,qpcr_std_ladder,q.name as qpcr,discarded
+                     FROM pm.shotgun_normalized_plate snp
+                          JOIN pm.echo e USING(echo_id)
+                          LEFT JOIN pm.shotgun_library_prep_kit slpk
+                              USING(shotgun_library_prep_kit_id)
+                          LEFT JOIN pm.shotgun_adapter_aliquot saa
+                              USING(shotgun_adapter_aliquot_id)
+                          LEFT JOIN pm.qpcr q USING (qpcr_id)
+                     WHERE snp.shotgun_normalized_plate_id = %s"""
             TRN.add(sql, [shotgun_normalized_plate_id])
             res = TRN.execute_fetchindex()
+
             if not res:
                 raise ValueError("normalized shotgun plate %s does not exist" %
                                  shotgun_normalized_plate_id)
 
             res = dict(res[0])
-            res.pop('shotgun_normalized_plate_id')  # it's redundant
 
             # get plate shape
             sql = """SELECT rows, cols
@@ -3709,8 +3719,6 @@ class KniminAccess(object):
         ValueError
             If the normalized_shotgun_plate_id does not exist
         """
-        ### what mechanisms exist to prohibit the execution of this method for
-        ### an already sequenced set of plates?
         with TRN:
             # get plate details
             sql = """SELECT *

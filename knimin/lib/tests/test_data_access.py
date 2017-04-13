@@ -1325,7 +1325,6 @@ class TestDataAccess(TestCase):
                                        np.zeros((8, 12)), np.zeros((16, 24)))
 
     def test_normalize_shotgun_plate_bad_echo_name(self):
-        ### there does not appear to be any loaded echo names in patch 0041
         cid = self._create_test_shotgun_plate()
         with self.assertRaisesRegexp(ValueError, "echo machine"):
             db.normalize_shotgun_plate(cid, 'test', 'does not exist',
@@ -1342,35 +1341,36 @@ class TestDataAccess(TestCase):
         exp_sample = np.arange(384).reshape(16, 24)
         exp_water = np.arange(384).reshape(16, 24) * 10
 
-        ### many of these values are ignored at this time as dont know
-        ### where they get established
         exp = {'created_on': datetime.date.today(),
                'email': 'test',
-               'echo_id': 'ignored',  # this is assertable via inline sql
-               'lp_date': 'ignored',
-               'lp_email': 'ignored',
-               'mosquito': 'ignored',
+               'echo': 'a valid echo name',
+               'lp_date': None,
+               'lp_email': None,
+               'mosquito': None,
                'shotgun_plate_id': cid,
-               'shotgun_library_prep_kit_id': 'ignored',
-               'shotgun_adapter_aliquot_id': 'ignored',
-               'qpcr_date': 'ignored',
-               'qpcr_email': 'ignored',
-               'qpcr_std_ladder': 'ignored',
-               'qpcr_id': 'ignored',
-               'discarded': 'ignored',
+               'shotgun_normalized_plate_id': nid,
+               'shotgun_library_prep_kit': None,
+               'shotgun_adapter_aliquot': None,
+               'qpcr_date': None,
+               'qpcr_email': None,
+               'qpcr_std_ladder': None,
+               'qpcr': None,
+               'discarded': False,
                'plate_normalization_water': exp_water,
                'plate_normalization_sample': exp_sample}
 
         obs = db.read_normalized_shotgun_plate(nid)
 
         self.assertEqual(set(obs.keys()), set(exp.keys()))
-        self.assertEqual(obs['email'], exp['email'])
         self.assertTrue(before <= obs['created_on'] <= after)
-        self.assertEqual(obs['shotgun_plate_id'], exp['shotgun_plate_id'])
         npt.assert_equal(obs['plate_normalization_water'],
                          exp['plate_normalization_water'])
         npt.assert_equal(obs['plate_normalization_sample'],
                          exp['plate_normalization_sample'])
+        for k in set(obs.keys()) - set(['plate_normalization_water',
+                                        'created_on',
+                                        'plate_normalization_sample']):
+            self.assertEqual(obs[k], exp[k])
 
     def test_read_normalized_shotgun_plate_bad_id(self):
         with self.assertRaises(ValueError):
@@ -1379,63 +1379,6 @@ class TestDataAccess(TestCase):
     def test_delete_normalized_shotgun_plate_bad_id(self):
         with self.assertRaises(ValueError):
             db.delete_normalized_shotgun_plate(99999999)
-
-    def test_delete_normalized_shotgun_plate(self):
-        self._create_test_echo()
-        cid = self._create_test_shotgun_plate()
-        nid = db.normalize_shotgun_plate(cid, 'test', 'a valid echo name',
-                                         np.arange(384).reshape(16, 24),
-                                         np.arange(384).reshape(16, 24) * 10)
-        works = db.read_normalized_shotgun_plate(nid)
-        db.delete_normalized_shotgun_plate(nid)
-        try:
-            doesnotwork = db.read_normalized_shotgun_plate(nid)
-        except:
-            pass
-        else:
-            self.fail()
-
-    def test_read_normalized_shotgun_plate(self):
-        # copypasta of test_normalize_shotgun_plate
-        before = datetime.datetime.now()
-        self._create_test_echo()
-        cid = self._create_test_shotgun_plate()
-        nid = db.normalize_shotgun_plate(cid, 'test', 'a valid echo name',
-                                         np.arange(384).reshape(16, 24),
-                                         np.arange(384).reshape(16, 24) * 10)
-        after = datetime.datetime.now()
-        exp_sample = np.arange(384).reshape(16, 24)
-        exp_water = np.arange(384).reshape(16, 24) * 10
-
-        ### many of these values are ignored at this time as dont know
-        ### where they get established
-        exp = {'created_on': datetime.date.today(),
-               'email': 'test',
-               'echo_id': 'ignored',  # this is assertable via inline sql
-               'lp_date': 'ignored',
-               'lp_email': 'ignored',
-               'mosquito': 'ignored',
-               'shotgun_plate_id': cid,
-               'shotgun_library_prep_kit_id': 'ignored',
-               'shotgun_adapter_aliquot_id': 'ignored',
-               'qpcr_date': 'ignored',
-               'qpcr_email': 'ignored',
-               'qpcr_std_ladder': 'ignored',
-               'qpcr_id': 'ignored',
-               'discarded': 'ignored',
-               'plate_normalization_water': exp_water,
-               'plate_normalization_sample': exp_sample}
-
-        obs = db.read_normalized_shotgun_plate(nid)
-
-        self.assertEqual(set(obs.keys()), set(exp.keys()))
-        self.assertEqual(obs['email'], exp['email'])
-        self.assertTrue(before <= obs['created_on'] <= after)
-        self.assertEqual(obs['shotgun_plate_id'], exp['shotgun_plate_id'])
-        npt.assert_equal(obs['plate_normalization_water'],
-                         exp['plate_normalization_water'])
-        npt.assert_equal(obs['plate_normalization_sample'],
-                         exp['plate_normalization_sample'])
 
     def test_read_dna_plate(self):
         # Success is already tested in "test_extract_sample_plates"
