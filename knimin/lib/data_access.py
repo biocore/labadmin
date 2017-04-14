@@ -3699,12 +3699,16 @@ class KniminAccess(object):
             plate_shape = dict(TRN.execute_fetchindex()[0])
             n_rows = plate_shape['rows']
             n_cols = plate_shape['cols']
-            sample_volumes = None
-            water_volumes = None
-            qpcr_concentrations = None
-            qpcr_cps = None
-            shotgun_i5_index = None
-            shotgun_i7_index = None
+            sample_volumes = np.zeros((n_rows, n_cols))
+            water_volumes = np.zeros((n_rows, n_cols))
+            qpcr_concentrations = np.zeros((n_rows, n_cols))
+            qpcr_cps = np.zeros((n_rows, n_cols))
+            shotgun_i5_index_had_vals = False
+            shotgun_i5_index = [[None for c in range(n_cols)]
+                                for r in range(n_rows)]
+            shotgun_i7_index_had_vals = False
+            shotgun_i7_index = [[None for c in range(n_cols)]
+                                for r in range(n_rows)]
 
             # get well values
             sql = """SELECT row, col, sample_volume_nl, water_volume_nl,
@@ -3716,39 +3720,24 @@ class KniminAccess(object):
             well_values = TRN.execute_fetchindex()
             for (row, col, sample_volume_nl, water_volume_nl,
                  qpcr_concentration, qpcr_cp, si5i, si7i) in well_values:
-                if sample_volume_nl is not None:
-                    if sample_volumes is None:
-                        sample_volumes = np.zeros((n_rows, n_cols))
-                    sample_volumes[row, col] = sample_volume_nl
-                if water_volume_nl is not None:
-                    if water_volumes is None:
-                        water_volumes = np.zeros((n_rows, n_cols))
-                    water_volumes[row, col] = water_volume_nl
-                if qpcr_concentration is not None:
-                    if qpcr_concentrations is None:
-                        qpcr_concentrations = np.zeros((n_rows, n_cols))
-                    qpcr_concentrations[row, col] = qpcr_concentration
-                if qpcr_cp is not None:
-                    if qpcr_cps is None:
-                        qpcr_cps = np.zeros((n_rows, n_cols))
-                    qpcr_cps[row, col] = qpcr_cp
-                if si5i is not None:
-                    if shotgun_i5_index is None:
-                        shotgun_i5_index = [[None for c in range(n_cols)]
-                                            for r in range(n_rows)]
-                    shotgun_i5_index[row][col] = si5i
-                if si7i is not None:
-                    if shotgun_i7_index is None:
-                        shotgun_i7_index = [[None for c in range(n_cols)]
-                                            for r in range(n_rows)]
-                    shotgun_i7_index[row][col] = si7i
+                sample_volumes[row, col] = sample_volume_nl
+                water_volumes[row, col] = water_volume_nl
+                qpcr_concentrations[row, col] = qpcr_concentration
+                qpcr_cps[row, col] = qpcr_cp
 
-            res['plate_normalization_water'] = water_volumes
-            res['plate_normalization_sample'] = sample_volumes
-            res['plate_qpcr_concentrations'] = qpcr_concentrations
-            res['plate_qpcr_cps'] = qpcr_cps
-            res['shotgun_i5_index'] = shotgun_i5_index
-            res['shotgun_i7_index'] = shotgun_i7_index
+            res['plate_normalization_water'] = (
+                None if np.isnan(water_volumes).all() else water_volumes)
+            res['plate_normalization_sample'] = (
+                None if np.isnan(sample_volumes).all() else sample_volumes)
+            res['plate_qpcr_concentrations'] = (
+                None if np.isnan(qpcr_concentrations).all()
+                else qpcr_concentrations)
+            res['plate_qpcr_cps'] = (
+                None if np.isnan(qpcr_cps).all() else qpcr_cps)
+            res['shotgun_i5_index'] = (
+                shotgun_i5_index if shotgun_i5_index_had_vals else None)
+            res['shotgun_i7_index'] = (
+                shotgun_i7_index if shotgun_i7_index_had_vals else None)
 
         return res
 
@@ -3833,7 +3822,7 @@ class KniminAccess(object):
         Returns
         -------
         int
-            The id of the resently created shotgun adapter aliquot
+            The id of the created shotgun adapter aliquot
         """
         with TRN:
             sql = """INSERT INTO pm.shotgun_adapter_aliquot
@@ -3860,7 +3849,7 @@ class KniminAccess(object):
         Returns
         -------
         int
-            The id of the resently created shotgun adapter aliquot
+            The id of the created shotgun adapter aliquot
         """
         with TRN:
             sql = """INSERT INTO pm.shotgun_index_aliquot
