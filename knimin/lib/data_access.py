@@ -3982,8 +3982,13 @@ class KniminAccess(object):
                 "Not valid data value: %s, should be: %s" % (data, valid_data))
 
         with TRN:
-            tp = self.read_targeted_plate(plate_id)
-            rp = dict(self.read_plate_type(tp['primer_plate_id']))
+            sql = """SELECT rows, cols
+                     FROM pm.plate_type
+                        JOIN pm.targeted_primer_plate USING (plate_type_id)
+                        JOIN pm.targeted_plate USING (targeted_primer_plate_id)
+                        WHERE targeted_plate_id = %s"""
+            TRN.add(sql, [plate_id])
+            rp = dict(TRN.execute_fetchindex()[0])
             vals_rows, vals_cols = vals.shape
             if vals_rows != rp['rows'] or vals_cols != rp['cols']:
                 raise ValueError('values wrong shape, should '

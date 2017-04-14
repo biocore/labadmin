@@ -1653,7 +1653,7 @@ class TestDataAccess(TestCase):
         with self.assertRaises(ValueError) as ctx:
             db.quantify_targeted_plate(obs_ids[0], 'should fail', vals)
         self.assertEqual(
-            ctx.exception.message, "Not a valid data: should fail, should "
+            ctx.exception.message, "Not valid data value: should fail, should "
             "be: [u'raw_concentration', u'mod_concentration']")
 
         vals = np.random.rand(16, 24)
