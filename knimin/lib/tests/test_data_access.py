@@ -1766,7 +1766,7 @@ class TestDataAccess(TestCase):
 
         email = 'test'
         name = "full plate"
-        robot = 'HOWE_KF1'
+        robot = 'ROBE'
         plate_type = 2L
         volume = 0.22
         cid = db.condense_dna_plates(dna_plates, name, email,

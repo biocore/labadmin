@@ -1,0 +1,94 @@
+{% extends logged_in_index.html %}
+{% block head %}
+{% from json import dumps %}
+<script type="text/javascript">
+
+  function validateForm(e) {
+    // At least one plat should have a value
+    var success = ($('#plate-1-select').val() != '' ||
+                   $('#plate-2-select').val() != '' ||
+                   $('#plate-3-select').val() != '' ||
+                   $('#plate-4-select').val() != '');
+
+    e.returnValue = success;
+  };
+
+  $(document).ready(function() {
+    var plates = {% raw dumps(plates) %};
+    $.each(plates, function (idx, plate) {
+      var display = "(ID: " + plate.id + ") " + plate.name + " - " + plate.date;
+      $('<option>').attr('value', plate.id).text(display).appendTo('.plate-select');
+    });
+    $('.plate-select').select2({
+        placeholder: "Select a plate...",
+        allowClear: true
+    });
+  });
+</script>
+{% end %}
+{% block content %}
+<h3>Condense DNA plates</h3>
+
+<div class="container">
+  <form action="/pm_condense/" method="post" onsubmit="validateForm(event);">
+    <!-- Plate name -->
+    <div class="row">
+      <div class="col-xs-6 form-group">
+        <label class="center-block">Plate name</label>
+        <input class="form-control" name="name" required/>
+      </div>
+    </div>
+    <!-- First row of plates -->
+    <div class="row">
+      <div class="col-xs-6 form-group">
+        <label class="center-block text-center">DNA Plate 1</label>
+        <select class="form-control plate-select" id='plate-1-select' name='plate-1'>
+          <option></option>
+        </select>
+      </div>
+      <div class="col-xs-6 form-group">
+        <label class="center-block text-center">DNA Plate 2</label>
+        <select class="form-control plate-select" id='plate-2-select' name='plate-2'>
+          <option></option>
+        </select>
+      </div>
+    </div>
+    <!-- Second row of plates -->
+    <div class="row">
+      <div class="col-xs-6 form-group">
+        <label class="center-block text-center">DNA Plate 3</label>
+        <select class="form-control plate-select" id='plate-3-select' name='plate-3'>
+          <option></option>
+        </select>
+      </div>
+      <div class="col-xs-6 form-group">
+        <label class="center-block text-center">DNA Plate 4</label>
+        <select class="form-control plate-select" id='plate-4-select' name='plate-4'>
+          <option></option>
+        </select>
+      </div>
+    </div>
+    <!-- Choosing robot -->
+    <div class="row">
+      <div class="col-xs-6 form-group">
+        <label class="center-block">Processing robot</label>
+        <select name="robot" class="form-control">
+            {% for robot in robots %}
+              <option value='{{robot['name']}}'>{{robot['name']}}</option>
+            {% end %}
+        </select>
+      </div>
+      <div class="col-xs-6 form-group">
+        <label class="center-block">Volume (&mu;L)</label>
+        <input class="form-control" name="volume" type="number" min="0" step="0.001" id='volume' required/>
+      </div>
+    </div>
+    <!-- Submit button -->
+    <div class="row">
+      <div class="col-xs-12 form-group">
+        <button type="submit" class="btn btn-primary">Condense</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% end %}

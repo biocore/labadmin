@@ -4235,7 +4235,7 @@ class KniminAccess(object):
             self._plate_type_exists(plate_type)
             self._email_exists(email)
             robot_id = self.get_or_create_property_option_id(
-                "extraction_robot", robot)
+                "processing_robot", robot)
 
             # 2 is 384-well plate
             if plate_type != 2:

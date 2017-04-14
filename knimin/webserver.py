@@ -42,6 +42,7 @@ from knimin.handlers.pm_library_prep import (
     PMMetagenomicsLibraryPrepHandler)
 from knimin.handlers.pm_pool_handlers import PMPoolPlatesHandler
 from knimin.handlers.pm_sequence import PMSequenceHandler
+from knimin.handlers.pm_condense import PMCondensePlatesHandler
 
 define("port", default=config.http_port, type=int)
 
@@ -97,6 +98,7 @@ class WebApplication(Application):
             (r"/pm_sample_plate", PMSamplePlateHandler),
             (r"/pm_plate_map", PMPlateMapHandler),
             (r"/pm_extract_plate", PMExtractPlateHandler),
+            (r"/pm_condense/", PMCondensePlatesHandler),
             (r".*", NoPageHandler)
         ]
         settings = {
