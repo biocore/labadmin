@@ -1642,7 +1642,7 @@ class TestDataAccess(TestCase):
         obs = db.read_targeted_plate(pid)
         npt.assert_almost_equal(obs['raw_concentration'], vals, decimal=5)
         self.assertIsNone(obs['mod_concentration'])
-        # now changin mod_concentration
+        # now changing mod_concentration
         vals_mod = np.random.rand(8, 12)
         db.quantify_targeted_plate(pid, 'mod_concentration', vals_mod)
         obs = db.read_targeted_plate(pid)

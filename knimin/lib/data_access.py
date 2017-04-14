@@ -3979,7 +3979,7 @@ class KniminAccess(object):
         valid_data = ['raw_concentration', 'mod_concentration']
         if data not in valid_data:
             raise ValueError(
-                "Not a valid data: %s, should be: %s" % (data, valid_data))
+                "Not valid data value: %s, should be: %s" % (data, valid_data))
 
         with TRN:
             tp = self.read_targeted_plate(plate_id)
