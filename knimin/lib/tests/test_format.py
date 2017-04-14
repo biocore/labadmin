@@ -2,6 +2,7 @@ import unittest
 
 from knimin.lib.format import format_sample_sheet
 
+
 class FormatTests(unittest.TestCase):
     def setUp(self):
         self.basic_details = {'run_name': 'runname',

@@ -1,5 +1,6 @@
 import datetime
 
+
 def write_sample_sheet(output_fp, instrument_type, labadmin_id,
                        run_name, assay, fwd_cycles, rev_cycles,
                        pi_name, pi_email,
@@ -18,7 +19,7 @@ def write_sample_sheet(output_fp, instrument_type, labadmin_id,
         f.write(full_sheet)
 
 
-def format_sample_sheet(instrument_type, labadmin_id,
+def format_sample_sheet(instrument_type, labadmin_id,  # noqa: C901
                         run_name, assay, fwd_cycles, rev_cycles,
                         pi_name, pi_email,
                         contact_0_name, contact_0_email,
@@ -262,12 +263,12 @@ Chemistry,Default,,,,,,,,,
 ReverseComplement,0,,,,,,,,,
 ,,,,,,,,,,
 [Data],,,,,,,,,,
-"""
+"""  # noqa: E501
 
-DATA_TARGET_GENE_STRUCTURE = "Sample_ID,Sample_Name,Sample_Plate,Sample_Well,I7_Index_ID,index,Sample_Project,Description,,"
+DATA_TARGET_GENE_STRUCTURE = "Sample_ID,Sample_Name,Sample_Plate,Sample_Well,I7_Index_ID,index,Sample_Project,Description,,"  # noqa: E501
 
 DATA_TARGET_GENE_SAMPLE_STRUCTURE = "%(run_name)s,,,,,NNNNNNNNNNNN,,,,,"
 
-DATA_SHOTGUN_STRUCTURE = "Sample_ID,Sample_Name,Sample_Plate,Sample_Well,I7_Index_ID,index,I5_Index_ID,index2,Sample_Project,Description"
+DATA_SHOTGUN_STRUCTURE = "Sample_ID,Sample_Name,Sample_Plate,Sample_Well,I7_Index_ID,index,I5_Index_ID,index2,Sample_Project,Description"  # noqa: E501
 
-DATA_SHOTGUN_SAMPLE_STRUCTURE = "%(sample_id)s,,,,%(i7_index_id)s,%(i7_index)s,%(i5_index_id)s,%(i5_index)s,,"
+DATA_SHOTGUN_SAMPLE_STRUCTURE = "%(sample_id)s,,,,%(i7_index_id)s,%(i7_index)s,%(i5_index_id)s,%(i5_index)s,,"  # noqa: E501
