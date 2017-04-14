@@ -1421,7 +1421,8 @@ class TestDataAccess(TestCase):
             db.normalize_shotgun_plate(cid, 'test', 'does not exist',
                                        np.zeros((16, 24)), np.zeros((16, 24)))
 
-    def _basic_test_steps_for_normalized_shotgun_plate(self, before, after, obs, exp_rnsp):
+    def _basic_test_steps_for_normalized_shotgun_plate(self, before, after,
+                                                       obs, exp_rnsp):
         "helper function to avoid duplication"
         self.assertEqual(set(obs.keys()), set(exp_rnsp.keys()))
         self.assertTrue(before <= obs['created_on'] <= after)
@@ -1472,8 +1473,8 @@ class TestDataAccess(TestCase):
                     'qpcr_email': None,
                     'qpcr_std_ladder': None,
                     'qpcr': None,
-                    'shotgun_i5_index': None,
-                    'shotgun_i7_index': None,
+                    'shotgun_i5_index': shotgun_i5_index,
+                    'shotgun_i7_index': shotgun_i7_index,
                     'discarded': False,
                     'plate_normalization_water': exp_water,
                     'plate_normalization_sample': exp_sample,

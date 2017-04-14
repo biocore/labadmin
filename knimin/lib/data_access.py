@@ -3845,7 +3845,7 @@ class KniminAccess(object):
             return TRN.execute_fetchlast()
 
     def add_shotgun_index_aliquot(self, name, notes,
-                                    limit_freeze_thaw_cycles):
+                                  limit_freeze_thaw_cycles):
         """Adds a new shotgun adapter aliquot to the DB
 
         Parameters
@@ -3952,7 +3952,8 @@ class KniminAccess(object):
 
             sql = """UPDATE pm.shotgun_normalized_plate_well_values
                      SET shotgun_i%s_index_id = %s, shotgun_index_aliquot = %s
-                     WHERE shotgun_normalized_plate_id = %s AND row = %s AND col = %s"""
+                     WHERE shotgun_normalized_plate_id = %s
+                        AND row = %s AND col = %s"""
 
             sql_args = []
             for row in np.arange(nrows):
@@ -3968,7 +3969,8 @@ class KniminAccess(object):
             sql = """UPDATE pm.shotgun_normalized_plate
                      SET shotgun_library_prep_kit_id = %s, mosquito = %s
                      WHERE shotgun_normalized_plate_id = %s"""
-            TRN.add(sql, [library_prep_kit_id, mosquito_id, normalized_plate_id])
+            TRN.add(sql, [
+                library_prep_kit_id, mosquito_id, normalized_plate_id])
 
             TRN.execute()
 
