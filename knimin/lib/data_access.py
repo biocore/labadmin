@@ -3981,15 +3981,16 @@ class KniminAccess(object):
             raise ValueError(
                 "Not a valid data: %s, should be: %s" % (data, valid_data))
 
-        tp = self.read_targeted_plate(plate_id)
-        rp = dict(self.read_plate_type(tp['primer_plate_id']))
-        vals_rows, vals_cols = vals.shape
-        if vals_rows != rp['rows'] or vals_cols != rp['cols']:
-            raise ValueError('values wrong shape, should '
-                             'be: (%d, %d) but is: (%d, %d)' % (
-                                rp['rows'], rp['cols'], vals_rows, vals_cols))
-
         with TRN:
+            tp = self.read_targeted_plate(plate_id)
+            rp = dict(self.read_plate_type(tp['primer_plate_id']))
+            vals_rows, vals_cols = vals.shape
+            if vals_rows != rp['rows'] or vals_cols != rp['cols']:
+                raise ValueError('values wrong shape, should '
+                                 'be: (%d, %d) but is: (%d, %d)' % (
+                                    rp['rows'], rp['cols'], vals_rows,
+                                    vals_cols))
+
             if data == 'raw_concentration':
                 # we assume we want to clean the info
                 sql = """DELETE FROM pm.targeted_plate_well_values
