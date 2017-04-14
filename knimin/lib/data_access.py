@@ -3724,6 +3724,12 @@ class KniminAccess(object):
                 water_volumes[row, col] = water_volume_nl
                 qpcr_concentrations[row, col] = qpcr_concentration
                 qpcr_cps[row, col] = qpcr_cp
+                if si5i is not None:
+                    shotgun_i5_index_had_vals = True
+                shotgun_i5_index[row][col] = si5i
+                if si7i is not None:
+                    shotgun_i7_index_had_vals = True
+                shotgun_i7_index[row][col] = si7i
 
             res['plate_normalization_water'] = (
                 None if np.isnan(water_volumes).all() else water_volumes)
