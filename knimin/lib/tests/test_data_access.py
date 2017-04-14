@@ -4,6 +4,7 @@ from six import StringIO
 from functools import partial
 from traceback import format_exc
 import datetime
+from random import choice
 
 import pandas as pd
 import numpy.testing as npt
@@ -1420,11 +1421,31 @@ class TestDataAccess(TestCase):
             db.normalize_shotgun_plate(cid, 'test', 'does not exist',
                                        np.zeros((16, 24)), np.zeros((16, 24)))
 
+    def _basic_test_steps_for_normalized_shotgun_plate(self, before, after, obs, exp_rnsp):
+        "helper function to avoid duplication"
+        self.assertEqual(set(obs.keys()), set(exp_rnsp.keys()))
+        self.assertTrue(before <= obs['created_on'] <= after)
+        npt.assert_equal(obs['plate_normalization_water'],
+                         exp_rnsp['plate_normalization_water'])
+        npt.assert_equal(obs['plate_normalization_sample'],
+                         exp_rnsp['plate_normalization_sample'])
+        npt.assert_equal(obs['plate_qpcr_concentrations'],
+                         exp_rnsp['plate_qpcr_concentrations'])
+        npt.assert_equal(obs['plate_qpcr_cps'],
+                         exp_rnsp['plate_qpcr_cps'])
+        for k in set(obs.keys()) - set(['plate_normalization_water',
+                                        'created_on',
+                                        'plate_qpcr_concentrations',
+                                        'plate_qpcr_cps',
+                                        'plate_normalization_sample']):
+            self.assertEqual(obs[k], exp_rnsp[k])
+
     def test_normalize_shotgun_plate(self):
         before = datetime.datetime.now()
         self._create_test_echo()
         cid = self._create_test_shotgun_plate()
-        nid = db.normalize_shotgun_plate(cid, 'test', 'a valid echo name',
+        email = 'test'
+        nid = db.normalize_shotgun_plate(cid, email, 'a valid echo name',
                                          np.arange(384).reshape(16, 24),
                                          np.arange(384).reshape(16, 24) * 10)
         after = datetime.datetime.now()
@@ -1432,47 +1453,99 @@ class TestDataAccess(TestCase):
         exp_water = np.arange(384).reshape(16, 24) * 10
         exp_qpcr_con = np.zeros((16, 24))
         exp_qpcr_cp = np.zeros((16, 24))
-        exp_qpcr_con[:, :] = None
-        exp_qpcr_cp[:, :] = None
+        exp_qpcr_con = None
+        exp_qpcr_cp = None
+        shotgun_i5_index = None
+        shotgun_i7_index = None
 
-        exp = {'created_on': datetime.date.today(),
-               'email': 'test',
-               'echo': 'a valid echo name',
-               'lp_date': None,
-               'lp_email': None,
-               'mosquito': None,
-               'shotgun_plate_id': cid,
-               'shotgun_normalized_plate_id': nid,
-               'shotgun_library_prep_kit': None,
-               'shotgun_adapter_aliquot': None,
-               'qpcr_date': None,
-               'qpcr_email': None,
-               'qpcr_std_ladder': None,
-               'qpcr': None,
-               'discarded': False,
-               'plate_normalization_water': exp_water,
-               'plate_normalization_sample': exp_sample,
-               'plate_qpcr_concentrations': exp_qpcr_con,
-               'plate_qpcr_cps': exp_qpcr_cp}
+        exp_rnsp = {'created_on': datetime.date.today(),
+                    'email': email,
+                    'echo': 'a valid echo name',
+                    'lp_date': None,
+                    'lp_email': None,
+                    'mosquito': None,
+                    'shotgun_plate_id': cid,
+                    'shotgun_normalized_plate_id': nid,
+                    'shotgun_library_prep_kit': None,
+                    'shotgun_adapter_aliquot': None,
+                    'qpcr_date': None,
+                    'qpcr_email': None,
+                    'qpcr_std_ladder': None,
+                    'qpcr': None,
+                    'shotgun_i5_index': None,
+                    'shotgun_i7_index': None,
+                    'discarded': False,
+                    'plate_normalization_water': exp_water,
+                    'plate_normalization_sample': exp_sample,
+                    'plate_qpcr_concentrations': exp_qpcr_con,
+                    'plate_qpcr_cps': exp_qpcr_cp}
 
         obs = db.read_normalized_shotgun_plate(nid)
+        self._basic_test_steps_for_normalized_shotgun_plate(
+            before, after, obs, exp_rnsp)
 
-        self.assertEqual(set(obs.keys()), set(exp.keys()))
-        self.assertTrue(before <= obs['created_on'] <= after)
-        npt.assert_equal(obs['plate_normalization_water'],
-                         exp['plate_normalization_water'])
-        npt.assert_equal(obs['plate_normalization_sample'],
-                         exp['plate_normalization_sample'])
-        npt.assert_equal(obs['plate_qpcr_concentrations'],
-                         exp['plate_qpcr_concentrations'])
-        npt.assert_equal(obs['plate_qpcr_cps'],
-                         exp['plate_qpcr_cps'])
-        for k in set(obs.keys()) - set(['plate_normalization_water',
-                                        'created_on',
-                                        'plate_qpcr_concentrations',
-                                        'plate_qpcr_cps',
-                                        'plate_normalization_sample']):
-            self.assertEqual(obs[k], exp[k])
+        # tests for prepare_shotgun_libraries
+        # the mosquito values are set 1: Mosquito1
+        mosquito = 'Mosquito1'
+        mosquito_id = 1
+        shotgun_library_prep_kit = 'new library_prep_kit'
+        # as we need to insert a new index aliquot for testing, let's also
+        # test the retrival
+        shotgun_index_aliquot_id = db.add_shotgun_index_aliquot(
+            'new index_aliquot_id', 'This is our newest index aliquot', 100)
+        self._clean_up_funcs.append(
+            partial(db.delete_shotgun_index_aliquot, shotgun_index_aliquot_id))
+        obs = db.read_shotgun_index_aliquot()
+        exp = [{'notes': 'This is our newest index aliquot',
+                'shotgun_index_aliquot_id': shotgun_index_aliquot_id,
+                'name': 'new index_aliquot_id',
+                'limit_freeze_thaw_cycles': 100L}]
+        self.assertEqual(obs, exp)
+
+        _ids = ['iTru5_24_G', 'iTru7_101_01', 'iTru7_101_02', 'NEXTflex78']
+        i5_layout = [[choice(_ids) for c in range(24)] for r in range(16)]
+        i7_layout = [[choice(_ids) for c in range(24)] for r in range(16)]
+        db.prepare_shotgun_libraries(
+            nid, email, mosquito, shotgun_library_prep_kit,
+            shotgun_index_aliquot_id, i5_layout, i7_layout)
+        obs = db.read_normalized_shotgun_plate(nid)
+        exp_rnsp['mosquito'] = mosquito_id
+        exp_rnsp['shotgun_library_prep_kit'] = shotgun_library_prep_kit
+        exp_rnsp['shotgun_i5_index'] = i5_layout
+        exp_rnsp['shotgun_i7_index'] = i7_layout
+        self._basic_test_steps_for_normalized_shotgun_plate(
+            before, after, obs, exp_rnsp)
+
+        # testing errors for prepare_shotgun_libraries
+        i7_layout = np.random.rand(7, 7)
+        with self.assertRaises(ValueError) as ctx:
+            db.prepare_shotgun_libraries(
+                nid, email, mosquito, shotgun_library_prep_kit,
+                shotgun_index_aliquot_id, i5_layout, i7_layout)
+        self.assertEqual(
+            ctx.exception.message, "i7_layout wrong shape, should be: (16, "
+            "24) but is: (7, 7)")
+        i5_layout = np.random.rand(5, 5)
+        with self.assertRaises(ValueError) as ctx:
+            db.prepare_shotgun_libraries(
+                nid, email, mosquito, shotgun_library_prep_kit,
+                shotgun_index_aliquot_id, i5_layout, i7_layout)
+        self.assertEqual(
+            ctx.exception.message, "i5_layout wrong shape, should be: (16, "
+            "24) but is: (5, 5)")
+
+    def test_add_shotgun_adaptor_aliquot(self):
+        "testing here as we don't have an specific pipeline to test in"
+        shotgun_index_adaptor_id = db.add_shotgun_adapter_aliquot(
+            'new adaptor_aliquot_id', 'This is our newest adaptor aliquot', 10)
+        self._clean_up_funcs.append(partial(
+            db.delete_shotgun_adapter_aliquot, shotgun_index_adaptor_id))
+        obs = db.read_shotgun_adapter_aliquot()
+        exp = [{'notes': 'This is our newest adaptor aliquot',
+                'shotgun_adapter_aliquot_id': shotgun_index_adaptor_id,
+                'name': 'new adaptor_aliquot_id',
+                'limit_freeze_thaw_cycles': 10}]
+        self.assertEqual(obs, exp)
 
     def test_read_normalized_shotgun_plate_bad_id(self):
         with self.assertRaises(ValueError):

@@ -3661,7 +3661,9 @@ class KniminAccess(object):
         dict
             A dict populated by the columns details in
             pm.shotgun_normalized_plate, as well as two numpy matrices
-            corresponding to the normalized water and sample volumes
+            corresponding to the normalized water and sample volumes, as well
+            as two list of list of strings for the shotgun_i5_index and
+            shotgun_i7_index
         """
         with TRN:
             # get plate details
@@ -3697,29 +3699,56 @@ class KniminAccess(object):
             plate_shape = dict(TRN.execute_fetchindex()[0])
             n_rows = plate_shape['rows']
             n_cols = plate_shape['cols']
-            sample_volumes = np.zeros((n_rows, n_cols))
-            water_volumes = np.zeros((n_rows, n_cols))
-            qpcr_concentrations = np.zeros((n_rows, n_cols))
-            qpcr_cps = np.zeros((n_rows, n_cols))
+            sample_volumes = None
+            water_volumes = None
+            qpcr_concentrations = None
+            qpcr_cps = None
+            shotgun_i5_index = None
+            shotgun_i7_index = None
 
             # get well values
             sql = """SELECT row, col, sample_volume_nl, water_volume_nl,
-                            qpcr_concentration,qpcr_cp
+                            qpcr_concentration, qpcr_cp, shotgun_i5_index_id,
+                            shotgun_i7_index_id
                      FROM pm.shotgun_normalized_plate_well_values
                      WHERE shotgun_normalized_plate_id = %s"""
             TRN.add(sql, [shotgun_normalized_plate_id])
             well_values = TRN.execute_fetchindex()
             for (row, col, sample_volume_nl, water_volume_nl,
-                 qpcr_concentration, qpcr_cp) in well_values:
-                sample_volumes[row, col] = sample_volume_nl
-                water_volumes[row, col] = water_volume_nl
-                qpcr_concentrations[row, col] = qpcr_concentration
-                qpcr_cps[row, col] = qpcr_cp
+                 qpcr_concentration, qpcr_cp, si5i, si7i) in well_values:
+                if sample_volume_nl is not None:
+                    if sample_volumes is None:
+                        sample_volumes = np.zeros((n_rows, n_cols))
+                    sample_volumes[row, col] = sample_volume_nl
+                if water_volume_nl is not None:
+                    if water_volumes is None:
+                        water_volumes = np.zeros((n_rows, n_cols))
+                    water_volumes[row, col] = water_volume_nl
+                if qpcr_concentration is not None:
+                    if qpcr_concentrations is None:
+                        qpcr_concentrations = np.zeros((n_rows, n_cols))
+                    qpcr_concentrations[row, col] = qpcr_concentration
+                if qpcr_cp is not None:
+                    if qpcr_cps is None:
+                        qpcr_cps = np.zeros((n_rows, n_cols))
+                    qpcr_cps[row, col] = qpcr_cp
+                if si5i is not None:
+                    if shotgun_i5_index is None:
+                        shotgun_i5_index = [[None for c in range(n_cols)]
+                                            for r in range(n_rows)]
+                    shotgun_i5_index[row][col] = si5i
+                if si7i is not None:
+                    if shotgun_i7_index is None:
+                        shotgun_i7_index = [[None for c in range(n_cols)]
+                                            for r in range(n_rows)]
+                    shotgun_i7_index[row][col] = si7i
 
             res['plate_normalization_water'] = water_volumes
             res['plate_normalization_sample'] = sample_volumes
             res['plate_qpcr_concentrations'] = qpcr_concentrations
             res['plate_qpcr_cps'] = qpcr_cps
+            res['shotgun_i5_index'] = shotgun_i5_index
+            res['shotgun_i7_index'] = shotgun_i7_index
 
         return res
 
@@ -3754,6 +3783,193 @@ class KniminAccess(object):
             sql = """DELETE FROM pm.shotgun_normalized_plate
                      WHERE shotgun_normalized_plate_id = %s"""
             TRN.add(sql, [shotgun_normalized_plate_id])
+            TRN.execute()
+
+    def read_shotgun_adapter_aliquot(self):
+        """Return all available shotgun adapter aliquots
+
+        Returns
+        -------
+        list of dict
+            All available shotgun adapter aliquots
+        """
+        with TRN:
+            sql = """SELECT shotgun_adapter_aliquot_id, name,
+                        notes, limit_freeze_thaw_cycles
+                     FROM pm.shotgun_adapter_aliquot"""
+            TRN.add(sql)
+
+            return [dict(row) for row in TRN.execute_fetchindex()]
+
+    def read_shotgun_index_aliquot(self):
+        """Return all available shotgun index aliquots
+
+        Returns
+        -------
+        list of dict
+            All available shotgun index aliquots
+        """
+        with TRN:
+            sql = """SELECT shotgun_index_aliquot_id, name,
+                        notes, limit_freeze_thaw_cycles
+                     FROM pm.shotgun_index_aliquot"""
+            TRN.add(sql)
+
+            return [dict(row) for row in TRN.execute_fetchindex()]
+
+    def add_shotgun_adapter_aliquot(self, name, notes,
+                                    limit_freeze_thaw_cycles):
+        """Adds a new shotgun adapter aliquot to the DB
+
+        Parameters
+        ----------
+        name : str
+            The name of the new aliquot
+        notes : str
+            General notes of this aliquot
+        limit_freeze_thaw_cycles : int
+            Limit freeze thaw cycles for this aliquot
+
+        Returns
+        -------
+        int
+            The id of the resently created shotgun adapter aliquot
+        """
+        with TRN:
+            sql = """INSERT INTO pm.shotgun_adapter_aliquot
+                        (name, notes, limit_freeze_thaw_cycles)
+                     VALUES (%s, %s, %s)
+                     RETURNING shotgun_adapter_aliquot_id"""
+            TRN.add(sql, [name, notes, limit_freeze_thaw_cycles])
+
+            return TRN.execute_fetchlast()
+
+    def add_shotgun_index_aliquot(self, name, notes,
+                                    limit_freeze_thaw_cycles):
+        """Adds a new shotgun adapter aliquot to the DB
+
+        Parameters
+        ----------
+        name : str
+            The name of the new aliquot
+        notes : str
+            General notes of this aliquot
+        limit_freeze_thaw_cycles : int
+            Limit freeze thaw cycles for this aliquot
+
+        Returns
+        -------
+        int
+            The id of the resently created shotgun adapter aliquot
+        """
+        with TRN:
+            sql = """INSERT INTO pm.shotgun_index_aliquot
+                        (name, notes, limit_freeze_thaw_cycles)
+                     VALUES (%s, %s, %s)
+                     RETURNING shotgun_index_aliquot_id"""
+            TRN.add(sql, [name, notes, limit_freeze_thaw_cycles])
+
+            return TRN.execute_fetchlast()
+
+    def delete_shotgun_adapter_aliquot(self, shotgun_adapter_aliquot_id):
+        """Adds a new shotgun adapter aliquot to the DB
+
+        Parameters
+        ----------
+        shotgun_adapter_aliquot_id : int
+            The shotgun adapter aliquot id to delete
+        """
+        with TRN:
+            sql = """DELETE FROM pm.shotgun_adapter_aliquot
+                     WHERE shotgun_adapter_aliquot_id = %s"""
+            TRN.add(sql, [shotgun_adapter_aliquot_id])
+            TRN.execute()
+
+    def delete_shotgun_index_aliquot(self, shotgun_index_aliquot_id):
+        """Adds a new shotgun index aliquot to the DB
+
+        Parameters
+        ----------
+        shotgun_index_aliquot_id : int
+            The shotgun index aliquot id to delete
+        """
+        with TRN:
+            sql = """DELETE FROM pm.shotgun_index_aliquot
+                     WHERE shotgun_index_aliquot_id = %s"""
+            TRN.add(sql, [shotgun_index_aliquot_id])
+            TRN.execute()
+
+    def prepare_shotgun_libraries(self, normalized_plate_id, email, mosquito,
+                                  shotgun_library_prep_kit,
+                                  shotgun_index_aliquot_id, i5_layout,
+                                  i7_layout):
+        """Stores the shotgun library prep information
+
+        Parameters
+        ----------
+        shotgun_plate_id : int
+            The shotgun plate id
+        email : str
+            The email of the user
+        mosquito : str
+            The mosquito machine performing the normalization
+        shotgun_library_prep_kit : str
+            The library prep kit lot used
+        shotgun_index_aliquot_id : int
+            The index aliquot lot id used
+        i5_layout: list of lists of str
+            The i5 index used in each well
+        i7_layout: list of lists of str
+            The i7 index used in each well
+
+        Returns
+        -------
+        ValueError
+            If `i5_layout` dimensions doesn't match the plate type
+            If `i7_layout` dimensions doesn't match the plate type
+        """
+        with TRN:
+            nsp = self.read_normalized_shotgun_plate(normalized_plate_id)
+            # for simplicity I'm let's take the shape of the plave via the
+            # plate_normalization_water from the normalized plate
+            nrows, ncols = nsp['plate_normalization_water'].shape
+            mosquito_id = self.get_or_create_property_option_id(
+                "mosquito", mosquito)
+            library_prep_kit_id = self.get_or_create_property_option_id(
+                "shotgun_library_prep_kit", shotgun_library_prep_kit)
+
+            nrows_i5, ncols_i5 = len(i5_layout), len(i5_layout[0])
+            if nrows_i5 != nrows or ncols_i5 != ncols:
+                raise ValueError('i5_layout wrong shape, should '
+                                 'be: (%d, %d) but is: (%d, %d)' % (
+                                    nrows, ncols, nrows_i5, ncols_i5))
+
+            nrows_i7, ncols_i7 = len(i7_layout), len(i7_layout[0])
+            if nrows_i7 != nrows or ncols_i7 != ncols:
+                raise ValueError('i7_layout wrong shape, should '
+                                 'be: (%d, %d) but is: (%d, %d)' % (
+                                    nrows, ncols, nrows_i7, ncols_i7))
+
+            sql = """UPDATE pm.shotgun_normalized_plate_well_values
+                     SET shotgun_i%s_index_id = %s, shotgun_index_aliquot = %s
+                     WHERE shotgun_normalized_plate_id = %s AND row = %s AND col = %s"""
+
+            sql_args = []
+            for row in np.arange(nrows):
+                for col in np.arange(ncols):
+                    sql_args.append([
+                        5, i5_layout[row][col], shotgun_index_aliquot_id,
+                        normalized_plate_id, row, col])
+                    sql_args.append([
+                        7, i7_layout[row][col], shotgun_index_aliquot_id,
+                        normalized_plate_id, row, col])
+            TRN.add(sql, sql_args, many=True)
+
+            sql = """UPDATE pm.shotgun_normalized_plate
+                     SET shotgun_library_prep_kit_id = %s, mosquito = %s
+                     WHERE shotgun_normalized_plate_id = %s"""
+            TRN.add(sql, [library_prep_kit_id, mosquito_id, normalized_plate_id])
+
             TRN.execute()
 
     def delete_dna_plate(self, dna_plate_id):
