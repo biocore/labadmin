@@ -69,7 +69,7 @@ def format_sample_sheet(instrument_type, labadmin_id,
     "lane" key.
 
     If the run type is Target Gene, then sample details are disregarded
-    with the exception of determining the the lanes.
+    with the exception of determining the lanes.
 
     IF the run type is shotgun, then the following keys are required:
         - sample-id
@@ -160,8 +160,8 @@ def format_sample_sheet(instrument_type, labadmin_id,
     base_sheet = _format_general(run_name, labadmin_id, assay, fwd_cycles,
                                  rev_cycles, pi_name, pi_email,
                                  contact_0_name, contact_0_email,
-                                 contact_1_name, contact_1_email,
-                                 contact_2_name, contact_2_email)
+                                 c1name, c1email,
+                                 c2name, c2email)
 
     full_sheet = "%s%s\n%s\n" % (base_sheet, sample_header,
                                  '\n'.join(sample_details))
