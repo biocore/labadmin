@@ -3254,77 +3254,6 @@ class KniminAccess(object):
             TRN.add(sql, [plate_id])
             TRN.execute()
 
-    def get_sequencers(self):
-        """Retrieves a list of available options for sequencers
-
-        Returns
-        -------
-        list of dict
-            {id: int, name: str, platform: str, instrument_model: str}
-        """
-        with TRN:
-            sql = """SELECT sequencer_id AS id, name, platform,
-                            instrument_model
-                     FROM pm.sequencer
-                     ORDER BY id"""
-            TRN.add(sql)
-            return [dict(x) for x in TRN.execute_fetchindex()]
-
-    def get_reagent_kit_lots(self):
-        """Retrieves a list of available reagent kit lots
-
-        Returns
-        -------
-        list of dict
-            {id: int, name: str, notes: str, reagent_kit_type: str}
-        """
-        with TRN:
-            sql = """SELECT reagent_kit_lot_id AS id, name, notes,
-                            reagent_kit_type
-                     FROM pm.reagent_kit_lot
-                     ORDER BY reagent_kit_lot_id DESC"""
-            TRN.add(sql)
-            return [dict(x) for x in TRN.execute_fetchindex()]
-
-    def get_or_create_reagent_kit_lot(self, name, reagent_kit_type):
-        """Retrieves the id of the reagent kit lot
-
-        If the reagent kit lot with the given name doesn't exist, it will
-        create it and return the id of the newly created value
-
-        Parameters
-        ----------
-        name : str
-            The name of the reagent kit lot
-        reagent_kit_type : str
-            The reagent kit type
-        """
-        with TRN:
-            # Insert if it doesn't exist
-            sql = """INSERT INTO pm.reagent_kit_lot (name, reagent_kit_type)
-                        SELECT %s, %s
-                        WHERE NOT EXISTS(SELECT 1 FROM pm.reagent_kit_lot
-                                         WHERE name = %s
-                                            AND reagent_kit_type = %s)
-                        RETURNING reagent_kit_lot_id"""
-            TRN.add(sql, [name, reagent_kit_type, name, reagent_kit_type])
-            res = TRN.execute_fetchindex()
-            if res:
-                # This means that the previous sql call inserted a new value
-                # so we just need to return the value
-                # Magic numbers [0][0] - There is only one row and with
-                # a single value
-                return res[0][0]
-
-            # If the code reaches this point it means that the previous sql
-            # call did not insert anything, i.e. the option already existed
-            # return the id of that option
-            sql = """SELECT reagent_kit_lot_id
-                     FROM pm.reagent_kit_lot
-                     WHERE name = %s AND reagent_kit_type = %s"""
-            TRN.add(sql, [name, reagent_kit_type])
-            return TRN.execute_fetchlast()
-
     def get_property_options(self, prop):
         """Retrieves a list of available options for a property
 
@@ -4565,7 +4494,8 @@ class KniminAccess(object):
             return [dict(row) for row in TRN.execute_fetchindex()]
 
     def create_sequencing_run(self, pool_id, email, sequencer, reagent_type,
-                              reagent_lot):
+                              reagent_lot, platform, instrument_model, assay,
+                              fwd_cycles, rev_cycles):
         """Stores the sequencing run information
 
         Parameters
@@ -4574,12 +4504,22 @@ class KniminAccess(object):
             The pool being sequenced
         email : str
             The email of the user preparing the run
-        sequencer : id
-            The sequencer id
+        sequencer : str
+            The specific sequencer
         reagent_type : str
             The reagent type
         reagent_lot : str
             The reagent lot
+        platform : str
+            The sequencing platform (e.g., Illumina)
+        instrument_model : str
+            The model of the instrument (e.g., MiSeq)
+        assay : str
+            The assay used (e.g., Kapa Hyper Plus)
+        fwd_cycles : int
+            The number of forward cycles used.
+        rev_cycles : int
+            The number of reverse cycles used.
 
         Returns
         -------
@@ -4587,15 +4527,17 @@ class KniminAccess(object):
             The run id
         """
         with TRN:
-            reagent_kit_id = self.get_or_create_reagent_kit_lot(
-                reagent_lot, reagent_type)
             sql = """INSERT INTO pm.run (name, email, created_on,
-                                         sequencer_id, run_pool_id,
-                                         reagent_kit_lot_id)
-                     VALUES (%s, %s, now(), %s, %s, %s)
+                                         sequencer, run_pool_id,
+                                         reagent_type, reagent_lot, platform,
+                                         instrument_model, assay, fwd_cycles,
+                                         rev_cycles)
+                     VALUES (%s, %s, now(), %s, %s, %s, %s, %s, %s, %s, %s, %s)
                      RETURNING run_id"""
             TRN.add(sql, [self.read_pool(pool_id)['name'], email,
-                          sequencer, pool_id, reagent_kit_id])
+                          sequencer, pool_id, reagent_type, reagent_lot,
+                          platform, instrument_model, assay, fwd_cycles,
+                          rev_cycles])
             return TRN.execute_fetchlast()
 
     def read_sequencing_run(self, run_id):
@@ -4620,11 +4562,10 @@ class KniminAccess(object):
         """
         with TRN:
             sql = """SELECT run_id AS id, r.name AS name, email, created_on,
-                            r.notes, s.name AS sequencer,
-                            r.run_pool_id AS pool_id, k.name AS reagent_kit_lot
+                            r.notes, sequencer, reagent_type, reagent_lot,
+                            r.run_pool_id AS pool_id, platform,
+                            instrument_model, assay, fwd_cycles, rev_cycles
                      FROM pm.run r
-                        JOIN pm.sequencer s USING (sequencer_id)
-                        JOIN pm.reagent_kit_lot k USING (reagent_kit_lot_id)
                      WHERE run_id = %s"""
             TRN.add(sql, [run_id])
             res = TRN.execute_fetchindex()

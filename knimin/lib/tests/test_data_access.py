@@ -1194,28 +1194,6 @@ class TestDataAccess(TestCase):
         err = 'Sample plate ID %s does not exist.' % plate_id
         self.assertEqual(str(context.exception), err)
 
-    def test_get_sequencers(self):
-        obs = db.get_sequencers()
-        exp = [{'id': 1, 'name': 'Knight Lab In house MiSeq',
-                'platform': 'Illumina', 'instrument_model': 'MiSeq'}]
-        self.assertEqual(obs, exp)
-
-    def test_get_reagent_kit_lots(self):
-        obs = db.get_reagent_kit_lots()
-        exp = [{'id': 1, 'name': 'MS1234', 'notes': None,
-                'reagent_kit_type': 'MiSeq v3 150 cycle'}]
-        self.assertEqual(obs, exp)
-
-    def test_get_or_create_reagent_kit_lot(self):
-        obs = db.get_or_create_reagent_kit_lot('MS1234', 'MiSeq v3 150 cycle')
-        self.assertEqual(obs, 1)
-
-        obs = db.get_or_create_reagent_kit_lot('MS4321', 'MiSeq v3 150 cycle')
-        self._clean_up_funcs.append(
-            partial(db.delete_property_option, "reagent_kit_lot", obs))
-        # The actual id changes
-        self.assertGreater(obs, 1)
-
     def test_get_property_options(self):
         # Get available extraction robots
         obs = db.get_property_options("extraction_robot")
@@ -1994,7 +1972,10 @@ class TestDataAccess(TestCase):
         # Create the run
         before = datetime.datetime.now()
         run_id = db.create_sequencing_run(
-            pool_ids[0], 'test', 1, 'MiSeq v3 150 cycle', 'MS1234')
+            pool_ids[0], 'test', 'Knight Lab In house MiSeq',
+            'MiSeq v3 150 cycle', 'MS1234',
+            'Illumina', 'MiSeq', 'Kapa Hyper Plus', 151, 151)
+
         after = datetime.datetime.now()
         self._clean_up_funcs.insert(
             0, partial(db.delete_sequencing_run, run_id))
@@ -2003,7 +1984,12 @@ class TestDataAccess(TestCase):
         self.assertTrue(before <= obs.pop('created_on') <= after)
         exp = {'id': run_id, 'name': 'LabAdmin test pool', 'notes': None,
                'sequencer': 'Knight Lab In house MiSeq',
-               'pool_id': pool_ids[0], 'reagent_kit_lot': 'MS1234',
+               'pool_id': pool_ids[0],
+               'platform': 'Illumina', 'instrument_model': 'MiSeq',
+               'reagent_type': 'MiSeq v3 150 cycle',
+               'reagent_lot': 'MS1234',
+               'assay': 'Kapa Hyper Plus',
+               'fwd_cycles': 151, 'rev_cycles': 151,
                'email': 'test'}
         self.assertEqual(obs, exp)
 
