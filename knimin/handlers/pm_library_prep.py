@@ -46,7 +46,7 @@ class PMTargetGeneLibraryPrepHandler(BaseHandler):
             plates, user, robot, tm300, tm50, master_mix, water)
 
         self.redirect(
-            "/pm_pool_plates/?%s"
+            "/pm_targeted_concentration/?%s"
             % "&".join(["plate=%d" % pid for pid in plate_ids]))
 
 

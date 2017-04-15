@@ -4270,8 +4270,9 @@ class KniminAccess(object):
                         JOIN pm.tm300_8_tool t300 USING (tm300_8_tool_id)
                         JOIN pm.tm50_8_tool t50 USING (tm50_8_tool_id)
                         JOIN pm.water_lot w USING (water_lot_id)
-                        JOIN pm.plate_type pt ON
-                            p.targeted_primer_plate_id = plate_type_id
+                        JOIN pm.targeted_primer_plate tpp
+                            USING (targeted_primer_plate_id)
+                        JOIN pm.plate_type pt USING (plate_type_id)
                      WHERE targeted_plate_id = %s"""
             TRN.add(sql, [plate_id])
             res = TRN.execute_fetchindex()
@@ -4352,7 +4353,32 @@ class KniminAccess(object):
             TRN.add(sql)
             return [dict(row) for row in TRN.execute_fetchindex()]
 
-    def pool_plates(self, pools, name, volume):
+    def get_quantified_targeted_plate_list(self):
+        """Gets the list of all quantified targeted plates
+
+        Returns
+        -------
+        list of dict
+            {id : int, name : str, date : datetime, num_samples: int}
+            Plate id, plate name, date and number of samples
+        """
+        with TRN:
+            # Magic number 0.0001: since we are dealing with floats, we need
+            # the ones that have different from 0. All those values are always
+            # positive, and the minimum threshold that the user can choose is
+            # 0.001. By using 0.0001 we ensure that we count correctly
+            sql = """SELECT targeted_plate_id AS id, name,
+                            COUNT(mod_concentration) as num_samples,
+                            created_on::date as date
+                     FROM pm.targeted_plate
+                        LEFT JOIN pm.targeted_plate_well_values
+                            USING (targeted_plate_id)
+                     WHERE mod_concentration > 0.0001
+                     GROUP BY id, name"""
+            TRN.add(sql)
+            return [dict(row) for row in TRN.execute_fetchindex()]
+
+    def pool_plates(self, pools, name, volume=5000):
         """Stores the pooling information
 
         Parameters
@@ -4362,7 +4388,7 @@ class KniminAccess(object):
             'percentage': float}
         name : str
             The name of the pool
-        volume : float
+        volume : float, optional
             The total volume of the pool
 
         Returns

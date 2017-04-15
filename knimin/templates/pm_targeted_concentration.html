@@ -1,0 +1,126 @@
+{% extends logged_in_index.html %}
+{% block head %}
+{% from json import dumps %}
+<script>
+  /**
+  *
+  * Adds the list of plates to the given select element
+  *
+  * @param {Element} elem The select DOM element
+  *
+  **/
+  function addPlateOptions(elem) {
+    var plates = {% raw dumps(all_plates) %};
+    $.each(plates, function (idx, plate) {
+      var display = "(ID: " + plate.id + ") " + plate.name + " - " + plate.date;
+      $('<option>').attr('value', plate.id).data('pm-samples', plate.num_samples).text(display).appendTo(elem);
+    });
+  };
+
+  $(document).ready(function () {
+    // Modofy the button of the first plate entry to have a + sign instead of -
+    $('.entry:first .btn-remove')
+      .removeClass('btn-remove').addClass('btn-add')
+      .removeClass('btn-info').addClass('btn-success')
+      .html($('<span>').addClass('glyphicon glyphicon-plus'));
+
+    $('.glyphicon-warning-sign').hide();
+
+    // Dynamically add/remove plate list
+    $(document).on('click', '.btn-add', function(e) {
+      e.preventDefault();
+
+      var controlForm = $('.tag-controls');
+      var currentEntry = $(this).parents('.entry:first');
+      var newEntry = $('<div class="entry row">' +
+                         '<div class="col-xs-7 form-group">' +
+                           '<select class="form-control plate-select" name="plate" required>' +
+                             '<option></option>' +
+                           '</select>' +
+                         '</div>' +
+                         '<div class="col-xs-1 form-group">' +
+                           '<button class="btn btn-info btn-remove form-control" type="button"><span class="glyphicon glyphicon-minus"></span></button>' +
+                         '</div>' +
+                       '</div>');
+
+      addPlateOptions(newEntry.find('.plate-select:first'));
+      newEntry.appendTo(controlForm);
+      $('.plate-select').select2({placeholder: "Select a plate...",
+                                  allowClear: true});
+    }).on('click', '.btn-remove', function(e) {
+      $(this).parents('.entry:first').remove();
+      e.preventDefault();
+      return false;
+    });
+
+    $.each($('.plate-select'), function(idx, elem) {
+        addPlateOptions(elem);
+    });
+
+    $('.plate-select').select2({placeholder: "Select a plate...",
+                                allowClear: true});
+
+  });
+</script>
+{% end %}
+{% block content %}
+<h3>Upload concentration values</h3>
+
+<div class="container">
+  <!-- Pool run information -->
+  <form enctype="multipart/form-data" action="/pm_targeted_concentration/" method="post">
+    <div class="row">
+      <div class="col-xs-4 form-group">
+        <label>Plate reader output file</label>
+        <input class="form-control" type="file" name="plate-reader-fp" required/>
+      </div>
+    </div>
+    <!-- Header -->
+    <div class="row">
+      <div class="col-xs-7 form-group">
+        <label class="center-block">Targeted plate</label>
+        Input them in the same order that they appear in the Plate Reader output file
+      </div>
+    </div>
+    <!-- Plates pool -->
+    <div class="tag-controls">
+    <!--
+        TODO: We are going to support multiple plates, but the current
+        parser only supports a single plate per file. I have not received an
+        example file with multiple plates so I couldn't update the parser.
+        Instead of removing the commented out code, I prefer to have it
+        here since we will use it at some point.
+    -->
+    {% if plates %}
+      <div class="entry row">
+        <div class="col-xs-7 form-group">
+          <select class="form-control plate-select" name="plate" required>
+            <option></option>
+            <option value='{{plates[0]['id']}}' selected>(ID: {{plates[0]['id']}}) {{plates[0]['name']}} - {{plates[0]['date']}}</option>
+          </select>
+        </div>
+        <div class="col-xs-1 form-group">
+          <!-- <button class="btn btn-info btn-remove form-control" type="button"><span class="glyphicon glyphicon-minus"></span></button> -->
+        </div>
+      </div>
+    {% else %}
+      <div class="entry row">
+        <div class="col-xs-7 form-group">
+          <select class="form-control plate-select" name="plate" required>
+            <option></option>
+          </select>
+        </div>
+        <div class="col-xs-1 form-group">
+          <!-- <button class="btn btn-info btn-remove form-control" type="button"><span class="glyphicon glyphicon-minus"></span></button> -->
+        </div>
+      </div>
+    </div>
+    {% end %}
+    <div class="row">
+      <div class="col-xs-2 form-group">
+        <button class="btn btn-primary form-control" type="submit">Upload</button>
+      </div>
+    </div>
+ </form>
+</div>
+{% end %}

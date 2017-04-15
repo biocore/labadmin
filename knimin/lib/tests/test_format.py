@@ -1,6 +1,8 @@
 import unittest
 
-from knimin.lib.format import format_sample_sheet
+import numpy as np
+
+from knimin.lib.format import format_sample_sheet, format_epmotion_file
 
 
 class FormatTests(unittest.TestCase):
@@ -14,6 +16,23 @@ class FormatTests(unittest.TestCase):
                               'pi_email': 'pi@place.com',
                               'contact_0_name': 'contact',
                               'contact_0_email': 'contact@place.com'}
+
+    def test_format_epmotion_file(self):
+        vol = np.random.rand(8, 12) * 10
+        # Put some known values
+        vol[0][9] = 0
+        vol[0][1] = 1.2
+        obs = format_epmotion_file(vol, 1)
+        # The first well is not present
+        self.assertNotIn('a10', obs)
+        # The second one is there
+        self.assertIn('a2', obs)
+        obs = obs.splitlines()
+        self.assertEqual(obs[0], 'Rack,Source,Rack,Destination,Volume,Tool')
+        self.assertEqual(obs[2], '1,a2,1,1,1.200,1')
+        obs = format_epmotion_file(vol, 5)
+        obs = obs.splitlines()
+        self.assertEqual(obs[2], '1,a2,1,5,1.200,1')
 
     def test_format_sample_sheet_bad_instrument(self):
         self.basic_details['instrument_type'] = 'bad'
