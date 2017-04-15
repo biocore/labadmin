@@ -1,6 +1,33 @@
 import datetime
 
 
+def format_epmotion_file(volumes, destination):
+    """Writes an EPMotion file
+
+    Parameters
+    ----------
+    volumes : 2d-numpy array of floats
+        The volumes to transfer
+    dest : int
+        The destination tube
+    """
+    # Add the headers
+    contents = ['Rack,Source,Rack,Destination,Volume,Tool']
+    rows, cols = volumes.shape
+    destination = str(destination)
+    for i in range(rows):
+        for j in range(cols):
+            # 0 values get removed - this is good enough, no need to get fancy
+            if volumes[i][j] < 0.001:
+                continue
+            # Hardcoded values: those never change
+            source = "%s%d" % (chr(ord('a') + i), j+1)
+            val = "%.3f" % volumes[i][j]
+            contents.append(
+                ",".join(['1', source, '1', destination, val, '1']))
+    return "\n".join(contents)
+
+
 def write_sample_sheet(output_fp, instrument_type, labadmin_id,
                        run_name, assay, fwd_cycles, rev_cycles,
                        pi_name, pi_email,

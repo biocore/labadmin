@@ -1738,6 +1738,27 @@ class TestDataAccess(TestCase):
                 'date': datetime.date.today(), 'num_samples': 4}]
         self.assertItemsEqual(db.get_targeted_plate_list(), exp)
 
+    def test_get_quantified_targeted_plate_list(self):
+        targeted_plate_ids = self._create_test_data_targeted_plate()
+        self.assertItemsEqual(db.get_quantified_targeted_plate_list(), [])
+
+        vals = np.zeros((8, 12))
+        db.quantify_targeted_plate(targeted_plate_ids[0],
+                                   'raw_concentration', vals)
+        db.quantify_targeted_plate(targeted_plate_ids[0],
+                                   'mod_concentration', vals)
+        vals[0][0] = 1.0
+        vals[0][1] = 2.0
+        vals[0][2] = 0.001
+        db.quantify_targeted_plate(targeted_plate_ids[1],
+                                   'raw_concentration', vals)
+        db.quantify_targeted_plate(targeted_plate_ids[1],
+                                   'mod_concentration', vals)
+
+        exp = [{'id': targeted_plate_ids[1], 'name': 'Test plate 2',
+                'date': datetime.date.today(), 'num_samples': 3}]
+        self.assertItemsEqual(db.get_quantified_targeted_plate_list(), exp)
+
     def test_pool_plates(self):
         targeted_plate_ids = self._create_test_data_targeted_plate()
 
