@@ -3969,6 +3969,74 @@ class KniminAccess(object):
 
             TRN.execute()
 
+    def qpcr_shotgun(self, normalized_plate_id, email, qpcr, qpcr_ladder,
+                     qpcr_cp, qpcr_concentration):
+        """Stores the qpcr readout of the normalized plate
+
+        Parameters
+        ----------
+        normalized_plate_id : int
+            The normalized shotgun plate id
+        email : str
+            The email of the user
+        qpcr : str
+            The qPCR machine performing the readout
+        qpcr_ladder : str
+            The standard used
+        qpcr_cp_values : 2d numpy array of float
+            The qPCR Cp values for each well
+        qpcr_concentration_values : 2d numpy array of float
+            The library concentration values for each #well
+
+        Returns
+        -------
+        ValueError
+            If `qpcr_cp_values` dimensions don't match the plate type
+            If `qpcr_lib_concentration_values` dimensions don't match the
+                plate type
+        """
+        with TRN:
+            nsp = self.read_normalized_shotgun_plate(normalized_plate_id)
+            # for simplicity I'm let's take the shape of the plave via the
+            # plate_normalization_water from the normalized plate
+            nrows, ncols = nsp['plate_normalization_water'].shape
+            qpcr_id = self.get_or_create_property_option_id("qpcr", qpcr)
+
+            nrows_cp, ncols_cp = qpcr_cp.shape
+            if nrows_cp != nrows or ncols_cp != ncols:
+                raise ValueError('qpcr_cp_values wrong shape, should '
+                                 'be: (%d, %d) but is: (%d, %d)' % (
+                                    nrows, ncols, nrows_cp, ncols_cp))
+
+            nrows_lib, ncols_lib = qpcr_concentration.shape
+            if nrows_lib != nrows or ncols_lib != ncols:
+                raise ValueError('qpcr_lib_concentration_values wrong shape, '
+                                 'should be: (%d, %d) but is: (%d, %d)' % (
+                                    nrows, ncols, nrows_lib, ncols_lib))
+
+            sql = """UPDATE pm.shotgun_normalized_plate_well_values
+                     SET {0} = %s
+                     WHERE shotgun_normalized_plate_id = %s
+                        AND row = %s AND col = %s"""
+
+            sql_args_conc, sql_args_cp = [], []
+            for row in np.arange(nrows):
+                for col in np.arange(ncols):
+                    sql_args_conc.append([
+                        qpcr_concentration[row][col],
+                        normalized_plate_id, row, col])
+                    sql_args_cp.append([qpcr_cp[row][col], normalized_plate_id,
+                                        row, col])
+            TRN.add(sql.format('qpcr_concentration'), sql_args_conc, many=True)
+            TRN.add(sql.format('qpcr_cp'), sql_args_cp, many=True)
+
+            sql = """UPDATE pm.shotgun_normalized_plate
+                     SET qpcr_id = %s, qpcr_std_ladder = %s
+                     WHERE shotgun_normalized_plate_id = %s"""
+            TRN.add(sql, [qpcr_id, qpcr_ladder, normalized_plate_id])
+
+            TRN.execute()
+
     def delete_dna_plate(self, dna_plate_id):
         """Deletes a DNA plate
 
