@@ -1425,20 +1425,30 @@ class TestDataAccess(TestCase):
                                                        obs, exp_rnsp):
         "helper function to avoid duplication"
         self.assertEqual(set(obs.keys()), set(exp_rnsp.keys()))
-        self.assertTrue(before <= obs['created_on'] <= after)
-        npt.assert_equal(obs['plate_normalization_water'],
-                         exp_rnsp['plate_normalization_water'])
-        npt.assert_equal(obs['plate_normalization_sample'],
-                         exp_rnsp['plate_normalization_sample'])
-        npt.assert_equal(obs['plate_qpcr_concentrations'],
-                         exp_rnsp['plate_qpcr_concentrations'])
-        npt.assert_equal(obs['plate_qpcr_cps'],
-                         exp_rnsp['plate_qpcr_cps'])
+        self.assertTrue(before <= obs.pop('created_on') <= after)
+        npt.assert_almost_equal(obs['plate_normalization_water'],
+                                exp_rnsp['plate_normalization_water'],
+                                decimal=5)
+        npt.assert_almost_equal(obs['plate_normalization_sample'],
+                                exp_rnsp['plate_normalization_sample'],
+                                decimal=5)
+        if exp_rnsp['plate_qpcr_concentrations'] is None:
+            self.assertIsNone(obs['plate_qpcr_concentrations'])
+        else:
+            npt.assert_almost_equal(obs['plate_qpcr_concentrations'],
+                                    exp_rnsp['plate_qpcr_concentrations'],
+                                    decimal=5)
+        if exp_rnsp['plate_qpcr_cps'] is None:
+            self.assertIsNone(obs['plate_qpcr_cps'])
+        else:
+            npt.assert_almost_equal(obs['plate_qpcr_cps'],
+                                    exp_rnsp['plate_qpcr_cps'], decimal=5)
         for k in set(obs.keys()) - set(['plate_normalization_water',
                                         'created_on',
                                         'plate_qpcr_concentrations',
                                         'plate_qpcr_cps',
                                         'plate_normalization_sample']):
+
             self.assertEqual(obs[k], exp_rnsp[k])
 
     def test_normalize_shotgun_plate(self):
@@ -1534,6 +1544,38 @@ class TestDataAccess(TestCase):
         self.assertEqual(
             ctx.exception.message, "i5_layout wrong shape, should be: (16, "
             "24) but is: (5, 5)")
+
+        # tests for qpcr_shotgun
+        # [0] only one result and [name] we just want the name
+        qpcr = db.get_property_options("qpcr")[0]['name']
+        qpcr_ladder = 'This is my ladder text'
+        qpcr_cp_values = np.random.rand(16, 24)
+        qpcr_lib_concentration_values = np.random.rand(16, 24)
+        db.qpcr_shotgun(nid, email, qpcr, qpcr_ladder, qpcr_cp_values,
+                        qpcr_lib_concentration_values)
+        obs = db.read_normalized_shotgun_plate(nid)
+        exp_rnsp['qpcr'] = qpcr
+        exp_rnsp['qpcr_std_ladder'] = qpcr_ladder
+        exp_rnsp['plate_qpcr_cps'] = qpcr_cp_values
+        exp_rnsp['plate_qpcr_concentrations'] = qpcr_lib_concentration_values
+        self._basic_test_steps_for_normalized_shotgun_plate(
+            before, after, obs, exp_rnsp)
+
+        # testing errors for qpcr_shotgun
+        qpcr_lib_concentration_values = np.random.rand(8, 12)
+        with self.assertRaises(ValueError) as ctx:
+            db.qpcr_shotgun(nid, email, qpcr, qpcr_ladder, qpcr_cp_values,
+                            qpcr_lib_concentration_values)
+        self.assertEqual(
+            ctx.exception.message, "qpcr_lib_concentration_values wrong "
+            "shape, should be: (16, 24) but is: (8, 12)")
+        qpcr_cp_values = np.random.rand(8, 12)
+        with self.assertRaises(ValueError) as ctx:
+            db.qpcr_shotgun(nid, email, qpcr, qpcr_ladder, qpcr_cp_values,
+                            qpcr_lib_concentration_values)
+        self.assertEqual(
+            ctx.exception.message, "qpcr_cp_values wrong "
+            "shape, should be: (16, 24) but is: (8, 12)")
 
     def test_add_shotgun_adaptor_aliquot(self):
         "testing here as we don't have an specific pipeline to test in"
