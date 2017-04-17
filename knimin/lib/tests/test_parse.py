@@ -130,8 +130,8 @@ class EchoParserTests(TestCase):
     def test_valid(self):
         exp_exceptions = pd.DataFrame([['gDNA[2]', None, '384PP_AQ_BP2_HT',
                                         'G10', 'Normalized DNA Destination[1]',
-                                        None, 'Greiner_384PS_781096','G10','0',
-                                        '0', None, None, '802.5', '0',
+                                        None, 'Greiner_384PS_781096', 'G10',
+                                        '0', '0', None, None, '802.5', '0',
                                         '60.717', '-0.126', 'Percent',
                                         'Glycerol',
                                         'MM0201004: Inconsistent fluid level']],  # noqa
