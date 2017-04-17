@@ -111,9 +111,14 @@ class TestPMSequenceHandler(TestHandlerBase):
 
     def test_post(self):
         pool_id = self._create_data()
-        data = {'pool_id': pool_id, 'sequencer': 1,
-                'reagent_kit_type': 'MiSeq v3 150 cycle',
-                'reagent_kit_lot': 'MS1234'}
+        data = {'pool_id': pool_id,
+                'reagent_type': 'MiSeq v3 150 cycle',
+                'reagent_lot': 'MS1234',
+                'platform': 'Illumina',
+                'instrument_model': 'MiSeq',
+                'assay': 'TrueSeq HT',
+                'fwd_cycles': 151,
+                'rev_cycles': 151}
         self.mock_login_admin()
         response = self.post('/pm_sequence/', data=data)
 

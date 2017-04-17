@@ -7,10 +7,12 @@
 # -----------------------------------------------------------------------------
 
 from collections import defaultdict
+from os.path import join
 
 from tornado.escape import json_encode
 
-from knimin import jira_handler, qiita_client, db
+from knimin import jira_handler, qiita_client, db, config
+from knimin.lib.format import write_sample_sheet
 
 
 def _format_sample_id(sample_id, plate_id, row, col):
@@ -335,8 +337,8 @@ def prepare_targeted_libraries(plate_links, email, robot, tm300tool,
     return targeted_plate_ids
 
 
-def create_sequencing_run(pool_id, email, sequencer, reagent_type,
-                          reagent_lot):
+def create_sequencing_run(pool_id, email, reagent_type, reagent_lot, platform,
+                          instrument_model, assay, fwd_cycles, rev_cycles):
     """Stores the sequencing run information
 
     Parameters
@@ -345,20 +347,54 @@ def create_sequencing_run(pool_id, email, sequencer, reagent_type,
         The pool being sequenced
     email : str
         The email of the user preparing the run
-    sequencer : id
-        The sequencer id
     reagent_type : str
         The reagent type
     reagent_lot : str
         The reagent lot
+    platform : str
+        The sequencing platform (e.g., Illumina)
+    instrument_model : str
+        The model of the instrument (e.g., MiSeq)
+    assay : str
+        The assay used (e.g., Kapa Hyper Plus)
+    fwd_cycles : int
+        The number of forward cycles used.
+    rev_cycles : int
+        The number of reverse cycles used.
 
     Returns
     -------
     int
         The run id
     """
-    run_id = db.create_sequencing_run(pool_id, email, sequencer, reagent_type,
-                                      reagent_lot)
+    # Store the information in the DB
+    # Sequencer is hardcoded to None. This information may not be known at this
+    # time but we can potentially retrieve this from the output sequencing
+    # folder.
+    run_id = db.create_sequencing_run(
+        pool_id, email, None, reagent_type, reagent_lot, platform,
+        instrument_model, assay, fwd_cycles, rev_cycles)
+
+    run = db.read_sequencing_run(run_id)
+    pool = db.read_pool(run['pool_id'])
+
+    # Write the sample sheet
+    instrument_type = 'miseq' if instrument_model == 'MiSeq' else 'hiseq'
+    run_type = "Target Gene" if pool['targeted_pools'] else "Shotgun"
+    sample_information = None
+
+    # TODO: Fill sample_information if the run is a HiSeq
+    # TODO: I want to check with Greg the values for PI and contact
+    contact_0_name = contact_0_email = pi_email = pi_name = 'TODO'
+    output_fp = join(
+        config.pm_sample_sheet_dir,
+        "SampleSheet.%s.%s.csv" % (run['name'].replace(" ", "_"),
+                                   run_type.replace(" ", "")))
+    write_sample_sheet(output_fp, instrument_type, run_id, run['name'],
+                       assay, fwd_cycles, rev_cycles, pi_name, pi_email,
+                       contact_0_name, contact_0_email, run_type,
+                       sample_information)
+
     studies = []
     for targeted_pool in db.read_pool(pool_id)['targeted_pools']:
         targeted_plate = db.read_targeted_plate(
@@ -367,13 +403,21 @@ def create_sequencing_run(pool_id, email, sequencer, reagent_type,
         sample_plate = db.read_sample_plate(dna_plate['sample_plate_id'])
         studies.extend(sample_plate['studies'])
 
+    jira_links = []
     for study_id in set(studies):
         study = db.read_study(study_id)
         issue_key = '%s-4' % study['jira_id']
         jira_handler.add_comment(
             issue_key, "Pools have been sent for sequencing")
+        # Add the SampleSheet to the Jira issue
+        with open(output_fp, 'rb') as f:
+            jira_handler.add_attachment(issue_key, f)
+        # Retrieve the jira links so thy can be returned to the user
+        project_name = jira_handler.project(study['jira_id']).name
+        issue_link = jira_handler.issue(issue_key).permalink()
+        jira_links.append([project_name, issue_link])
 
-    return run_id
+    return run_id, jira_links
 
 
 # 1 - Project initiation

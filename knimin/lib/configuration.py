@@ -64,6 +64,7 @@ class KniminConfig(object):
         self._get_email(config)
         self._get_jira(config)
         self._get_qiita(config)
+        self._get_platemapper(config)
 
     def _get_main(self, config):
         """Get the configuration of the main section"""
@@ -102,6 +103,10 @@ class KniminConfig(object):
         self.qiita_client_id = config.get('qiita', 'CLIENT_ID')
         self.qiita_client_secret = config.get('qiita', 'CLIENT_SECRET')
         self.qiita_server_cert = config.get('qiita', 'SERVER_CERT')
+
+    def _get_platemapper(self, config):
+        self.pm_sample_sheet_dir = config.get('platemapper',
+                                              'SAMPLE_SHEET_DIR')
 
 
 config = KniminConfig()

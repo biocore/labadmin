@@ -4,4 +4,11 @@
 {% block content %}
 <h3>Sequencing run {{run['name']}} successfully submitted with ID {{run['id']}}</h3>
 
+The sample sheet has been added to the following Jira projects:
+
+<div class="list-group">
+  {% for title, link in jira_links %}
+    <a href="{{link}}" target="_blank" class="list-group-item list-group-item-action">{{title}}</a>
+  {% end %}
+</div>
 {% end %}

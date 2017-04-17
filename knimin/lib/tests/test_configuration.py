@@ -61,6 +61,10 @@ class ConfigurationTests(TestCase):
         self.assertEqual(config.qiita_client_secret, 'CLIENTSECRET')
         self.assertEqual(config.qiita_server_cert, '/some/path/to/server.crt')
 
+    def test_get_platemapper(self):
+        config = KniminConfig(self.config_fp)
+        self.assertEqual(config.pm_sample_sheet_dir, '/some/path/to/dir/')
+
 
 test_config = """[main]
 debug = True
@@ -96,6 +100,9 @@ HOST = https://127.0.0.1:21174
 CLIENT_ID = CLIENTID
 CLIENT_SECRET = CLIENTSECRET
 SERVER_CERT = /some/path/to/server.crt
+
+[platemapper]
+SAMPLE_SHEET_DIR = /some/path/to/dir/
 """
 
 

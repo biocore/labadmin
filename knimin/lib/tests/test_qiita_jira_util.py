@@ -318,10 +318,20 @@ class TestQiitaJiraUtil(TestCase):
         pool_id = db.pool_plates(pools, 'LabAdmin test pool', 5)
         self._clean_up_funcs.insert(0, partial(db.delete_pool, pool_id))
 
-        run_id = create_sequencing_run(
-            pool_id, 'test', 1, 'MiSeq v3 150 cycle', 'MS1234')
+        run_id, jira_links = create_sequencing_run(
+            pool_id, 'test', 'MiSeq v3 150 cycle', 'MS1234', 'Illumina',
+            'MiSeq', 'TrueSeq HT', 151, 151)
         self._clean_up_funcs.insert(
             0, partial(db.delete_sequencing_run, run_id))
+
+        # Check that the sample sheet has been added into JIRA
+        obs = jira_handler.issue(
+            '%s-4' % jira_id).raw['fields']['attachment'][0]['filename']
+        self.assertEqual(obs, 'SampleSheet.LabAdmin_test_pool.TargetGene.csv')
+
+        self.assertEqual(len(jira_links), 1)
+        self.assertEqual(jira_links[0][0], 'Test create sequencing run')
+        self.assertTrue(jira_links[0][1].endswith('%s-4' % jira_id))
 
         # Check that the DB is not empty
         self.assertIsNotNone(db.read_sequencing_run(run_id))
