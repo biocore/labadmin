@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 from contextlib import contextmanager
 from collections import defaultdict, namedtuple
-from itertools import chain, zip_longest
+from itertools import chain, zip_longest, product
 from os import walk
 from os.path import join, splitext, isdir, abspath
 from copy import copy
@@ -3893,6 +3893,94 @@ class KniminAccess(object):
                      WHERE shotgun_index_aliquot_id = %s"""
             TRN.add(sql, [shotgun_index_aliquot_id])
             TRN.execute()
+
+    def generate_i5_i7_indexes(self, idx_tech, num_samples):
+        """Generates pairs of (i5_id, i7_id)
+
+        Parameters
+        ----------
+        idx_tech : str
+            The index technology we want to use
+        num_samples : int
+            The number of pairs to generate
+
+        Returns
+        -------
+        list of (str, str)
+            A list of pairs of strings (i5_id, i7_id)
+
+        Notes
+        -----
+            This generates a list of used i7 and i5 barcode combinations,
+            and continue to generate novel combos. Let's imagine we number
+            each of the 384 unique i7 and i5 barcodes 1-384 (going across
+            rows), in initial plate of 384 samples sample 1 will get i5_1
+            and i7_1, sample 2 will get i5_2 and i7_2, and so on. For the
+            next plate of 384 samples, sample 1 will get i5_1 and i7_2,
+            sample 2 will get i5_2 and i7_3, and so on. After 147,456
+            samples it will reset back to i5_1 and i7_1.
+        """
+        with TRN:
+            sql = """SELECT shotgun_index_tech_id, name, dual_index,
+                        last_index_idx
+                     FROM pm.shotgun_index_tech WHERE name = %s"""
+            TRN.add(sql, [idx_tech])
+            idx_tech_vals = TRN.execute_fetchindex()
+
+            if not idx_tech_vals:
+                raise ValueError('Not a valid shotgun index '
+                                 'technology: %s' % idx_tech)
+            else:
+                # just taking the first element and converting it to dict
+                idx_tech_vals = dict([v for v in idx_tech_vals][0])
+
+            # selecting single indexing
+            sql = """SELECT shotgun_index_id
+                     FROM pm.shotgun_index
+                     WHERE shotgun_index_tech_id = %s AND index_type = 'i5'
+                     ORDER BY shotgun_index_id"""
+            TRN.add(sql, [idx_tech_vals['shotgun_index_tech_id']])
+            indices = [r[0] for r in TRN.execute_fetchindex()]
+            if not indices:
+                raise ValueError("%s doesn't have any i5 values" % idx_tech)
+
+            if idx_tech_vals['dual_index']:
+                # selecting the dual section
+                sql = """SELECT shotgun_index_id
+                         FROM pm.shotgun_index
+                         WHERE shotgun_index_tech_id = %s AND index_type = 'i7'
+                         ORDER BY shotgun_index_id"""
+                TRN.add(sql, [idx_tech_vals['shotgun_index_tech_id']])
+                indices_i7 = [r[0] for r in TRN.execute_fetchindex()]
+                if not indices_i7:
+                    raise ValueError("%s doesn't have any i7 "
+                                     "values" % idx_tech)
+
+                indices = list(product(indices, indices_i7))
+
+            indices_generated = []
+            len_indices = len(indices)
+            # note that this assumes that we will never generate more samples
+            # in a single go than avialable indices
+            idx_start = idx_tech_vals['last_index_idx']
+            while len(indices_generated) < num_samples:
+                idx_end = idx_start + num_samples
+
+                if idx_end > len_indices:
+                    idx_end = len_indices
+                indices_generated.extend(indices[idx_start:idx_end])
+
+                # in case we have another loop we need to start in 0 and
+                # reset the num_samples requested
+                idx_start = 0
+                num_samples -= len(indices_generated)
+
+            sql = """UPDATE pm.shotgun_index_tech
+                     SET last_index_idx = %s
+                     WHERE shotgun_index_tech_id = %s"""
+            TRN.add(sql, [idx_end, idx_tech_vals['shotgun_index_tech_id']])
+
+            return indices_generated
 
     def prepare_shotgun_libraries(self, normalized_plate_id, email, mosquito,
                                   shotgun_library_prep_kit,
