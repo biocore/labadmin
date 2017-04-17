@@ -39,7 +39,7 @@ class TestShotgun(TestCase):
             compute_shotgun_pooling_values_eqvol(self.qpcr_conc,
                                                  total_vol=60.0)
 
-        exp_sample_vols = np.zeros([16, 24]) + 60.0/12*1000
+        exp_sample_vols = np.zeros([3, 4]) + 60.0/12*1000
 
         npt.assert_allclose(obs_sample_vols, exp_sample_vols)
 

@@ -61,7 +61,7 @@ def compute_shotgun_pooling_values_eqvol(sample_concs, total_vol=60.0):
 
 def compute_shotgun_pooling_values_qpcr(sample_concs, sample_fracs=None,
                                         min_conc=10, floor_conc=50,
-                                        total_nmol=.00001):
+                                        total_nmol=.01):
     """Computes pooling volumes for samples based on qPCR estimates of
     nM concentrations (`sample_concs`).
 
@@ -76,9 +76,9 @@ def compute_shotgun_pooling_values_qpcr(sample_concs, sample_fracs=None,
     values per sample. By default, will aim for equal molar pooling.
 
     Finally, total pooling size is determined by a target nanomolar quantity
-    (`total_nmol`, default .00001). For a perfect 384 library, in which you
+    (`total_nmol`, default .01). For a perfect 384 sample library, in which you
     had all samples at a concentration of exactly 400 nM and wanted a total
-    volume of 60 uL, this would be 0.000024 nmol.
+    volume of 60 uL, this would be 0.024 nmol.
 
     Parameters
     ----------
