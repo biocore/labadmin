@@ -45,6 +45,7 @@ from knimin.handlers.pm_pool_handlers import (
     PMTargetedPoolHandler, PMTargetedPoolEPMotionHandler)
 from knimin.handlers.pm_sequence import PMSequenceHandler
 from knimin.handlers.pm_condense import PMCondensePlatesHandler
+from knimin.handlers.pm_shotgun_pool import PMShotgunPool
 
 define("port", default=config.http_port, type=int)
 
@@ -105,6 +106,7 @@ class WebApplication(Application):
             (r"/pm_plate_map", PMPlateMapHandler),
             (r"/pm_extract_plate", PMExtractPlateHandler),
             (r"/pm_condense/", PMCondensePlatesHandler),
+            (r"/pm_shotgun_pool/", PMShotgunPool),
             (r".*", NoPageHandler)
         ]
         settings = {
