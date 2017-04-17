@@ -1,3 +1,8 @@
+import io
+
+import pandas as pd
+
+
 def _find_section(lines, label):
     """Find a section, eg [EXCEPTIONS]
 
@@ -31,8 +36,8 @@ def _find_section(lines, label):
     if start == -1:
         raise ValueError('%s section appears to be missing' % label)
 
-    for idx, line in enumerate(lines[start + 1], start):
-        if not line:
+    for idx, line in enumerate(lines[start:], start + 1):
+        if not line or line == '':
             end = idx
             break
 
@@ -67,3 +72,13 @@ def parse_echo(data):
 
     exception_start, exception_end = _find_section(data, '[EXCEPTIONS]')
     details_start, details_end = _find_section(data, '[DETAILS]')
+
+    exception_lines = data[exception_start+1:exception_end]
+    exception_section = io.StringIO(u'\n'.join(exception_lines))
+    exceptions = pd.read_csv(exception_section, dtype=str)
+
+    details_lines = data[details_start+1:details_end]
+    details_section = io.StringIO(u'\n'.join(details_lines))
+    details = pd.read_csv(details_section, dtype=str)
+
+    return exceptions, details
