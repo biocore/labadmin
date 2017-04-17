@@ -36,36 +36,54 @@ def compute_qpcr_concentration(cp_vals, m = -3.231, b = 12.059,
     return(qpcr_concentration)
 
 
-def compute_shotgun_pooling_values_eqvol(sample_concs, total_vol = 60):
+def compute_shotgun_pooling_values_eqvol(sample_concs, total_vol = 60.0):
     """Computes molar concentration of libraries from qPCR Cp values.
 
     Returns a 2D array of calculated concentrations, in nanomolar units
 
     Parameters
     ----------
-    sample_concs : list of float
+    sample_concs : numpy array of float
         The concentrations calculated via qPCR (nM)
     total_vol : float
-        The total volume to pool (µL)
+        The total volume to pool (uL)
 
     Returns
     -------
     np.array of floats
         A 2D array of floats
     """
-    per_sample_vol = (float(total_vol) / float(sample_concs.size)) * 1000.0
+    per_sample_vol = (total_vol / sample_concs.size) * 1000.0
     
     sample_vols = np.zeros([sample_concs.shape[0], sample_concs.shape[1]]) +
-                  float(per_sample_vol)
-    water_vols = np.zeros([sample_concs.shape[0], sample_concs.shape[1]])
+                  per_sample_vol
     
-    return(sample_vols, water_vols)
+    return(sample_vols)
 
 
 def compute_shotgun_pooling_values_qpcr(sample_concs, sample_fracs = None,
                                         min_conc = 10, floor_conc = 50,
-                                        total_nmol = .01):
-    """
+                                        total_nmol = .00001):
+    """Computes pooling volumes for samples based on qPCR estimates of
+    nM concentrations (`sample_concs`).
+
+    Reads in qPCR values in nM from output of `compute_qpcr_concentration`.
+    Samples must be above a minimum concentration threshold (`min_conc`,
+    default 10 nM) to be included. Samples above this threshold but below a
+    given floor concentration (`floor_conc`, default 50 nM) will be pooled as
+    if they were at the floor concentration, to avoid overdiluting the pool.
+
+    Samples can be assigned a target molar fraction in the pool by passing a
+    np.array (`sample_fracs`, same shape as `sample_concs`) with fractional
+    values per sample. By default, will aim for equal molar pooling.
+
+    Finally, total pooling size is determined by a target nanomolar quantity
+    (`total_nmol`, default .00001). For a perfect 384 library, in which you
+    had all samples at a concentration of exactly 400 nM and wanted a total
+    volume of 60 uL, this would be 0.000024 nmol. 
+
+    Parameters
+    ----------
     sample_concs: 2D array of float
         nM calculated by compute_qpcr_concentration
     sample_fracs: 2D of float
@@ -78,8 +96,10 @@ def compute_shotgun_pooling_values_qpcr(sample_concs, sample_fracs = None,
     total_nmol : float
         total number of nM to have in pool
 
-    returns:
-    sample_vols: list of float (L)
+    Returns
+    -------
+    sample_vols: np.array of floats
+        the volumes in nL per each sample pooled
     """
 
     if sample_fracs is None:
@@ -106,7 +126,22 @@ def compute_shotgun_pooling_values_qpcr(sample_concs, sample_fracs = None,
 
 
 def estimate_pool_conc_vol(sample_vols, sample_concs):
+    """Estimates the actual molarity and volume of a pool.
 
+    Parameters
+    ----------
+    sample_concs : numpy array of float
+        The concentrations calculated via qPCR (nM)
+    sample_vols : numpy array of float
+        The calculated pooling volumes (nL)
+
+    Returns
+    -------
+    pool_conc : float
+        The estimated actual concentration of the pool, in nM
+    total_vol : float
+        The total volume of the pool, in nL
+    """
     # scalar to adjust nL to L for molarity calculations
     nl_scalar = 10**-9
     
