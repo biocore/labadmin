@@ -39,11 +39,11 @@ class TestShotgun(TestCase):
             compute_shotgun_pooling_values_eqvol(self.qpcr_conc,
                                                  total_vol=60.0)
 
-        exp_sample_vols = np.zeros([16, 24]) + 60.0/384.0*1000
+        exp_sample_vols = np.zeros([16, 24]) + 60.0/12*1000
 
         npt.assert_allclose(obs_sample_vols, exp_sample_vols)
 
-    def test_compute_shotgun_pooling_values_qpcr():
+    def test_compute_shotgun_pooling_values_qpcr(self):
         sample_concs = np.array([[1, 12, 400],
                                  [200, 40, 1]])
 
@@ -61,7 +61,7 @@ class TestShotgun(TestCase):
         obs_pool_conc, obs_pool_vol = estimate_pool_conc_vol(
                                         obs_sample_vols, self.qpcr_conc)
 
-        exp_pool_conc = 408.1101298
+        exp_pool_conc = 323.873027979
         exp_pool_vol = 60000.0
 
         npt.assert_almost_equal(obs_pool_conc, exp_pool_conc)
