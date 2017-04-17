@@ -3906,19 +3906,22 @@ class KniminAccess(object):
 
         Returns
         -------
-        list of (str, str)
-            A list of pairs of strings (i5_id, i7_id)
+        list of str or (str, str)
+            A list of str of string pairs (i5, i7) depending if the indexing
+            technology is dual barcoded or not
 
         Notes
         -----
-            This generates a list of used i7 and i5 barcode combinations,
-            and continue to generate novel combos. Let's imagine we number
-            each of the 384 unique i7 and i5 barcodes 1-384 (going across
-            rows), in initial plate of 384 samples sample 1 will get i5_1
-            and i7_1, sample 2 will get i5_2 and i7_2, and so on. For the
-            next plate of 384 samples, sample 1 will get i5_1 and i7_2,
-            sample 2 will get i5_2 and i7_3, and so on. After 147,456
-            samples it will reset back to i5_1 and i7_1.
+            This generates a list of i5 barcodes or the combination of
+            i5 and i7 barcodes. The combinations are more complex as we need
+            to make sure that we have actual rotation of those combinations.
+            Let's imagine we number each of the 384 unique i5 and i7 barcodes
+            1-384 (going across rows), in initial plate of 384 samples
+            `sample 1` will get i5_1 and i7_1, `sample 2` will get i5_2 and
+            i7_2, and so on. For the next plate of 384 samples, `sample 1`
+            will get i5_1 and i7_2, `sample 2` will get i5_2 and i7_3,
+            and so on. After 147,456 samples it will reset back to i5_1
+            and i7_1.
         """
         with TRN:
             sql = """SELECT shotgun_index_tech_id, name, dual_index,
@@ -3960,6 +3963,12 @@ class KniminAccess(object):
 
             indices_generated = []
             len_indices = len(indices)
+
+            if len_indices < num_samples:
+                raise ValueError(
+                    'The maximum number of samples is: %d and you are '
+                    'requesting %d' % (len_indices, num_samples))
+
             # note that this assumes that we will never generate more samples
             # in a single go than avialable indices
             idx_start = idx_tech_vals['last_index_idx']

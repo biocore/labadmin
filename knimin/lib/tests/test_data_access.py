@@ -1524,6 +1524,12 @@ class TestDataAccess(TestCase):
         self.assertEqual(
             ctx.exception.message, "Nextera doesn't have any i7 values")
 
+        with self.assertRaises(ValueError) as ctx:
+            db.generate_i5_i7_indexes('iTru', 100000000)
+        self.assertEqual(
+            ctx.exception.message, "The maximum number of samples is: 32256 "
+            "and you are requesting 100000000")
+
     def test_normalize_shotgun_plate(self):
         before = datetime.datetime.now()
         self._create_test_echo()
