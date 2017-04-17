@@ -32,6 +32,19 @@ from knimin.handlers.ag_consent_check import AGConsentCheckHandler
 from knimin.handlers.projects_summary import ProjectsSummaryHandler
 from knimin.handlers.access_control import AGEditAccessHandler
 from knimin.handlers.ag_results_ready import AGResultsReadyHandler
+from knimin.handlers.pm_plate_list import PMPlateListHandler
+from knimin.handlers.pm_plate_map import (
+    PMCreatePlateHandler, PMPlateNameCheckerHandler, PMPlateMapHandler,
+    PMSamplePlateHandler, PMExtractPlateHandler)
+from knimin.handlers.pm_create_study import PMCreateStudyHandler
+from knimin.handlers.pm_library_prep import (
+    PMTargetGeneLibraryPrepHandler,
+    PMMetagenomicsLibraryPrepHandler)
+from knimin.handlers.pm_pool_handlers import (
+    PMTargetedConcentrationHandler, PMTargetedConcentrationCheckHandler,
+    PMTargetedPoolHandler, PMTargetedPoolEPMotionHandler)
+from knimin.handlers.pm_sequence import PMSequenceHandler
+from knimin.handlers.pm_condense import PMCondensePlatesHandler
 
 define("port", default=config.http_port, type=int)
 
@@ -74,6 +87,24 @@ class WebApplication(Application):
             (r"/projects/summary/", ProjectsSummaryHandler),
             (r"/admin/edit/", AGEditAccessHandler),
             (r"/consent_check", AGConsentCheckHandler),
+            # PlateMapper Handlers
+            (r"/pm_library_prep/target_gene/", PMTargetGeneLibraryPrepHandler),
+            (r"/pm_library_prep/metagenomics/",
+             PMMetagenomicsLibraryPrepHandler),
+            (r"/pm_targeted_concentration/", PMTargetedConcentrationHandler),
+            (r"/pm_targeted_concentration_check/",
+             PMTargetedConcentrationCheckHandler),
+            (r"/pm_targeted_pool/", PMTargetedPoolHandler),
+            (r"/pm_targeted_pool_epmotion/", PMTargetedPoolEPMotionHandler),
+            (r"/pm_sequence/", PMSequenceHandler),
+            (r"/pm_create_study/", PMCreateStudyHandler),
+            (r"/pm_plate_list/", PMPlateListHandler),
+            (r"/pm_create_plate/", PMCreatePlateHandler),
+            (r"/pm_sample_plate/name_check", PMPlateNameCheckerHandler),
+            (r"/pm_sample_plate", PMSamplePlateHandler),
+            (r"/pm_plate_map", PMPlateMapHandler),
+            (r"/pm_extract_plate", PMExtractPlateHandler),
+            (r"/pm_condense/", PMCondensePlatesHandler),
             (r".*", NoPageHandler)
         ]
         settings = {

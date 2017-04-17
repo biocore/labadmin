@@ -1,0 +1,292 @@
+{% extends logged_in_index.html %}
+{% block head %}
+{% from json import dumps %}
+<script>
+  /**
+  *
+  * Adds the list of plates to the given select element
+  *
+  * @param {Element} elem The select DOM element
+  *
+  **/
+  function addPlateOptions(elem) {
+    var plates = {% raw dumps(all_plates) %};
+    $.each(plates, function (idx, plate) {
+      var display = "(ID: " + plate.id + ") " + plate.name + " - " + plate.date;
+      $('<option>').attr('value', plate.id).data('pm-samples', plate.num_samples).text(display).appendTo(elem);
+    });
+  };
+
+  /**
+   *
+   * Submit the information
+   *
+   **/
+  function poolPlates() {
+    var success = true;
+    // Check the pool name
+    $("#pool-name-input").parents(':first').removeClass('has-error');
+    var runPoolName = $("#pool-name-input").val().trim();
+    if (runPoolName.length === 0) {
+      success = false;
+      $("#pool-name-input").parents(':first').addClass('has-error');
+    }
+
+    var pools = new Array();
+    $.each($('.entry'), function (idx, entry) {
+      $(entry).removeClass('has-error');
+      var plateId = $(entry).find('.plate-select:first').val();
+      var plateDNAconc = $(entry).find('.pm-dna-conc:first').val();
+      if (plateId === null || plateDNAconc === "") {
+        success = false;
+        $(entry).addClass('has-error');
+      } else {
+        plateDNAconc = parseInt(plateDNAconc);
+        var platePerc = $(entry).find('.pm-percentage:first').val();
+        pools.push({'targeted_plate_id': plateId, 'volume': plateDNAconc, 'percentage': platePerc});
+      }
+    });
+
+    if (success) {
+      var form = $('<form>', {action: '/pm_targeted_pool/', method: 'post'});
+      var fields = {'pools': JSON.stringify(pools), 'name': runPoolName};
+      $.each(fields, function(key, val) {
+        $('<input>').attr({type: "hidden", name: key, value: val}).appendTo(form);
+      });
+      form.appendTo('body').submit();
+    }
+  }
+
+  /**
+   *
+   * Updates the total values in the GUI
+   *
+   **/
+  function updateValues() {
+    var totalSamples = 0;
+    $.each($('.entry .pm-num-samples'), function (idx, input) {
+      var val = $(input).val();
+      if (val !== "") {
+        totalSamples += parseInt(val);
+      }
+    });
+    $('#total-samples').val(totalSamples);
+
+    var totalPerc = 0;
+    $.each($('.entry .pm-percentage'), function (idx, input) {
+      var numSamples = $(input).parents('.entry:first').find('.pm-num-samples').val();
+      var val = 0;
+      if (numSamples !== "") {
+        val = (parseInt(numSamples) / totalSamples) * 100;
+      }
+      $(input).val(val);
+      totalPerc += val;
+    });
+    $('#total-percentage').val(totalPerc);
+
+    var totalDNAConc = 0;
+    $.each($('.entry .pm-dna-conc'), function (idx, input) {
+      var val = $(input).val();
+      if (val !== "") {
+        totalDNAConc += parseFloat($(input).val());
+      }
+    });
+    $('#total-dna-conc').val(totalDNAConc);
+
+    var total5Amt = 0;
+    $.each($('.entry .pm-5-amt'), function (idx, input) {
+      var perc = parseFloat($(input).parents('.entry:first').find('.pm-percentage').val());
+      // This is how the value of this column was computed in the Excel file
+      var val = 5000 * perc / 100;
+      $(input).val(val);
+      total5Amt += val;
+    });
+    $('#total-5-amt').val(total5Amt);
+
+    var totalSampleAmt = 0;
+    $.each($('.entry .pm-sample-amt'), function (idx, input) {
+      var val = 0;
+      var dnaConc = $(input).parents('.entry:first').find('.pm-dna-conc').val();
+      var s5amt;
+      if (dnaConc !== ""){
+        s5mat = $(input).parents('.entry:first').find('.pm-5-amt').val();
+        val = parseFloat(s5mat) / parseFloat(dnaConc);
+      }
+      $(input).val(val);
+      totalSampleAmt += parseFloat(val);
+    });
+    $('#total-sample-amt').val(totalSampleAmt);
+  };
+
+  /**
+   *
+   * Initialized the different GUI bits
+   *
+   **/
+  function initGUI() {
+    // Update the computed values
+    updateValues();
+
+    $.each($('.plate-select'), function(idx, elem) {
+      addPlateOptions(elem);
+    });
+
+    $('.pm-dna-conc').change(function() {
+        updateValues();
+    });
+    $('.plate-select').select2();
+    $('.plate-select').change(function () {
+      var numSamples = $(".plate-select option[value=" + $(this).val() + "]").data('pm-samples');
+      $(this).parents('.entry:first').find('.pm-num-samples:first').val(numSamples);
+      updateValues();
+    });
+  }
+
+  $(document).ready(function () {
+    // Modofy the button of the last plate entry to have a + sign instead of -
+    $('.entry:first .btn-remove')
+      .removeClass('btn-remove').addClass('btn-add')
+      .removeClass('btn-info').addClass('btn-success')
+      .html($('<span>').addClass('glyphicon glyphicon-plus'));
+
+    $('.glyphicon-warning-sign').hide();
+
+    initGUI();
+
+    // Dynamically add/remove plate list
+    $(document).on('click', '.btn-add', function(e) {
+      e.preventDefault();
+
+      var controlForm = $('.tag-controls');
+      var currentEntry = $(this).parents('.entry:first');
+      var newEntry = $('<div class="entry row">' +
+                         '<div class="col-xs-5 form-group">' +
+                           '<select class="form-control plate-select">' +
+                             '<option></option>' +
+                           '</select>' +
+                         '</div>' +
+                         '<div class="col-xs-1 form-group">' +
+                           '<input class="form-control pm-num-samples" disabled/>' +
+                         '</div>' +
+                         '<div class="col-xs-1 form-group">' +
+                           '<input class="form-control pm-percentage" disabled/>' +
+                         '</div>' +
+                         '<div class="col-xs-2 form-group">' +
+                           '<input class="form-control pm-dna-conc" type="number" min="0" step="0.001"/>' +
+                         '</div>' +
+                         '<div class="col-xs-1 form-group">' +
+                           '<input class="form-control pm-5-amt" step="0.001" disabled/>' +
+                         '</div>' +
+                         '<div class="col-xs-1 form-group">' +
+                           '<input class="form-control pm-sample-amt" step="0.1" disabled/>' +
+                         '</div>' +
+                         '<div class="col-xs-1 form-group">' +
+                           '<button class="btn btn-info btn-remove form-control" type="button"><span class="glyphicon glyphicon-minus"></span></button>' +
+                         '</div>' +
+                       '</div>');
+
+      addPlateOptions(newEntry.find('.plate-select:first'));
+      newEntry.appendTo(controlForm);
+      initGUI();
+    }).on('click', '.btn-remove', function(e) {
+      $(this).parents('.entry:first').remove();
+      e.preventDefault();
+      initGUI();
+      return false;
+    });
+  });
+</script>
+{% end %}
+{% block content %}
+<h3>Prepare targeted pool</h3>
+<div class="container">
+  <!-- Pool run information -->
+  <div class="row">
+    <div class="col-xs-5 form-group">
+      <label>Pool name:</label>
+      <input class="form-control" placeholder="Type pool name" type="text" id="pool-name-input"/>
+    </div>
+  </div>
+  <!-- Header -->
+  <div class="row">
+    <div class="col-xs-5 form-group">
+      <label class="center-block text-center">Targeted plate</label>
+    </div>
+    <div class="col-xs-1 form-group">
+      <label class="center-block text-center">Samples</label>
+    </div>
+    <div class="col-xs-1 form-group">
+      <label class="center-block text-center">Percentage</label>
+    </div>
+    <div class="col-xs-2 form-group">
+      <label class="center-block text-center">DNA conc (ng/&mu;l)</label>
+    </div>
+    <div class="col-xs-1 form-group">
+      <label class="center-block text-center">5&mu;l Amt (ng)</label>
+    </div>
+    <div class="col-xs-1 form-group">
+      <label class="center-block text-center">Sample Amt (&mu;l)</label>
+    </div>
+    <div class="col-xs-1 form-group"></div>
+  </div>
+  <!-- Plates pool -->
+  <div class="tag-controls">
+  {% for plate in plates %}
+    <div class="entry row">
+      <div class="col-xs-5 form-group">
+        <select class="form-control plate-select">
+          <option value='{{plate['id']}}' selected>(ID: {{plate['id']}}) {{plate['name']}} - {{plate['date']}}</option>
+        </select>
+      </div>
+    <div class="col-xs-1 form-group">
+      <!-- Magic number 240: In general, the pooling is always done at 240, so prepopulating to facilitate wet-lab -->
+      <input class="form-control pm-num-samples" value="{{plate['num_samples']}}" disabled/>
+    </div>
+    <div class="col-xs-1 form-group">
+      <input class="form-control pm-percentage" disabled/>
+    </div>
+    <div class="col-xs-2 form-group">
+      <input class="form-control pm-dna-conc" type="number" min="0" step="0.001"/>
+     </div>
+     <div class="col-xs-1 form-group">
+      <input class="form-control pm-5-amt" step="0.001" disabled/>
+     </div>
+     <div class="col-xs-1 form-group">
+      <input class="form-control pm-sample-amt" step="0.1" disabled/>
+     </div>
+     <div class="col-xs-1 form-group">
+       <button class="btn btn-info btn-remove form-control" type="button"><span class="glyphicon glyphicon-minus"></span></button>
+     </div>
+    </div>
+  {% end %}
+  </div>
+  <div class="row pm-total">
+    <div class="col-xs-3 form-group"></div>
+    <div class="col-xs-2 form-group"><label class="center-block text-right">Total:</label></div>
+    <div class="col-xs-1 form-group">
+      <input class="form-control" id='total-samples' disabled/>
+    </div>
+    <div class="col-xs-1 form-group">
+      <input class="form-control" id='total-percentage' step="0.1" disabled/>
+    </div>
+    <div class="col-xs-2 form-group">
+      <input class="form-control" id='total-dna-conc' step="0.1" disabled/>
+    </div>
+    <div class="col-xs-1 form-group">
+      <input class="form-control" id='total-5-amt' step="0.1" disabled/>
+    </div>
+    <div class="col-xs-1 form-group">
+      <input class="form-control" id='total-sample-amt' step="0.1" disabled/>
+    </div>
+    <div class="col-xs-1 form-group">
+      <span class="form-control glyphicon glyphicon-warning-sign text-center alert-danger"></span>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-xs-10 form-group"></div>
+    <div class="col-xs-2 form-group">
+      <button class="btn btn-primary form-control" onclick="poolPlates()">Pool plates</button>
+    </div>
+  </div>
+</div>
+{% end %}

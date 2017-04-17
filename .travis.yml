@@ -20,12 +20,27 @@ before_install:
   # Update conda itself
   - conda update --yes conda
 install:
+  - travis_retry conda create --yes -n qiita_env python=2.7 pip nose flake8 pyzmq
+    networkx pyparsing natsort mock future libgfortran 'pandas>=0.18' 'scipy>0.13.0'
+    'numpy>=1.7' 'h5py>=2.3.1'
+  - source activate qiita_env
+  - pip install sphinx sphinx-bootstrap-theme coveralls ipython[all]==2.4.1
+  - pip install https://github.com/biocore/qiita/archive/master.zip --process-dependency-links
+  - ipython profile create qiita-general --parallel
+  - export QIITA_SERVER_CERT=$HOME/miniconda3/envs/qiita_env/lib/python2.7/site-packages/qiita_core/support_files/server.crt
+  - export MOI_CONFIG_FP=$HOME/miniconda3/envs/qiita_env/lib/python2.7/site-packages/qiita_core/support_files/config_test.cfg
+  - qiita-env start_cluster qiita-general
+  - qiita-env make --no-load-ontologies
+  - source deactivate
   - travis_retry conda create --yes -n labadmin python=2.7 pip
   - source activate labadmin
   - pip install -U pip
   - pip install -U click natsort coverage coveralls
   - travis_retry pip install -U .[test]
 before_script:
+  - source activate qiita_env
+  - qiita pet webserver --no-build-docs start &
+  - source activate labadmin
   # installing jira locally for testing
   - wget https://marketplace.atlassian.com/download/plugins/atlassian-plugin-sdk-tgz
   - tar zxvf atlassian-plugin-sdk-tgz
@@ -43,10 +58,11 @@ before_script:
   # </dev/zero 2>&1 & --> https://goo.gl/n7BYnh
   # this will install the latest version of JIRA but we could install other ones
   # via --version 6.4.7
-  - atlas-run --product jira -DskipAllPrompts=true </dev/zero 2>&1 &
+  - atlas-run --product jira -DskipAllPrompts=true </dev/zero 2>&1 > /dev/null &
   - sleep 560
 script:
-  - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
+  - source activate labadmin
+  - git clone -b plate-mapper-jose https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
   - cd /home/travis/build/biocore/american-gut-web
   - export AG_CONFIG=`pwd`/ag_config.txt.example
   - export PYTHONPATH=/home/travis/build/biocore/american-gut-web:$PYTHONPATH
@@ -54,8 +70,10 @@ script:
   - export PYTHONPATH=
   - $PYTHONPATH
   - cd $TRAVIS_BUILD_DIR
-  - cp $TRAVIS_BUILD_DIR/knimin/config.txt.example $TRAVIS_BUILD_DIR/knimin/config.txt
+  # We need to add the Qiita server cert path to the config file
+  - sed "s:SERVER_CERT =:SERVER_CERT = $QIITA_SERVER_CERT:g" $TRAVIS_BUILD_DIR/knimin/config.txt.example > $TRAVIS_BUILD_DIR/knimin/config.txt
   - nosetests --verbose --with-doctest --with-coverage
   - flake8 knimin setup.py scripts
+  - phantomjs knimin/tests/javascript/runner.js knimin/tests/javascript/index.html
 after_success:
   - coveralls

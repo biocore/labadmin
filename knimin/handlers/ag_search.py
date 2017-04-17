@@ -49,11 +49,8 @@ class AGSearchHandler(BaseHandler):
                     barcode_info[ag_barcode['barcode']]['ag_info'] = ag_barcode
                     lab_barcode_info = db.get_barcode_details(
                         ag_barcode['barcode'])
-                    plate = db.get_plate_for_barcode(
-                        ag_barcode['barcode'])
                     barcode_info[ag_barcode['barcode']]['barcode_info'] = \
                         lab_barcode_info
-                    barcode_info[ag_barcode['barcode']]['plate'] = plate
                 kit['barcode_info'] = barcode_info
             display_results.append(login_display)
 

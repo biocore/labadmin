@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 from contextlib import contextmanager
 from collections import defaultdict, namedtuple
+from itertools import chain, zip_longest
 from os import walk
 from os.path import join, splitext, isdir, abspath
 from copy import copy
@@ -9,6 +10,7 @@ from hashlib import sha512
 from datetime import datetime, time, timedelta
 import json
 import re
+import numpy as np
 
 from bcrypt import hashpw, gensalt
 from future.utils import viewitems
@@ -26,6 +28,7 @@ from constants import (md_lookup, month_int_lookup, month_str_lookup,
                        ebi_remove, env_lookup)
 from geocoder import geocode, Location, GoogleAPILimitExceeded
 from string_converter import converter
+from sql_connection import TRN
 
 
 class IncorrectEmailError(Exception):
@@ -1635,7 +1638,7 @@ class KniminAccess(object):
             barcodes in each project is returned)
         limit : int, optional
             Number of barcodes to return, starting with most recent
-            (defult all)
+            (default all)
 
         Returns
         -------
@@ -2417,7 +2420,7 @@ class KniminAccess(object):
         if add_projects:
             sql = """INSERT INTO barcodes.project_barcode
                       SELECT project_id, %s FROM (
-                        SELECT project_id from barcodes.project
+                        SELECT project_id FROM barcodes.project
                         WHERE project in %s)
                      AS P"""
 
@@ -2452,6 +2455,2455 @@ class KniminAccess(object):
                  WHERE barcode IN %s"""
         self._con.execute(sql, [barcodes])
 
+    # - PlateMapper functions - #
+
+    def get_studies(self):
+        """Retrieves the list of studies present in the DB
+
+        Returns
+        -------
+        List of DictCursor
+            The list of studies
+        """
+        with TRN:
+            sql = """SELECT * FROM pm.study ORDER BY study_id"""
+            TRN.add(sql)
+            return TRN.execute_fetchindex()
+
+    def _study_exists(self, study_id):
+        """Confirms that a study ID exists
+
+        Parameters
+        ----------
+        study_id : int
+            ID of the study
+
+        Raises
+        ------
+        ValueError
+            If the study ID does not exist
+        """
+        with TRN:
+            sql = """SELECT EXISTS (SELECT 1 FROM pm.study
+                                    WHERE study_id = %s)"""
+            TRN.add(sql, [study_id])
+            if not TRN.execute_fetchlast():
+                raise ValueError('Study ID %s does not exist.' % study_id)
+
+    def _study_is_unique(self, qiita_study_id, title, skip_id=None):
+        """Confirms that a study is unique
+
+        Confirms that the Qiita study ID and/or the title to be assigned to a
+        study is not duplicate.
+
+        Parameters
+        ----------
+        qiita_study_id : int
+            Qiita study ID of the study
+        title : str
+            Title of the study
+        skip_id : int, optional
+            Skip this study ID in searching
+            In function create_study, this is not used
+            In function edit_study, this is the current study to be edited
+
+        Raises
+        ------
+        ValueError
+            If the study is a duplicate
+        """
+        with TRN:
+            sql = """SELECT study_id
+                     FROM pm.study
+                     WHERE (study_id = %s OR title = %s)"""
+            sql_args = [qiita_study_id, title]
+            if skip_id:
+                sql += " AND study_id != %s"
+                sql_args.append(skip_id)
+
+            TRN.add(sql, sql_args)
+            res = TRN.execute_fetchflatten()
+            if res:
+                raise ValueError("Study (%s, %s) conflicts with studies %s"
+                                 % (qiita_study_id, title,
+                                    ', '.join(map(str, res))))
+
+    def create_study(self, qiita_study_id, title, alias, jira_id):
+        """Creates a study
+
+        Parameters
+        ----------
+        qiita_study_id : int
+            The Qiita study ID
+        title : str
+            The title of the study
+        alias : str
+            The alias of the study
+        jira_id : str
+            The study JIRA key
+        """
+        with TRN:
+            self._study_is_unique(qiita_study_id, title)
+            sql = """INSERT INTO pm.study (study_id, title, alias, jira_id)
+                     VALUES (%s, %s, %s, %s)"""
+            sql_args = [qiita_study_id, title, alias, jira_id]
+            TRN.add(sql, sql_args)
+            TRN.execute()
+
+    def edit_study(self, study_id, title=None, alias=None):
+        """Edits properties of an existing study
+
+        Parameters
+        ----------
+        study_id : int
+            ID of the study to edit
+        title : str, optional
+            Assigns a title to the study
+            Either qiita_study_id or title must be specified
+        alias : str, optional
+            Assigns an alias to the study
+
+        Raises
+        ------
+        ValueError
+            If both title and alias are None
+        """
+        if title is None and alias is None:
+            raise ValueError(
+                "At least one of title or alias should be provided")
+
+        with TRN:
+            self._study_exists(study_id)
+            self._study_is_unique(study_id, title, study_id)
+            cols = []
+            sql_args = []
+            if title is not None:
+                cols.append("title = %s")
+                sql_args.append(title)
+            if alias is not None:
+                cols.append("alias = %s")
+                sql_args.append(alias)
+            sql_args.append(study_id)
+            sql = """UPDATE pm.study
+                     SET {}
+                     WHERE study_id = %s""".format(', '.join(cols))
+            TRN.add(sql, sql_args)
+            TRN.execute()
+
+    def read_study(self, study_id):
+        """Reads properties of an existing study
+
+        Parameters
+        ----------
+        study_id : int
+            ID of the study to read
+
+        Returns
+        -------
+        dict
+            {qiita_study_id : int, title : str, alias : str, notes : str}
+            Properties of the study: Qiita study ID, title, alias and notes
+
+        Raises
+        ------
+        ValueError
+            If the study ID does not exist
+        """
+        with TRN:
+            sql = """SELECT study_id, title, alias, jira_id
+                     FROM pm.study
+                     WHERE study_id = %s"""
+            TRN.add(sql, [study_id])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError('Study ID %s does not exist.' % study_id)
+            return dict(res[0])
+
+    def delete_study(self, study_id):
+        """Deletes an existing study
+
+        Parameters
+        ----------
+        study_id : int
+            ID of the study to delete
+
+        Raises
+        ------
+        ValueError
+            If the study ID does not exist
+            If samples from this study have been already plated
+        """
+        with TRN:
+            self._study_exists(study_id)
+            # Check if there is any sample that has been already plated
+            plated = set(chain.from_iterable(
+                self.get_study_plated_samples(study_id).values()))
+            if plated:
+                raise ValueError(
+                    "Can't remove study %s, samples have been plated. "
+                    "Try removing the plates first." % study_id)
+
+            # Check if there are any samples that we need to remove
+            samples = self.get_study_samples(study_id)
+            if samples:
+                sql = "DELETE FROM pm.study_sample WHERE study_id = %s"
+                TRN.add(sql, [study_id])
+                sql = "DELETE FROM pm.sample WHERE sample_id IN %s"
+                TRN.add(sql, [tuple(samples)])
+
+            # Delete the study
+            sql = "DELETE FROM pm.study WHERE study_id = %s"
+            TRN.add(sql, [study_id])
+            TRN.execute()
+
+    def set_study_samples(self, study_id, samples):
+        """Sets the samples for a study
+
+        Parameters
+        ----------
+        study_id : int
+            The study id
+        samples : iterable of str
+            The samples to be associated with the study
+
+        Raises
+        ------
+        ValueError
+            If the study ID does not exist
+        ValueError
+            If a sample is being removed and it was already plated
+        """
+        with TRN:
+            self._study_exists(study_id)
+            # Check if there are any samples that were already plated that
+            # are being removed
+            plated = set(chain.from_iterable(
+                self.get_study_plated_samples(study_id).values()))
+            samples = set(samples)
+            removed = plated - samples
+            if removed:
+                raise ValueError(
+                    "Can't remove samples from study %s. Offending samples: %s"
+                    % (study_id, ', '.join(removed)))
+
+            old_samples = set(self.get_study_samples(study_id))
+            new_samples = samples - old_samples
+            to_remove = old_samples - samples
+            if new_samples:
+                sql = "INSERT INTO pm.sample (sample_id) VALUES (%s)"
+                sql_args = [[s] for s in new_samples]
+                TRN.add(sql, sql_args, many=True)
+
+                sql = """INSERT INTO pm.study_sample (study_id, sample_id)
+                         VALUES (%s, %s)"""
+                sql_args = [[study_id, s] for s in new_samples]
+                TRN.add(sql, sql_args, many=True)
+                TRN.execute()
+            if to_remove:
+                to_remove = tuple(to_remove)
+                sql = """DELETE FROM pm.study_sample
+                         WHERE study_id = %s AND sample_id IN %s"""
+                TRN.add(sql, [study_id, to_remove])
+                sql = "DELETE FROM pm.sample WHERE sample_id IN %s"
+                TRN.add(sql, [to_remove])
+                TRN.execute()
+
+    def get_study_plated_samples(self, study_id):
+        """Gets the plated samples for the given study
+
+        Parameters
+        ----------
+        study_id : int
+            The study id
+
+        Returns
+        -------
+        dict {plate_id: samples}
+            The plated samples grouped by plate id
+
+        Raises
+        ------
+        ValueError
+            If the study ID does not exist
+        """
+        with TRN:
+            self._study_exists(study_id)
+            sql = """SELECT sample_plate_id,
+                            ARRAY_AGG(DISTINCT sample_id ORDER BY sample_id)
+                     FROM pm.sample_plate_layout
+                        JOIN pm.study_sample USING (sample_id)
+                     WHERE study_id = %s
+                     GROUP BY sample_plate_id"""
+            TRN.add(sql, [study_id])
+            result = {}
+            for res in TRN.execute_fetchindex():
+                # Magic numbers: 0 -> the plate id; 1 -> the sample list
+                result[res[0]] = list(res[1])
+            return result
+
+    def get_study_samples(self, study_id):
+        """Gets samples associated with a study
+
+        Retrieves IDs of all samples associated with a study
+
+        Parameters
+        ----------
+        study_id : int
+            ID of the study
+
+        Returns
+        -------
+        list of str
+            The samples associated with the study
+
+        Raises
+        ------
+        ValueError
+            If the study ID does not exist
+        """
+        with TRN:
+            self._study_exists(study_id)
+            sql = """SELECT sample_id
+                     FROM pm.study_sample
+                     WHERE study_id = %s"""
+            TRN.add(sql, [study_id])
+            return TRN.execute_fetchflatten()
+
+    def _sample_plate_exists(self, id):
+        """Confirms that a sample plate ID exists
+
+        Parameters
+        ----------
+        id : int
+            ID of the sample plate to check
+
+        Raises
+        ------
+        ValueError
+            If the sample plate ID does not exist
+        """
+        with TRN:
+            sql = """SELECT EXISTS (SELECT 1 FROM pm.sample_plate
+                                    WHERE sample_plate_id = %s)"""
+            TRN.add(sql, [id])
+            if not TRN.execute_fetchlast():
+                raise ValueError('Sample plate ID %s does not exist.' % id)
+
+    def sample_plate_name_exists(self, name):
+        """Checks if there is a sample plate with the given name
+
+        Parameters
+        ----------
+        name : str
+            The sample plate name to check for
+
+        Returns
+        -------
+        bool
+            Whether the sample plate `name` exists
+        """
+        with TRN:
+            sql = """SELECT EXISTS(
+                        SELECT 1
+                        FROM pm.sample_plate
+                        WHERE name = %s)"""
+            TRN.add(sql, [name])
+            return TRN.execute_fetchlast()
+
+    def _sample_plate_is_unique(self, name, skip_id=None):
+        """Confirms that a sample plate name is not duplicate
+
+        Parameters
+        ----------
+        name : str
+            Name to be assigned to a new or existing sample plate
+        skip_id : int, optional
+            Skips this sample plate ID in searching
+            In function create_sample_plate, this is not used
+            In function edit_sample_plate, this is the current sample plate to
+            be edited
+
+        Raises
+        ------
+        ValueError
+            If the sample plate name already exists
+        """
+        with TRN:
+            sql = """SELECT sample_plate_id
+                     FROM pm.sample_plate
+                     WHERE name = %s
+                     AND sample_plate_id IS DISTINCT FROM %s"""
+            TRN.add(sql, [name, skip_id])
+            res = TRN.execute_fetchflatten()
+            if res:
+                raise ValueError('Name %s conflicts with exisiting sample '
+                                 'plate %s.' % (repr(name), res[0]))
+
+    def _email_exists(self, email):
+        """Confirms that an email exists
+
+        Parameters
+        ----------
+        email : str
+            Email as an identifier of the user
+
+        Raises
+        ------
+        ValueError
+            If the email does not exist
+        """
+        with TRN:
+            sql = """SELECT EXISTS (SELECT 1 FROM ag.labadmin_users
+                                    WHERE email = %s)"""
+            TRN.add(sql, [email])
+            if not TRN.execute_fetchlast():
+                raise ValueError('Email %s does not exist.' % email)
+
+    def _get_first_plate_type(self):
+        """Retrieves ID of the first plate type
+
+        Returns
+        -------
+        int
+            ID of the first plate type
+        """
+        with TRN:
+            sql = """SELECT plate_type_id
+                     FROM pm.plate_type
+                     ORDER BY plate_type_id
+                     LIMIT 1"""
+            TRN.add(sql)
+            return TRN.execute_fetchlast()
+
+    def _plate_type_exists(self, id):
+        """Confirms that a plate type exists
+
+        Parameters
+        ----------
+        id : int
+            ID of the plate type
+
+        Raises
+        ------
+        ValueError
+            If the plate type does not exist
+        """
+        with TRN:
+            sql = """SELECT EXISTS (SELECT 1 FROM pm.plate_type
+                                    WHERE plate_type_id = %s)"""
+            TRN.add(sql, [id])
+            if not TRN.execute_fetchlast():
+                raise ValueError('Plate type ID %s does not exist.' % id)
+
+    def create_sample_plate(self, name, plate_type_id, email, studies):
+        """Creates a new sample plate
+
+        Parameters
+        ----------
+        name : str
+            Assigns a name to the sample plate
+        plate_type_id : int
+            Defines the type of the sample plate
+        email : str
+            Specifies who (by Email) created the sample plate
+        studies : list of int
+            The list of study ids to be plated
+
+        Returns
+        -------
+        int
+            ID of the created sample plate
+        """
+        with TRN:
+            self._sample_plate_is_unique(name)
+            self._plate_type_exists(plate_type_id)
+            self._email_exists(email)
+            sql = """INSERT INTO pm.sample_plate (name, plate_type_id, email,
+                                                  created_on)
+                     VALUES (%s, %s, %s, now())
+                     RETURNING sample_plate_id"""
+            sql_args = [name, plate_type_id, email]
+            TRN.add(sql, sql_args)
+            plate_id = TRN.execute_fetchlast()
+            sql = """INSERT INTO pm.sample_plate_study
+                        (sample_plate_id, study_id) VALUES (%s, %s)"""
+            sql_args = [[plate_id, s] for s in studies]
+            TRN.add(sql, sql_args, many=True)
+            TRN.execute()
+            return plate_id
+
+    def edit_sample_plate(self, sample_plate_id, name=None, plate_type_id=None,
+                          email=None, created_on=None, notes=None):
+        """Edits properties of a sample plate
+
+        Parameters
+        ----------
+        sample_plate_id : int
+            ID of the sample plate to edit
+        name : str, optional
+            Assigns a name to the sample plate
+        plate_type_id : int, optional
+            Defines the type of the sample plate
+        email : str, optional
+            Specifies who (by Email) created the sample plate
+        created_on: datetime, optional
+            Specifies when (by date) was the sample plate created
+        notes : str, optional
+            Makes notes of the sample plate
+
+        Raises
+        ------
+        ValueError
+            If none of name, plate_type_id, email, created_on or notes is
+                provided
+            If the sample plate ID doesn't exist
+            If name is provdided and conflicts with another plate
+            If plate_type_id is provided and doesn't exist
+            If plate_type_id is provided and samples have been plated
+            If email is provided and doesn't exist
+        """
+        # Check that at least one of the optional parameters have been provided
+        if all([name is None, plate_type_id is None, email is None,
+                created_on is None, notes is None]):
+            raise ValueError(
+                'At least one of name, plate_type_id, email, created_on or '
+                'notes sould be provided')
+
+        with TRN:
+            self._sample_plate_exists(sample_plate_id)
+            cols = []
+            sql_args = []
+            if name is not None:
+                self._sample_plate_is_unique(name, sample_plate_id)
+                cols.append('name = %s')
+                sql_args.append(name)
+            if plate_type_id is not None:
+                self._plate_type_exists(plate_type_id)
+                # Fail if samples have been already plated
+                sql = """SELECT EXISTS(SELECT 1 FROM pm.sample_plate_layout
+                                       WHERE sample_plate_id = %s AND
+                                             sample_id IS NOT NULL)"""
+                TRN.add(sql, [sample_plate_id])
+                if TRN.execute_fetchlast():
+                    raise ValueError(
+                        "Can't change the plate type because samples have "
+                        "been alredy plated")
+                cols.append('plate_type_id = %s')
+                sql_args.append(name)
+            if email is not None:
+                self._email_exists(email)
+                cols.append('email = %s')
+                sql_args.append(email)
+            if created_on is not None:
+                cols.append('created_on = %s')
+                sql_args.append(created_on)
+            if notes is not None:
+                cols.append('notes = %s')
+                sql_args.append(notes)
+            sql = """UPDATE pm.sample_plate
+                     SET {}
+                     WHERE sample_plate_id = %s""".format(', '.join(cols))
+            sql_args.append(sample_plate_id)
+            TRN.add(sql, sql_args)
+            TRN.execute()
+
+    def read_sample_plate(self, plate_id):
+        """Reads properties of a sample plate
+
+        Parameters
+        ----------
+        plate_id : int
+            ID of the sample plate to read
+
+        Returns
+        -------
+        dict
+            {name : str, plate_type_id : int, email : str,
+             created_on: datetime, notes : str, studies: list of int}
+            Properties of the sample plate: name, plate type ID, who created
+            it, when it was created, notes, and the studies plated
+        """
+        with TRN:
+            self._sample_plate_exists(plate_id)
+            sql = """SELECT name, plate_type_id, email, created_on, notes,
+                        array_agg(study_id ORDER BY study_id) as studies
+                     FROM pm.sample_plate
+                        JOIN pm.sample_plate_study USING (sample_plate_id)
+                     WHERE sample_plate_id = %s
+                     GROUP BY sample_plate_id"""
+            TRN.add(sql, [plate_id])
+            return dict(TRN.execute_fetchindex()[0])
+
+    def read_sample(self, sample_id):
+        """Returns the properties of a sample
+
+        Parameters
+        ----------
+        sample_id : str
+            The id of the sample to read
+
+        Returns
+        -------
+        dict
+            {sample_id: str, is_blank: bool, details: str, study_id: int}
+        """
+        with TRN:
+            sql = """SELECT sample_id, is_blank, details, study_id
+                     FROM pm.sample
+                        LEFT JOIN pm.study_sample USING (sample_id)
+                     WHERE sample_id = %s"""
+            TRN.add(sql, [sample_id])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError("Sample %s does not exist" % sample_id)
+            return dict(res[0])
+
+    def _clear_sample_plate_layout(self, sample_plate_id):
+        """Deletes the entire layout of a sample plate
+
+        Parameters
+        ----------
+        sample_plate_id : int
+            ID of the sample plate whose layout is to be deleted
+        """
+        with TRN:
+            sql = """DELETE FROM pm.sample_plate_layout
+                     WHERE sample_plate_id = %s"""
+            TRN.add(sql, [sample_plate_id])
+            TRN.execute()
+
+    def write_sample_plate_layout(self, sample_plate_id, layout):
+        """Writes the layout of a sample plate
+
+        Parameters
+        ----------
+        sample_plate_id : int
+            ID of the sample plate whose layout is to be written
+        layout : list of list of dict
+            A 2-D matrix storing the per well information in a dict with the
+            format: {'sample_id': str, 'name': str, 'notes': str}
+
+        Raises
+        ------
+        ValueError
+            If the sample plate doesn't exist
+            If the given layout doesn't construct a valid layout
+            If the given layout doesn't match the sample plate type
+        """
+        with TRN:
+            self._sample_plate_exists(sample_plate_id)
+
+            # Check if the given layout forms a valid layout
+            l_rows = len(layout)
+            l_cols = len(layout[0])
+            # Check that all rows have the same number of columns
+            # for r in layout
+            if any([len(r) != l_cols for r in layout]):
+                raise ValueError(
+                    "The given layout doesn't form a valid plate map because "
+                    "not all rows have the same number of columns")
+
+            # Get the sample plate type size
+            sql = """SELECT rows, cols
+                     FROM pm.plate_type
+                        JOIN pm.sample_plate USING (plate_type_id)
+                    WHERE sample_plate_id = %s"""
+            TRN.add(sql, [sample_plate_id])
+            # Magic number 0 -> there is only one result on the previous query
+            plate_dims = dict(TRN.execute_fetchindex()[0])
+
+            # Check that the given layout has the same dimensions as the
+            # plate type
+            if plate_dims['rows'] != l_rows or plate_dims['cols'] != l_cols:
+                raise ValueError(
+                    "The given layout doesn't match the plate type "
+                    "dimensions. Plate type: (%d, %d). Layout: (%d, %d)"
+                    % (plate_dims['rows'], plate_dims['cols'], l_rows, l_cols))
+
+            # We can set the new layout. First clear the previous layout
+            # and insert the new one
+            self._clear_sample_plate_layout(sample_plate_id)
+            sql = """INSERT INTO pm.sample_plate_layout
+                        (sample_plate_id, sample_id, row, col, name, notes)
+                     VALUES (%s, %s, %s, %s, %s, %s)"""
+            sql_args = []
+            for row_idx, row in enumerate(layout):
+                for col_idx, values in enumerate(row):
+                    sql_args.append([sample_plate_id, values.get('sample_id'),
+                                     row_idx, col_idx, values.get('name'),
+                                     values.get('notes')])
+            TRN.add(sql, sql_args, many=True)
+            TRN.execute()
+
+    def get_blanks_from_sample_plate(self, sample_plate_id):
+        """Returns the blanks from the sample plate
+
+        Parameters
+        ----------
+        sample_plate_id : int
+            ID of the sample plate whose layout is to be read
+
+        Returns
+        -------
+        list of DictCursor
+            The sample id, the row and the col
+        """
+        with TRN:
+            self._sample_plate_exists(sample_plate_id)
+
+            sql = """SELECT sample_id, row, col
+                     FROM pm.sample_plate_layout
+                        JOIN pm.sample USING (sample_id)
+                     WHERE sample_plate_id = %s AND is_blank=true
+                     ORDER BY row, col"""
+            TRN.add(sql, [sample_plate_id])
+            return TRN.execute_fetchindex()
+
+    def get_replicates_from_sample_plate(self, sample_plate_id):
+        """Returns the technical replicates present in the sample plate
+
+        Parameters
+        ----------
+        sample_plate_id : int
+            Sample plate id
+
+        Returns
+        -------
+        dict
+            For each sample, a list of tuples with the well locations
+        """
+        with TRN:
+            self._sample_plate_exists(sample_plate_id)
+            sql = """SELECT sample_id, ARRAY_AGG((row, col)) AS wells
+                     FROM pm.sample_plate_layout
+                        JOIN pm.sample USING (sample_id)
+                     WHERE sample_plate_id = %s
+                        AND is_blank = false
+                     GROUP BY sample_id"""
+            TRN.add(sql, [sample_plate_id])
+            replicates = {}
+            for sql_row in TRN.execute_fetchindex():
+                wells = eval(sql_row['wells'])
+                if len(wells) > 1:
+                    replicates[sql_row['sample_id']] = [eval(i) for i in wells]
+            return replicates
+
+    def read_sample_plate_layout(self, sample_plate_id):
+        """Reads the layout of a sample plate
+
+        Parameters
+        ----------
+        sample_plate_id : int
+            ID of the sample plate whose layout is to be read
+
+        Returns
+        -------
+        layout : list of list of dict
+            A 2-D matrix storing the per well information in a dict with the
+            format: {'sample_id': str, 'name': str, 'notes': str}
+        """
+        with TRN:
+            self._sample_plate_exists(sample_plate_id)
+            sql = """SELECT sample_id, col, row, name, notes
+                     FROM pm.sample_plate_layout
+                     WHERE sample_plate_id = %s
+                     ORDER BY row, col"""
+            TRN.add(sql, [sample_plate_id])
+            res = TRN.execute_fetchindex()
+            layout = []
+            row = []
+            # To construct the output layout we just need to iterate over
+            # the results since they are correctly sorted
+            for well in res:
+                # Transform the DictCursors to an actual dictionary
+                # and remove the values that we are not returning: row and col
+                well = dict(well)
+                col = well.pop('col')
+                del well['row']
+                # A new row starts when col == 0, but we need to take into
+                # account the first row, so we don't append an empty row to
+                # the layout
+                if col == 0 and row:
+                    layout.append(row)
+                    row = []
+                row.append(well)
+            # If there was a layout stored in the DB, the last row was not
+            # added to the layout, so add it here
+            if row:
+                layout.append(row)
+
+            return layout
+
+    def delete_sample_plate(self, plate_id):
+        """Deletes a sample plate and its layout
+
+        Parameters
+        ----------
+        plate_id : int
+            ID of the sample plate to delete
+        """
+        with TRN:
+            self._sample_plate_exists(plate_id)
+            self._clear_sample_plate_layout(plate_id)
+
+            sql = """DELETE FROM pm.sample_plate_study
+                     WHERE sample_plate_id = %s"""
+            TRN.add(sql, [plate_id])
+            sql = """DELETE FROM pm.sample_plate
+                     WHERE sample_plate_id = %s"""
+            TRN.add(sql, [plate_id])
+            TRN.execute()
+
+    def get_property_options(self, prop):
+        """Retrieves a list of available options for a property
+
+        Parameters
+        ----------
+        prop : str
+            Property name, i.e., name of a table under schema "pm"
+
+        Returns
+        -------
+        list of dict
+            {id : int, name : str, notes : str}
+            ID, name and notes for each option
+        """
+        with TRN:
+            sql = """SELECT {} AS id, name, notes
+                     FROM {}
+                     ORDER BY {}"""
+            TRN.add(sql.format(prop + '_id',
+                               'pm.' + prop,
+                               prop + '_id'))
+            return [dict(x) for x in TRN.execute_fetchindex()]
+
+    def get_or_create_property_option_id(self, prop, option_name):
+        """Retrieves the id of the given property
+
+        If the property with the given name doesn't exist, it will create it
+        and return the id of the newly created value
+
+        Parameters
+        ----------
+        prop : str
+            Property name, i.e., name of a table under schema "pm"
+        option_name : str
+            The new option
+        """
+        prop_id_col = prop + '_id'
+        with TRN:
+            # Insert if it doesn't exist
+            sql = """INSERT INTO pm.{} (name)
+                        SELECT %s
+                        WHERE NOT EXISTS(SELECT 1 FROM pm.{} WHERE name = %s)
+                        RETURNING {}""".format(prop, prop, prop_id_col)
+            TRN.add(sql, [option_name, option_name])
+            res = TRN.execute_fetchindex()
+            if res:
+                # This means that the previous sql call inserted a new value
+                # so we just need to return the value
+                # Magic numbers [0][0] - There is only one row and with
+                # a single value
+                return res[0][0]
+
+            # If the code reaches this point it means that the previous sql
+            # call did not insert anything, i.e. the option already existed
+            # return the id of that option
+            sql = "SELECT {} FROM pm.{} WHERE name = %s".format(
+                prop_id_col, prop)
+            TRN.add(sql, [option_name])
+            return TRN.execute_fetchlast()
+
+    def delete_property_option(self, prop, prop_id):
+        """Deletes the given property option
+
+        Parameters
+        ----------
+        prop : str
+            Property name, i.e., name of a table under schema "pm"
+        prop_id : int
+            The id of the property to remove
+        """
+        prop_id_col = prop + '_id'
+        with TRN:
+            sql = "DELETE FROM pm.{} WHERE {} = %s".format(prop, prop_id_col)
+            TRN.add(sql, [prop_id])
+            TRN.execute()
+
+    def get_plate_types(self):
+        """Gets all available plate types
+
+        Returns
+        -------
+        list of dict
+            {id : int, name : str, cols : int, rows : int, notes : str}
+            ID, name, notes, and numbers of columns and rows of each plate type
+        """
+        with TRN:
+            sql = """SELECT plate_type_id AS id, name, notes, cols, rows
+                     FROM pm.plate_type
+                     ORDER BY plate_type_id"""
+            TRN.add(sql)
+            return [dict(x) for x in TRN.execute_fetchindex()]
+
+    def read_plate_type(self, plate_type_id):
+        """Returns the information the given plate type
+
+        Parameters
+        ----------
+        plate_type_id: int
+            The id of the plate type
+
+        Returns
+        -------
+        DictCursor
+            The information of the plate type
+        """
+        with TRN:
+            sql = """SELECT plate_type_id, name, cols, rows, notes
+                     FROM pm.plate_type
+                     WHERE plate_type_id = %s"""
+            TRN.add(sql, [plate_type_id])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError("Plate type %s doesn't exist" % plate_type_id)
+            # Magic number 0: there is only one result in the query
+            return res[0]
+
+    def get_emails(self):
+        """Gets all available emails
+
+        Returns
+        -------
+        list of str
+            Sorted list of emails
+        """
+        with TRN:
+            sql = """SELECT email
+                     FROM ag.labadmin_users
+                     ORDER BY email"""
+            TRN.add(sql)
+            return TRN.execute_fetchflatten()
+
+    def get_sample_plate_ids(self):
+        """Gets a list of sample plate IDs
+
+        Returns
+        -------
+        list of int
+            Sorted list of sample plate IDs
+        """
+        with TRN:
+            sql = """SELECT sample_plate_id
+                     FROM pm.sample_plate
+                     ORDER BY sample_plate_id"""
+            TRN.add(sql)
+            return TRN.execute_fetchflatten()
+
+    def get_sample_plate_list(self):
+        """Gets basic information of all sample plates
+
+        Returns
+        -------
+        list of dict
+            {id : int, name : str, type : list of [str, int], count : int,
+            person : str, date : datetime,
+            studies : list of str)}
+            Plate id, plate name, plate type (name and total number of wells),
+            (number and proportion) of samples filled, email, date, study
+            (number of studies, ID and title of the most frequent
+            study)
+        """
+        with TRN:
+            sql = """SELECT sp.sample_plate_id as id,
+                            sp.name as name,
+                            sp.email as person,
+                            sp.created_on::date as date,
+                            pt.name as type_name,
+                            (pt.cols * pt.rows) as num_wells,
+                            COUNT(spl.sample_id) as num_samples,
+                            ROUND(COUNT(spl.sample_id) / (pt.cols * pt.rows),
+                                  3)::float as ratio,
+                            ARRAY_AGG(DISTINCT s.title
+                                      ORDER BY s.title) as studies
+                     FROM pm.sample_plate sp
+                        JOIN pm.plate_type pt USING (plate_type_id)
+                        JOIN pm.sample_plate_study USING (sample_plate_id)
+                        JOIN pm.study s USING (study_id)
+                        LEFT JOIN pm.sample_plate_layout spl
+                            USING (sample_plate_id)
+                     GROUP BY sp.sample_plate_id, pt.name, pt.cols, pt.rows
+                     ORDER BY sp.sample_plate_id
+                  """
+            TRN.add(sql)
+            res = TRN.execute_fetchindex()
+            plates = []
+            for row in res:
+                row = dict(row)
+                row['fill'] = [row.pop('num_samples'), row.pop('ratio')]
+                row['type'] = [row.pop('type_name'), row.pop('num_wells')]
+                plates.append(row)
+            return plates
+
+    def extract_sample_plates(self, sample_plate_ids, email, robot, kit_lot,
+                              tool, notes=None):
+        """Stores the extraction information for the given sample_plates
+
+        Parameters
+        ----------
+        sample_plate_ids : list of int
+            The sample plates being extracted
+        email : str
+            The email of the user preparing the extraction
+        robot : str
+            The name of the robot used for extraction
+        kit_lot : str
+            The kit lot used for extraction
+        tool : str
+            The name of the tool used for extraction
+        notes : str, optional
+            Notes added to the extracted plates
+
+        Raises
+        ------
+        ValueError
+            If sample_plate_ids is an empty list
+        """
+        if not sample_plate_ids:
+            raise ValueError("Provide at least one sample plate to extract")
+        with TRN:
+            # Check that the passed sample plates exist
+            for p_id in sample_plate_ids:
+                self._sample_plate_exists(p_id)
+
+            robot_id = self.get_or_create_property_option_id(
+                "extraction_robot", robot)
+            kit_lot_id = self.get_or_create_property_option_id(
+                "extraction_kit_lot", kit_lot)
+            tool_id = self.get_or_create_property_option_id(
+                "extraction_tool", tool)
+            sql = """INSERT INTO pm.dna_plate (
+                        email, name, created_on, sample_plate_id,
+                        extraction_robot_id, extraction_kit_lot_id,
+                        extraction_tool_id, notes)
+                     VALUES (%s, (SELECT name
+                                  FROM pm.sample_plate WHERE
+                                  sample_plate_id = %s),
+                             now(), %s, %s, %s, %s, %s)
+                     RETURNING dna_plate_id"""
+            dna_plates = []
+            for p_id in sample_plate_ids:
+                TRN.add(sql, [email, p_id, p_id, robot_id, kit_lot_id,
+                              tool_id, notes])
+                dna_plates.append(TRN.execute_fetchlast())
+            return dna_plates
+
+    def read_dna_plate(self, dna_plate_id):
+        """Returns the information of the DNA plate
+
+        Parameters
+        ----------
+        dna_plate_id : int
+            The id of the DNA plate
+
+        Returns
+        -------
+        dict
+            {id: int, name: str, email: str, created_on: datetime,
+             sample_plate_id: int, extraction_robot: str,
+             extraction_kit_lot: str, extractio_tool: str, notes: str}
+
+        Raises
+        ------
+        ValueError
+            If the DNA plate with ID `dna_plate_id` does not exist
+        """
+        with TRN:
+            sql = """SELECT dna_plate_id as id,
+                            p.name as name,
+                            email, created_on, sample_plate_id,
+                            er.name as extraction_robot,
+                            ekl.name as extraction_kit_lot,
+                            et.name as extraction_tool,
+                            p.notes as notes
+                     FROM pm.dna_plate p
+                        JOIN pm.extraction_robot er USING (extraction_robot_id)
+                        JOIN pm.extraction_kit_lot ekl
+                            USING (extraction_kit_lot_id)
+                        JOIN pm.extraction_tool et USING (extraction_tool_id)
+                     WHERE dna_plate_id = %s"""
+            TRN.add(sql, [dna_plate_id])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError("DNA plate %s does not exist" % dna_plate_id)
+            # Magic number 0 -> there is only 1 result row
+            return dict(res[0])
+
+    def normalize_shotgun_plate(self, shotgun_plate_id, email, echo,
+                                plate_normalization_sample,
+                                plate_normalization_water):
+        """Adds a normalized shotgun plate to the system
+
+        Parameters
+        ----------
+        shotgun_plate_id : int
+            The shotgun plate id
+        email : str
+            The email of the user
+        echo : str
+            The echo machine performing the normalization
+        plate_normalization_sample : 2D np.array of float
+            The sample volume in nanoliters for each well
+        plate_normalization_water : 2D np.array of float
+            The water volume in nanoliters for each well
+
+        Raises
+        ------
+        ValueError
+            If the shotgun plate `shotgun_plate_id` does not exist
+            If `plate_normalization_sample` dimensions doesn't match the plate
+                type
+            If `plate_normalization_water` dimensions doesn't match the plate
+                type
+            If the echo instrument does not exist
+
+        Returns
+        -------
+        int
+            The created normalized_shotgun_plate_id
+        """
+        with TRN:
+            # verify the plate exists
+            sql = """SELECT EXISTS(
+                        SELECT 1
+                        FROM pm.shotgun_plate
+                        WHERE shotgun_plate_id = %s)"""
+            TRN.add(sql, [shotgun_plate_id])
+            res = TRN.execute_fetchlast()
+            if not res:
+                raise ValueError("shotgun plate %s does not exist" %
+                                 shotgun_plate_id)
+
+            # obtain and verify the echo exists
+            sql = """SELECT echo_id
+                     FROM pm.echo
+                     WHERE echo.name = %s"""
+            TRN.add(sql, [echo])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError("echo machine %s does not exist" % echo)
+
+            echo_id = dict(res[0])['echo_id']
+
+            # verify the shape of the plate
+            sql = """SELECT rows, cols
+                     FROM pm.shotgun_plate JOIN
+                          pm.plate_type USING(plate_type_id)
+                     WHERE shotgun_plate_id = %s"""
+            TRN.add(sql, [shotgun_plate_id])
+            res = dict(TRN.execute_fetchindex()[0])
+            n_rows = res['rows']
+            n_cols = res['cols']
+
+            if plate_normalization_sample.shape != (n_rows, n_cols):
+                obs = repr(plate_normalization_sample.shape)
+                exp = repr((n_rows, n_cols))
+                raise ValueError("plate_normalization_sample has an "
+                                 "unexpected shape %s; expected %s" % (obs,
+                                                                       exp))
+
+            if plate_normalization_water.shape != (n_rows, n_cols):
+                obs = repr(plate_normalization_water.shape)
+                exp = repr((n_rows, n_cols))
+                raise ValueError("plate_normalization_water has an unexpected "
+                                 "shape %s; expected %s" % (obs, exp))
+
+            # create the instance of the normalized plate
+            sql = """INSERT INTO pm.shotgun_normalized_plate
+                        (shotgun_plate_id, created_on, email, echo_id)
+                     VALUES (%s, now(), %s, %s)
+                     RETURNING shotgun_normalized_plate_id"""
+
+            TRN.add(sql, [shotgun_plate_id, email, echo_id])
+            shotgun_normalized_plate_id = TRN.execute_fetchlast()
+
+            # add all of the volume details for the normalized plate
+            sql = """INSERT INTO pm.shotgun_normalized_plate_well_values
+                        (shotgun_normalized_plate_id, row, col,
+                         sample_volume_nl, water_volume_nl)
+                     VALUES (%s, %s, %s, %s, %s)"""
+            sql_args = []
+            for row in np.arange(n_rows):
+                for col in np.arange(n_cols):
+                    sql_args.append((shotgun_normalized_plate_id,
+                                     row, col,
+                                     plate_normalization_sample[row, col],
+                                     plate_normalization_water[row, col]))
+            TRN.add(sql, sql_args, many=True)
+            TRN.execute()
+        return shotgun_normalized_plate_id
+
+    def read_normalized_shotgun_plate(self, shotgun_normalized_plate_id):
+        """Obtain the normalized shotgun plate details
+
+        Parameters
+        ----------
+        shotgun_normalized_plate_id : int
+            The ID of the normalized shotgun plate to retrieve.
+
+        Raises
+        ------
+        ValueError
+            If the normalized_shotgun_plate_id does not exist
+
+        Returns
+        -------
+        dict
+            A dict populated by the columns details in
+            pm.shotgun_normalized_plate, as well as two numpy matrices
+            corresponding to the normalized water and sample volumes, as well
+            as two list of list of strings for the shotgun_i5_index and
+            shotgun_i7_index
+        """
+        with TRN:
+            # get plate details
+            sql = """SELECT shotgun_normalized_plate_id,shotgun_plate_id,
+                            created_on,email,e.name as echo,lp_date,lp_email,
+                            mosquito,slpk.name as shotgun_library_prep_kit,
+                            saa.name as shotgun_adapter_aliquot,qpcr_date,
+                            qpcr_email,qpcr_std_ladder,q.name as qpcr,
+                            discarded
+                     FROM pm.shotgun_normalized_plate snp
+                          JOIN pm.echo e USING(echo_id)
+                          LEFT JOIN pm.shotgun_library_prep_kit slpk
+                              USING(shotgun_library_prep_kit_id)
+                          LEFT JOIN pm.shotgun_adapter_aliquot saa
+                              USING(shotgun_adapter_aliquot_id)
+                          LEFT JOIN pm.qpcr q USING (qpcr_id)
+                     WHERE snp.shotgun_normalized_plate_id = %s"""
+            TRN.add(sql, [shotgun_normalized_plate_id])
+            res = TRN.execute_fetchindex()
+
+            if not res:
+                raise ValueError("normalized shotgun plate %s does not exist" %
+                                 shotgun_normalized_plate_id)
+
+            res = dict(res[0])
+
+            # get plate shape
+            sql = """SELECT rows, cols
+                     FROM pm.shotgun_plate JOIN
+                          pm.plate_type USING(plate_type_id)
+                     WHERE shotgun_plate_id = %s"""
+            TRN.add(sql, [res['shotgun_plate_id']])
+            plate_shape = dict(TRN.execute_fetchindex()[0])
+            n_rows = plate_shape['rows']
+            n_cols = plate_shape['cols']
+            sample_volumes = np.zeros((n_rows, n_cols))
+            water_volumes = np.zeros((n_rows, n_cols))
+            qpcr_concentrations = np.zeros((n_rows, n_cols))
+            qpcr_cps = np.zeros((n_rows, n_cols))
+            shotgun_i5_index_had_vals = False
+            shotgun_i5_index = [[None for c in range(n_cols)]
+                                for r in range(n_rows)]
+            shotgun_i7_index_had_vals = False
+            shotgun_i7_index = [[None for c in range(n_cols)]
+                                for r in range(n_rows)]
+
+            # get well values
+            sql = """SELECT row, col, sample_volume_nl, water_volume_nl,
+                            qpcr_concentration, qpcr_cp, shotgun_i5_index_id,
+                            shotgun_i7_index_id
+                     FROM pm.shotgun_normalized_plate_well_values
+                     WHERE shotgun_normalized_plate_id = %s"""
+            TRN.add(sql, [shotgun_normalized_plate_id])
+            well_values = TRN.execute_fetchindex()
+            for (row, col, sample_volume_nl, water_volume_nl,
+                 qpcr_concentration, qpcr_cp, si5i, si7i) in well_values:
+                sample_volumes[row, col] = sample_volume_nl
+                water_volumes[row, col] = water_volume_nl
+                qpcr_concentrations[row, col] = qpcr_concentration
+                qpcr_cps[row, col] = qpcr_cp
+                if si5i is not None:
+                    shotgun_i5_index_had_vals = True
+                shotgun_i5_index[row][col] = si5i
+                if si7i is not None:
+                    shotgun_i7_index_had_vals = True
+                shotgun_i7_index[row][col] = si7i
+
+            res['plate_normalization_water'] = (
+                None if np.isnan(water_volumes).all() else water_volumes)
+            res['plate_normalization_sample'] = (
+                None if np.isnan(sample_volumes).all() else sample_volumes)
+            res['plate_qpcr_concentrations'] = (
+                None if np.isnan(qpcr_concentrations).all()
+                else qpcr_concentrations)
+            res['plate_qpcr_cps'] = (
+                None if np.isnan(qpcr_cps).all() else qpcr_cps)
+            res['shotgun_i5_index'] = (
+                shotgun_i5_index if shotgun_i5_index_had_vals else None)
+            res['shotgun_i7_index'] = (
+                shotgun_i7_index if shotgun_i7_index_had_vals else None)
+
+        return res
+
+    def delete_normalized_shotgun_plate(self, shotgun_normalized_plate_id):
+        """Delete a normalized shotgun plate
+
+        Parameters
+        ----------
+        shotgun_normalized_plate_id : int
+            The ID of the normalized shotgun plate to delete.
+
+        Raises
+        ------
+        ValueError
+            If the normalized_shotgun_plate_id does not exist
+        """
+        with TRN:
+            # get plate details
+            sql = """SELECT *
+                     FROM pm.shotgun_normalized_plate
+                     WHERE shotgun_normalized_plate_id = %s"""
+            TRN.add(sql, [shotgun_normalized_plate_id])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError("normalized shotgun plate %s does not exist" %
+                                 shotgun_normalized_plate_id)
+
+            sql = """DELETE FROM pm.shotgun_normalized_plate_well_values
+                     WHERE shotgun_normalized_plate_id = %s"""
+            TRN.add(sql, [shotgun_normalized_plate_id])
+
+            sql = """DELETE FROM pm.shotgun_normalized_plate
+                     WHERE shotgun_normalized_plate_id = %s"""
+            TRN.add(sql, [shotgun_normalized_plate_id])
+            TRN.execute()
+
+    def read_shotgun_adapter_aliquot(self):
+        """Return all available shotgun adapter aliquots
+
+        Returns
+        -------
+        list of dict
+            All available shotgun adapter aliquots
+        """
+        with TRN:
+            sql = """SELECT shotgun_adapter_aliquot_id, name,
+                        notes, limit_freeze_thaw_cycles
+                     FROM pm.shotgun_adapter_aliquot"""
+            TRN.add(sql)
+
+            return [dict(row) for row in TRN.execute_fetchindex()]
+
+    def read_shotgun_index_aliquot(self):
+        """Return all available shotgun index aliquots
+
+        Returns
+        -------
+        list of dict
+            All available shotgun index aliquots
+        """
+        with TRN:
+            sql = """SELECT shotgun_index_aliquot_id, name,
+                        notes, limit_freeze_thaw_cycles
+                     FROM pm.shotgun_index_aliquot"""
+            TRN.add(sql)
+
+            return [dict(row) for row in TRN.execute_fetchindex()]
+
+    def add_shotgun_adapter_aliquot(self, name, notes,
+                                    limit_freeze_thaw_cycles):
+        """Adds a new shotgun adapter aliquot to the DB
+
+        Parameters
+        ----------
+        name : str
+            The name of the new aliquot
+        notes : str
+            General notes of this aliquot
+        limit_freeze_thaw_cycles : int
+            Limit freeze thaw cycles for this aliquot
+
+        Returns
+        -------
+        int
+            The id of the created shotgun adapter aliquot
+        """
+        with TRN:
+            sql = """INSERT INTO pm.shotgun_adapter_aliquot
+                        (name, notes, limit_freeze_thaw_cycles)
+                     VALUES (%s, %s, %s)
+                     RETURNING shotgun_adapter_aliquot_id"""
+            TRN.add(sql, [name, notes, limit_freeze_thaw_cycles])
+
+            return TRN.execute_fetchlast()
+
+    def add_shotgun_index_aliquot(self, name, notes,
+                                  limit_freeze_thaw_cycles):
+        """Adds a new shotgun adapter aliquot to the DB
+
+        Parameters
+        ----------
+        name : str
+            The name of the new aliquot
+        notes : str
+            General notes of this aliquot
+        limit_freeze_thaw_cycles : int
+            Limit freeze thaw cycles for this aliquot
+
+        Returns
+        -------
+        int
+            The id of the created shotgun adapter aliquot
+        """
+        with TRN:
+            sql = """INSERT INTO pm.shotgun_index_aliquot
+                        (name, notes, limit_freeze_thaw_cycles)
+                     VALUES (%s, %s, %s)
+                     RETURNING shotgun_index_aliquot_id"""
+            TRN.add(sql, [name, notes, limit_freeze_thaw_cycles])
+
+            return TRN.execute_fetchlast()
+
+    def delete_shotgun_adapter_aliquot(self, shotgun_adapter_aliquot_id):
+        """Adds a new shotgun adapter aliquot to the DB
+
+        Parameters
+        ----------
+        shotgun_adapter_aliquot_id : int
+            The shotgun adapter aliquot id to delete
+        """
+        with TRN:
+            sql = """DELETE FROM pm.shotgun_adapter_aliquot
+                     WHERE shotgun_adapter_aliquot_id = %s"""
+            TRN.add(sql, [shotgun_adapter_aliquot_id])
+            TRN.execute()
+
+    def delete_shotgun_index_aliquot(self, shotgun_index_aliquot_id):
+        """Adds a new shotgun index aliquot to the DB
+
+        Parameters
+        ----------
+        shotgun_index_aliquot_id : int
+            The shotgun index aliquot id to delete
+        """
+        with TRN:
+            sql = """DELETE FROM pm.shotgun_index_aliquot
+                     WHERE shotgun_index_aliquot_id = %s"""
+            TRN.add(sql, [shotgun_index_aliquot_id])
+            TRN.execute()
+
+    def prepare_shotgun_libraries(self, normalized_plate_id, email, mosquito,
+                                  shotgun_library_prep_kit,
+                                  shotgun_index_aliquot_id, i5_layout,
+                                  i7_layout):
+        """Stores the shotgun library prep information
+
+        Parameters
+        ----------
+        shotgun_plate_id : int
+            The shotgun plate id
+        email : str
+            The email of the user
+        mosquito : str
+            The mosquito machine performing the normalization
+        shotgun_library_prep_kit : str
+            The library prep kit lot used
+        shotgun_index_aliquot_id : int
+            The index aliquot lot id used
+        i5_layout: list of lists of str
+            The i5 index used in each well
+        i7_layout: list of lists of str
+            The i7 index used in each well
+
+        Returns
+        -------
+        ValueError
+            If `i5_layout` dimensions doesn't match the plate type
+            If `i7_layout` dimensions doesn't match the plate type
+        """
+        with TRN:
+            nsp = self.read_normalized_shotgun_plate(normalized_plate_id)
+            # for simplicity I'm let's take the shape of the plave via the
+            # plate_normalization_water from the normalized plate
+            nrows, ncols = nsp['plate_normalization_water'].shape
+            mosquito_id = self.get_or_create_property_option_id(
+                "mosquito", mosquito)
+            library_prep_kit_id = self.get_or_create_property_option_id(
+                "shotgun_library_prep_kit", shotgun_library_prep_kit)
+
+            nrows_i5, ncols_i5 = len(i5_layout), len(i5_layout[0])
+            if nrows_i5 != nrows or ncols_i5 != ncols:
+                raise ValueError('i5_layout wrong shape, should '
+                                 'be: (%d, %d) but is: (%d, %d)' % (
+                                    nrows, ncols, nrows_i5, ncols_i5))
+
+            nrows_i7, ncols_i7 = len(i7_layout), len(i7_layout[0])
+            if nrows_i7 != nrows or ncols_i7 != ncols:
+                raise ValueError('i7_layout wrong shape, should '
+                                 'be: (%d, %d) but is: (%d, %d)' % (
+                                    nrows, ncols, nrows_i7, ncols_i7))
+
+            sql = """UPDATE pm.shotgun_normalized_plate_well_values
+                     SET shotgun_i%s_index_id = %s, shotgun_index_aliquot = %s
+                     WHERE shotgun_normalized_plate_id = %s
+                        AND row = %s AND col = %s"""
+
+            sql_args = []
+            for row in np.arange(nrows):
+                for col in np.arange(ncols):
+                    sql_args.append([
+                        5, i5_layout[row][col], shotgun_index_aliquot_id,
+                        normalized_plate_id, row, col])
+                    sql_args.append([
+                        7, i7_layout[row][col], shotgun_index_aliquot_id,
+                        normalized_plate_id, row, col])
+            TRN.add(sql, sql_args, many=True)
+
+            sql = """UPDATE pm.shotgun_normalized_plate
+                     SET shotgun_library_prep_kit_id = %s, mosquito = %s
+                     WHERE shotgun_normalized_plate_id = %s"""
+            TRN.add(sql, [
+                library_prep_kit_id, mosquito_id, normalized_plate_id])
+
+            TRN.execute()
+
+    def qpcr_shotgun(self, normalized_plate_id, email, qpcr, qpcr_ladder,
+                     qpcr_cp, qpcr_concentration):
+        """Stores the qpcr readout of the normalized plate
+
+        Parameters
+        ----------
+        normalized_plate_id : int
+            The normalized shotgun plate id
+        email : str
+            The email of the user
+        qpcr : str
+            The qPCR machine performing the readout
+        qpcr_ladder : str
+            The standard used
+        qpcr_cp_values : 2d numpy array of float
+            The qPCR Cp values for each well
+        qpcr_concentration_values : 2d numpy array of float
+            The library concentration values for each #well
+
+        Returns
+        -------
+        ValueError
+            If `qpcr_cp_values` dimensions don't match the plate type
+            If `qpcr_lib_concentration_values` dimensions don't match the
+                plate type
+        """
+        with TRN:
+            nsp = self.read_normalized_shotgun_plate(normalized_plate_id)
+            # for simplicity I'm let's take the shape of the plave via the
+            # plate_normalization_water from the normalized plate
+            nrows, ncols = nsp['plate_normalization_water'].shape
+            qpcr_id = self.get_or_create_property_option_id("qpcr", qpcr)
+
+            nrows_cp, ncols_cp = qpcr_cp.shape
+            if nrows_cp != nrows or ncols_cp != ncols:
+                raise ValueError('qpcr_cp_values wrong shape, should '
+                                 'be: (%d, %d) but is: (%d, %d)' % (
+                                    nrows, ncols, nrows_cp, ncols_cp))
+
+            nrows_lib, ncols_lib = qpcr_concentration.shape
+            if nrows_lib != nrows or ncols_lib != ncols:
+                raise ValueError('qpcr_lib_concentration_values wrong shape, '
+                                 'should be: (%d, %d) but is: (%d, %d)' % (
+                                    nrows, ncols, nrows_lib, ncols_lib))
+
+            sql = """UPDATE pm.shotgun_normalized_plate_well_values
+                     SET {0} = %s
+                     WHERE shotgun_normalized_plate_id = %s
+                        AND row = %s AND col = %s"""
+
+            sql_args_conc, sql_args_cp = [], []
+            for row in np.arange(nrows):
+                for col in np.arange(ncols):
+                    sql_args_conc.append([
+                        qpcr_concentration[row][col],
+                        normalized_plate_id, row, col])
+                    sql_args_cp.append([qpcr_cp[row][col], normalized_plate_id,
+                                        row, col])
+            TRN.add(sql.format('qpcr_concentration'), sql_args_conc, many=True)
+            TRN.add(sql.format('qpcr_cp'), sql_args_cp, many=True)
+
+            sql = """UPDATE pm.shotgun_normalized_plate
+                     SET qpcr_id = %s, qpcr_std_ladder = %s
+                     WHERE shotgun_normalized_plate_id = %s"""
+            TRN.add(sql, [qpcr_id, qpcr_ladder, normalized_plate_id])
+
+            TRN.execute()
+
+    def delete_dna_plate(self, dna_plate_id):
+        """Deletes a DNA plate
+
+        Parameters
+        ----------
+        dna_plate_id : int
+            The id of the DNA plate
+
+        Raises
+        ------
+        ValueError
+            If the DNA plate does not exist
+        """
+        with TRN:
+            sql = """DELETE FROM pm.dna_plate
+                     WHERE dna_plate_id = %s
+                     RETURNING dna_plate_id"""
+            TRN.add(sql, [dna_plate_id])
+            if not TRN.execute_fetchindex():
+                # If the output from the SQL is empty it means that the
+                # plate did not exist
+                raise ValueError("DNA plate %s does not exist" % dna_plate_id)
+
+    def get_dna_plate_list(self):
+        """Gets the list of all dna plates
+
+        Returns
+        -------
+        list of dict
+            {id : int, name : str, date : datetime}
+            Plate id, plate name and date
+        """
+        with TRN:
+            sql = """SELECT dna_plate_id as id, name, created_on::date as date
+                     FROM pm.dna_plate
+                     ORDER BY date DESC"""
+            TRN.add(sql)
+            return [dict(row) for row in TRN.execute_fetchindex()]
+
+    def get_targeted_primer_plates(self):
+        """Returns the list of all targeted primer plates
+
+        Returns
+        -------
+        list of dict
+            {id: int, name: str, notes: str, linker_primer_sequence: str
+             target_gene: str, target_subfragment: str}
+        """
+        with TRN:
+            sql = """SELECT targeted_primer_plate_id AS id, name, notes,
+                            linker_primer_sequence, target_gene,
+                            target_subfragment
+                     FROM pm.targeted_primer_plate
+                     ORDER BY id"""
+            TRN.add(sql)
+            return [dict(row) for row in TRN.execute_fetchindex()]
+
+    def prepare_targeted_libraries(self, plate_links, email, robot, tm300tool,
+                                   tm50tool, mastermix_lot, water_lot):
+        """Stores the targeted plate library information
+
+        Parameters
+        ----------
+        plate_links : list of dicts
+            A list of {'dna_plate_id': int, 'primer_plate_id': int} linking
+            a DNA plate with the primer plate used
+        email : str
+            The email of the user doing the library prep
+        robot : str
+            The name of the robot used
+        tm300tool : str
+            The name of the TM300-8 tool used
+        tm50tool : str
+            The name of the TM50-8 tool used
+        mastermix_lot : str
+            The mastermix lot used
+        water_lot : str
+            The water lot used
+
+        Returns
+        -------
+        list of int
+            The new target_plate ids created
+
+        Raises
+        ------
+        ValueError
+            If plate_links is an empty list
+        """
+        if not plate_links:
+            raise ValueError("Provide at least one DNA - Primer plate link")
+
+        with TRN:
+            # Note: We don't need to validate if the given DNA plates ids
+            # already exist because we are calling read_dna_plate below and
+            # that function will perform the validation for us
+            master_mix_id = self.get_or_create_property_option_id(
+                "master_mix_lot", mastermix_lot)
+            tm300_id = self.get_or_create_property_option_id(
+                "tm300_8_tool", tm300tool)
+            tm50_id = self.get_or_create_property_option_id(
+                "tm50_8_tool", tm50tool)
+            water_id = self.get_or_create_property_option_id(
+                "water_lot", water_lot)
+            robot_id = self.get_or_create_property_option_id(
+                "processing_robot", robot)
+            sql = """INSERT INTO pm.targeted_plate
+                        (name, email, created_on, dna_plate_id,
+                         targeted_primer_plate_id, master_mix_lot_id,
+                         tm300_8_tool_id, tm50_8_tool_id, water_lot_id,
+                         processing_robot_id)
+                     VALUES (%s, %s, now(), %s, %s, %s, %s, %s, %s, %s)
+                     RETURNING targeted_plate_id"""
+            sql_args = [[self.read_dna_plate(l['dna_plate_id'])['name'],
+                         email, l['dna_plate_id'], l['primer_plate_id'],
+                         master_mix_id, tm300_id, tm50_id, water_id, robot_id]
+                        for l in plate_links]
+            TRN.add(sql, sql_args, many=True)
+            res = TRN.execute()[-len(sql_args):]
+            # `res` looks like [[[plate_id]], [[plate_id]], ...]. The first
+            # call to chain.from iterable unrolls the first list:
+            # [[plate_id], [plate_id], ...]. The second call will unroll this
+            # list into the desired output: [plate_id, plate_id, ...]
+            return list(chain.from_iterable(chain.from_iterable(res)))
+
+    def quantify_targeted_plate(self, plate_id, data, vals):
+        """Adds quantification information to the target plate
+
+        Parameters
+        ----------
+        plate_id : int
+            The target plate id
+        data : str
+            Which information to add, it can be 'raw_concentration' or
+            'mod_concentration'.
+        vals : 2d numpy array of floats
+            The per-well DNA concentration
+
+        Raises
+        ------
+        ValueError
+            If data is not one of the valid values, see Parameters
+            If vals shape is not the same than the plate
+
+        Notes
+        -----
+            You always will need to first add raw_concentration as it's an
+            insert and mod_concentration, which is an update
+        """
+        valid_data = ['raw_concentration', 'mod_concentration']
+        if data not in valid_data:
+            raise ValueError(
+                "Not valid data value: %s, should be: %s" % (data, valid_data))
+
+        with TRN:
+            sql = """SELECT rows, cols
+                     FROM pm.plate_type
+                        JOIN pm.targeted_primer_plate USING (plate_type_id)
+                        JOIN pm.targeted_plate USING (targeted_primer_plate_id)
+                        WHERE targeted_plate_id = %s"""
+            TRN.add(sql, [plate_id])
+            rp = dict(TRN.execute_fetchindex()[0])
+            vals_rows, vals_cols = vals.shape
+            if vals_rows != rp['rows'] or vals_cols != rp['cols']:
+                raise ValueError('values wrong shape, should '
+                                 'be: (%d, %d) but is: (%d, %d)' % (
+                                    rp['rows'], rp['cols'], vals_rows,
+                                    vals_cols))
+
+            if data == 'raw_concentration':
+                # we assume we want to clean the info
+                sql = """DELETE FROM pm.targeted_plate_well_values
+                         WHERE targeted_plate_id = %s"""
+                TRN.add(sql, [plate_id])
+
+                sql = """INSERT INTO pm.targeted_plate_well_values
+                            (targeted_plate_id, row, col, raw_concentration)
+                         VALUES (%s, %s, %s, %s)"""
+            else:
+                sql = """UPDATE pm.targeted_plate_well_values
+                         SET mod_concentration = %s
+                         WHERE targeted_plate_id = %s AND
+                            row = %s AND col = %s"""
+            sql_args = []
+            for row in np.arange(vals_rows):
+                for col in np.arange(vals_cols):
+                    if data == 'raw_concentration':
+                        sql_args.append((plate_id, row, col, vals[row, col]))
+                    else:
+                        sql_args.append((vals[row, col], plate_id, row, col))
+
+            TRN.add(sql, sql_args, many=True)
+
+            TRN.execute()
+
+    def read_targeted_plate(self, plate_id):
+        """Returns the information of the targeted plate
+
+        Parameters
+        ----------
+        plate_id : int
+            The id of the targeted plate
+
+        Returns
+        -------
+        dict
+            {'id': int, 'name': str, 'email': str, 'created_on': datetime,
+             'dna_plate_id': int, 'primer_plate_id': int,
+             'master_mix_lot': str, 'robot': str, 'tm300_8_tool': str,
+             'tm50_8_tool': str, 'water_lot': str}
+
+        Raises
+        ------
+        ValueError
+            If the targeted plate with ID `plate_id` does not exist
+        """
+        with TRN:
+            sql = """SELECT targeted_plate_id as id,
+                            p.name as name,
+                            email, created_on, dna_plate_id,
+                            targeted_primer_plate_id as primer_plate_id,
+                            pt.rows as rows, pt.cols as cols,
+                            mm.name as master_mix_lot,
+                            r.name as robot,
+                            t300.name as tm300_8_tool,
+                            t50.name as tm50_8_tool,
+                            w.name as water_lot
+                     FROM pm.targeted_plate p
+                        JOIN pm.master_mix_lot mm USING (master_mix_lot_id)
+                        JOIN pm.processing_robot r USING (processing_robot_id)
+                        JOIN pm.tm300_8_tool t300 USING (tm300_8_tool_id)
+                        JOIN pm.tm50_8_tool t50 USING (tm50_8_tool_id)
+                        JOIN pm.water_lot w USING (water_lot_id)
+                        JOIN pm.targeted_primer_plate tpp
+                            USING (targeted_primer_plate_id)
+                        JOIN pm.plate_type pt USING (plate_type_id)
+                     WHERE targeted_plate_id = %s"""
+            TRN.add(sql, [plate_id])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError("Target Gene plate %s does not exist"
+                                 % plate_id)
+            # Magic number 0 -> there is only 1 result row
+            res = dict(res[0])
+            rows = res.pop('rows')
+            cols = res.pop('cols')
+
+            # get well values
+            res['raw_concentration'] = None
+            res['mod_concentration'] = None
+            sql = """SELECT row, col, raw_concentration, mod_concentration
+                     FROM pm.targeted_plate_well_values
+                     WHERE targeted_plate_id = %s"""
+            TRN.add(sql, [plate_id])
+            vals = TRN.execute_fetchindex()
+            if vals:
+                res['raw_concentration'] = np.zeros((rows, cols))
+                for (row, col, raw_concentration, mod_concentration) in vals:
+                    res['raw_concentration'][row, col] = raw_concentration
+                    if mod_concentration is not None:
+                        if res['mod_concentration'] is None:
+                            res['mod_concentration'] = np.zeros((rows, cols))
+                        res['mod_concentration'][row, col] = mod_concentration
+
+            return res
+
+    def delete_targeted_plate(self, plate_id):
+        """Deletes a targeted plate
+
+        Parameters
+        ----------
+        plate_id : int
+            The id of the targeted plate
+
+        Raises
+        ------
+        ValueError
+            If the targeted plate does not exist
+        """
+        with TRN:
+            sql = """DELETE FROM pm.targeted_plate_well_values
+                     WHERE targeted_plate_id = %s"""
+            TRN.add(sql, [plate_id])
+
+            sql = """DELETE FROM pm.targeted_plate
+                     WHERE targeted_plate_id = %s
+                     RETURNING targeted_plate_id"""
+            TRN.add(sql, [plate_id])
+            if not TRN.execute_fetchindex():
+                # If the output from the SQL query is empty, it means that the
+                # plate did not exist
+                raise ValueError("Target Gene plate %s does not exist"
+                                 % plate_id)
+
+    def get_targeted_plate_list(self):
+        """Gets the list of all targeted plates
+
+        Returns
+        -------
+        list of dict
+            {id : int, name : str, date : datetime}
+            Plate id, plate name and date
+        """
+        with TRN:
+            sql = """SELECT targeted_plate_id as id,
+                            p.name as name,
+                            p.created_on::date as date,
+                            COUNT(sample_id) as num_samples
+                     FROM pm.targeted_plate p
+                        JOIN pm.dna_plate d USING (dna_plate_id)
+                        JOIN pm.sample_plate_layout l USING (sample_plate_id)
+                     GROUP BY id, p.name, p.created_on
+                     ORDER BY date DESC"""
+            TRN.add(sql)
+            return [dict(row) for row in TRN.execute_fetchindex()]
+
+    def get_quantified_targeted_plate_list(self):
+        """Gets the list of all quantified targeted plates
+
+        Returns
+        -------
+        list of dict
+            {id : int, name : str, date : datetime, num_samples: int}
+            Plate id, plate name, date and number of samples
+        """
+        with TRN:
+            # Magic number 0.0001: since we are dealing with floats, we need
+            # the ones that have different from 0. All those values are always
+            # positive, and the minimum threshold that the user can choose is
+            # 0.001. By using 0.0001 we ensure that we count correctly
+            sql = """SELECT targeted_plate_id AS id, name,
+                            COUNT(mod_concentration) as num_samples,
+                            created_on::date as date
+                     FROM pm.targeted_plate
+                        LEFT JOIN pm.targeted_plate_well_values
+                            USING (targeted_plate_id)
+                     WHERE mod_concentration > 0.0001
+                     GROUP BY id, name"""
+            TRN.add(sql)
+            return [dict(row) for row in TRN.execute_fetchindex()]
+
+    def pool_plates(self, pools, name, volume=5000):
+        """Stores the pooling information
+
+        Parameters
+        ----------
+        pools : list of dicts
+            A list of {'targeted_plate_id': int, 'volume': float,
+            'percentage': float}
+        name : str
+            The name of the pool
+        volume : float, optional
+            The total volume of the pool
+
+        Returns
+        -------
+        int
+            The run pool id
+
+        Raises
+        ------
+        ValueError
+            If pools is an empty list
+        """
+        if len(pools) == 0:
+            raise ValueError("Provide at least on plate to pool.")
+        with TRN:
+            for p in pools:
+                sql = """INSERT INTO pm.targeted_pool
+                            (name, targeted_plate_id, volume)
+                         VALUES (%s, %s, %s)
+                         RETURNING targeted_pool_id"""
+                sql_args = [
+                    self.read_targeted_plate(p['targeted_plate_id'])['name'],
+                    p['targeted_plate_id'], p['volume']]
+                TRN.add(sql, sql_args)
+                target_pool_id = TRN.execute_fetchlast()
+                p['id'] = target_pool_id
+
+            sql = """INSERT INTO pm.run_pool (name, volume)
+                     VALUES (%s, %s)
+                     RETURNING run_pool_id"""
+            TRN.add(sql, [name, volume])
+            run_pool_id = TRN.execute_fetchlast()
+
+            sql = """INSERT INTO pm.protocol_run_pool
+                        (run_pool_id, targeted_pool_id, percentage)
+                     VALUES (%s, %s, %s)"""
+            sql_args = [[run_pool_id, p['id'], p['percentage']] for p in pools]
+            TRN.add(sql, sql_args, many=True)
+            TRN.execute()
+            return run_pool_id
+
+    def read_pool(self, pool_id):
+        """Returns the information of the pools
+
+        Parameters
+        ----------
+        pool_id : int
+            The id of the pool
+
+        Returns
+        -------
+        dict
+            {'id': int, 'name': str, 'volume': float, 'notes': str,
+             'targeted_pools': [{'id': int, 'name': str, 'volume': float,
+                                 'percentage': float,
+                                 'targeted_plate_id': int}]}
+
+        Raises
+        ------
+        ValueError
+            If the pool with ID `pool_id` does not exist
+        """
+        with TRN:
+            sql = """SELECT run_pool_id as id, name, volume, notes
+                     FROM pm.run_pool
+                     WHERE run_pool_id = %s"""
+            TRN.add(sql, [pool_id])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError("Pool %s does not exist" % pool_id)
+
+            # Magic number 0 -> there is only 1 result row
+            res = dict(res[0])
+            sql = """SELECT targeted_pool_id as id, name, volume, percentage,
+                            targeted_plate_id
+                     FROM pm.targeted_pool
+                        JOIN pm.protocol_run_pool USING (targeted_pool_id)
+                     WHERE run_pool_id = %s
+                     ORDER BY targeted_pool_id"""
+            TRN.add(sql, [pool_id])
+            res['targeted_pools'] = [dict(p) for p in TRN.execute_fetchindex()]
+            return res
+
+    def delete_pool(self, pool_id):
+        """Deletes a pool
+
+        Parameters
+        ----------
+        pool_id : int
+            The id of the pool
+
+        Raises
+        ------
+        ValueError
+            If the pool with ID `pool_id` does not exist
+        """
+        with TRN:
+            sql = """SELECT DISTINCT targeted_pool_id
+                     FROM pm.protocol_run_pool
+                     WHERE run_pool_id = %s"""
+            TRN.add(sql, [pool_id])
+            targeted_pools = TRN.execute_fetchflatten()
+            if not targeted_pools:
+                raise ValueError("Pool %s does not exist" % pool_id)
+
+            sql = "DELETE FROM pm.protocol_run_pool WHERE run_pool_id = %s"
+            TRN.add(sql, [pool_id])
+            sql = "DELETE FROM pm.targeted_pool WHERE targeted_pool_id IN %s"
+            TRN.add(sql, [tuple(targeted_pools)])
+            sql = "DELETE FROM pm.run_pool WHERE run_pool_id = %s"
+            TRN.add(sql, [pool_id])
+            TRN.execute()
+
+    def condense_dna_plates(self, dna_plates, name, email, robot,
+                            plate_type, volume):
+        """Generates a new shotgun plate
+
+        Parameters
+        ----------
+        dna_plates : list of [(int, int)]
+            The dna plate and the position in which they are condensed
+        name : str
+            The plate name
+        email : str
+            The email of the user
+        robot : str
+            The robot performing the plate condensation
+        plate_type : int
+            The plate type id of the shotgun plate
+        volume : float
+            The volume plated in the shotgun plate from the original DNA plates
+
+        Returns
+        -------
+        int
+            The id of the new shotgun plate
+
+        Raises
+        ------
+        ValueError
+            If plate_type is not a 384-well plate and dna_plates are not four
+            96-well plates in positions from 0-3.
+
+        Notes
+        -----
+        Right know we only know one way of condensing plates, as other
+        configurations are known, they can be added. This is coded like this to
+        make the system more flexible
+        """
+        with TRN:
+            self._plate_type_exists(plate_type)
+            self._email_exists(email)
+            robot_id = self.get_or_create_property_option_id(
+                "processing_robot", robot)
+
+            # 2 is 384-well plate
+            if plate_type != 2:
+                raise ValueError("plate_map should be 2: '384-well plate' but "
+                                 "it's %d" % plate_type)
+            #  check size
+            len_dna_plates = len(dna_plates)
+            if len_dna_plates < 1 or len_dna_plates > 4:
+                raise ValueError("You should have between 1 and 4 plates but "
+                                 "you have %d" % len_dna_plates)
+            # check exists and position
+            wrong_vals = [(pid, pos) for pid, pos in dna_plates
+                          if pos < 0 or pos > 3]
+            if wrong_vals:
+                raise ValueError("Wrong dna plates position: %s" % wrong_vals)
+
+            # adding shotgun_plate
+            sql = """INSERT INTO pm.shotgun_plate (
+                        name, email, created_on, processing_robot_id,
+                        plate_type_id, volume)
+                     VALUES (%s, %s, now(), %s, %s, %s)
+                     RETURNING shotgun_plate_id"""
+            sql_args = [name, email, robot_id, plate_type, volume]
+            TRN.add(sql, sql_args)
+            shotgun_pid = TRN.execute_fetchlast()
+
+            # adding condensed_plates
+            sql = """INSERT INTO pm.condensed_plates
+                        (shotgun_plate_id, dna_plate_id, position)
+                     VALUES (%s, %s, %s)"""
+            sql_args = [[shotgun_pid, pid, pos] for pid, pos in dna_plates]
+            TRN.add(sql, sql_args, many=True)
+            TRN.execute()
+
+            return shotgun_pid
+
+    def read_shotgun_plate(self, plate_id):
+        """Returns the information of the shotgun plate
+
+        Parameters
+        ----------
+        plate_id : int
+            The if of the shotgun plate
+
+        Returns
+        -------
+        dict
+            {'id': int, 'name': str, 'email': str, 'created_on': datetime,
+             'robot': str, 'plate_type_id': int, 'volume': float,
+             'dna_q_date': datetime, 'dna_q_mail': str, 'dna_q_volume': float,
+             'plate_reader': str,
+             'condensed_plates': list of (int - id, int - position)}
+
+        Raises
+        ------
+        ValueError
+
+            If the shotgun plate `plate_id` doesn't exist
+        """
+        with TRN:
+            sql = """SELECT sp.shotgun_plate_id AS id, sp.name as name, email,
+                        created_on, prr.name AS robot, volume,
+                        pt.plate_type_id as plate_type_id, pt.cols as cols,
+                        pt.rows as rows,
+                        dna_quantification_date AS dna_q_date,
+                        dna_quantification_email AS dna_q_mail,
+                        dna_quantification_volume AS dna_q_volume,
+                        plate_reader_id, ARRAY_AGG(
+                            (cp.dna_plate_id, cp.position)) AS condensed_plates
+                     FROM pm.shotgun_plate sp
+                     LEFT JOIN pm.processing_robot prr
+                        USING (processing_robot_id)
+                     LEFT JOIN pm.plate_reader as plr USING (plate_reader_id)
+                     LEFT JOIN pm.condensed_plates as cp
+                        USING (shotgun_plate_id)
+                     LEFT JOIN pm.plate_type as pt
+                        USING (plate_type_id)
+                     WHERE shotgun_plate_id = %s
+                     GROUP BY id, sp.name, email, created_on, robot, volume,
+                        pt.plate_type_id, pt.cols, pt.rows, dna_q_date,
+                        dna_q_mail, dna_q_volume, plate_reader_id"""
+            TRN.add(sql, [plate_id])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError("Shotgun Plate %s does not exist" % plate_id)
+
+            # Magic number 0 -> there is only 1 result row
+            res = dict(res[0])
+            res['condensed_plates'] = [eval(v)
+                                       for v in eval(res['condensed_plates'])]
+            # Get positions
+            sql = """SELECT row, col, sample_id, dna_concentration
+                     FROM pm.shotgun_plate_layout
+                     WHERE shotgun_plate_id = %s"""
+            TRN.add(sql, [plate_id])
+            values = TRN.execute_fetchindex()
+            # getting rows/cols and discarding them from res
+            rows = res.pop('rows')
+            cols = res.pop('cols')
+            res['shotgun_plate_layout'] = [[{
+                'sample_id': None, 'dna_concentration': None}
+                for c in range(cols)] for r in range(rows)]
+            for (row, col, sample_id, dna_concentration) in values:
+                res['shotgun_plate_layout'][row][col]['sample_id'] = sample_id
+                res['shotgun_plate_layout'][row][col][
+                    'dna_concentration'] = dna_concentration
+
+            return res
+
+    def delete_shotgun_plate(self, plate_id):
+        """Deletes the shotgun plate
+
+        Parameters
+        ----------
+        plate_id : int
+            The if of the shotgun plate
+
+        Raises
+        ------
+        ValueError
+            If the shotgun plate `plate_id` doesn't exist
+        """
+        with TRN:
+            sql = """SELECT shotgun_normalized_plate_id
+                     FROM pm.shotgun_normalized_plate
+                     WHERE shotgun_plate_id = %s"""
+            TRN.add(sql, [plate_id])
+            res = TRN.execute_fetchindex()
+
+            if res:
+                for id_ in res:
+                    self.delete_normalized_shotgun_plate(id_[0])
+
+            sql = """DELETE FROM pm.shotgun_plate_layout
+                     WHERE shotgun_plate_id = %s"""
+            TRN.add(sql, [plate_id])
+
+            sql = """DELETE FROM pm.condensed_plates
+                     WHERE shotgun_plate_id = %s"""
+            TRN.add(sql, [plate_id])
+
+            sql = """DELETE FROM pm.shotgun_plate
+                     WHERE shotgun_plate_id = %s
+                     RETURNING shotgun_plate_id"""
+            TRN.add(sql, [plate_id])
+
+            if not TRN.execute_fetchindex():
+                # If the output from the SQL query is empty, it means that the
+                # plate_id did not exist
+                raise ValueError('Shotgun Plate %s does not exist' % plate_id)
+
+    def quantify_shotgun_plate(self, shotgun_plate_id, email, volume,
+                               plate_reader, plate_concentration):
+        """Adds the DNA quantification information to the shotgun plate
+
+        Parameters
+        ----------
+        shotgun_plate_id : int
+            The shotgun plate id
+        email : str
+            The email of the user
+        volume : float
+            The volume used for DNA quantification
+        plate_reader : str
+            The plate reader used
+        plate_concentration : 2d numpy array of floats
+            The per-well DNA concentration
+
+        Raises
+        ------
+        ValueError
+            If `plate_concentration` dimensions doesn't match the plate type
+        """
+        with TRN:
+            sgp = self.read_shotgun_plate(shotgun_plate_id)
+            rp = dict(self.read_plate_type(sgp['plate_type_id']))
+            pc_rows, pc_cols = plate_concentration.shape
+            processing_robot_id = self.get_or_create_property_option_id(
+                "plate_reader", plate_reader)
+
+            if pc_rows != rp['rows'] or pc_cols != rp['cols']:
+                raise ValueError('plate_concentration wrong shape, should '
+                                 'be: (%d, %d) but is: (%d, %d)' % (
+                                    rp['rows'], rp['cols'], pc_rows, pc_cols))
+            # we expect 4 plates, thus 4 empty rows
+            orders = [[], [], [], []]
+            for pid, order in sgp['condensed_plates']:
+                sp_id = self.read_dna_plate(pid)['sample_plate_id']
+                orders[order] = self.read_sample_plate_layout(sp_id)
+
+            # now we start creating the merged plate
+            data = []
+            for rid, row in enumerate(zip_longest(*orders, fillvalue=[])):
+                for cid, (a, b, c, d) in enumerate(zip_longest(*row,
+                                                   fillvalue=None)):
+                    new_cid = 2 * cid
+                    new_rid = 2 * rid
+                    if a is not None:
+                        data.append([
+                            shotgun_plate_id, new_rid, new_cid,
+                            a['sample_id'],
+                            plate_concentration[new_rid, new_cid]])
+                    if b is not None:
+                        data.append([
+                            shotgun_plate_id, new_rid, 1 + new_cid,
+                            b['sample_id'],
+                            plate_concentration[new_rid, 1 + new_cid]])
+                    if c is not None:
+                        data.append([
+                            shotgun_plate_id, 1 + new_rid, new_cid,
+                            c['sample_id'],
+                            plate_concentration[1 + new_rid, new_cid]])
+                    if d is not None:
+                        data.append([
+                            shotgun_plate_id, 1 + new_rid, 1 + new_cid,
+                            d['sample_id'],
+                            plate_concentration[1 + new_rid, 1 + new_cid]])
+
+            # cleaning DB
+            sql = """DELETE FROM pm.shotgun_plate_layout
+                     WHERE shotgun_plate_id = %s"""
+            TRN.add(sql, [shotgun_plate_id])
+            # inserting new values
+            sql = """INSERT INTO pm.shotgun_plate_layout
+                        (shotgun_plate_id, row, col, sample_id,
+                         dna_concentration)
+                     VALUES (%s, %s, %s, %s, %s)"""
+            TRN.add(sql, data, many=True)
+            # finish by updating the original shotgun_plate_id
+            sql = """UPDATE pm.shotgun_plate
+                     SET plate_reader_id = %s, volume = %s
+                     WHERE shotgun_plate_id = %s"""
+            TRN.add(sql, [processing_robot_id, volume, shotgun_plate_id])
+
+            TRN.execute()
+
+    def get_pool_list(self):
+        """Gets the list of all pools
+
+        Returns
+        -------
+        list of dict
+            {id : int, name : str, targeted_pools : [list of str]}
+            Plate id, plate name and date
+        """
+        with TRN:
+            sql = """SELECT run_pool_id AS id,
+                            p.name AS name,
+                            ARRAY_AGG(t.name ORDER BY t.name) AS targeted_pools
+                     FROM pm.run_pool p
+                        JOIN pm.protocol_run_pool r USING (run_pool_id)
+                        JOIN pm.targeted_pool t USING (targeted_pool_id)
+                     GROUP BY id, p.name
+                     ORDER BY run_pool_id ASC"""
+            TRN.add(sql)
+            return [dict(row) for row in TRN.execute_fetchindex()]
+
+    def create_sequencing_run(self, pool_id, email, sequencer, reagent_type,
+                              reagent_lot, platform, instrument_model, assay,
+                              fwd_cycles, rev_cycles):
+        """Stores the sequencing run information
+
+        Parameters
+        ----------
+        pool_id : int
+            The pool being sequenced
+        email : str
+            The email of the user preparing the run
+        sequencer : str
+            The specific sequencer
+        reagent_type : str
+            The reagent type
+        reagent_lot : str
+            The reagent lot
+        platform : str
+            The sequencing platform (e.g., Illumina)
+        instrument_model : str
+            The model of the instrument (e.g., MiSeq)
+        assay : str
+            The assay used (e.g., Kapa Hyper Plus)
+        fwd_cycles : int
+            The number of forward cycles used.
+        rev_cycles : int
+            The number of reverse cycles used.
+
+        Returns
+        -------
+        int
+            The run id
+        """
+        with TRN:
+            sql = """INSERT INTO pm.run (name, email, created_on,
+                                         sequencer, run_pool_id,
+                                         reagent_type, reagent_lot, platform,
+                                         instrument_model, assay, fwd_cycles,
+                                         rev_cycles)
+                     VALUES (%s, %s, now(), %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     RETURNING run_id"""
+            TRN.add(sql, [self.read_pool(pool_id)['name'], email,
+                          sequencer, pool_id, reagent_type, reagent_lot,
+                          platform, instrument_model, assay, fwd_cycles,
+                          rev_cycles])
+            return TRN.execute_fetchlast()
+
+    def read_sequencing_run(self, run_id):
+        """Returns the information of the run
+
+        Paraemters
+        ----------
+        run_id : int
+            The id of the run
+
+        Returns
+        -------
+        dict
+            {'id': int, 'name': str, 'created_on': datetime, 'email': str,
+             'notes': str, 'sequencer': name, 'pool_id': int,
+             'reagent_kit_lot': str}
+
+        Raises
+        ------
+        ValueError
+            If the run with ID `run_id` does not exist
+        """
+        with TRN:
+            sql = """SELECT run_id AS id, r.name AS name, email, created_on,
+                            r.notes, sequencer, reagent_type, reagent_lot,
+                            r.run_pool_id AS pool_id, platform,
+                            instrument_model, assay, fwd_cycles, rev_cycles
+                     FROM pm.run r
+                     WHERE run_id = %s"""
+            TRN.add(sql, [run_id])
+            res = TRN.execute_fetchindex()
+            if not res:
+                raise ValueError('Run %s does not exist' % run_id)
+            # Magic number 0 -> there is only 1 result row
+            return dict(res[0])
+
+    def delete_sequencing_run(self, run_id):
+        """Deletes a run
+
+        Parameters
+        ----------
+        run_id : int
+            The id of the run
+
+        Raises
+        ------
+        ValueError
+            If the run with ID `run_id` does not exist
+        """
+        with TRN:
+            sql = """DELETE FROM pm.run
+                     WHERE run_id = %s
+                     RETURNING run_id"""
+            TRN.add(sql, [run_id])
+            if not TRN.execute_fetchindex():
+                # If the output from the SQL query is empty, it means that the
+                # plate did not exist
+                raise ValueError('Run %s does not exist' % run_id)
+
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""
         self._con.execute('DELETE FROM %s.%s' % (schema, table))
@@ -2462,6 +4914,8 @@ class KniminAccess(object):
                  SET results_ready = NULL
                  WHERE barcode IN %s"""
         self._con.execute(sql, [tuple(barcodes)])
+
+    # - Unit testing helper functions - #
 
     def ut_remove_external_survey(self, name, description, url):
         """ Remove an external survey from DB.
