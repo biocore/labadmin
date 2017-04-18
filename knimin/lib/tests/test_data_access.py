@@ -42,6 +42,11 @@ class TestDataAccess(TestCase):
                  SET last_index_idx = 0
                  WHERE shotgun_index_tech_id = 3"""
         db._con.execute(sql)
+        # reseting DB, Nextera is 2
+        sql = """UPDATE pm.shotgun_index
+                 SET index_type = 'i5'
+                 WHERE shotgun_index_tech_id = 2"""
+        db._con.execute(sql)
 
     def _create_test_data_targeted_plate(self):
         # Create a study
@@ -1462,48 +1467,29 @@ class TestDataAccess(TestCase):
         # just below -- Add shotgun_index valid values
 
         # generate 10 and check the values are just fine
-        obs = db.generate_i5_i7_indexes('iTru', 10)
-        exp = [('iTru5_01_A', 'iTru7_101_01'), ('iTru5_01_A', 'iTru7_101_02'),
-               ('iTru5_01_A', 'iTru7_101_03'), ('iTru5_01_A', 'iTru7_101_04'),
-               ('iTru5_01_A', 'iTru7_101_05'), ('iTru5_01_A', 'iTru7_101_06'),
-               ('iTru5_01_A', 'iTru7_101_07'), ('iTru5_01_A', 'iTru7_101_08'),
-               ('iTru5_01_A', 'iTru7_101_09'), ('iTru5_01_A', 'iTru7_101_10')]
+        obs = db.generate_i5_i7_indexes('iTru', 1)
+        exp = [('iTru5_01_B', 'iTru7_101_02')]
         self.assertEqual(obs, exp)
 
         # ask for another 10 and make sure it starts where we need to
         obs = db.generate_i5_i7_indexes('iTru', 10)
-        exp = [('iTru5_01_A', 'iTru7_101_11'), ('iTru5_01_A', 'iTru7_101_12'),
-               ('iTru5_01_A', 'iTru7_102_01'), ('iTru5_01_A', 'iTru7_102_02'),
-               ('iTru5_01_A', 'iTru7_102_03'), ('iTru5_01_A', 'iTru7_102_04'),
-               ('iTru5_01_A', 'iTru7_102_05'), ('iTru5_01_A', 'iTru7_102_06'),
-               ('iTru5_01_A', 'iTru7_102_07'), ('iTru5_01_A', 'iTru7_102_08')]
+        exp = [('iTru5_01_C', 'iTru7_101_03'), ('iTru5_01_D', 'iTru7_101_04'),
+               ('iTru5_01_E', 'iTru7_101_05'), ('iTru5_01_F', 'iTru7_101_06'),
+               ('iTru5_01_G', 'iTru7_101_07'), ('iTru5_01_H', 'iTru7_101_08'),
+               ('iTru5_02_A', 'iTru7_101_09'), ('iTru5_02_B', 'iTru7_101_10'),
+               ('iTru5_02_C', 'iTru7_101_11'), ('iTru5_02_D', 'iTru7_101_12')]
         self.assertEqual(obs, exp)
 
-        # just to make sure other 5
-        obs = db.generate_i5_i7_indexes('iTru', 5)
-        exp = [('iTru5_01_A', 'iTru7_102_09'), ('iTru5_01_A', 'iTru7_102_10'),
-               ('iTru5_01_A', 'iTru7_102_11'), ('iTru5_01_A', 'iTru7_102_12'),
-               ('iTru5_01_A', 'iTru7_103_01')]
-        self.assertEqual(obs, exp)
+        # test that we reset when we ask for more than 2000000000
+        # iTru is 3
+        sql = """UPDATE pm.shotgun_index_tech
+                 SET last_index_idx = 0
+                 WHERE shotgun_index_tech_id = 3"""
+        db._con.execute(sql)
 
-        # we currently have 32256 in the DB and we have requested 25 so
-        # request 32230 and ignore so we can test that the restart happens
-        # correctly
-        db.generate_i5_i7_indexes('iTru', 32230)
-        obs = db.generate_i5_i7_indexes('iTru', 5)
-        exp = [('iTru5_24_H', 'iTru7_114_12'), ('iTru5_01_A', 'iTru7_101_01'),
-               ('iTru5_01_A', 'iTru7_101_02'), ('iTru5_01_A', 'iTru7_101_03'),
-               ('iTru5_01_A', 'iTru7_101_04')]
-        self.assertEqual(obs, exp)
-
-        # test that if we hit the max we start in zero
-        db.generate_i5_i7_indexes('iTru', 32251)
         obs = db.generate_i5_i7_indexes('iTru', 1)
-        # should be the last of the indices
-        self.assertEqual(obs, [('iTru5_24_H', 'iTru7_114_12')])
-        # should be the first of the indices
-        obs = db.generate_i5_i7_indexes('iTru', 1)
-        self.assertEqual(obs, [('iTru5_01_A', 'iTru7_101_01')])
+        exp = [('iTru5_01_B', 'iTru7_101_02')]
+        self.assertEqual(obs, exp)
 
         # testing errors
 
@@ -1516,19 +1502,19 @@ class TestDataAccess(TestCase):
         with self.assertRaises(ValueError) as ctx:
             db.generate_i5_i7_indexes('BiooNEXTflex-HT', 10)
         self.assertEqual(
-            ctx.exception.message, "BiooNEXTflex-HT doesn't have any i5 "
+            ctx.exception.message, "BiooNEXTflex-HT doesn't have any i7 "
             "values")
 
+        # changing just for test
+        # Nextera is 2
+        sql = """UPDATE pm.shotgun_index
+                 SET index_type = 'i7'
+                 WHERE shotgun_index_tech_id = 2"""
+        db._con.execute(sql)
         with self.assertRaises(ValueError) as ctx:
             db.generate_i5_i7_indexes('Nextera', 10)
         self.assertEqual(
-            ctx.exception.message, "Nextera doesn't have any i7 values")
-
-        with self.assertRaises(ValueError) as ctx:
-            db.generate_i5_i7_indexes('iTru', 100000000)
-        self.assertEqual(
-            ctx.exception.message, "The maximum number of samples is: 32256 "
-            "and you are requesting 100000000")
+            ctx.exception.message, "Nextera doesn't have any i5 values")
 
     def test_normalize_shotgun_plate(self):
         before = datetime.datetime.now()

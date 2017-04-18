@@ -3912,16 +3912,12 @@ class KniminAccess(object):
 
         Notes
         -----
-            This generates a list of i5 barcodes or the combination of
+            This generates a list of i7 barcodes or the combination of
             i5 and i7 barcodes. The combinations are more complex as we need
             to make sure that we have actual rotation of those combinations.
-            Let's imagine we number each of the 384 unique i5 and i7 barcodes
-            1-384 (going across rows), in initial plate of 384 samples
-            `sample 1` will get i5_1 and i7_1, `sample 2` will get i5_2 and
-            i7_2, and so on. For the next plate of 384 samples, `sample 1`
-            will get i5_1 and i7_2, `sample 2` will get i5_2 and i7_3,
-            and so on. After 147,456 samples it will reset back to i5_1
-            and i7_1.
+            The general formula we will be using for index selection is:
+            index_num = sample_number % len-availavle-idx + (
+                sample_number / len-availavle-idx) % len-availavle-idx
         """
         with TRN:
             sql = """SELECT shotgun_index_tech_id, name, dual_index,
@@ -3940,54 +3936,47 @@ class KniminAccess(object):
             # selecting single indexing
             sql = """SELECT shotgun_index_id
                      FROM pm.shotgun_index
-                     WHERE shotgun_index_tech_id = %s AND index_type = 'i5'
+                     WHERE shotgun_index_tech_id = %s AND index_type = 'i7'
                      ORDER BY shotgun_index_id"""
             TRN.add(sql, [idx_tech_vals['shotgun_index_tech_id']])
-            indices = [r[0] for r in TRN.execute_fetchindex()]
-            if not indices:
-                raise ValueError("%s doesn't have any i5 values" % idx_tech)
+            indices_i7 = [r[0] for r in TRN.execute_fetchindex()]
+            if not indices_i7:
+                raise ValueError("%s doesn't have any i7 values" % idx_tech)
+            len_indices = len(indices_i7)
 
             if idx_tech_vals['dual_index']:
                 # selecting the dual section
                 sql = """SELECT shotgun_index_id
                          FROM pm.shotgun_index
-                         WHERE shotgun_index_tech_id = %s AND index_type = 'i7'
+                         WHERE shotgun_index_tech_id = %s AND index_type = 'i5'
                          ORDER BY shotgun_index_id"""
                 TRN.add(sql, [idx_tech_vals['shotgun_index_tech_id']])
-                indices_i7 = [r[0] for r in TRN.execute_fetchindex()]
-                if not indices_i7:
-                    raise ValueError("%s doesn't have any i7 "
+                indices_i5 = [r[0] for r in TRN.execute_fetchindex()]
+                if not indices_i5:
+                    raise ValueError("%s doesn't have any i5 "
                                      "values" % idx_tech)
 
-                indices = list(product(indices, indices_i7))
+                len_indices = min([len_indices, len(indices_i5)])
 
-            indices_generated = []
-            len_indices = len(indices)
-
-            if len_indices < num_samples:
-                raise ValueError(
-                    'The maximum number of samples is: %d and you are '
-                    'requesting %d' % (len_indices, num_samples))
-
-            # note that this assumes that we will never generate more samples
-            # in a single go than avialable indices
             idx_start = idx_tech_vals['last_index_idx']
-            while len(indices_generated) < num_samples:
-                idx_end = idx_start + num_samples
+            indices_generated = []
+            for i in range(1, num_samples + 1):
+                sample_number = idx_start + i
+                index_num = (sample_number % len_indices + (sample_number / len_indices) % len_indices)
 
-                if idx_end > len_indices:
-                    idx_end = len_indices
-                indices_generated.extend(indices[idx_start:idx_end])
+                if idx_tech_vals['dual_index']:
+                    indices_generated.append((indices_i5[index_num], indices_i7[index_num]))
+                else:
+                    indices_generated.append((indices_i7[index_num]))
 
-                # in case we have another loop we need to start in 0 and
-                # reset the num_samples requested
-                idx_start = 0
-                num_samples -= len(indices_generated)
+            # this is just to avoid reaching to the larges int PgSQL can store
+            if sample_number >= 2000000000:
+                sample_number = 0
 
             sql = """UPDATE pm.shotgun_index_tech
                      SET last_index_idx = %s
                      WHERE shotgun_index_tech_id = %s"""
-            TRN.add(sql, [idx_end, idx_tech_vals['shotgun_index_tech_id']])
+            TRN.add(sql, [sample_number, idx_tech_vals['shotgun_index_tech_id']])
 
             return indices_generated
 
