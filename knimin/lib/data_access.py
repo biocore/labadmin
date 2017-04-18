@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 from contextlib import contextmanager
 from collections import defaultdict, namedtuple
-from itertools import chain, zip_longest, product
+from itertools import chain, zip_longest
 from os import walk
 from os.path import join, splitext, isdir, abspath
 from copy import copy
@@ -3962,10 +3962,12 @@ class KniminAccess(object):
             indices_generated = []
             for i in range(1, num_samples + 1):
                 sample_number = idx_start + i
-                index_num = (sample_number % len_indices + (sample_number / len_indices) % len_indices)
+                index_num = (sample_number % len_indices +
+                             (sample_number / len_indices) % len_indices)
 
                 if idx_tech_vals['dual_index']:
-                    indices_generated.append((indices_i5[index_num], indices_i7[index_num]))
+                    indices_generated.append((indices_i5[index_num],
+                                              indices_i7[index_num]))
                 else:
                     indices_generated.append((indices_i7[index_num]))
 
@@ -3976,7 +3978,8 @@ class KniminAccess(object):
             sql = """UPDATE pm.shotgun_index_tech
                      SET last_index_idx = %s
                      WHERE shotgun_index_tech_id = %s"""
-            TRN.add(sql, [sample_number, idx_tech_vals['shotgun_index_tech_id']])
+            TRN.add(sql, [sample_number,
+                          idx_tech_vals['shotgun_index_tech_id']])
 
             return indices_generated
 
