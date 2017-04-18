@@ -3705,7 +3705,7 @@ class KniminAccess(object):
             qpcr_cps = np.zeros((n_rows, n_cols))
             shotgun_index_had_vals = False
             shotgun_index = [[None for c in range(n_cols)]
-                                for r in range(n_rows)]
+                             for r in range(n_rows)]
 
             # get well values
             sql = """SELECT row, col, sample_volume_nl, water_volume_nl,
