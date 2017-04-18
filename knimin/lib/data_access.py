@@ -3894,6 +3894,41 @@ class KniminAccess(object):
             TRN.add(sql, [shotgun_index_aliquot_id])
             TRN.execute()
 
+    def get_shotgun_index_information(self, shotgun_index_id):
+        """Pick barcodes for shotgun
+
+        Parameters
+        ----------
+        shotgun_index_id : int
+            The id of the shotgun_index
+
+        Returns
+        -------
+        dict
+            Data stored from that shotgun_index_id
+
+        Raises
+        ------
+        ValueError
+            If shotgun_index_id doesn't exist
+        """
+        with TRN:
+            sql = """SELECT shotgun_index_id, i7_name, i7_bases, i7_row,
+                        i7_col, i5_name, i5_bases, i5_row, i5_col, name,
+                        dual_index, i5_i7_sameplate, last_index_idx
+                     FROM pm.shotgun_index
+                     LEFT JOIN pm.shotgun_index_tech
+                        USING (shotgun_index_tech_id)
+                     WHERE shotgun_index_id = %s"""
+            TRN.add(sql, [shotgun_index_id])
+            r = TRN.execute_fetchindex()
+
+            if not r:
+                raise ValueError(
+                    "%d shotgun_index_id doesn't exist" % shotgun_index_id)
+
+            return dict(r[0])
+
     def generate_i5_i7_indexes(self, idx_tech, num_samples):
         """Pick barcodes for shotgun
 

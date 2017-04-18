@@ -1495,6 +1495,22 @@ class TestDataAccess(TestCase):
         self.assertEqual(ctx.exception.message,
                          "'BiooNEXTflex-HT' doesn't have any barcodes")
 
+    def test_get_shotgun_index_information(self):
+        obs = db.get_shotgun_index_information(100)
+        exp = {'shotgun_index_id': 100L, 'i7_row': 3, 'name': 'iTru',
+               'i7_bases': 'TCGGTTAC', 'i7_name': 'iTru7_109_04',
+               'i5_i7_sameplate': False, 'last_index_idx': 0,
+               'dual_index': True, 'i5_name': 'iTru5_01_F', 'i7_col': 21,
+               'i5_row': 5, 'i5_bases': 'GTGAGACT', 'i5_col': 0}
+        self.assertEqual(obs, exp)
+
+        # testing errors
+
+        with self.assertRaises(ValueError) as ctx:
+            db.get_shotgun_index_information(100000000000000)
+        self.assertEqual(ctx.exception.message,
+                         "100000000000000 shotgun_index_id doesn't exist")
+
     def test_normalize_shotgun_plate(self):
         before = datetime.datetime.now()
         self._create_test_echo()
