@@ -60,6 +60,7 @@ class ConfigurationTests(TestCase):
         self.assertEqual(config.qiita_client_id, 'CLIENTID')
         self.assertEqual(config.qiita_client_secret, 'CLIENTSECRET')
         self.assertEqual(config.qiita_server_cert, '/some/path/to/server.crt')
+        self.assertEqual(config.qiita_uploads_dir, '/uploads/dir/')
 
     def test_get_platemapper(self):
         config = KniminConfig(self.config_fp)
@@ -100,6 +101,7 @@ HOST = https://127.0.0.1:21174
 CLIENT_ID = CLIENTID
 CLIENT_SECRET = CLIENTSECRET
 SERVER_CERT = /some/path/to/server.crt
+UPLOADS_DIR = /uploads/dir/
 
 [platemapper]
 SAMPLE_SHEET_DIR = /some/path/to/dir/

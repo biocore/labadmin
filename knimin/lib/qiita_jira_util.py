@@ -8,6 +8,10 @@
 
 from collections import defaultdict
 from os.path import join
+from functools import partial
+from glob import glob
+from os.path import basename
+from shutil import copy
 
 from tornado.escape import json_encode
 
@@ -47,10 +51,10 @@ def _update_qiita_samples(study_id, blanks, replicates):
     ----------
     study_id : int
         The study id
-    blanks : list of (str, int, int, int)
-        For each blank to add, the blank name, plate, row and column
-    replicates : list of (str, int, int, int)
-        For each technical replicate, the sample id, plate, row and column
+    blanks : list of str
+        The sample id of the blank
+    replicates : list of (str, str)
+        For each technical replicate, the new name and the original sample name
 
     Raises
     ------
@@ -58,6 +62,7 @@ def _update_qiita_samples(study_id, blanks, replicates):
         If there is any problem accessing the Qiita REST API
     """
     # Existing metadata_categories
+    study_id = int(study_id)
     sc, categories = qiita_client.get(
         '/api/v1/study/%s/samples/info' % study_id)
     if sc != 200:
@@ -76,23 +81,15 @@ def _update_qiita_samples(study_id, blanks, replicates):
             "Can't retrieve study (%s) metadata from Qiita: %s %s"
             % (study_id, sc, msg))
 
-    new_md = {}
     # This is the blanks metadata, mark all categories as not applicable
     blanks_md = {c: 'Not applicable' for c in categories}
-    # Construct the metadata for the blanks
-    for sample_id, plate, row, col in blanks:
-        # We need to make sure that the blanks are also pre-fixed with the
-        # study id. Otherwise, is both blanks and study samples are being
-        # added at once, the study samples will be prefixed twice
-        new_sample_id = "%s.%s" % (
-            study_id, _format_sample_id(sample_id, plate, row, col))
-        new_md[new_sample_id] = blanks_md
+    new_md = {sid: blanks_md for sid in blanks}
 
     # Construct the metadata for the technical replicates
-    for sample_id, plate, row, col in replicates:
-        new_sample_id = _format_sample_id(sample_id, plate, row, col)
+    for new_sample_id, old_sample_id in replicates:
         # Use the metadata of the original sample
-        new_md[new_sample_id] = dict(zip(categories, md['samples'][sample_id]))
+        new_md[new_sample_id] = dict(
+            zip(categories, md['samples'][old_sample_id]))
 
     # Making sure that there is something to send
     if new_md:
@@ -131,6 +128,40 @@ def _create_kl_jira_project(jira_user, jira_template, study_id, title):
     jira_handler.create_issues(issues, prefetch=False)
 
     return jira_project
+
+
+def _assess_replicates(prep):
+    """Renames the technical replciates in the prep information
+
+    Parameters
+    ----------
+    prep : pandas.DataFrame
+        The prep information
+
+    Returns
+    -------
+    pandas.DataFrame, list of str
+        The updated pandas dataframe and a list of replicates
+    """
+    counts = prep.sample_name.value_counts()
+    replicates = counts[counts > 1].index.tolist()
+    # Rename the samples by adding the plate id and the well.
+    # Rename the column sample_name
+    prep['original_sample_name'] = prep['sample_name'].copy()
+    # Rename the samples as needed
+    new_sample_ids = []
+    for r in replicates:
+        for i in prep[prep['original_sample_name'] == r].index:
+            sample_id = _format_sample_id(
+                prep.original_sample_name[i], prep.dna_plate_id[i],
+                prep.row[i] - 1, prep.col[i] - 1)
+            prep.loc[i, 'sample_name'] = sample_id
+            new_sample_ids.append(sample_id)
+
+    # It is ensured that the sample_name column contain unique IDs
+    prep.set_index('sample_name', inplace=True, drop=True)
+
+    return prep, new_sample_ids
 
 
 def create_study(title, abstract, description, alias, qiita_user,
@@ -223,73 +254,6 @@ def sync_qiita_study_samples(study_id):
     db.set_study_samples(study_id, samples)
 
 
-def extract_sample_plates(sample_plate_ids, email, robot, kit_lot,
-                          tool, notes=None):
-    """Stores the extraction information for the given sample_plates
-
-    Updates Qiita and Jira accordingly
-
-    Parameters
-    ----------
-    sample_plate_ids : list of int
-        The sample plates being extracted
-    email : str
-        The email of the user preparing the extraction
-    robot : str
-        The name of the robot used for extraction
-    kit_lot : str
-        The kit lot used for extraction
-    tool : str
-        The name of the tool used for extraction
-    notes : str, optional
-        Notes added to the extracted plates
-
-    Returns
-    -------
-    list of int
-        The extracted DNA plates ids
-    """
-    # Store the DNA extraction information on the DB
-    dna_plates = db.extract_sample_plates(sample_plate_ids, email, robot,
-                                          kit_lot, tool, notes)
-
-    study_br = defaultdict(lambda: {'blanks': [], 'replicates': []})
-
-    for dna_plate_id, sample_plate_id in zip(dna_plates, sample_plate_ids):
-        sample_plate = db.read_sample_plate(sample_plate_id)
-
-        # Retrieve the blank samples from the plate
-        blanks = [(s_id, dna_plate_id, row, col)
-                  for s_id, row, col in db.get_blanks_from_sample_plate(
-                    sample_plate_id)]
-
-        if blanks:
-            for study in sample_plate['studies']:
-                study_br[study]['blanks'].extend(blanks)
-
-        # Retrieve the technical replicates from the plate
-        replicates = db.get_replicates_from_sample_plate(sample_plate_id)
-        for sample_id in replicates:
-            sample = db.read_sample(sample_id)
-            wells = replicates[sample_id]
-            study_br[sample['study_id']]['replicates'].extend(
-                [(sample_id, dna_plate_id, well[0], well[1])
-                 for well in wells])
-
-    for study_id in study_br:
-        # Need to update Qiita with the blanks and replicates
-        _update_qiita_samples(study_id, study_br[study_id]['blanks'],
-                              study_br[study_id]['replicates'])
-
-        # Need to update Jira - the issue to update is issue 4
-        study = db.read_study(study_id)
-        issue_key = '%s-4' % study['jira_id']
-        jira_handler.add_comment(
-            issue_key, "Samples have been plated")
-
-    return dna_plates
-
-
 def prepare_targeted_libraries(plate_links, email, robot, tm300tool,
                                tm50tool, mastermix_lot, water_lot):
     """Stores the targeted plate library information
@@ -378,6 +342,18 @@ def create_sequencing_run(pool_id, email, reagent_type, reagent_lot, platform,
     run = db.read_sequencing_run(run_id)
     pool = db.read_pool(run['pool_id'])
 
+    # To make sure that we generate the sample sheet correctly, we need to
+    # assess the technical replicates at this time
+    preps = db.generate_prep_information(run_id)
+    for prep in preps:
+        prep, replicates = _assess_replicates(prep)
+        # Update qiita with blanks and replicates
+        blanks = prep[prep.is_blank].index.tolist()
+        replicates = [(sid, prep.original_sample_name[sid])
+                      for sid in replicates if sid not in blanks]
+        study_id = prep.study_id.iloc[0]
+        _update_qiita_samples(study_id, blanks, replicates)
+
     # Write the sample sheet
     instrument_type = 'miseq' if instrument_model == 'MiSeq' else 'hiseq'
     run_type = "Target Gene" if pool['targeted_pools'] else "Shotgun"
@@ -418,6 +394,148 @@ def create_sequencing_run(pool_id, email, reagent_type, reagent_lot, platform,
         jira_links.append([project_name, issue_link])
 
     return run_id, jira_links
+
+
+def _copy_sequence_files_to_qiita(prep, run_path):
+    """
+    Parameters
+    ----------
+    prep : pandas.DataFrame
+        The prep information
+    run_path : str
+        Path to the directory with the sequencing files
+
+    Returns
+    -------
+    str, list of (str, str)
+        The artifact type and a list of filepaths with
+        their Qiita filepath type
+    """
+    full_fps = []
+    path_builder = partial(join, run_path)
+    study_id = str(prep.study_id.iloc[0])
+    # The structure of the files is different depending on whether the
+    # run is of shotgun / target gene and on Hiseq/MiSeq
+    if 'target_gene' in prep:
+        # Target gene prep. The output is a non-demultiplexed FASTQ
+        atype = 'FASTQ'
+        # The files are named with the run_name
+        run_name = prep.run_name.iloc[0]
+        # Start with the forward reads
+        full_fps.extend(
+            [(fp, 'raw_forward_seqs')
+             for fp in glob(path_builder('%s_*_R1_*.fastq.gz' % run_name))])
+        # Add the reverse reads
+        full_fps.extend(
+            [(fp, 'raw_reverse_seqs')
+             for fp in glob(path_builder('%s_*_R2_*.fastq.gz' % run_name))])
+        # Add the index reads
+        full_fps.extend(
+            [(fp, 'raw_barcodes')
+             for fp in glob(path_builder('%s_*_I1_*.fastq.gz' % run_name))])
+    else:
+        # Shotgun prep. The output is per sample fastq
+        atype = 'per_sample_FASTQ'
+        # The samples are prefixed with the study id - take advantage of that
+        # Start with the forward reads
+        full_fps.extend(
+            [(fp, 'raw_forward_seqs')
+             for fp in glob(path_builder('%s_*_R1_*.fastq.gz' % study_id))])
+        # Add the reverse reads
+        full_fps.extend(
+            [(fp, 'raw_reverse_seqs')
+             for fp in glob(path_builder('%s_*_R2_*.fastq.gz' % study_id))])
+
+    qiita_study_path = join(config.qiita_uploads_dir, study_id)
+
+    filepaths = []
+    for full_fp, fp_type in full_fps:
+        file_name = basename(full_fp)
+        copy(full_fp, qiita_study_path)
+        filepaths.append((file_name, fp_type))
+
+    return atype, filepaths
+
+
+def complete_sequencing_run(success, run_id, run_path, logs):
+    """Updates the Jira project and attaches the sequencing data to run_path
+
+    Parameters
+    ----------
+    success : bool
+        Whether the run was successful
+    run_id : int
+        The run id
+    run_path : str
+        Path to the directory with the sequencing files
+    logs : list of str
+        The list of log paths
+    """
+    run = db.read_sequencing_run(run_id)
+
+    # Retrieve the prep template information from the DB)
+    preps = db.generate_prep_information(run_id)
+    studies = [prep.study_id.iloc[0] for prep in preps]
+
+    failures = defaultdict(list)
+    if success:
+        jira_comment = "Sequencing complete. Path to raw files: %s" % run_path
+        # Push the prep information to Qiita
+        for prep in preps:
+            # All the rows have the same value, so I just need to access
+            # to a random row to get the study_id -> 0 is guaranteed to exist
+            study_id = prep.study_id.iloc[0]
+
+            # Copy the sequencing files to relevant Qiita folders
+            atype, filepaths = _copy_sequence_files_to_qiita(prep, run_path)
+
+            dtype = (prep.target_gene.iloc[0]
+                     if 'target_gene' in prep else 'Metagenomics')
+
+            prep, _ = _assess_replicates(prep)
+            prep['created_on'] = prep.created_on.apply(lambda x: x.isoformat())
+            # Cast everything to string: some types generate issues
+            prep = prep.astype(str)
+
+            sc, response = qiita_client.post(
+                '/api/v1/study/%s/preparation?data_type=%s'
+                % (study_id, dtype), data=prep.T.to_dict(), as_json=True)
+            if sc != 201:
+                msg = response['message'] if response else 'No error specified'
+                failures[study_id].append(
+                    "[CRITICAL]: FAILURE: Creating Prep Information in study "
+                    "%s failed: (%s) %s" % (study_id, sc, msg))
+                continue
+
+            # At this point the prep information has been created and the
+            # sequencing files are there. Attach the files to the prep
+            prep_id = response['id']
+            payload = {'artifact_type': atype,
+                       'filepaths': filepaths,
+                       'artifact_name': run['name']}
+            sc, response = qiita_client.post(
+                '/api/v1/study/%s/preparation/%s/artifact'
+                % (study_id, prep_id), data=payload, as_json=True)
+            if sc != 201:
+                msg = response['message'] if response else "No error specified"
+                failures[study_id].append(
+                    "[CRITICAL]: FAILURE: Attaching files to prep information "
+                    "%s of study %s failed: (%s) %s"
+                    % (prep_id, study_id, sc, msg))
+    else:
+        jira_comment = (
+            "[CRITICAL]: FAILURE: Sequencing run %s (ID: %s). Logs:\n - %s"
+            % (run['name'], run['id'], '\n - '.join(logs)))
+
+    # Update the status in Jira independently of run status
+    for study_id in set(studies):
+        study = db.read_study(study_id)
+        issue_key = '%s-5' % study['jira_id']
+        jira_handler.add_comment(issue_key, jira_comment)
+
+        error_comment = failures[study_id]
+        if error_comment:
+            jira_handler.add_comment(issue_key, '\n'.join(error_comment))
 
 
 # 1 - Project initiation

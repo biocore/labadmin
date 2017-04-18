@@ -159,7 +159,8 @@ class TestPMSamplePlateHandler(TestHandlerBase):
                  'samples': {'all': [],
                              'plated': {}}}],
                'layout': []}
-        self.assertEqual(json_decode(response.body), exp)
+        obs = json_decode(response.body)
+        self.assertEqual(obs, exp)
 
         # Add some samples to the study
         samples = ['9999.Sample1', '9999.Sample2', '9999.Sample3']
@@ -167,7 +168,10 @@ class TestPMSamplePlateHandler(TestHandlerBase):
         response = self.get('/pm_sample_plate?plate_id=%s' % plate_id)
         self.assertEqual(response.code, 200)
         exp['studies'][0]['samples']['all'] = samples
-        self.assertEqual(json_decode(response.body), exp)
+        obs = json_decode(response.body)
+        obs['studies'][0]['samples']['all'] = sorted(
+            obs['studies'][0]['samples']['all'])
+        self.assertEqual(obs, exp)
 
         # Plate some samples in some other plate
         plate_id_2 = db.create_sample_plate('TestPlate2', plate_type['id'],
@@ -182,7 +186,8 @@ class TestPMSamplePlateHandler(TestHandlerBase):
         response = self.get('/pm_sample_plate?plate_id=%s' % plate_id)
         self.assertEqual(response.code, 200)
         exp['studies'][0]['samples']['plated'][str(plate_id_2)] = [samples[0]]
-        self.assertEqual(json_decode(response.body), exp)
+        obs = json_decode(response.body)
+        self.assertEqual(obs, exp)
 
         # Plate some samples in the current plate
         db.write_sample_plate_layout(plate_id, layout)

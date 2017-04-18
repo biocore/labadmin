@@ -29,6 +29,7 @@ install:
   - ipython profile create qiita-general --parallel
   - export QIITA_SERVER_CERT=$HOME/miniconda3/envs/qiita_env/lib/python2.7/site-packages/qiita_core/support_files/server.crt
   - export MOI_CONFIG_FP=$HOME/miniconda3/envs/qiita_env/lib/python2.7/site-packages/qiita_core/support_files/config_test.cfg
+  - export QIITA_UPLOADS_DIR=$HOME/miniconda3/envs/qiita_env/lib/python2.7/site-packages/qiita_db/support_files/test_data/uploads/
   - qiita-env start_cluster qiita-general
   - qiita-env make --no-load-ontologies
   - source deactivate
@@ -71,7 +72,8 @@ script:
   - $PYTHONPATH
   - cd $TRAVIS_BUILD_DIR
   # We need to add the Qiita server cert path to the config file
-  - sed "s:SERVER_CERT =:SERVER_CERT = $QIITA_SERVER_CERT:g" $TRAVIS_BUILD_DIR/knimin/config.txt.example > $TRAVIS_BUILD_DIR/knimin/config.txt
+  - sed "s:SERVER_CERT =:SERVER_CERT = $QIITA_SERVER_CERT:g" $TRAVIS_BUILD_DIR/knimin/config.txt.example > $TRAVIS_BUILD_DIR/knimin/config2.txt
+  - sed "s:UPLOADS_DIR =:UPLOADS_DIR = $QIITA_UPLOADS_DIR:g" $TRAVIS_BUILD_DIR/knimin/config2.txt > $TRAVIS_BUILD_DIR/knimin/config.txt
   - nosetests --verbose --with-doctest --with-coverage
   - flake8 knimin setup.py scripts
   - phantomjs knimin/tests/javascript/runner.js knimin/tests/javascript/index.html
