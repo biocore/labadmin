@@ -38,6 +38,12 @@ class TestDataAccess(TestCase):
                 print("Database clean-up failed. Downstream tests might be "
                       "affected by this! Reason: %s" % format_exc(e))
 
+        # reseting DB, iTru is 3
+        sql = """UPDATE pm.shotgun_index_tech
+                 SET last_index_idx = 0
+                 WHERE shotgun_index_tech_id = 3"""
+        db._con.execute(sql)
+
     def _create_test_data_targeted_plate(self):
         # Create a study
         db.create_study(9999, title='LabAdmin test project', alias='LTP',
@@ -1452,6 +1458,60 @@ class TestDataAccess(TestCase):
 
             self.assertEqual(obs[k], exp_rnsp[k])
 
+    def test_generate_i5_i7_indexes(self):
+        # these tests will depend on what's in the db, which are added
+        # just below -- Add shotgun_index valid values
+
+        # generate 10 and check the values are just fine
+        obs = db.generate_i5_i7_indexes('iTru', 10)
+        exp = [1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L]
+        self.assertEqual(obs, exp)
+
+        # ask for another 10 and make sure it starts where it should be
+        obs = db.generate_i5_i7_indexes('iTru', 10)
+        exp = [11L, 12L, 13L, 14L, 15L, 16L, 17L, 18L, 19L, 20L]
+        self.assertEqual(obs, exp)
+
+        # test that we reset index correctly
+        # iTru is 3 and we have 1360 valid barcodes
+        sql = """UPDATE pm.shotgun_index_tech
+                 SET last_index_idx = 1358
+                 WHERE shotgun_index_tech_id = 3"""
+        db._con.execute(sql)
+
+        obs = db.generate_i5_i7_indexes('iTru', 10)
+        exp = [1359L, 1360L, 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L]
+        self.assertEqual(obs, exp)
+
+        # testing errors
+
+        with self.assertRaises(ValueError) as ctx:
+            db.generate_i5_i7_indexes('Should Error', 10)
+        self.assertEqual(
+            ctx.exception.message, "Not a valid shotgun index technology: "
+            "Should Error")
+
+        with self.assertRaises(ValueError) as ctx:
+            db.generate_i5_i7_indexes('BiooNEXTflex-HT', 10)
+        self.assertEqual(ctx.exception.message,
+                         "'BiooNEXTflex-HT' doesn't have any barcodes")
+
+    def test_get_shotgun_index_information(self):
+        obs = db.get_shotgun_index_information(100)
+        exp = {'shotgun_index_id': 100L, 'i7_row': 3, 'name': 'iTru',
+               'i7_bases': 'TCGGTTAC', 'i7_name': 'iTru7_109_04',
+               'i5_i7_sameplate': False, 'last_index_idx': 0,
+               'dual_index': True, 'i5_name': 'iTru5_01_F', 'i7_col': 21,
+               'i5_row': 5, 'i5_bases': 'GTGAGACT', 'i5_col': 0}
+        self.assertEqual(obs, exp)
+
+        # testing errors
+
+        with self.assertRaises(ValueError) as ctx:
+            db.get_shotgun_index_information(100000000000000)
+        self.assertEqual(ctx.exception.message,
+                         "100000000000000 shotgun_index_id doesn't exist")
+
     def test_normalize_shotgun_plate(self):
         before = datetime.datetime.now()
         self._create_test_echo()
@@ -1467,8 +1527,7 @@ class TestDataAccess(TestCase):
         exp_qpcr_cp = np.zeros((16, 24))
         exp_qpcr_con = None
         exp_qpcr_cp = None
-        shotgun_i5_index = None
-        shotgun_i7_index = None
+        shotgun_index = None
 
         exp_rnsp = {'created_on': datetime.date.today(),
                     'email': email,
@@ -1484,8 +1543,7 @@ class TestDataAccess(TestCase):
                     'qpcr_email': None,
                     'qpcr_std_ladder': None,
                     'qpcr': None,
-                    'shotgun_i5_index': shotgun_i5_index,
-                    'shotgun_i7_index': shotgun_i7_index,
+                    'shotgun_index': shotgun_index,
                     'discarded': False,
                     'plate_normalization_water': exp_water,
                     'plate_normalization_sample': exp_sample,
@@ -1514,37 +1572,27 @@ class TestDataAccess(TestCase):
                 'limit_freeze_thaw_cycles': 100L}]
         self.assertEqual(obs, exp)
 
-        _ids = ['iTru5_24_G', 'iTru7_101_01', 'iTru7_101_02', 'NEXTflex78']
-        i5_layout = [[choice(_ids) for c in range(24)] for r in range(16)]
-        i7_layout = [[choice(_ids) for c in range(24)] for r in range(16)]
+        _ids = range(1, 10)
+        barcode_layout = [[choice(_ids) for c in range(24)] for r in range(16)]
         db.prepare_shotgun_libraries(
             nid, email, mosquito, shotgun_library_prep_kit,
-            shotgun_index_aliquot_id, i5_layout, i7_layout)
+            shotgun_index_aliquot_id, barcode_layout)
         obs = db.read_normalized_shotgun_plate(nid)
         exp_rnsp['mosquito'] = mosquito_id
         exp_rnsp['shotgun_library_prep_kit'] = shotgun_library_prep_kit
-        exp_rnsp['shotgun_i5_index'] = i5_layout
-        exp_rnsp['shotgun_i7_index'] = i7_layout
+        exp_rnsp['shotgun_index'] = barcode_layout
         self._basic_test_steps_for_normalized_shotgun_plate(
             before, after, obs, exp_rnsp)
 
         # testing errors for prepare_shotgun_libraries
-        i7_layout = np.random.rand(7, 7)
+        barcode_layout = np.random.rand(7, 7)
         with self.assertRaises(ValueError) as ctx:
             db.prepare_shotgun_libraries(
                 nid, email, mosquito, shotgun_library_prep_kit,
-                shotgun_index_aliquot_id, i5_layout, i7_layout)
+                shotgun_index_aliquot_id, barcode_layout)
         self.assertEqual(
-            ctx.exception.message, "i7_layout wrong shape, should be: (16, "
-            "24) but is: (7, 7)")
-        i5_layout = np.random.rand(5, 5)
-        with self.assertRaises(ValueError) as ctx:
-            db.prepare_shotgun_libraries(
-                nid, email, mosquito, shotgun_library_prep_kit,
-                shotgun_index_aliquot_id, i5_layout, i7_layout)
-        self.assertEqual(
-            ctx.exception.message, "i5_layout wrong shape, should be: (16, "
-            "24) but is: (5, 5)")
+            ctx.exception.message, "barcode_layout wrong shape, should be: "
+            "(16, 24) but is: (7, 7)")
 
         # tests for qpcr_shotgun
         # [0] only one result and [name] we just want the name
