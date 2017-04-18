@@ -475,7 +475,7 @@ class TestDataAccess(TestCase):
     # - PlateMapper functions tests - #
     def test_get_blanks(self):
         obs = db.get_blanks()
-        self.assertEqual(obs, ['BLANK'])
+        self.assertItemsEqual(obs, ['BLANK', 'SWAB', 'PCRCONTROL'])
 
     def test_get_studies(self):
         obs = db.get_studies()
