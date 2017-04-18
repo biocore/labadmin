@@ -8,7 +8,6 @@
 from unittest import main
 from functools import partial
 from random import choice
-from traceback import format_exc
 
 import numpy as np
 
@@ -67,7 +66,7 @@ class TestPMShotgunPool(TestHandlerBase):
                                          np.arange(384).reshape(16, 24),
                                          np.arange(384).reshape(16, 24) * 10)
 
-        obs = db.read_normalized_shotgun_plate(nid)
+        db.read_normalized_shotgun_plate(nid)
 
         # tests for prepare_shotgun_libraries
         # the mosquito values are set 1: Mosquito1
@@ -79,7 +78,7 @@ class TestPMShotgunPool(TestHandlerBase):
             'new index_aliquot_id', 'This is our newest index aliquot', 100)
         self._clean_up_funcs.append(
             partial(db.delete_shotgun_index_aliquot, shotgun_index_aliquot_id))
-        obs = db.read_shotgun_index_aliquot()
+        db.read_shotgun_index_aliquot()
 
         _ids = ['iTru5_24_G', 'iTru7_101_01', 'iTru7_101_02', 'NEXTflex78']
         i5_layout = [[choice(_ids) for c in range(24)] for r in range(16)]
