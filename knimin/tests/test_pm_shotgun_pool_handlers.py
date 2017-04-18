@@ -114,6 +114,7 @@ class TestPMShotgunPool(TestHandlerBase):
                 'total-quantity=10', 'plate-id=1', 'plate-name=Some%20Name',
                 'qpcr-machine=bob']
         response = self.post('/pm_shotgun_pool/%s' % '&'.join(args), data=data)
+        print response
         self.assertEqual(response.code, 403)
 
     def test_post(self):
