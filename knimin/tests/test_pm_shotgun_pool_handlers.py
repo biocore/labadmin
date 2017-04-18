@@ -112,7 +112,8 @@ class TestPMShotgunPool(TestHandlerBase):
         args = ['minimum-concentration=1', 'floor-concentration=1',
                 'total-quantity=10', 'plate-id=1', 'plate-name=Some%20Name',
                 'qpcr-machine=bob']
-        response = self.post('/pm_shotgun_pool/%s' % '&'.join(args), data=data)
+        response = self.post('/pm_shotgun_pool/?%s' % '&'.join(args),
+                             data=data)
         print response
         self.assertEqual(response.code, 403)
 
@@ -125,7 +126,8 @@ class TestPMShotgunPool(TestHandlerBase):
         args = ['minimum-concentration=1', 'floor-concentration=1',
                 'total-quantity=10', 'plate-id=%s' % nid,
                 'plate-name=Some%20Name', 'qpcr-machine=bob']
-        response = self.post('/pm_shotgun_pool/%s' % '&'.join(args), data=data)
+        response = self.post('/pm_shotgun_pool/?%s' % '&'.join(args),
+                             data=data)
 
         self.assertEqual(response.code, 200)
 
