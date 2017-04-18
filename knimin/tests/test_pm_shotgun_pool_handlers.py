@@ -17,16 +17,6 @@ from knimin import db
 
 
 class TestPMShotgunPool(TestHandlerBase):
-    def setUp(self):
-        self._clean_up_funcs = []
-
-    def tearDown(self):
-        for f in self._clean_up_funcs:
-            try:
-                f()
-            except Exception as e:
-                print("Database clean-up failed. Downstream tests might be "
-                      "affected by this! Reason: %s" % format_exc(e))
 
     # _create_test_echo and _create_test_shotgun_plate were copied from
     # test_data_access.py
