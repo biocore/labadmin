@@ -12,7 +12,7 @@ from knimin.handlers.access_decorators import set_access
 class BarcodeUtilHelper(object):
     def get_ag_details(self, barcode):
         ag_details = db.getAGBarcodeDetails(barcode)
-        _, failures = db.pulldown([barcode], [])
+        md, failures = db.pulldown([barcode], [])
 
         if len(ag_details) == 0 and failures:
             div_id = "no_metadata"
@@ -64,7 +64,7 @@ class BarcodeUtilHelper(object):
             message = ("In American Gut project group but no "
                        "American Gut info for barcode")
             ag_details['email_type'] = "-1"
-        return div_id, message, ag_details
+        return div_id, message, ag_details, md
 
     def update_ag_barcode(self, barcode, login_user, login_email, email_type,
                           sent_date, send_mail, sample_date, sample_time,
@@ -225,7 +225,7 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
         # get project info for div
         ag_details = []
         if parent_project == 'American Gut':
-            div_id, message, ag_details = self.get_ag_details(barcode)
+            div_id, message, ag_details, md = self.get_ag_details(barcode)
         else:
             div_id = "verified"
             message = "Barcode Info is correct"
@@ -296,6 +296,10 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
             email_msg, ag_update_msg = self.update_ag_barcode(
                 barcode, login_user, login_email, email_type, sent_date,
                 send_mail, sample_date, sample_time, other_text)
+            div_id, message, ag_details, md = self.get_ag_details(barcode)
+            if div_id == 'verified':
+                gen_update_msg = update_ag_metadata(barcode, md)
+
         self.render("barcode_util.html", div_and_msg=None,
                     barcode_projects=[],
                     parent_project=None,
@@ -305,3 +309,22 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
                     msgs=(gen_update_msg, email_msg, ag_update_msg,
                           project_msg),
                     currentuser=self.current_user)
+
+
+def update_ag_metadata(barcode, md):
+    sc, response = qiita_client.get('/api/v1/study/10317/samples')
+    if sc != 200:
+        return "Unable to get sample IDs from Qiita"
+
+    existing = set(json_decode(response.body))
+    if barcode in existing:
+        return "Metadata for %s already exists in Qiita" % barcode
+
+    md = pd.read_csv(md, sep='\t', dtype=str)
+    md.rename({'#SampleID': 'sample_name'}, inplace=True)
+    sc, response = qiita_client.patch('/api/v1/study/10317',
+                                      data=md.todict(),
+                                      as_json=True)
+
+    if sc != 201:
+        return "Metadata for AG sample %s added into Qiita"
