@@ -29,14 +29,18 @@
     if (plate['bool_blanks'][row][col]) {
       val = $('#pm-filter-blanks').val();
       plate['color_class'][row][col] = 'pm-conc-blank';
-    } else if (val < 0 || val >= $('#pm-filter-max').val()) {
-      // If the value is negative or bigger than maximum we need to set to 0
+    } else if (val < 0) {
+      // If the value is negative we need to set to 0
       val = 0;
       plate['color_class'][row][col] = 'pm-conc-diff';
+    } else if (val >= $('#pm-filter-max').val()) {
+      // If the value is above the maximum we need to set to 2
+      val = 2;
+      plate['color_class'][row][col] = 'pm-conc-max';
     } else if (val < $('#pm-filter-min').val()) {
       // If the value is smaller than the minimum we set it to the minimum
       val = $('#pm-filter-min').val();
-      plate['color_class'][row][col] = 'pm-conc-min'
+      plate['color_class'][row][col] = 'pm-conc-min';
     }
     return val;
   };
@@ -161,8 +165,8 @@
       <input type="number" id="pm-filter-min" min=0 value=1 step=0.001 />
     </div>
     <div class="col-xs-4 form-group">
-      <label>Maximum concentration: (ng/&mu;L)</br>(values higher than this will be set to 0)</label>
-      <input type="number" id="pm-filter-max" min=0 value=15 step=0.001 />
+      <label>Maximum concentration: (&mu;L)</br>(values higher than this will be set to 0)</label>
+      <input type="number" id="pm-filter-max" min=0 value=20 step=0.001 />
     </div>
     <div class="col-xs-4 form-group">
       <button class="btn btn-info" id="pm-epmotion"><span class='glyphicon glyphicon-export'></span> Download EPMotion file</button>
