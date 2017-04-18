@@ -4,6 +4,10 @@
 
 <div class="container">
   <form enctype="multipart/form-data" action="/pm_shotgun_pool/" method="post">
+
+    <input type="hidden" value="{{plate_id}}" name="plate-id">
+    <input type="hidden" value="{{name}}" name="plate-name">
+
     <div class="row">
       <!-- minimum concentration -->
       <div class="col-xs-4 form-group">
@@ -22,8 +26,17 @@
       </div>
     </div>
 
-    <!-- read out file -->
     <div class="row">
+      <!-- qpcr machine select -->
+      <div class="col-xs-6 form-group">
+        <label>qPCR Machine</label>
+        <select name='qpcr-machine'>
+          {% for machine in machines %}
+            <option value='{{machine}}'>{{machine}}</option>
+          {% end %}
+        </select>
+      </div>
+      <!-- read out file -->
       <div class="col-xs-6 form-group">
         <label>qPCR read out file</label>
         <input class="form-control" type="file" name="qpcr-readout-fp" required/>
@@ -39,4 +52,3 @@
   </form>
 </div>
 {% end %}
-
