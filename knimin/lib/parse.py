@@ -7,6 +7,7 @@
 # -----------------------------------------------------------------------------
 
 from StringIO import StringIO
+import io
 
 import pandas as pd
 import numpy as np
@@ -94,3 +95,84 @@ def parse_qpcr_object(contents):
         result[r, c] = value
 
     return result
+
+
+def _find_section(lines, label):
+    """Find a section, eg [EXCEPTIONS]
+
+    Parameters
+    ----------
+    lines : list of str
+        The data to search over
+    label : str
+        The section header to search for
+
+    Returns
+    -------
+    int
+        The index of the header
+    int
+        The index of the first empty line following the section, or the index
+        position of the end of the file.
+
+    Raises
+    ------
+    ValueError
+        If the section is not found
+    """
+    start = -1
+    end = len(lines)
+    for idx, line in enumerate(lines):
+        if line.startswith(label):
+            start = idx
+            break
+
+    if start == -1:
+        raise ValueError('%s section appears to be missing' % label)
+
+    for idx, line in enumerate(lines[start:], start + 1):
+        if not line or line == '':
+            end = idx
+            break
+
+    return start, end
+
+
+def parse_echo(data):
+    """Parse the Echo output file
+
+    Parameters
+    ----------
+    data : str
+        A str representation of the file
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame composed of the [EXCEPTIONS] section
+    pd.DataFrame
+        A DataFrame composed of the [DETAILS] section
+
+    Raises
+    ------
+    ValueError
+        If the header is missing
+        If the exceptions section is missing
+        If the details section is missing
+    """
+    data = data.splitlines()
+    if not data[0].startswith('Run ID'):
+        raise ValueError('File header appears to be missing')
+
+    exception_start, exception_end = _find_section(data, '[EXCEPTIONS]')
+    details_start, details_end = _find_section(data, '[DETAILS]')
+
+    exception_lines = data[exception_start+1:exception_end]
+    exception_section = io.StringIO(u'\n'.join(exception_lines))
+    exceptions = pd.read_csv(exception_section, dtype=str)
+
+    details_lines = data[details_start+1:details_end]
+    details_section = io.StringIO(u'\n'.join(details_lines))
+    details = pd.read_csv(details_section, dtype=str)
+
+    return exceptions, details
