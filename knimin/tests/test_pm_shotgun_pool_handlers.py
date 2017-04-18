@@ -6,6 +6,9 @@
 # The full license is in the file LICENSE, distributed with this software.
 # -----------------------------------------------------------------------------
 from unittest import main
+from functools import partial
+from random import choice
+from traceback import format_exc
 
 import numpy as np
 
@@ -74,44 +77,11 @@ class TestPMShotgunPool(TestHandlerBase):
                                          np.arange(384).reshape(16, 24),
                                          np.arange(384).reshape(16, 24) * 10)
 
-        after = datetime.datetime.now()
-        exp_sample = np.arange(384).reshape(16, 24)
-        exp_water = np.arange(384).reshape(16, 24) * 10
-        exp_qpcr_con = np.zeros((16, 24))
-        exp_qpcr_cp = np.zeros((16, 24))
-        exp_qpcr_con = None
-        exp_qpcr_cp = None
-        shotgun_i5_index = None
-        shotgun_i7_index = None
-
-        exp_rnsp = {'created_on': datetime.date.today(),
-                    'email': email,
-                    'echo': 'a valid echo name',
-                    'lp_date': None,
-                    'lp_email': None,
-                    'mosquito': None,
-                    'shotgun_plate_id': cid,
-                    'shotgun_normalized_plate_id': nid,
-                    'shotgun_library_prep_kit': None,
-                    'shotgun_adapter_aliquot': None,
-                    'qpcr_date': None,
-                    'qpcr_email': None,
-                    'qpcr_std_ladder': None,
-                    'qpcr': None,
-                    'shotgun_i5_index': shotgun_i5_index,
-                    'shotgun_i7_index': shotgun_i7_index,
-                    'discarded': False,
-                    'plate_normalization_water': exp_water,
-                    'plate_normalization_sample': exp_sample,
-                    'plate_qpcr_concentrations': exp_qpcr_con,
-                    'plate_qpcr_cps': exp_qpcr_cp}
-
         obs = db.read_normalized_shotgun_plate(nid)
 
         # tests for prepare_shotgun_libraries
         # the mosquito values are set 1: Mosquito1
         mosquito = 'Mosquito1'
-        mosquito_id = 1
         shotgun_library_prep_kit = 'new library_prep_kit'
         # as we need to insert a new index aliquot for testing, let's also
         # test the retrival
@@ -120,10 +90,6 @@ class TestPMShotgunPool(TestHandlerBase):
         self._clean_up_funcs.append(
             partial(db.delete_shotgun_index_aliquot, shotgun_index_aliquot_id))
         obs = db.read_shotgun_index_aliquot()
-        exp = [{'notes': 'This is our newest index aliquot',
-                'shotgun_index_aliquot_id': shotgun_index_aliquot_id,
-                'name': 'new index_aliquot_id',
-                'limit_freeze_thaw_cycles': 100L}]
 
         _ids = ['iTru5_24_G', 'iTru7_101_01', 'iTru7_101_02', 'NEXTflex78']
         i5_layout = [[choice(_ids) for c in range(24)] for r in range(16)]
@@ -132,6 +98,12 @@ class TestPMShotgunPool(TestHandlerBase):
             nid, email, mosquito, shotgun_library_prep_kit,
             shotgun_index_aliquot_id, i5_layout, i7_layout)
 
+        qpcr = db.get_property_options("qpcr")[0]['name']
+        qpcr_ladder = ''
+        qpcr_cp_values = np.zeros((16, 24))
+        qpcr_lib_concentration_values = np.zeros((16, 24))
+        db.qpcr_shotgun(nid, email, qpcr, qpcr_ladder, qpcr_cp_values,
+                        qpcr_lib_concentration_values)
         return nid
 
     def test_get_not_authed(self):
@@ -146,7 +118,6 @@ class TestPMShotgunPool(TestHandlerBase):
         self.assertIn('<h3>Shotgun Pooling', response.body)
 
     def test_post_not_authed(self):
-
         # don't exactly know what data to test with
         data = {'qpcr-readout-fp': 'file contents'}
         args = ['minimum-concentration=1', 'floor-concentration=1',
@@ -159,24 +130,19 @@ class TestPMShotgunPool(TestHandlerBase):
         nid = self._create_data()
         self.mock_login_admin()
 
-        # don't exactly know what data to test with
+        # don't exactly know what data to use here
         data = {'qpcr-readout-fp': 'file contents'}
         args = ['minimum-concentration=1', 'floor-concentration=1',
-                'total-quantity=10', 'plate-id=1', 'plate-name=Some%20Name',
-                'qpcr-machine=bob']
+                'total-quantity=10', 'plate-id=%s' % nid,
+                'plate-name=Some%20Name', 'qpcr-machine=bob']
         response = self.post('/pm_shotgun_pool/' % '&'.join(args), data=data)
+
         self.assertEqual(response.code, 200)
 
-        qpcr = db.get_property_options("qpcr")[0]['name']
-        qpcr_ladder = ''
-        qpcr_cp_values = np.zeros((16, 24))
-        qpcr_lib_concentration_values = np.zeros((16, 24))
-        # db.qpcr_shotgun(nid, email, qpcr, qpcr_ladder, qpcr_cp_values,
-        #                 qpcr_lib_concentration_values)
         obs = db.read_normalized_shotgun_plate(nid)
-        exp_rnsp['qpcr'] = qpcr
-        exp_rnsp['qpcr_std_ladder'] = qpcr_ladder
-        exp_rnsp['plate_qpcr_cps'] = qpcr_cp_values
-        exp_rnsp['plate_qpcr_concentrations'] = qpcr_lib_concentration_values
-        self._basic_test_steps_for_normalized_shotgun_plate(
-            before, after, obs, exp_rnsp)
+        exp = {}
+        self.assertEqual(obs, exp)
+
+
+if __name__ == '__main__':
+    main()

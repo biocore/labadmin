@@ -8,6 +8,8 @@
 
 import datetime
 
+from tornado.web import authenticated
+
 from knimin import db
 from knimin.handlers.base import BaseHandler
 from knimin.handlers.access_decorators import set_access
