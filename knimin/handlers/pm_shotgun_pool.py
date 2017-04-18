@@ -27,8 +27,12 @@ class PMShotgunPool(BaseHandler):
         res = db.read_normalized_shotgun_plate(plate_id)
         machines = db.get_property_options('qpcr')
 
+        # normalized shotgun plates do not have a name, we need to fetch the
+        # name from the non-normalized table
+        res = db.read_shotgun_plate(res['shotgun_plate_id'])
+
         # echo is the name of the plate
-        self.render('pm_shotgun_pool.html', name=res['echo'],
+        self.render('pm_shotgun_pool.html', name=res['name'],
                     plate_id=plate_id, machines=machines)
 
     @authenticated
