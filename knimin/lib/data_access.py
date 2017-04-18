@@ -3447,7 +3447,7 @@ class KniminAccess(object):
             return plates
 
     def extract_sample_plates(self, sample_plate_ids, email, robot, kit_lot,
-                              tool, notes=None):
+                              tool, notes=None, name=None):
         """Stores the extraction information for the given sample_plates
 
         Parameters
@@ -3464,6 +3464,8 @@ class KniminAccess(object):
             The name of the tool used for extraction
         notes : str, optional
             Notes added to the extracted plates
+        name : str, optional
+            Name to add, if provided
 
         Raises
         ------
@@ -3483,19 +3485,32 @@ class KniminAccess(object):
                 "extraction_kit_lot", kit_lot)
             tool_id = self.get_or_create_property_option_id(
                 "extraction_tool", tool)
-            sql = """INSERT INTO pm.dna_plate (
-                        email, name, created_on, sample_plate_id,
-                        extraction_robot_id, extraction_kit_lot_id,
-                        extraction_tool_id, notes)
-                     VALUES (%s, (SELECT name
-                                  FROM pm.sample_plate WHERE
-                                  sample_plate_id = %s),
-                             now(), %s, %s, %s, %s, %s)
-                     RETURNING dna_plate_id"""
+            if name is None:
+                sql = """INSERT INTO pm.dna_plate (
+                            email, name, created_on, sample_plate_id,
+                            extraction_robot_id, extraction_kit_lot_id,
+                            extraction_tool_id, notes)
+                         VALUES (%s, (SELECT name
+                                      FROM pm.sample_plate WHERE
+                                      sample_plate_id = %s),
+                                 now(), %s, %s, %s, %s, %s)
+                         RETURNING dna_plate_id"""
+            else:
+                sql = """INSERT INTO pm.dna_plate (
+                            email, name, created_on, sample_plate_id,
+                            extraction_robot_id, extraction_kit_lot_id,
+                            extraction_tool_id, notes)
+                         VALUES (%s, name, now(), %s, %s, %s, %s, %s)
+                         RETURNING dna_plate_id"""
             dna_plates = []
             for p_id in sample_plate_ids:
-                TRN.add(sql, [email, p_id, p_id, robot_id, kit_lot_id,
-                              tool_id, notes])
+                if name is None:
+                    TRN.add(sql, [email, p_id, p_id, robot_id, kit_lot_id,
+                                  tool_id, notes])
+                else:
+                    TRN.add(sql, [email, name, p_id, p_id, robot_id,
+                                  kit_lot_id, tool_id, notes])
+
                 dna_plates.append(TRN.execute_fetchlast())
             return dna_plates
 
@@ -4096,7 +4111,8 @@ class KniminAccess(object):
             return [dict(row) for row in TRN.execute_fetchindex()]
 
     def prepare_targeted_libraries(self, plate_links, email, robot, tm300tool,
-                                   tm50tool, mastermix_lot, water_lot):
+                                   tm50tool, mastermix_lot, water_lot,
+                                   name=None):
         """Stores the targeted plate library information
 
         Parameters
@@ -4116,6 +4132,8 @@ class KniminAccess(object):
             The mastermix lot used
         water_lot : str
             The water lot used
+        name : str, optional
+            Name to add, if provided
 
         Returns
         -------
@@ -4151,7 +4169,8 @@ class KniminAccess(object):
                          processing_robot_id)
                      VALUES (%s, %s, now(), %s, %s, %s, %s, %s, %s, %s)
                      RETURNING targeted_plate_id"""
-            sql_args = [[self.read_dna_plate(l['dna_plate_id'])['name'],
+            sql_args = [[name if name is not None else
+                         self.read_dna_plate(l['dna_plate_id'])['name'],
                          email, l['dna_plate_id'], l['primer_plate_id'],
                          master_mix_id, tm300_id, tm50_id, water_id, robot_id]
                         for l in plate_links]
@@ -4404,14 +4423,16 @@ class KniminAccess(object):
         """
         if len(pools) == 0:
             raise ValueError("Provide at least on plate to pool.")
+
+        ts = datetime.now().strftime("%m%d%Y-%H%M%S")
         with TRN:
             for p in pools:
                 sql = """INSERT INTO pm.targeted_pool
                             (name, targeted_plate_id, volume)
                          VALUES (%s, %s, %s)
                          RETURNING targeted_pool_id"""
-                sql_args = [
-                    self.read_targeted_plate(p['targeted_plate_id'])['name'],
+                sql_args = ['%s %s' % (self.read_targeted_plate(
+                    p['targeted_plate_id'])['name'], ts),
                     p['targeted_plate_id'], p['volume']]
                 TRN.add(sql, sql_args)
                 target_pool_id = TRN.execute_fetchlast()
@@ -4803,7 +4824,7 @@ class KniminAccess(object):
 
     def create_sequencing_run(self, pool_id, email, sequencer, reagent_type,
                               reagent_lot, platform, instrument_model, assay,
-                              fwd_cycles, rev_cycles):
+                              fwd_cycles, rev_cycles, name=None):
         """Stores the sequencing run information
 
         Parameters
@@ -4828,6 +4849,8 @@ class KniminAccess(object):
             The number of forward cycles used.
         rev_cycles : int
             The number of reverse cycles used.
+        name : str, optional
+            Name to add, if provided
 
         Returns
         -------
@@ -4835,6 +4858,9 @@ class KniminAccess(object):
             The run id
         """
         with TRN:
+            if name is None:
+                name = self.read_pool(pool_id)['name']
+
             sql = """INSERT INTO pm.run (name, email, created_on,
                                          sequencer, run_pool_id,
                                          reagent_type, reagent_lot, platform,
@@ -4842,10 +4868,9 @@ class KniminAccess(object):
                                          rev_cycles)
                      VALUES (%s, %s, now(), %s, %s, %s, %s, %s, %s, %s, %s, %s)
                      RETURNING run_id"""
-            TRN.add(sql, [self.read_pool(pool_id)['name'], email,
-                          sequencer, pool_id, reagent_type, reagent_lot,
-                          platform, instrument_model, assay, fwd_cycles,
-                          rev_cycles])
+            TRN.add(sql, [name, email, sequencer, pool_id, reagent_type,
+                          reagent_lot, platform, instrument_model, assay,
+                          fwd_cycles, rev_cycles])
             return TRN.execute_fetchlast()
 
     def read_sequencing_run(self, run_id):
