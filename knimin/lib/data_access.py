@@ -11,6 +11,7 @@ from datetime import datetime, time, timedelta
 import json
 import re
 import numpy as np
+import pandas as pd
 
 from bcrypt import hashpw, gensalt
 from future.utils import viewitems
@@ -4903,6 +4904,118 @@ class KniminAccess(object):
                 # If the output from the SQL query is empty, it means that the
                 # plate did not exist
                 raise ValueError('Run %s does not exist' % run_id)
+
+    def generate_prep_information(self, run_id):
+        """Returns the preparation information for the run
+
+        Parameters
+        ----------
+        run_id : int
+            The id of the run
+
+        Returns
+        -------
+        list of pandas DataFrames
+        """
+        # Use this to retrieve the targeted prep information
+        tg_sql = """SELECT spl.sample_id as sample_name,ssample.study_id,
+                           tp.name as targeted_plate_name,
+                           dp.name as dna_plate_name, dp.email,
+                           dp.dna_plate_id,
+                           mm.name as master_mix_lot, r.name as robot,
+                           t300.name as tm300_8_tool,
+                           t50.name as tm50_8_tool,
+                           w.name as water_lot,
+                           -- row and col are incremented so that the well
+                           -- positions start at an offset of 1 instead of 0
+                           (spl.row + 1) as row, (spl.col + 1) as col,
+                           spl.notes as sample_plate_layout_notes,
+                           samp.details as sample_details,
+                           samp.is_blank as is_blank,
+                           tpp.linker_primer_sequence as primer,
+                           tpp.target_subfragment,
+                           tpp.target_gene,
+                           tppl.barcode_sequence as barcode,
+                           er.name as extraction_robot_name,
+                           ekl.name as extraction_kit_lot_name,
+                           et.name as extraction_tool_name,
+                           tpool.volume as targeted_pool_volume
+                    FROM pm.targeted_plate tp
+                        JOIN pm.master_mix_lot mm USING (master_mix_lot_id)
+                        JOIN pm.processing_robot r USING (processing_robot_id)
+                        JOIN pm.tm300_8_tool t300 USING (tm300_8_tool_id)
+                        JOIN pm.tm50_8_tool t50 USING (tm50_8_tool_id)
+                        JOIN pm.water_lot w USING (water_lot_id)
+                        JOIN pm.targeted_primer_plate tpp
+                            USING (targeted_primer_plate_id)
+                        JOIN pm.plate_type pt USING (plate_type_id)
+                        JOIN pm.dna_plate dp USING (dna_plate_id)
+                        JOIN pm.sample_plate sp USING (sample_plate_id)
+                        JOIN pm.sample_plate_layout spl USING (sample_plate_id)
+                        JOIN pm.sample samp USING (sample_id)
+                        LEFT JOIN pm.study_sample ssample USING (sample_id)
+                        JOIN pm.extraction_robot er USING (extraction_robot_id)
+                        JOIN pm.extraction_kit_lot ekl
+                            USING (extraction_kit_lot_id)
+                        JOIN pm.extraction_tool et USING (extraction_tool_id)
+                        JOIN pm.targeted_primer_plate_layout tppl
+                            USING (targeted_primer_plate_id, row, col)
+                        JOIN pm.targeted_pool tpool USING (targeted_plate_id)
+                    WHERE targeted_plate_id = %s"""
+
+        # Use this to retrieve the shotgun prep information
+        # sg_sql = """"""
+        run = self.read_sequencing_run(run_id)
+
+        # some of this information is useful for the prep details, but is a
+        # pain to pull from the query, so just create an updater dict
+        row_updater = {k: v for k, v in run.items()
+                       if k not in {'pool_id', 'id'}}
+        row_updater['sequencing_run_notes'] = row_updater['notes']
+        row_updater['run_name'] = row_updater['name']
+        del row_updater['notes']
+        del row_updater['name']
+
+        pool = self.read_pool(run['pool_id'])
+
+        with TRN:
+            targeted_preps = []
+            for targeted_pool in pool['targeted_pools']:
+                TRN.add(tg_sql, [targeted_pool['targeted_plate_id']])
+                for results in TRN.execute_fetchindex():
+                    results = dict(results)
+                    results.update(row_updater)
+                    targeted_preps.append(results)
+
+            # shotgun_preps = []
+            # for shotgun_pool in pool['shotgun_pools']:
+            #     TRN.add(sg_sql, [shotgun_pool['shotgun_plate_id']])
+            #     for results in TRN.execute_fetchindex():
+            #         results = dict(results)
+            #         results.update(row_updater)
+            #         shotgun_preps.append(results)
+
+        target_prep = pd.DataFrame(targeted_preps)
+        # shotgun_prep = pd.DataFrame(shotgun_preps)
+
+        preps = []
+        for fullprep in [target_prep]:  # , shotgun_prep]:
+            blank = fullprep.loc[fullprep.is_blank]
+            notblank = fullprep.loc[~fullprep.is_blank]
+
+            for study, study_grp in notblank.groupby('study_id'):
+                # sample IDs are missing replicate information
+                study_prep = study_grp.copy()
+
+                study_blank = blank.copy()
+                # missing well information
+                study_blank['sample_name'] = [
+                    "%d.%s" % (study, idx)
+                    for idx in study_blank.sample_name]
+                study_blank['study_id'] = study
+                preps.append(pd.concat([study_prep, study_blank]))
+
+        return preps
 
     def _clear_table(self, table, schema):
         """Test helper to wipe out a database table"""

@@ -103,6 +103,7 @@ class KniminConfig(object):
         self.qiita_client_id = config.get('qiita', 'CLIENT_ID')
         self.qiita_client_secret = config.get('qiita', 'CLIENT_SECRET')
         self.qiita_server_cert = config.get('qiita', 'SERVER_CERT')
+        self.qiita_uploads_dir = config.get('qiita', 'UPLOADS_DIR')
 
     def _get_platemapper(self, config):
         self.pm_sample_sheet_dir = config.get('platemapper',

@@ -150,6 +150,6 @@ class PMExtractPlateHandler(BaseHandler):
         kit = self.get_argument('kit')
         user = self.current_user
 
-        extract_sample_plates(plates, user, robot, kit, tool)
+        db.extract_sample_plates(plates, user, robot, kit, tool)
 
         self.redirect("/pm_plate_list/")

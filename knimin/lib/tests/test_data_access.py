@@ -3,6 +3,7 @@ from os.path import join, dirname, realpath
 from six import StringIO
 from functools import partial
 from traceback import format_exc
+from copy import deepcopy
 import datetime
 from random import choice
 
@@ -2141,6 +2142,171 @@ class TestDataAccess(TestCase):
         with self.assertRaises(ValueError) as ctx:
             db.delete_sequencing_run(0)
         self.assertEqual(ctx.exception.message, 'Run 0 does not exist')
+
+    def test_generate_prep_information(self):
+        # Create a couple of studies
+        db.create_study(9999, title='TEST TP1', alias='LTP1', jira_id='TM1')
+        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+        db.create_study(9998, title='TEST TP2', alias='LTP2', jira_id='TM2')
+        self._clean_up_funcs.append(partial(db.delete_study, 9998))
+
+        # Create some plates
+        p_id = db.create_sample_plate('Plate 1', 1, 'test', [9999, 9998])
+        self._clean_up_funcs.insert(0, partial(db.delete_sample_plate, p_id))
+        p_id_2 = db.create_sample_plate('Plate 2', 1, 'test', [9999, 9998])
+        self._clean_up_funcs.insert(0, partial(db.delete_sample_plate, p_id_2))
+
+        # Add some samples to the studies
+        samples1 = ['9999.Sample.%s' % i for i in range(12)]
+        db.set_study_samples(9999, samples1)
+        samples2 = ['9998.Sample.%s' % i for i in range(12)]
+        db.set_study_samples(9998, samples2)
+
+        # Create layouts
+        well = {'sample_id': 'BLANK', 'name': None, 'notes': None}
+        row = [deepcopy(well) for i in range(12)]
+        layout = [deepcopy(row) for i in range(8)]
+        layout2 = deepcopy(layout)
+        for i in range(12):
+            layout[0][i]['sample_id'] = samples1[i]
+            layout[1][i]['sample_id'] = samples2[i]
+        for i in range(8):
+            layout2[i][0]['sample_id'] = samples1[i]
+            layout2[i][1]['sample_id'] = samples2[i]
+        db.write_sample_plate_layout(p_id, layout)
+        db.write_sample_plate_layout(p_id_2, layout2)
+
+        # Create DNA plates
+        dna_plate_ids = db.extract_sample_plates(
+            [p_id, p_id_2], 'test', 'HOWE_KF1', 'PM16B11', '108379ZZ')
+        for i in dna_plate_ids:
+            self._clean_up_funcs.insert(0, partial(db.delete_dna_plate, i))
+
+        # Create the target gene plates
+        plate_links = [
+            {'dna_plate_id': dna_plate_ids[0], 'primer_plate_id': 1},
+            {'dna_plate_id': dna_plate_ids[1], 'primer_plate_id': 2}]
+        targeted_ids = db.prepare_targeted_libraries(
+            plate_links, 'test', 'ROBE', '208484Z', '108364Z', '14459',
+            'RNBD9959')
+        for i in targeted_ids:
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_targeted_plate, i))
+
+        # Quantify the plate
+        db.quantify_targeted_plate(
+            targeted_ids[0], 'raw_concentration',
+            np.random.uniform(125, 175, size=(8, 12)))
+        db.quantify_targeted_plate(
+            targeted_ids[1], 'raw_concentration',
+            np.random.uniform(125, 175, size=(8, 12)))
+        db.quantify_targeted_plate(
+            targeted_ids[0], 'mod_concentration',
+            np.random.uniform(4, 6, size=(8, 12)))
+        db.quantify_targeted_plate(
+            targeted_ids[1], 'mod_concentration',
+            np.random.uniform(4, 6, size=(8, 12)))
+
+        # Prepare the pools
+        pools = [
+            {'targeted_plate_id': targeted_ids[0], 'volume': 240,
+             'percentage': 50},
+            {'targeted_plate_id': targeted_ids[1], 'volume': 240,
+             'percentage': 50}]
+        pool_id = db.pool_plates(pools, 'TestPool', 5)
+        self._clean_up_funcs.insert(0, partial(db.delete_pool, pool_id))
+
+        # Create the sequencing run
+        run_id = db.create_sequencing_run(
+            pool_id, 'test', None, 'MiSeq v3 150 cycle', 'MS1234',
+            'Illumina', 'MiSeq', 'TrueSeq HT', 151, 151)
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sequencing_run, run_id))
+
+        # Generate the prep information
+        preps = db.generate_prep_information(run_id)
+
+        # There were 2 studies in this run, so we should get 2 preps
+        self.assertEqual(len(preps), 2)
+
+        # Check that we have the expected columns in both preps
+        cols = ['sample_name', 'study_id', 'targeted_plate_name',
+                'dna_plate_name', 'email', 'dna_plate_id', 'master_mix_lot',
+                'robot', 'tm300_8_tool', 'tm50_8_tool', 'water_lot', 'row',
+                'col', 'sample_plate_layout_notes', 'sample_details',
+                'is_blank', 'primer', 'target_subfragment', 'target_gene',
+                'barcode', 'extraction_robot_name', 'extraction_kit_lot_name',
+                'extraction_tool_name', 'targeted_pool_volume',
+                'sequencing_run_notes', 'sequencer', 'platform',
+                'instrument_model', 'reagent_type', 'reagent_lot', 'assay',
+                'fwd_cycles', 'rev_cycles', 'created_on', 'run_name']
+        for prep in preps:
+            self.assertItemsEqual(prep.columns, cols)
+
+        # Check that in each prep we have a single study
+        p0 = preps[0]
+        p0_study_vals = set(p0.study_id.values)
+        self.assertEqual(len(p0_study_vals), 1)
+        p1 = preps[1]
+        p1_study_vals = set(p1.study_id.values)
+        self.assertEqual(len(p1_study_vals), 1)
+
+        # Figure out which prep belongs to which study so we can check per
+        # study values
+        if '9999' in p0:
+            study1_prep = p0
+            study2_prep = p1
+        else:
+            study1_prep = p1
+            study2_prep = p0
+
+        s1_p1_bcds = ['AGCCTTCGTCGC', 'TCCATACCGGAA', 'AGCCCTGCTACA',
+                      'CCTAACGGTCCA', 'CGCGCCTTAAAC', 'TATGGTACCCAG',
+                      'TACAATATCTGT', 'AATTTAGGTAGG', 'GACTCAACCAGT',
+                      'GCCTCTACGTCG', 'ACTACTGAGGAT', 'AATTCACCTCCT']
+        s1_p2_bcds = ['CTACAGGGTCTC', 'GTTCATTAAACT', 'TTCGATGCCGCA',
+                      'TCGTTATTCAGT', 'ACTCTGTAATTA', 'ATATGTTCTCAA',
+                      'TCAGACCAACTG', 'TCATTAGCGTGG']
+        # Magic number 8 -> the first 8 samples of this study where in 2
+        # plates
+        for idx, sample in enumerate(samples1[:8]):
+            md_sample = study1_prep[study1_prep.sample_name == sample]
+            self.assertEqual(len(md_sample), 2)
+
+            md_sample_p1 = md_sample[md_sample.dna_plate_name == 'Plate 1']
+            self.assertEqual(len(md_sample_p1), 1)
+            self.assertEqual(md_sample_p1.barcode.iloc[0], s1_p1_bcds[idx])
+            self.assertEqual(md_sample_p1.row.iloc[0], 1)
+            self.assertEqual(md_sample_p1.col.iloc[0], idx + 1)
+
+            md_sample_p2 = md_sample[md_sample.dna_plate_name == 'Plate 2']
+            self.assertEqual(len(md_sample_p2), 1)
+            self.assertEqual(md_sample_p2.barcode.iloc[0], s1_p2_bcds[idx])
+            self.assertEqual(md_sample_p2.row.iloc[0], idx + 1)
+            self.assertEqual(md_sample_p2.col.iloc[0], 1)
+
+        s2_p1_bcds = ['CGTATAAATGCG', 'ATGCTGCAACAC', 'ACTCGCTCGCTG',
+                      'TTCCTTAGTAGT', 'CGTCCGTATGAA', 'ACGTGAGGAACG',
+                      'GGTTGCCCTGTA', 'CATATAGCCCGA', 'GCCTATGAGATC',
+                      'CAAGTGAAGGGA', 'CACGTTTATTCC', 'TAATCGGTGCCA']
+        s2_p2_bcds = ['CTTGGAGGCTTA', 'GTGCCGGCCGAC', 'AGAGGGTGATCG',
+                      'GGATACTCGCAT', 'TCATGGCCTCCG', 'ATGTGCTGCTCG',
+                      'CCACGAGCAGGC', 'CGCCGTACTTGC']
+        for idx, sample in enumerate(samples2[:8]):
+            md_sample = study2_prep[study2_prep.sample_name == sample]
+            self.assertEqual(len(md_sample), 2)
+
+            md_sample_p1 = md_sample[md_sample.dna_plate_name == 'Plate 1']
+            self.assertEqual(len(md_sample_p1), 1)
+            self.assertEqual(md_sample_p1.barcode.iloc[0], s2_p1_bcds[idx])
+            self.assertEqual(md_sample_p1.row.iloc[0], 2)
+            self.assertEqual(md_sample_p1.col.iloc[0], idx + 1)
+
+            md_sample_p2 = md_sample[md_sample.dna_plate_name == 'Plate 2']
+            self.assertEqual(len(md_sample_p2), 1)
+            self.assertEqual(md_sample_p2.barcode.iloc[0], s2_p2_bcds[idx])
+            self.assertEqual(md_sample_p2.row.iloc[0], idx + 1)
+            self.assertEqual(md_sample_p2.col.iloc[0], 2)
 
 
 if __name__ == "__main__":

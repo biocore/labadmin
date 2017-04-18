@@ -1,0 +1,10 @@
+[EXCEPTIONS]
+Source Plate Name,Source Plate Barcode,Source Plate Type,Source Well,Destination Plate Name,Destination Plate Barcode,Destination Plate Type,Destination Well,Destination Well X Offset,Destination Well Y Offset,Sample ID,Sample Name,Transfer Volume,Actual Volume,Current Fluid Volume,Fluid Composition,Fluid Units,Fluid Type,Transfer Status
+gDNA[2],,384PP_AQ_BP2_HT,G10,Normalized DNA Destination[1],,Greiner_384PS_781096,G10,0,0,,,802.5,0,60.717,-0.126,Percent,Glycerol,MM0201004: Inconsistent fluid level
+
+[DETAILS]
+Source Plate Name,Source Plate Barcode,Source Plate Type,Source Well,Destination Plate Name,Destination Plate Barcode,Destination Plate Type,Destination Well,Destination Well X Offset,Destination Well Y Offset,Sample ID,Sample Name,Transfer Volume,Actual Volume,Current Fluid Volume,Fluid Composition,Fluid Units,Fluid Type,Transfer Status
+PP Water[1],,384PP_AQ_BP2_HT,B13,Normalized DNA Destination[1],,Greiner_384PS_781096,B13,0,0,,,3337.5,3337.5,44.776,-0.126,Percent,Glycerol,
+PP Water[1],,384PP_AQ_BP2_HT,A13,Normalized DNA Destination[1],,Greiner_384PS_781096,A13,0,0,,,3415,3415,45.637,-0.126,Percent,Glycerol,
+PP Water[1],,384PP_AQ_BP2_HT,C13,Normalized DNA Destination[1],,Greiner_384PS_781096,C13,0,0,,,3045,3045,45.92,-0.126,Percent,Glycerol,
+

@@ -6,11 +6,13 @@
 # The full license is in the file LICENSE, distributed with this software.
 # -----------------------------------------------------------------------------
 from tornado.web import authenticated
+from tornado.escape import json_decode
 
 from knimin.handlers.base import BaseHandler
 from knimin.handlers.access_decorators import set_access
 from knimin import db
-from knimin.lib.qiita_jira_util import create_sequencing_run
+from knimin.lib.qiita_jira_util import (
+    create_sequencing_run, complete_sequencing_run)
 
 
 @set_access(['Admin'])
@@ -41,3 +43,20 @@ class PMSequenceHandler(BaseHandler):
 
         run = db.read_sequencing_run(run_id)
         self.render("pm_sequence_success.html", run=run, jira_links=jira_links)
+
+
+@set_access(['Admin'])
+class PMSequencingCompleteHandler(BaseHandler):
+    @authenticated
+    def post(self):
+        run_id = self.get_argument('run_id')
+        run_path = self.get_argument('run_path')
+        exit_status = int(self.get_argument('exit_status'))
+        logs = self.get_argument('logs', [])
+        if logs:
+            logs = json_decode(logs)
+
+        complete_sequencing_run(exit_status == 0, run_id, run_path, logs)
+
+        self.set_status(200)
+        self.finish()
