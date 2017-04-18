@@ -36,7 +36,8 @@ from knimin.handlers.pm_plate_list import PMPlateListHandler
 from knimin.handlers.pm_plate_map import (
     PMCreatePlateHandler, PMPlateNameCheckerHandler, PMPlateMapHandler,
     PMSamplePlateHandler, PMExtractPlateHandler)
-from knimin.handlers.pm_create_study import PMCreateStudyHandler
+from knimin.handlers.pm_create_study import (PMCreateStudyHandler,
+                                             PMJiraUserCheckerHandler)
 from knimin.handlers.pm_library_prep import (
     PMTargetGeneLibraryPrepHandler,
     PMMetagenomicsLibraryPrepHandler)
@@ -101,6 +102,7 @@ class WebApplication(Application):
             (r"/pm_sequencing_complete/", PMSequencingCompleteHandler),
             (r"/pm_create_study/", PMCreateStudyHandler),
             (r"/pm_plate_list/", PMPlateListHandler),
+            (r"/pm_jira_user_check/", PMJiraUserCheckerHandler),
             (r"/pm_create_plate/", PMCreatePlateHandler),
             (r"/pm_sample_plate/name_check", PMPlateNameCheckerHandler),
             (r"/pm_sample_plate", PMSamplePlateHandler),
