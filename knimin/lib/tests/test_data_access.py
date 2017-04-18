@@ -42,11 +42,6 @@ class TestDataAccess(TestCase):
                  SET last_index_idx = 0
                  WHERE shotgun_index_tech_id = 3"""
         db._con.execute(sql)
-        # reseting DB, Nextera is 2
-        sql = """UPDATE pm.shotgun_index
-                 SET index_type = 'i5'
-                 WHERE shotgun_index_tech_id = 2"""
-        db._con.execute(sql)
 
     def _create_test_data_targeted_plate(self):
         # Create a study
@@ -1467,28 +1462,24 @@ class TestDataAccess(TestCase):
         # just below -- Add shotgun_index valid values
 
         # generate 10 and check the values are just fine
-        obs = db.generate_i5_i7_indexes('iTru', 1)
-        exp = [('iTru5_01_B', 'iTru7_101_02')]
-        self.assertEqual(obs, exp)
-
-        # ask for another 10 and make sure it starts where we need to
         obs = db.generate_i5_i7_indexes('iTru', 10)
-        exp = [('iTru5_01_C', 'iTru7_101_03'), ('iTru5_01_D', 'iTru7_101_04'),
-               ('iTru5_01_E', 'iTru7_101_05'), ('iTru5_01_F', 'iTru7_101_06'),
-               ('iTru5_01_G', 'iTru7_101_07'), ('iTru5_01_H', 'iTru7_101_08'),
-               ('iTru5_02_A', 'iTru7_101_09'), ('iTru5_02_B', 'iTru7_101_10'),
-               ('iTru5_02_C', 'iTru7_101_11'), ('iTru5_02_D', 'iTru7_101_12')]
+        exp = [1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L]
         self.assertEqual(obs, exp)
 
-        # test that we reset when we ask for more than 2000000000
-        # iTru is 3
+        # ask for another 10 and make sure it starts where it should be
+        obs = db.generate_i5_i7_indexes('iTru', 10)
+        exp = [11L, 12L, 13L, 14L, 15L, 16L, 17L, 18L, 19L, 20L]
+        self.assertEqual(obs, exp)
+
+        # test that we reset index correctly
+        # iTru is 3 and we have 1360 valid barcodes
         sql = """UPDATE pm.shotgun_index_tech
-                 SET last_index_idx = 0
+                 SET last_index_idx = 1358
                  WHERE shotgun_index_tech_id = 3"""
         db._con.execute(sql)
 
-        obs = db.generate_i5_i7_indexes('iTru', 1)
-        exp = [('iTru5_01_B', 'iTru7_101_02')]
+        obs = db.generate_i5_i7_indexes('iTru', 10)
+        exp = [1359L, 1360L, 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L]
         self.assertEqual(obs, exp)
 
         # testing errors
@@ -1501,20 +1492,8 @@ class TestDataAccess(TestCase):
 
         with self.assertRaises(ValueError) as ctx:
             db.generate_i5_i7_indexes('BiooNEXTflex-HT', 10)
-        self.assertEqual(
-            ctx.exception.message, "BiooNEXTflex-HT doesn't have any i7 "
-            "values")
-
-        # changing just for test
-        # Nextera is 2
-        sql = """UPDATE pm.shotgun_index
-                 SET index_type = 'i7'
-                 WHERE shotgun_index_tech_id = 2"""
-        db._con.execute(sql)
-        with self.assertRaises(ValueError) as ctx:
-            db.generate_i5_i7_indexes('Nextera', 10)
-        self.assertEqual(
-            ctx.exception.message, "Nextera doesn't have any i5 values")
+        self.assertEqual(ctx.exception.message,
+                         "'BiooNEXTflex-HT' doesn't have any barcodes")
 
     def test_normalize_shotgun_plate(self):
         before = datetime.datetime.now()
