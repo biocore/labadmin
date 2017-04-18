@@ -12,8 +12,7 @@ from tornado.web import authenticated, HTTPError
 from tornado.escape import json_decode
 
 from knimin import db
-from knimin.lib.qiita_jira_util import (
-    extract_sample_plates, sync_qiita_study_samples)
+from knimin.lib.qiita_jira_util import sync_qiita_study_samples
 from knimin.handlers.base import BaseHandler
 from knimin.handlers.access_decorators import set_access
 
