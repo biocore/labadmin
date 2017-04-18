@@ -113,7 +113,7 @@ class TestPMShotgunPool(TestHandlerBase):
         args = ['minimum-concentration=1', 'floor-concentration=1',
                 'total-quantity=10', 'plate-id=1', 'plate-name=Some%20Name',
                 'qpcr-machine=bob']
-        response = self.post('/pm_shotgun_pool/' % '&'.join(args), data=data)
+        response = self.post('/pm_shotgun_pool/%s' % '&'.join(args), data=data)
         self.assertEqual(response.code, 403)
 
     def test_post(self):
@@ -125,13 +125,17 @@ class TestPMShotgunPool(TestHandlerBase):
         args = ['minimum-concentration=1', 'floor-concentration=1',
                 'total-quantity=10', 'plate-id=%s' % nid,
                 'plate-name=Some%20Name', 'qpcr-machine=bob']
-        response = self.post('/pm_shotgun_pool/' % '&'.join(args), data=data)
+        response = self.post('/pm_shotgun_pool/%s' % '&'.join(args), data=data)
 
         self.assertEqual(response.code, 200)
 
         obs = db.read_normalized_shotgun_plate(nid)
         exp = {}
         self.assertEqual(obs, exp)
+
+        # haven't tested this method properly so irregardless, this test should
+        # fail
+        self.fail()
 
 
 if __name__ == '__main__':
