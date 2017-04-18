@@ -43,7 +43,8 @@ from knimin.handlers.pm_library_prep import (
 from knimin.handlers.pm_pool_handlers import (
     PMTargetedConcentrationHandler, PMTargetedConcentrationCheckHandler,
     PMTargetedPoolHandler, PMTargetedPoolEPMotionHandler)
-from knimin.handlers.pm_sequence import PMSequenceHandler
+from knimin.handlers.pm_sequence import (
+    PMSequenceHandler, PMSequencingCompleteHandler)
 from knimin.handlers.pm_condense import PMCondensePlatesHandler
 from knimin.handlers.pm_shotgun_pool import PMShotgunPool
 
@@ -98,6 +99,7 @@ class WebApplication(Application):
             (r"/pm_targeted_pool/", PMTargetedPoolHandler),
             (r"/pm_targeted_pool_epmotion/", PMTargetedPoolEPMotionHandler),
             (r"/pm_sequence/", PMSequenceHandler),
+            (r"/pm_sequencing_complete/", PMSequencingCompleteHandler),
             (r"/pm_create_study/", PMCreateStudyHandler),
             (r"/pm_plate_list/", PMPlateListHandler),
             (r"/pm_create_plate/", PMCreatePlateHandler),

@@ -15,7 +15,7 @@ from knimin.tests.tornado_test_base import TestHandlerBase
 from knimin import db
 
 
-class TestPMPoolPlatesHandler(TestHandlerBase):
+class TestPMTargetedPoolHandler(TestHandlerBase):
     def _create_data(self):
         # Create a study
         db.create_study(9999, title='LabAdmin test project', alias='LTP',
@@ -76,15 +76,15 @@ class TestPMPoolPlatesHandler(TestHandlerBase):
         return targeted_plate_ids
 
     def test_get_not_authed(self):
-        response = self.get('/pm_pool_plates/?plate=1')
+        response = self.get('/pm_targeted_pool/?plate=1')
         self.assertEqual(response.code, 200)
         self.assertTrue(response.effective_url.endswith(
-            '?next=%2Fpm_pool_plates%2F%3Fplate%3D1'))
+            '?next=%2Fpm_targeted_pool%2F%3Fplate%3D1'))
 
     def test_get(self):
         targeted_plate_ids = self._create_data()
         self.mock_login_admin()
-        response = self.get("/pm_pool_plates/?%s"
+        response = self.get("/pm_targeted_pool/?%s"
                             % "&".join(["plate=%d" % pid
                                         for pid in targeted_plate_ids]))
         self.assertEqual(response.code, 200)
@@ -94,20 +94,20 @@ class TestPMPoolPlatesHandler(TestHandlerBase):
         data = {'pools': json_encode([{'targeted_plate_id': 1, 'volume': 240,
                                        'percentage': 100}]),
                 'name': 'Test pool', 'volume': 5}
-        response = self.post('/pm_pool_plates/', data=data)
+        response = self.post('/pm_targeted_pool/', data=data)
         self.assertEqual(response.code, 403)
 
     def test_post(self):
         targeted_plate_ids = self._create_data()
         pools = [
             {'targeted_plate_id': targeted_plate_ids[0], 'volume': 240,
-             'percentage': 100},
+             'percentage': 50},
             {'targeted_plate_id': targeted_plate_ids[1], 'volume': 240,
-             'percentage': 100}]
+             'percentage': 50}]
         data = {'pools': json_encode(pools),
                 'name': 'Test pool', 'volume': 5}
         self.mock_login_admin()
-        response = self.post('/pm_pool_plates/', data=data)
+        response = self.post('/pm_targeted_pool/', data=data)
 
         pool_ids = []
         for match in re.findall("pool_id=[0-9]*", response.effective_url):

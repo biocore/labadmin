@@ -35,13 +35,12 @@ def write_sample_sheet(output_fp, instrument_type, labadmin_id,
                        run_type, sample_information,
                        contact_1_name=None, contact_1_email=None,
                        contact_2_name=None, contact_2_email=None):
-    full_sheet = format_sample_sheet(output_fp, instrument_type,
-                                     run_name, assay, fwd_cycles, rev_cycles,
-                                     pi_name, pi_email,
-                                     contact_0_name, contact_0_email,
-                                     run_type, sample_information,
-                                     contact_1_name, contact_1_email,
-                                     contact_2_name, contact_2_email)
+    full_sheet = format_sample_sheet(
+        instrument_type, labadmin_id, run_name, assay, fwd_cycles, rev_cycles,
+        pi_name, pi_email, contact_0_name, contact_0_email, run_type,
+        sample_information, contact_1_name, contact_1_email,
+        contact_2_name, contact_2_email)
+
     with open(output_fp, 'w') as f:
         f.write(full_sheet)
 
