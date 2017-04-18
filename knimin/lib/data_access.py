@@ -3962,6 +3962,7 @@ class KniminAccess(object):
                                  'technology: %s' % idx_tech)
             else:
                 # just taking the first element and converting it to dict
+                # cause there is only one element
                 idx_tech_vals = dict([v for v in idx_tech_vals][0])
 
             sql = """SELECT shotgun_index_id
