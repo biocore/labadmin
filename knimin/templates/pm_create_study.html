@@ -3,13 +3,21 @@
 <script type="text/javascript">
   $(document).ready(function() {
     $(".search-select").select2();
+    $('#jira-user').keyup(function() {
+      $.get('/pm_jira_user_check/?jira-user=' + $('#jira-user').val(), function (data) {
+        $('#submit-btn').prop('disabled', false);
+      })
+      .fail(function(jqXHR, textStatus, errorThrown) {
+        $('#submit-btn').prop('disabled', true);
+      });
+    });
   });
 </script>
 {% end %}
 {% block content %}
 <h3>Create new project</h3>
 <h4>* All entries are required</h4>
-<form action"/pm_create_study/" method="post">
+<form action"/pm_create_study/" method="post" onsubmit="validateForm(event);">
   <div class="container">
     <div class="row">
       <div class="col-xs-6 form-group">
@@ -18,7 +26,7 @@
       </div>
       <div class="col-xs-6 form-group">
         <label>Your Jira user:</label>
-        <input class="form-control" type="text" name="jira-user" required/>
+        <input class="form-control" type="text" name="jira-user" id="jira-user" required/>
       </div>
     </div>
     <div class="row">
@@ -63,7 +71,7 @@
     </div>
     <div class="row">
       <div class="col-xs-12 form-group">
-        <button type="submit" class="btn btn-primary">Create</button>
+        <button type="submit" class="btn btn-primary" id='submit-btn' disabled>Create</button>
       </div>
     </div>
   </div>
