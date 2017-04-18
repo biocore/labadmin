@@ -3929,7 +3929,6 @@ class KniminAccess(object):
                 # just taking the first element and converting it to dict
                 idx_tech_vals = dict([v for v in idx_tech_vals][0])
 
-            # selecting the dual section
             sql = """SELECT shotgun_index_id
                      FROM pm.shotgun_index
                      WHERE shotgun_index_tech_id = %s
