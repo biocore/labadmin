@@ -1526,8 +1526,7 @@ class TestDataAccess(TestCase):
         exp_qpcr_cp = np.zeros((16, 24))
         exp_qpcr_con = None
         exp_qpcr_cp = None
-        shotgun_i5_index = None
-        shotgun_i7_index = None
+        shotgun_index = None
 
         exp_rnsp = {'created_on': datetime.date.today(),
                     'email': email,
@@ -1543,8 +1542,7 @@ class TestDataAccess(TestCase):
                     'qpcr_email': None,
                     'qpcr_std_ladder': None,
                     'qpcr': None,
-                    'shotgun_i5_index': shotgun_i5_index,
-                    'shotgun_i7_index': shotgun_i7_index,
+                    'shotgun_index': shotgun_index,
                     'discarded': False,
                     'plate_normalization_water': exp_water,
                     'plate_normalization_sample': exp_sample,
@@ -1573,37 +1571,27 @@ class TestDataAccess(TestCase):
                 'limit_freeze_thaw_cycles': 100L}]
         self.assertEqual(obs, exp)
 
-        _ids = ['iTru5_24_G', 'iTru7_101_01', 'iTru7_101_02', 'NEXTflex78']
-        i5_layout = [[choice(_ids) for c in range(24)] for r in range(16)]
-        i7_layout = [[choice(_ids) for c in range(24)] for r in range(16)]
+        _ids = range(1, 10)
+        barcode_layout = [[choice(_ids) for c in range(24)] for r in range(16)]
         db.prepare_shotgun_libraries(
             nid, email, mosquito, shotgun_library_prep_kit,
-            shotgun_index_aliquot_id, i5_layout, i7_layout)
+            shotgun_index_aliquot_id, barcode_layout)
         obs = db.read_normalized_shotgun_plate(nid)
         exp_rnsp['mosquito'] = mosquito_id
         exp_rnsp['shotgun_library_prep_kit'] = shotgun_library_prep_kit
-        exp_rnsp['shotgun_i5_index'] = i5_layout
-        exp_rnsp['shotgun_i7_index'] = i7_layout
+        exp_rnsp['shotgun_index'] = barcode_layout
         self._basic_test_steps_for_normalized_shotgun_plate(
             before, after, obs, exp_rnsp)
 
         # testing errors for prepare_shotgun_libraries
-        i7_layout = np.random.rand(7, 7)
+        barcode_layout = np.random.rand(7, 7)
         with self.assertRaises(ValueError) as ctx:
             db.prepare_shotgun_libraries(
                 nid, email, mosquito, shotgun_library_prep_kit,
-                shotgun_index_aliquot_id, i5_layout, i7_layout)
+                shotgun_index_aliquot_id, barcode_layout)
         self.assertEqual(
-            ctx.exception.message, "i7_layout wrong shape, should be: (16, "
-            "24) but is: (7, 7)")
-        i5_layout = np.random.rand(5, 5)
-        with self.assertRaises(ValueError) as ctx:
-            db.prepare_shotgun_libraries(
-                nid, email, mosquito, shotgun_library_prep_kit,
-                shotgun_index_aliquot_id, i5_layout, i7_layout)
-        self.assertEqual(
-            ctx.exception.message, "i5_layout wrong shape, should be: (16, "
-            "24) but is: (5, 5)")
+            ctx.exception.message, "barcode_layout wrong shape, should be: "
+            "(16, 24) but is: (7, 7)")
 
         # tests for qpcr_shotgun
         # [0] only one result and [name] we just want the name
