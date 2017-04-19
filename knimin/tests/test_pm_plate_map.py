@@ -168,7 +168,8 @@ class TestPMSamplePlateHandler(TestHandlerBase):
                           'Cannabis Soils',
                  'samples': {'all': samples,
                              'plated': {}}}],
-               'layout': []}
+               'layout': [],
+               'blanks': ['BLANK', 'SWAB', 'PCRCONTROL']}
         obs = json_decode(response.body)
         self.assertEqual(obs, exp)
 

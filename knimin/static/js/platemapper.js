@@ -107,6 +107,13 @@ PlateMap.prototype.initialize = function (data) {
       }
     }
 
+    // Add the blanks information
+    color = PlateMap._qiimeColors[PlateMap._qiimeColors.length - 1];
+    for (var blank of data.blanks) {
+      this.samples[blank] = {color: color, plates: [], wells: [], sampleId: blank};
+      this.autoCompleteSamples.push({label: blank, category: 'Controls', color: color});
+    }
+
     // Create a 2D array to store the per well information
     this.wellInformation = new Array(this.rows);
     for (var i = 0; i < this.wellInformation.length; i++) {

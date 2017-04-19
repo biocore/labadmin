@@ -121,6 +121,7 @@ class PMSamplePlateHandler(BaseHandler):
         plate_info['plate_id'] = plate_id
         plate_info['created_on'] = plate_info['created_on'].isoformat(sep=' ')
         plate_info['layout'] = db.read_sample_plate_layout(plate_id)
+        plate_info['blanks'] = db.get_blanks()
 
         self.write(plate_info)
         self.finish()
