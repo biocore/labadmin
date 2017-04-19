@@ -344,7 +344,7 @@ def update_ag_metadata(barcode, md):
         # already represented; this status code means that the sample is
         # already present in the qiita study. there is a race condition
         # though as we cannot put a lock on the remote resouce. So it is
-        # techinically possible that a sample metadata for this sample will
+        # technically possible that a sample metadata for this sample will
         # get loaded via a different mechanism in between the time we check
         # qiita, and the time we push sample metadata.
 
