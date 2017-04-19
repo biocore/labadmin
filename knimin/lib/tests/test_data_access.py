@@ -1393,6 +1393,13 @@ class TestDataAccess(TestCase):
                'notes': None}
         self.assertEqual(obs_info, exp)
 
+        obs = db.extract_sample_plates(
+            [plate_id], 'test', exp_robot['name'], exp_kit['name'],
+            exp_tool['name'], names=['New plate name'])
+        self._clean_up_funcs.insert(0, partial(db.delete_dna_plate, obs[0]))
+        obs_info = db.read_dna_plate(obs[0])
+        self.assertEqual(obs_info['name'], 'New plate name')
+
     def test_normalize_shotgun_plate_bad_id(self):
         with self.assertRaisesRegexp(ValueError, "shotgun plate"):
             db.normalize_shotgun_plate(99999999, 'test', 'a valid echo name',
@@ -1726,12 +1733,14 @@ class TestDataAccess(TestCase):
 
         # testing prepare_targeted_libraries with a name
         plate_links = [
-            {'dna_plate_id': dna_plate_ids[0], 'primer_plate_id': 1},
-            {'dna_plate_id': dna_plate_ids[1], 'primer_plate_id': 2}]
+            {'dna_plate_id': dna_plate_ids[0], 'primer_plate_id': 1,
+             'name': 'Targeted plate 1'},
+            {'dna_plate_id': dna_plate_ids[1], 'primer_plate_id': 2,
+             'name': 'Targeted plate 2'}]
         before = datetime.datetime.now()
         obs_ids = db.prepare_targeted_libraries(
             plate_links, 'test', 'ROBE', '208484Z', '108364Z', '14459',
-            'RNBD9959', 'Mi nombre es XXXX')
+            'RNBD9959')
         after = datetime.datetime.now()
 
         for o_id in obs_ids:
@@ -1740,13 +1749,13 @@ class TestDataAccess(TestCase):
 
         self.assertEqual(len(obs_ids), 2)
         exp = [
-            {'id': obs_ids[0], 'name': 'Test plate', 'email': 'test',
+            {'id': obs_ids[0], 'name': 'Targeted plate 1', 'email': 'test',
              'dna_plate_id': dna_plate_ids[0], 'primer_plate_id': 1,
              'master_mix_lot': '14459', 'robot': 'ROBE',
              'tm300_8_tool': '208484Z', 'tm50_8_tool': '108364Z',
              'raw_concentration': None, 'mod_concentration': None,
              'water_lot': 'RNBD9959'},
-            {'id': obs_ids[1], 'name': 'Test plate 2', 'email': 'test',
+            {'id': obs_ids[1], 'name': 'Targeted plate 2', 'email': 'test',
              'dna_plate_id': dna_plate_ids[1], 'primer_plate_id': 2,
              'master_mix_lot': '14459', 'robot': 'ROBE',
              'tm300_8_tool': '208484Z', 'tm50_8_tool': '108364Z',
@@ -2195,8 +2204,6 @@ class TestDataAccess(TestCase):
                'fwd_cycles': 151, 'rev_cycles': 151,
                'email': 'test'}
         self.assertEqual(obs, exp)
-
-
 
     def test_read_sequencing_run(self):
         # Success is already tested in "test_pool_plates"
