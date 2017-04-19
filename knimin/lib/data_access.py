@@ -3484,6 +3484,8 @@ class KniminAccess(object):
         ------
         ValueError
             If sample_plate_ids is an empty list
+            If names is passed and it doesn't have the same number of elements
+                than sample_plate_ids
         """
         if not sample_plate_ids:
             raise ValueError("Provide at least one sample plate to extract")
