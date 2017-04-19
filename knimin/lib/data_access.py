@@ -3460,7 +3460,7 @@ class KniminAccess(object):
             return plates
 
     def extract_sample_plates(self, sample_plate_ids, email, robot, kit_lot,
-                              tool, notes=None, names=[]):
+                              tool, notes=None, names=None):
         """Stores the extraction information for the given sample_plates
 
         Parameters
@@ -3477,7 +3477,7 @@ class KniminAccess(object):
             The name of the tool used for extraction
         notes : str, optional
             Notes added to the extracted plates
-        names : lilst of str, optional
+        names : list of str, optional
             Name to add, if provided
 
         Raises
@@ -3516,9 +3516,18 @@ class KniminAccess(object):
                          VALUES (%s, %s, now(), %s, %s, %s, %s, %s)
                          RETURNING dna_plate_id"""
             dna_plates = []
+
+            if names:
+                if len(names) != len(sample_plate_ids):
+                    raise ValueError(
+                        "The list of names (%d) and the list of sample plate "
+                        "ids (%d) don't have the same number of elements." % (
+                            len(names), len(sample_plate_ids)))
+            else:
+                names = sample_plate_ids
+
             for p_id, name in zip_longest(sample_plate_ids, names,
                                           fillvalue=None):
-                name = name if name is not None else p_id
                 TRN.add(sql, [email, name, p_id, robot_id,
                               kit_lot_id, tool_id, notes])
                 dna_plates.append(TRN.execute_fetchlast())
@@ -4970,7 +4979,7 @@ class KniminAccess(object):
         rev_cycles : int
             The number of reverse cycles used.
         name : str, optional
-            Name to add, if provided
+            Name to add, if provided, else the name of the pool_id will be used
 
         Returns
         -------

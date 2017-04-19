@@ -1410,6 +1410,12 @@ class TestDataAccess(TestCase):
         obs_info = db.read_dna_plate(obs[0])
         self.assertEqual(obs_info['name'], 'New plate name')
 
+        # test names error
+        with self.assertRaises(ValueError):
+            db.extract_sample_plates([plate_id], 'test', exp_robot['name'],
+                                     exp_kit['name'], exp_tool['name'],
+                                     names=['New plate name', 'My other name'])
+
     def test_normalize_shotgun_plate_bad_id(self):
         with self.assertRaisesRegexp(ValueError, "shotgun plate"):
             db.normalize_shotgun_plate(99999999, 'test', 'a valid echo name',
@@ -1779,8 +1785,6 @@ class TestDataAccess(TestCase):
         for obs_id, exp in zip(obs_ids, exp):
             obs = db.read_targeted_plate(obs_id)
             self.assertTrue(before <= obs.pop('created_on') <= after)
-            for k in obs:
-                self.assertEqual(obs[k], exp[k])
             self.assertEqual(obs, exp)
 
         # testing prepare_targeted_libraries with a name
@@ -1816,8 +1820,6 @@ class TestDataAccess(TestCase):
         for obs_id, exp in zip(obs_ids, exp):
             obs = db.read_targeted_plate(obs_id)
             self.assertTrue(before <= obs.pop('created_on') <= after)
-            for k in obs:
-                self.assertEqual(obs[k], exp[k])
             self.assertEqual(obs, exp)
 
         # testing quantify_targeted_plate on only one of the plates
