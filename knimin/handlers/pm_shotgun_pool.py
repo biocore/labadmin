@@ -27,8 +27,12 @@ class PMShotgunPool(BaseHandler):
         res = db.read_normalized_shotgun_plate(plate_id)
         machines = db.get_property_options('qpcr')
 
+        # normalized shotgun plates do not have a name, we need to fetch the
+        # name from the non-normalized table
+        res = db.read_shotgun_plate(res['shotgun_plate_id'])
+
         # echo is the name of the plate
-        self.render('pm_shotgun_pool.html', name=res['echo'],
+        self.render('pm_shotgun_pool.html', name=res['name'],
                     plate_id=plate_id, machines=machines)
 
     @authenticated
@@ -36,9 +40,9 @@ class PMShotgunPool(BaseHandler):
         plate_id = self.get_argument('plate-id')
         plate_name = self.get_argument('plate-name')
 
-        min_conc = self.get_argument('minimum-concentration')
-        floor_conc = self.get_argument('floor-concentration')
-        total_nmol = self.get_argument('total-quantity')
+        min_conc = float(self.get_argument('minimum-concentration'))
+        floor_conc = float(self.get_argument('floor-concentration'))
+        total_nmol = float(self.get_argument('total-quantity'))
         qpcr_machine = self.get_argument('qpcr-machine')
 
         file_contents = self.request.files['qpcr-readout-fp'][0]['body']
@@ -51,7 +55,6 @@ class PMShotgunPool(BaseHandler):
             qpcr_concentrations, min_conc=min_conc, floor_conc=floor_conc,
             total_nmol=total_nmol)
 
-        # call a function named format_pooling_echo_pick_list
         content = format_pooling_echo_pick_list(sample_vols)
 
         db.qpcr_shotgun(plate_id, self.get_current_user(), qpcr_machine, '',
@@ -70,5 +73,8 @@ class PMShotgunPool(BaseHandler):
         self.finish()
 
 
-def format_pooling_echo_pick_list(arg=''):
-    return arg
+def format_pooling_echo_pick_list(arg):
+    # FIXME: This needs to be implemented, and appropriately tested
+    if arg is None:
+        pass
+    return ''
