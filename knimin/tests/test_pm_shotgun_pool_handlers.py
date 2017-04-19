@@ -96,12 +96,11 @@ class TestPMShotgunPool(TestHandlerBase):
             partial(db.delete_shotgun_index_aliquot, shotgun_index_aliquot_id))
         db.read_shotgun_index_aliquot()
 
-        _ids = ['iTru5_24_G', 'iTru7_101_01', 'iTru7_101_02', 'NEXTflex78']
-        i5_layout = [[choice(_ids) for c in range(24)] for r in range(16)]
-        i7_layout = [[choice(_ids) for c in range(24)] for r in range(16)]
+        _ids = range(1, 10)
+        barcode_layout = [[choice(_ids) for c in range(24)] for r in range(16)]
         db.prepare_shotgun_libraries(
             nid, email, mosquito, shotgun_library_prep_kit,
-            shotgun_index_aliquot_id, i5_layout, i7_layout)
+            shotgun_index_aliquot_id, barcode_layout)
 
         qpcr = db.get_property_options("qpcr")[0]['name']
         qpcr_ladder = ''
