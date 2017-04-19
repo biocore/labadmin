@@ -68,5 +68,22 @@ class TestPMCreatePlateHandler(TestHandlerBase):
         self.assertEqual(response.code, 500)
 
 
+class TestPMJiraUserCheckerHandler(TestHandlerBase):
+    def test_get_not_authed(self):
+        response = self.get('/pm_jira_user_check/?jira-user=admin')
+        self.assertEqual(response.code, 200)
+        self.assertTrue(response.effective_url.endswith(
+            '?next=%2Fpm_jira_user_check%2F%3Fjira-user%3Dadmin'))
+
+    def test_get(self):
+        self.mock_login_admin()
+        response = self.get('/pm_jira_user_check/?jira-user=admin')
+        self.assertEqual(response.code, 200)
+
+        self.mock_login_admin()
+        response = self.get('/pm_jira_user_check/?jira-user=not_a_user')
+        self.assertEqual(response.code, 404)
+
+
 if __name__ == '__main__':
     main()

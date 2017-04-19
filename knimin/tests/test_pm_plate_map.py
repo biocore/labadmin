@@ -11,7 +11,8 @@ from functools import partial
 from tornado.escape import url_unescape, json_decode
 
 from knimin.tests.tornado_test_base import TestHandlerBase
-from knimin import db
+from knimin.lib.qiita_jira_util import _create_kl_jira_project
+from knimin import db, jira_handler
 
 
 class TestPMCreatePlateHandler(TestHandlerBase):
@@ -131,11 +132,18 @@ class TestPMSamplePlateHandler(TestHandlerBase):
 
     def test_get(self):
         self.mock_login_admin()
-        db.create_study(9999, 'LabAdmin test project', 'LTP', 'KL9999')
-        self._clean_up_funcs.append(partial(db.delete_study, 9999))
+        _create_kl_jira_project('admin', 'Task management', 1,
+                                'LabAdmin test project')
+        self._clean_up_funcs.append(
+            partial(jira_handler.delete_project, 'TM1'))
+        db.create_study(
+            1, 'Identification of the Microbiomes for Cannabis Soils', 'alias',
+            'TM1')
+        self._clean_up_funcs.append(partial(db.delete_study, 1))
+
         plate_type = db.get_plate_types()[0]
         plate_id = db.create_sample_plate('TestPlate', plate_type['id'],
-                                          'test', [9999])
+                                          'test', [1])
         self._clean_up_funcs.insert(
             0, partial(db.delete_sample_plate, plate_id))
 
@@ -143,6 +151,7 @@ class TestPMSamplePlateHandler(TestHandlerBase):
         self.assertEqual(response.code, 200)
 
         plate_info = db.read_sample_plate(plate_id)
+        samples = db.get_study_samples(1)
         exp = {'created_on': plate_info['created_on'].isoformat(sep=' '),
                'email': 'test',
                'name': 'TestPlate',
@@ -154,28 +163,19 @@ class TestPMSamplePlateHandler(TestHandlerBase):
                               'plate_type_id': plate_info['plate_type_id'],
                               'rows': 8},
                'studies': [
-                {'alias': 'LTP', 'jira_id': 'KL9999', 'study_id': 9999,
-                 'title': 'LabAdmin test project',
-                 'samples': {'all': [],
+                {'alias': 'alias', 'jira_id': 'TM1', 'study_id': 1,
+                 'title': 'Identification of the Microbiomes for '
+                          'Cannabis Soils',
+                 'samples': {'all': samples,
                              'plated': {}}}],
-               'layout': []}
+               'layout': [],
+               'blanks': ['BLANK', 'SWAB', 'PCRCONTROL']}
         obs = json_decode(response.body)
-        self.assertEqual(obs, exp)
-
-        # Add some samples to the study
-        samples = ['9999.Sample1', '9999.Sample2', '9999.Sample3']
-        db.set_study_samples(9999, samples)
-        response = self.get('/pm_sample_plate?plate_id=%s' % plate_id)
-        self.assertEqual(response.code, 200)
-        exp['studies'][0]['samples']['all'] = samples
-        obs = json_decode(response.body)
-        obs['studies'][0]['samples']['all'] = sorted(
-            obs['studies'][0]['samples']['all'])
         self.assertEqual(obs, exp)
 
         # Plate some samples in some other plate
         plate_id_2 = db.create_sample_plate('TestPlate2', plate_type['id'],
-                                            'test', [9999])
+                                            'test', [1])
         self._clean_up_funcs.insert(
             0, partial(db.delete_sample_plate, plate_id_2))
         well = {'sample_id': None, 'name': None, 'notes': None}

@@ -15,6 +15,7 @@
     // Retrieve the values introduced by the user
     var plateType = $('#plate-type-select').val();
     var studies = [];
+    var success = true;
     $.each($('.study-select'), function(idx, studySel) {
       if (studySel.value !== '-1') {
         studies.push(studySel.value);
@@ -29,11 +30,13 @@
     if (studies.length === 0) {
       // The user didn't choose any study
       $('#studies-warning').show();
+      success = false;
     }
     if (plateName.length === 0) {
       // The plate name is empty or is just spaces
       $('#plate-name-warning').html('* Please introduce a plate name');
       $('#plate-name-warning').show();
+      success = false;
     } else {
       $.get('/pm_sample_plate/name_check?name=' + plateName, function(data) {
         if (data.result) {
@@ -45,7 +48,7 @@
         .fail(function(jqXHR, textStatus, errorThrown) {
           if(jqXHR.status === 404) {
             var data = $.parseJSON(jqXHR.responseText);
-            if (!data.result) {
+            if (!data.result && success) {
               // Construct a form and submit it
               var form = $('<form>', {action: $(location).attr('href'), method: 'post'});
               var fields = {'plate_type': plateType, 'studies': studies,

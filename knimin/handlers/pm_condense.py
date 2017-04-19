@@ -44,4 +44,4 @@ class PMCondensePlatesHandler(BaseHandler):
         plate_id = db.condense_dna_plates(
             dna_plates, name, self.get_current_user(), robot, 2, volume)
 
-        self.redirect("/pm_quantify/?plate=%s" % plate_id)
+        self.redirect("/pm_normalize/?plate=%s" % plate_id)

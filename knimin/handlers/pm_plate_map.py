@@ -12,6 +12,7 @@ from tornado.web import authenticated, HTTPError
 from tornado.escape import json_decode
 
 from knimin import db
+from knimin.lib.qiita_jira_util import sync_qiita_study_samples
 from knimin.handlers.base import BaseHandler
 from knimin.handlers.access_decorators import set_access
 
@@ -103,6 +104,8 @@ class PMSamplePlateHandler(BaseHandler):
 
         studies = []
         for s_id in plate_info['studies']:
+            # Make sure to sync the samples with Qiita
+            sync_qiita_study_samples(s_id)
             study = db.read_study(s_id)
             study['samples'] = {}
             study['samples']['all'] = db.get_study_samples(s_id)
@@ -118,6 +121,7 @@ class PMSamplePlateHandler(BaseHandler):
         plate_info['plate_id'] = plate_id
         plate_info['created_on'] = plate_info['created_on'].isoformat(sep=' ')
         plate_info['layout'] = db.read_sample_plate_layout(plate_id)
+        plate_info['blanks'] = db.get_blanks()
 
         self.write(plate_info)
         self.finish()
