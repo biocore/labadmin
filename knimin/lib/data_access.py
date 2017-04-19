@@ -2458,6 +2458,19 @@ class KniminAccess(object):
 
     # - PlateMapper functions - #
 
+    def get_blanks(self):
+        """Retrieves the list of samples that are blanks
+
+        Returns
+        -------
+        list of str
+            The sample ids of the blank samples
+        """
+        with TRN:
+            sql = "SELECT sample_id FROM pm.sample WHERE is_blank = true"
+            TRN.add(sql)
+            return TRN.execute_fetchflatten()
+
     def get_studies(self):
         """Retrieves the list of studies present in the DB
 
