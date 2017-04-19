@@ -36,7 +36,8 @@ from knimin.handlers.pm_plate_list import PMPlateListHandler
 from knimin.handlers.pm_plate_map import (
     PMCreatePlateHandler, PMPlateNameCheckerHandler, PMPlateMapHandler,
     PMSamplePlateHandler, PMExtractPlateHandler)
-from knimin.handlers.pm_create_study import PMCreateStudyHandler
+from knimin.handlers.pm_create_study import (PMCreateStudyHandler,
+                                             PMJiraUserCheckerHandler)
 from knimin.handlers.pm_library_prep import (
     PMTargetGeneLibraryPrepHandler,
     PMMetagenomicsLibraryPrepHandler)
@@ -47,6 +48,7 @@ from knimin.handlers.pm_sequence import (
     PMSequenceHandler, PMSequencingCompleteHandler)
 from knimin.handlers.pm_condense import PMCondensePlatesHandler
 from knimin.handlers.pm_shotgun_pool import PMShotgunPool
+from knimin.handlers.pm_normalize import PMNormalizeHandler
 
 define("port", default=config.http_port, type=int)
 
@@ -102,6 +104,7 @@ class WebApplication(Application):
             (r"/pm_sequencing_complete/", PMSequencingCompleteHandler),
             (r"/pm_create_study/", PMCreateStudyHandler),
             (r"/pm_plate_list/", PMPlateListHandler),
+            (r"/pm_jira_user_check/", PMJiraUserCheckerHandler),
             (r"/pm_create_plate/", PMCreatePlateHandler),
             (r"/pm_sample_plate/name_check", PMPlateNameCheckerHandler),
             (r"/pm_sample_plate", PMSamplePlateHandler),
@@ -109,6 +112,7 @@ class WebApplication(Application):
             (r"/pm_extract_plate", PMExtractPlateHandler),
             (r"/pm_condense/", PMCondensePlatesHandler),
             (r"/pm_shotgun_pool/", PMShotgunPool),
+            (r"/pm_normalize/", PMNormalizeHandler),
             (r".*", NoPageHandler)
         ]
         settings = {

@@ -8,11 +8,12 @@
 
 from tornado.web import authenticated
 from tornado.escape import json_decode, json_encode
+from jira import JIRAError
 
 from knimin.handlers.base import BaseHandler
 from knimin.handlers.access_decorators import set_access
 from knimin.lib.qiita_jira_util import create_study
-from knimin import qiita_client, db
+from knimin import qiita_client, db, jira_handler
 
 
 @set_access(['Admin'])
@@ -45,3 +46,17 @@ class PMCreateStudyHandler(BaseHandler):
 
         self.render("pm_study_created.html", current_user=self.current_user,
                     title=title, study_id=study_id, jira_key=study['jira_id'])
+
+
+@set_access(['Admin'])
+class PMJiraUserCheckerHandler(BaseHandler):
+    @authenticated
+    def get(self):
+        jira_user = self.get_argument('jira-user')
+        try:
+            jira_handler.user(jira_user)
+            code = 200
+        except JIRAError:
+            code = 404
+        self.set_status(code)
+        self.finish()
