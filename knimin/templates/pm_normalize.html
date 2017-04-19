@@ -1,0 +1,125 @@
+{% extends logged_in_index.html %}
+{% block head %}
+{% from json import dumps %}
+<script type="text/javascript">
+
+  function validateForm(e) {
+    var success = true;
+
+    if ($("#upload-select").val() === 'Single file') {
+      $("#single-plate-fp").parents(':first').removeClass('has-error');
+      if($("#single-plate-fp").val() === '') {
+        success = false;
+        $("#single-plate-fp").parents(':first').addClass('has-error');
+      }
+    } else {
+      for (var i = 0; i < 4; i++) {
+        var $inp = $('#plate-' + i + '-fp');
+        $inp.parents(':first').removeClass('has-error');
+        if ($inp.val() === ''){
+          success = false;
+          $inp.parents(':first').addClass('has-error');
+        }
+      }
+    }
+
+    // On submission, the form will open a new tab to start downloading an
+    // echo pick file. We want this page to redirect to the next step on the
+    // workflow. That is accomplished by adding a timeout function to perform
+    // the redirect
+    if (success){
+      setTimeout(function () {
+        window.location.href = "/pm_shotgun_pool/?plate={{plate['id']}}";
+      }, 1000);
+    }
+
+    e.returnValue = success;
+  };
+
+  $(document).ready(function() {
+    $("#pm-four-files").hide();
+
+    $("#upload-select").change(function () {
+      if ($(this).val() === 'Single file') {
+        $("#pm-four-files").hide();
+        $("#pm-single-file").show();
+      } else {
+        $("#pm-single-file").hide();
+        $("#pm-four-files").show();
+      }
+    });
+  });
+</script>
+{% end %}
+{% block content %}
+<h3>Normalize plate: {{plate['name']}} (ID: {{plate['id']}})</h3>
+
+<div class="container">
+<form enctype="multipart/form-data" action="/pm_normalize/" method="post" onsubmit="validateForm(event);" target="_blank" id="pm-form">
+  <input type="hidden" name="plate_id" value="{{plate['id']}}"/>
+  <div class='row'>
+    <div class="col-xs-4 form-group">
+      <label>Maximum input volume (&mu;L): </label>
+      <input class="form-control" name="pm-volume" id="pm-volume" type="number" step="0.01" value=3.5 required></input>
+    </div>
+    <div class="col-xs-4 form-group">
+      <label>Desired DNA input (ng): </label>
+      <input class="form-control" name="pm-dna-input" id="pm-dna-input" type="number" step="0.01" required></input>
+    </div>
+  </div>
+  <div class='row'>
+    <div class="col-xs-4 form-group">
+      <label>Choose plate reader: </label>
+      <select class="form-control" name="plate-reader">
+        {% for pr in plate_readers %}
+          <option option="{{pr['name']}}">{{pr['name']}}</option>
+        {% end %}
+      </select>
+    </div>
+    <div class="col-xs-4 form-group">
+      <label>Choose echo: </label>
+      <select class="form-control" name="echo">
+        {% for e in echos %}
+          <option option="{{e['name']}}">{{e['name']}}</option>
+        {% end %}
+      </select>
+    </div>
+  </div>
+  <div class='row'>
+    <div class="col-xs-4 form-group">
+      <label>Choose upload type: </label>
+      <select class="form-control" id="upload-select" name="upload-select">
+        <option selected>Single file</option>
+        <option>Four files</option>
+      </select>
+    </div>
+  </div>
+  <!-- When uploading 1 file -->
+  <div id='pm-single-file'>
+    <div class='row'>
+      <div class="col-xs-6 form-group">
+        <label>Upload Qubit assay</label>
+        <input class="form-control" type="file" name="single-plate-fp" id="single-plate-fp"/>
+      </div>
+    </div>
+  </div>
+  <!-- When uploading 4 files -->
+  <div id='pm-four-files'>
+    {% for pos, p in sorted(plate['condensed_plates']) %}
+      <div class='row'>
+        <div class="col-xs-6 form-group">
+          <label>Upload Qubit assay for plate {{pos + 1}}: {{p['name']}} - (ID: {{p['id']}})</label>
+          <input class="form-control" type="file" name="plate-{{pos}}-fp" id="plate-{{pos}}-fp" />
+        </div>
+      </div>
+    {% end %}
+  </div>
+  <!-- Submit button -->
+  <div class="row">
+    <div class="col-xs-12 form-group">
+      <button type="submit" class="btn btn-primary">Normalize</button>
+    </div>
+  </div>
+</form>
+</div>
+{% end %}

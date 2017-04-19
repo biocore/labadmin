@@ -6,7 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # -----------------------------------------------------------------------------
 
-from unittest import TestCase
+from unittest import TestCase, main
 
 import numpy as np
 import numpy.testing as npt
@@ -14,7 +14,8 @@ import numpy.testing as npt
 from knimin.lib.shotgun import (compute_qpcr_concentration,
                                 compute_shotgun_pooling_values_qpcr,
                                 compute_shotgun_pooling_values_eqvol,
-                                estimate_pool_conc_vol)
+                                estimate_pool_conc_vol,
+                                compute_shotgun_normalization_values)
 
 
 class TestShotgun(TestCase):
@@ -27,6 +28,39 @@ class TestShotgun(TestCase):
             np.array([[98.14626462, 487.8121413, 484.3480866, 2.183406934],
                       [498.3536649, 429.0839787, 402.4270321, 140.1601735],
                       [21.20533391, 582.9456031, 732.2655041, 7.545145988]])
+
+    def test_compute_shotgun_normalization_values(self):
+        input_vol = 3.5
+        input_dna = 10
+        plate_layout = []
+        for i in range(4):
+            row = []
+            for j in range(4):
+                row.append({'dna_concentration': 10,
+                            'sample_id': "S%s.%s" % (i, j)})
+            plate_layout.append(row)
+
+        obs_sample, obs_water = compute_shotgun_normalization_values(
+            plate_layout, input_vol, input_dna)
+
+        exp_sample = np.zeros((4, 4), dtype=np.float)
+        exp_water = np.zeros((4, 4), dtype=np.float)
+        exp_sample.fill(1000)
+        exp_water.fill(2500)
+
+        npt.assert_almost_equal(obs_sample, exp_sample)
+        npt.assert_almost_equal(obs_water, exp_water)
+
+        # Make sure that we don't go above the limit
+        plate_layout[1][1]['dna_concentration'] = 0.25
+        obs_sample, obs_water = compute_shotgun_normalization_values(
+            plate_layout, input_vol, input_dna)
+
+        exp_sample[1][1] = 3500
+        exp_water[1][1] = 0
+
+        npt.assert_almost_equal(obs_sample, exp_sample)
+        npt.assert_almost_equal(obs_water, exp_water)
 
     def test_compute_qpcr_concentration(self):
         obs = compute_qpcr_concentration(self.cp_vals)
@@ -75,3 +109,7 @@ class TestShotgun(TestCase):
 
         npt.assert_almost_equal(obs_pool_conc, exp_pool_conc)
         npt.assert_almost_equal(obs_pool_vol, exp_pool_vol)
+
+
+if __name__ == '__main__':
+    main()

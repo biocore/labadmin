@@ -4773,7 +4773,8 @@ class KniminAccess(object):
                 raise ValueError('Shotgun Plate %s does not exist' % plate_id)
 
     def quantify_shotgun_plate(self, shotgun_plate_id, email, volume,
-                               plate_reader, plate_concentration):
+                               plate_reader, plate_concentration=None,
+                               cond_plates_concentration=None):
         """Adds the DNA quantification information to the shotgun plate
 
         Parameters
@@ -4786,25 +4787,59 @@ class KniminAccess(object):
             The volume used for DNA quantification
         plate_reader : str
             The plate reader used
-        plate_concentration : 2d numpy array of floats
+        plate_concentration : 2d numpy array of floats, optional
             The per-well DNA concentration
+        cond_plates_concentration : list of 2d numpy array of floats, optional
+            A list of per-well concentrations for each condensed plate
 
         Raises
         ------
         ValueError
             If `plate_concentration` dimensions doesn't match the plate type
+            If plate_concentration and cond_plates_concentration are not
+            provided
+
+        Notes
+        -----
+        if plate_concentration and cond_plates_concentration are provided,
+        cond_plates_concentration is ignored
         """
+        if plate_concentration is None and not cond_plates_concentration:
+            raise ValueError(
+                "Provide 'plate_concentration' or 'cond_plates_concentration'")
+
         with TRN:
             sgp = self.read_shotgun_plate(shotgun_plate_id)
             rp = dict(self.read_plate_type(sgp['plate_type_id']))
-            pc_rows, pc_cols = plate_concentration.shape
             processing_robot_id = self.get_or_create_property_option_id(
                 "plate_reader", plate_reader)
 
-            if pc_rows != rp['rows'] or pc_cols != rp['cols']:
-                raise ValueError('plate_concentration wrong shape, should '
-                                 'be: (%d, %d) but is: (%d, %d)' % (
-                                    rp['rows'], rp['cols'], pc_rows, pc_cols))
+            if plate_concentration is not None:
+                pc_rows, pc_cols = plate_concentration.shape
+
+                if pc_rows != rp['rows'] or pc_cols != rp['cols']:
+                    raise ValueError(
+                        'plate_concentration wrong shape, should '
+                        'be: (%d, %d) but is: (%d, %d)'
+                        % (rp['rows'], rp['cols'], pc_rows, pc_cols))
+            else:
+                plate_concentration = np.zeros((rp['rows'], rp['cols']))
+                for pid, order in sgp['condensed_plates']:
+                    conc = cond_plates_concentration[order]
+                    for rid, row in enumerate(conc):
+                        for cid, well in enumerate(row):
+                            new_cid = 2 * cid
+                            new_rid = 2 * rid
+                            # We need to fix the indexes so that each well
+                            # in the 96 well plate matches the correct well on
+                            # the 384 well plate. The position of these wells
+                            # is given by this image: https://goo.gl/UCS7Wh
+                            if order in (1, 3):
+                                new_cid = new_cid + 1
+                            if order in (2, 3):
+                                new_rid = new_rid + 1
+                            plate_concentration[new_rid, new_cid] = well
+
             # we expect 4 plates, thus 4 empty rows
             orders = [[], [], [], []]
             for pid, order in sgp['condensed_plates']:
