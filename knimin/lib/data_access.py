@@ -3717,33 +3717,26 @@ class KniminAccess(object):
             water_volumes = np.zeros((n_rows, n_cols))
             qpcr_concentrations = np.zeros((n_rows, n_cols))
             qpcr_cps = np.zeros((n_rows, n_cols))
-            shotgun_i5_index_had_vals = False
-            shotgun_i5_index = [[None for c in range(n_cols)]
-                                for r in range(n_rows)]
-            shotgun_i7_index_had_vals = False
-            shotgun_i7_index = [[None for c in range(n_cols)]
-                                for r in range(n_rows)]
+            shotgun_index_had_vals = False
+            shotgun_index = [[None for c in range(n_cols)]
+                             for r in range(n_rows)]
 
             # get well values
             sql = """SELECT row, col, sample_volume_nl, water_volume_nl,
-                            qpcr_concentration, qpcr_cp, shotgun_i5_index_id,
-                            shotgun_i7_index_id
+                            qpcr_concentration, qpcr_cp, shotgun_index_id
                      FROM pm.shotgun_normalized_plate_well_values
                      WHERE shotgun_normalized_plate_id = %s"""
             TRN.add(sql, [shotgun_normalized_plate_id])
             well_values = TRN.execute_fetchindex()
             for (row, col, sample_volume_nl, water_volume_nl,
-                 qpcr_concentration, qpcr_cp, si5i, si7i) in well_values:
+                 qpcr_concentration, qpcr_cp, sii) in well_values:
                 sample_volumes[row, col] = sample_volume_nl
                 water_volumes[row, col] = water_volume_nl
                 qpcr_concentrations[row, col] = qpcr_concentration
                 qpcr_cps[row, col] = qpcr_cp
-                if si5i is not None:
-                    shotgun_i5_index_had_vals = True
-                shotgun_i5_index[row][col] = si5i
-                if si7i is not None:
-                    shotgun_i7_index_had_vals = True
-                shotgun_i7_index[row][col] = si7i
+                if sii is not None:
+                    shotgun_index_had_vals = True
+                shotgun_index[row][col] = sii
 
             res['plate_normalization_water'] = (
                 None if np.isnan(water_volumes).all() else water_volumes)
@@ -3754,10 +3747,8 @@ class KniminAccess(object):
                 else qpcr_concentrations)
             res['plate_qpcr_cps'] = (
                 None if np.isnan(qpcr_cps).all() else qpcr_cps)
-            res['shotgun_i5_index'] = (
-                shotgun_i5_index if shotgun_i5_index_had_vals else None)
-            res['shotgun_i7_index'] = (
-                shotgun_i7_index if shotgun_i7_index_had_vals else None)
+            res['shotgun_index'] = (
+                shotgun_index if shotgun_index_had_vals else None)
 
         return res
 
@@ -3908,10 +3899,106 @@ class KniminAccess(object):
             TRN.add(sql, [shotgun_index_aliquot_id])
             TRN.execute()
 
+    def get_shotgun_index_information(self, shotgun_index_id):
+        """Pick barcodes for shotgun
+
+        Parameters
+        ----------
+        shotgun_index_id : int
+            The id of the shotgun_index
+
+        Returns
+        -------
+        dict
+            Data stored from that shotgun_index_id
+
+        Raises
+        ------
+        ValueError
+            If shotgun_index_id doesn't exist
+        """
+        with TRN:
+            sql = """SELECT shotgun_index_id, i7_name, i7_bases, i7_row,
+                        i7_col, i5_name, i5_bases, i5_row, i5_col, name,
+                        dual_index, i5_i7_sameplate, last_index_idx
+                     FROM pm.shotgun_index
+                     LEFT JOIN pm.shotgun_index_tech
+                        USING (shotgun_index_tech_id)
+                     WHERE shotgun_index_id = %s"""
+            TRN.add(sql, [shotgun_index_id])
+            r = TRN.execute_fetchindex()
+
+            if not r:
+                raise ValueError(
+                    "%d shotgun_index_id doesn't exist" % shotgun_index_id)
+
+            return dict(r[0])
+
+    def generate_i5_i7_indexes(self, idx_tech, num_samples):
+        """Pick barcodes for shotgun
+
+        Parameters
+        ----------
+        idx_tech : str
+            The index technology we want to use
+        num_samples : int
+            The number barcodes to generate
+
+        Returns
+        -------
+        list of ints
+            A list of ints that represent the barcodes selected for the samples
+
+        Raises
+        ------
+        ValueError
+            If idx_tech doesn't exist
+            If the idx_tech doesn't have barcodes
+        """
+        with TRN:
+            sql = """SELECT shotgun_index_tech_id, name, dual_index,
+                        last_index_idx
+                     FROM pm.shotgun_index_tech WHERE name = %s"""
+            TRN.add(sql, [idx_tech])
+            idx_tech_vals = TRN.execute_fetchindex()
+
+            if not idx_tech_vals:
+                raise ValueError('Not a valid shotgun index '
+                                 'technology: %s' % idx_tech)
+            else:
+                # just taking the first element and converting it to dict
+                # cause there is only one element
+                idx_tech_vals = dict([v for v in idx_tech_vals][0])
+
+            sql = """SELECT shotgun_index_id
+                     FROM pm.shotgun_index
+                     WHERE shotgun_index_tech_id = %s
+                     ORDER BY shotgun_index_id"""
+            TRN.add(sql, [idx_tech_vals['shotgun_index_tech_id']])
+            indices = [r[0] for r in TRN.execute_fetchindex()]
+            if not indices:
+                raise ValueError("'%s' doesn't have any barcodes" % idx_tech)
+            len_indices = len(indices)
+
+            idx = idx_tech_vals['last_index_idx']
+            indices_generated = []
+            for i in range(num_samples):
+                indices_generated.append(indices[idx])
+                idx += 1
+
+                if len_indices <= idx:
+                    idx = 0
+
+            sql = """UPDATE pm.shotgun_index_tech
+                     SET last_index_idx = %s
+                     WHERE shotgun_index_tech_id = %s"""
+            TRN.add(sql, [idx, idx_tech_vals['shotgun_index_tech_id']])
+
+            return indices_generated
+
     def prepare_shotgun_libraries(self, normalized_plate_id, email, mosquito,
                                   shotgun_library_prep_kit,
-                                  shotgun_index_aliquot_id, i5_layout,
-                                  i7_layout):
+                                  shotgun_index_aliquot_id, barcode_layout):
         """Stores the shotgun library prep information
 
         Parameters
@@ -3926,16 +4013,13 @@ class KniminAccess(object):
             The library prep kit lot used
         shotgun_index_aliquot_id : int
             The index aliquot lot id used
-        i5_layout: list of lists of str
-            The i5 index used in each well
-        i7_layout: list of lists of str
-            The i7 index used in each well
+        barcode_layout: list of lists of int
+            The index of the barcodes for the well
 
         Returns
         -------
         ValueError
-            If `i5_layout` dimensions doesn't match the plate type
-            If `i7_layout` dimensions doesn't match the plate type
+            If `barcode_layout` dimensions doesn't match the plate type
         """
         with TRN:
             nsp = self.read_normalized_shotgun_plate(normalized_plate_id)
@@ -3947,20 +4031,16 @@ class KniminAccess(object):
             library_prep_kit_id = self.get_or_create_property_option_id(
                 "shotgun_library_prep_kit", shotgun_library_prep_kit)
 
-            nrows_i5, ncols_i5 = len(i5_layout), len(i5_layout[0])
-            if nrows_i5 != nrows or ncols_i5 != ncols:
-                raise ValueError('i5_layout wrong shape, should '
+            nrows_barcode_layout = len(barcode_layout)
+            ncols_barcode_layout = len(barcode_layout[0])
+            if nrows_barcode_layout != nrows or ncols_barcode_layout != ncols:
+                raise ValueError('barcode_layout wrong shape, should '
                                  'be: (%d, %d) but is: (%d, %d)' % (
-                                    nrows, ncols, nrows_i5, ncols_i5))
-
-            nrows_i7, ncols_i7 = len(i7_layout), len(i7_layout[0])
-            if nrows_i7 != nrows or ncols_i7 != ncols:
-                raise ValueError('i7_layout wrong shape, should '
-                                 'be: (%d, %d) but is: (%d, %d)' % (
-                                    nrows, ncols, nrows_i7, ncols_i7))
+                                    nrows, ncols, nrows_barcode_layout,
+                                    ncols_barcode_layout))
 
             sql = """UPDATE pm.shotgun_normalized_plate_well_values
-                     SET shotgun_i%s_index_id = %s, shotgun_index_aliquot = %s
+                     SET shotgun_index_id = %s, shotgun_index_aliquot = %s
                      WHERE shotgun_normalized_plate_id = %s
                         AND row = %s AND col = %s"""
 
@@ -3968,10 +4048,7 @@ class KniminAccess(object):
             for row in np.arange(nrows):
                 for col in np.arange(ncols):
                     sql_args.append([
-                        5, i5_layout[row][col], shotgun_index_aliquot_id,
-                        normalized_plate_id, row, col])
-                    sql_args.append([
-                        7, i7_layout[row][col], shotgun_index_aliquot_id,
+                        barcode_layout[row][col], shotgun_index_aliquot_id,
                         normalized_plate_id, row, col])
             TRN.add(sql, sql_args, many=True)
 
