@@ -3517,7 +3517,8 @@ class KniminAccess(object):
                          RETURNING dna_plate_id"""
             dna_plates = []
             for p_id, name in zip_longest(sample_plate_ids, names,
-                                          fillvalue=p_id):
+                                          fillvalue=None):
+                name = name if name is not None else p_id
                 TRN.add(sql, [email, name, p_id, robot_id,
                               kit_lot_id, tool_id, notes])
                 dna_plates.append(TRN.execute_fetchlast())
