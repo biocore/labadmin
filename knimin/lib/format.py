@@ -2,7 +2,7 @@ import datetime
 
 
 def format_epmotion_file(volumes, destination):
-    """Writes an EPMotion file
+    """Formats the contents of an EPMotion file
 
     Parameters
     ----------
@@ -25,6 +25,49 @@ def format_epmotion_file(volumes, destination):
             val = "%.3f" % volumes[i][j]
             contents.append(
                 ",".join(['1', source, '1', destination, val, '1']))
+    return "\n".join(contents)
+
+
+def format_normalization_echo_pick_list(vol_sample, vol_water):
+    """Formats the contents of an echo normalization pick list file
+
+    Parameters
+    ----------
+    vol_sample : 2d numpy array of floats
+        The per well sample volume
+    vol_water : 2d numpy array of floats
+        The per well water volume
+
+    Returns
+    -------
+    str
+        The contents of the echo pick list normalization file
+    """
+    contents = ['Source Plate Name,Source Plate Type,Source Well,'
+                'Concentration,Transfer Volume,Destination Plate Name,'
+                'Destination Well']
+    # write the water transfer values
+    rows, cols = vol_water.shape
+    for i in range(rows):
+        for j in range(cols):
+            well_name = "%s%d" % (chr(ord('A') + i), j+1)
+            # Machine will round, so just give it enough info to do the
+            # correct rounding
+            val = "%.2f" % vol_water[i][j]
+            contents.append(
+                ",".join(['water', '384LDV_AQ_B2_HT', well_name, "",
+                          val, 'NormalizedDNA', well_name]))
+
+    for i in range(rows):
+        for j in range(cols):
+            well_name = "%s%d" % (chr(ord('A') + i), j+1)
+            # Machine will round, so just give it enough info to do the
+            # correct rounding
+            val = "%.2f" % vol_sample[i][j]
+            contents.append(
+                ",".join(['1', '384LDV_AQ_B2_HT', well_name, "",
+                          val, 'NormalizedDNA', well_name]))
+
     return "\n".join(contents)
 
 
