@@ -331,8 +331,10 @@ def update_ag_metadata(barcode, md):
 
     # the db.pulldown call returns formatted metadata, so we actually need to
     # reparse it unfortunately.
-    md = pd.read_csv(md, sep='\t', dtype=str)
+    md = pd.read_csv(md, sep='\t', dtype=str, na_values=[],
+                     keep_default_na=False)
     md.rename({'#SampleID': 'sample_name'}, inplace=True)
+    md.set_index('sample_name', inplace=True)
     sc, response = qiita_client.patch('/api/v1/study/10317',
                                       data=md.todict(),
                                       as_json=True)
