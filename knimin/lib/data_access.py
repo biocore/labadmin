@@ -3460,7 +3460,7 @@ class KniminAccess(object):
             return plates
 
     def extract_sample_plates(self, sample_plate_ids, email, robot, kit_lot,
-                              tool, notes=None, name=None):
+                              tool, notes=None, names=[]):
         """Stores the extraction information for the given sample_plates
 
         Parameters
@@ -3477,7 +3477,7 @@ class KniminAccess(object):
             The name of the tool used for extraction
         notes : str, optional
             Notes added to the extracted plates
-        name : str, optional
+        names : lilst of str, optional
             Name to add, if provided
 
         Raises
@@ -3498,7 +3498,7 @@ class KniminAccess(object):
                 "extraction_kit_lot", kit_lot)
             tool_id = self.get_or_create_property_option_id(
                 "extraction_tool", tool)
-            if name is None:
+            if not names:
                 sql = """INSERT INTO pm.dna_plate (
                             email, name, created_on, sample_plate_id,
                             extraction_robot_id, extraction_kit_lot_id,
@@ -3513,17 +3513,14 @@ class KniminAccess(object):
                             email, name, created_on, sample_plate_id,
                             extraction_robot_id, extraction_kit_lot_id,
                             extraction_tool_id, notes)
-                         VALUES (%s, name, now(), %s, %s, %s, %s, %s)
+                         VALUES (%s, %s, now(), %s, %s, %s, %s, %s)
                          RETURNING dna_plate_id"""
             dna_plates = []
-            for p_id in sample_plate_ids:
-                if name is None:
-                    TRN.add(sql, [email, p_id, p_id, robot_id, kit_lot_id,
-                                  tool_id, notes])
-                else:
-                    TRN.add(sql, [email, name, p_id, p_id, robot_id,
-                                  kit_lot_id, tool_id, notes])
-
+            for p_id, name in zip_longest(sample_plate_ids, names,
+                                          fillvalue=None):
+                name = name if name is not None else p_id
+                TRN.add(sql, [email, name, p_id, robot_id,
+                              kit_lot_id, tool_id, notes])
                 dna_plates.append(TRN.execute_fetchlast())
             return dna_plates
 
@@ -4201,15 +4198,15 @@ class KniminAccess(object):
             return [dict(row) for row in TRN.execute_fetchindex()]
 
     def prepare_targeted_libraries(self, plate_links, email, robot, tm300tool,
-                                   tm50tool, mastermix_lot, water_lot,
-                                   name=None):
+                                   tm50tool, mastermix_lot, water_lot):
         """Stores the targeted plate library information
 
         Parameters
         ----------
         plate_links : list of dicts
             A list of {'dna_plate_id': int, 'primer_plate_id': int} linking
-            a DNA plate with the primer plate used
+            a DNA plate with the primer plate used. Optionally it can
+            also include the name of the output plate
         email : str
             The email of the user doing the library prep
         robot : str
@@ -4222,8 +4219,6 @@ class KniminAccess(object):
             The mastermix lot used
         water_lot : str
             The water lot used
-        name : str, optional
-            Name to add, if provided
 
         Returns
         -------
@@ -4259,7 +4254,7 @@ class KniminAccess(object):
                          processing_robot_id)
                      VALUES (%s, %s, now(), %s, %s, %s, %s, %s, %s, %s)
                      RETURNING targeted_plate_id"""
-            sql_args = [[name if name is not None else
+            sql_args = [[l['name'] if 'name' in l else
                          self.read_dna_plate(l['dna_plate_id'])['name'],
                          email, l['dna_plate_id'], l['primer_plate_id'],
                          master_mix_id, tm300_id, tm50_id, water_id, robot_id]
