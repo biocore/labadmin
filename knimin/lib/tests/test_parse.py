@@ -15,7 +15,7 @@ import pandas as pd
 import pandas.util.testing as pdt
 
 from knimin.lib.parse import (parse_qpcr_object, parse_plate_reader_output,
-                              parse_echo)
+                              parse_echo, parse_plate_reader_output_multiple)
 
 
 class TestParse(TestCase):
@@ -134,7 +134,7 @@ class EchoParserTests(TestCase):
                                         '0', '0', None, None, '802.5', '0',
                                         '60.717', '-0.126', 'Percent',
                                         'Glycerol',
-                                        'MM0201004: Inconsistent fluid level']],  # noqa
+                                        'MM0201004: Inconsistent fluid level']], # noqa
                                       columns=['Source Plate Name',
                                                'Source Plate Barcode',
                                                'Source Plate Type',
@@ -208,6 +208,91 @@ class EchoParserTests(TestCase):
 
         pdt.assert_frame_equal(obs_exceptions, exp_exceptions)
         pdt.assert_frame_equal(obs_details.head(5), exp_details)
+
+
+class QubitParserTests(TestCase):
+    def setUp(self):
+        base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+        self.real = os.path.join(base, 'qubit.txt')
+        self.error1 = os.path.join(base, 'qubit-error1.txt')
+        self.error2 = os.path.join(base, 'qubit-error2.txt')
+
+    def test_parse_plate_reader_output_multiple(self):
+        with open(self.real) as fp:
+            data = fp.read()
+        obs = parse_plate_reader_output_multiple(data)
+        exp = [
+            np.array([
+                [145.598, 150.047, 144.486, 192.314, 185.64, 66.627,
+                 193.426, 97.215, 166.731, 123.909, 194.538, 175.63],
+                [141.149, 204.549, 186.752, 192.314, 120.016, 115.567,
+                 124.465, 195.094, 177.298, 147.823, 165.063, 193.426],
+                [215.671, 212.891, 182.303, 208.998, 130.583, 184.528,
+                 130.027, 110.006, 187.865, 189.533, 246.259, 187.865],
+                [157.277, 203.992, 142.818, 168.956, 166.731, 138.369,
+                 132.251, 121.685, 97.215, 172.849, 146.155, 108.337],
+                [117.792, 168.956, 158.946, 157.277, 190.645, 186.196,
+                 178.41, 162.839, 165.063, 180.635, 151.16, 182.859],
+                [162.839, 210.11, 219.008, 117.236, 79.418, 125.578,
+                 171.737, 190.645, 139.481, 210.11, 196.763, 149.491],
+                [175.073, 196.763, 63.847, 208.998, 176.742, 204.549,
+                 170.624, 185.084, 192.314, 198.987, 122.797, 96.102],
+                [183.972, 202.88, 101.664, 129.471, 200.656, 133.92,
+                 125.578, 206.773, 191.201, 199.543, 17.131, 28.254]]),
+            np.array([
+                [145.042, 78.306, 177.854, 88.317, 173.961, 120.572,
+                 174.517, 176.186, 124.465, 76.082, 156.165, 78.862],
+                [7.121, 177.854, 195.65, 190.645, 168.956, 139.481,
+                 119.46, 83.311, 139.481, 219.564, 169.512, 166.175],
+                [202.324, 102.22, 187.865, 154.497, 150.604, 220.12,
+                 202.88, 101.108, 64.403, 147.267, 167.844, 133.92],
+                [163.395, 119.46, 164.507, 166.175, 152.828, 105.557,
+                 180.635, 138.925, 52.168, 153.384, 61.622, 66.627],
+                [198.987, 160.614, 46.05, 118.904, 76.082, 150.604,
+                 120.016, 168.956, 171.737, 146.711, 133.92, 128.358],
+                [84.424, 104.444, 111.118, 192.87, 178.966, 118.348,
+                 58.285, 77.194, 141.149, 63.291, 176.742, 43.826],
+                [92.21, 89.429, 84.98, 110.562, 61.622, 85.536,
+                 81.087, 146.155, 103.332, 153.384, 137.256, 72.745],
+                [133.92, 116.679, 163.395, 101.664, 124.465, 89.429,
+                 95.546, 196.207, 17.688, 10.458, 32.147, 37.152]]),
+            np.array([
+                [3.228, 11.014, 11.014, 44.382, 28.254, 33.815,
+                 10.458, 43.27, 37.708, 4.897, 5.453, 7.677],
+                [8.233, 18.8, 8.789, 23.249, 13.239, 26.03,
+                 11.57, 7.121, 120.572, 6.009, 9.902, 32.147],
+                [7.121, 7.677, 19.356, 82.755, 1.56, 8.789,
+                 20.468, 10.458, 71.633, 22.693, 12.126, 9.346],
+                [6.009, 26.586, 15.463, 87.76, 22.137, 18.244,
+                 13.239, 111.118, 38.265, 14.907, 22.693, 6.565],
+                [9.346, 7.677, 8.789, 70.52, 8.789, 61.622,
+                 8.233, 129.471, 32.703, 10.458, 9.902, 9.902],
+                [9.902, 12.682, 19.912, 82.199, 24.917, 11.57,
+                 17.131, 68.852, 70.52, 24.917, 11.57, 9.902],
+                [11.014, 66.627, 61.622, 62.178, 73.301, 26.03,
+                 57.729, 75.526, 37.708, 7.121, 13.239, 8.789],
+                [18.8, 98.883, 47.163, 84.424, 69.408, 41.601,
+                 100.552, 56.061, 10.458, 14.351, 12.682, 15.463]])]
+        npt.assert_array_equal(obs, exp)
+
+        # testing errors
+        with open(self.error1) as fp:
+            data = fp.read()
+        with self.assertRaises(ValueError) as ctx:
+            parse_plate_reader_output_multiple(data)
+        self.assertEqual(
+            ctx.exception.message, "We expect 14 columns in all lines but "
+            "line 4 of frame 2 only has 12: ['D', '39.377', '76.638', "
+            "'129.471', '168.956', '175.630', '115.011', '185.640', "
+            "'161.726', '77.194', '198.431', '93.878']")
+
+        with open(self.error2) as fp:
+            data = fp.read()
+        with self.assertRaises(ValueError) as ctx:
+            parse_plate_reader_output_multiple(data)
+        self.assertEqual(
+            ctx.exception.message, "Wrong row value: G, it should be: B, "
+            "on line 2, of frame 1")
 
 
 QPCR_OBJECT_ERROR1 = """Experiment: Knight_kapa_qpcr  Selected Filter: \
@@ -321,6 +406,7 @@ PLATE_READER_EXAMPLE = """Curve0.5\tY=A*X+B\t1.15E+003\t99.8\t0.773\t?????\n
 9.280\t8.581\t1.343\t2.416\t0.671\t9.347\t0.836\t5.312\t0.719\t0.622\t\
 4.342\t4.166\t0.633\t11.101\n
 """
+
 
 if __name__ == '__main__':
     main()

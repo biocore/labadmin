@@ -2306,8 +2306,6 @@ class TestDataAccess(TestCase):
                'email': 'test'}
         self.assertEqual(obs, exp)
 
-
-
     def test_read_sequencing_run(self):
         # Success is already tested in "test_pool_plates"
         with self.assertRaises(ValueError) as ctx:
