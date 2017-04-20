@@ -176,3 +176,62 @@ def parse_echo(data):
     details = pd.read_csv(details_section, dtype=str)
 
     return exceptions, details
+
+
+def parse_plate_reader_output_multiple(data):
+    """Parse a qubit essay file
+
+    Parameters
+    ----------
+    data : str
+        A str representation of the file
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame composed of the [EXCEPTIONS] section
+    pd.DataFrame
+        A DataFrame composed of the [DETAILS] section
+
+    Raises
+    ------
+    ValueError
+        If one of the rows has less than 14 values
+        If each value line doesn't start with the expected char
+        If the details section is missing
+    """
+    data = data.splitlines()
+    # check how many frames headers we have
+    # i + 3 cause we want to start 3 lines below as 1 is the header line, 2 is
+    # the blank line just after the header, and the 3 one is the row with
+    # numbers
+    frames = [i + 3 for i, d in enumerate(data) if d.startswith('Curve')]
+    qubit = [np.zeros((8, 12)) for i in range(len(frames))]
+
+    # start reading each frame
+    for i, fidx in enumerate(frames):
+        lines_read = 0
+        # each frame should contain H rows
+        while lines_read < 8:
+            # [:-1] to ignore the last value which is "[Concentration]"
+            line = data[fidx].split('\t')[:-1]
+
+            if len(line) != 13:
+                raise ValueError(
+                    "We expect 14 columns in all lines but line %s of frame "
+                    "%s only has %d: %s" % (lines_read + 1, i + 1, len(line),
+                                            line))
+
+            if line[0] != chr(ord('A') + lines_read):
+                raise ValueError(
+                    'Wrong row value: %c, it should be: %c, on line %d, of '
+                    'frame %d' % (line[0], chr(ord('A') + lines_read),
+                                  lines_read + 1, i + 1))
+
+            for j, v in enumerate(line[1:]):
+                qubit[i][lines_read, j] = float(v)
+
+            fidx += 1
+            lines_read += 1
+
+    return qubit
