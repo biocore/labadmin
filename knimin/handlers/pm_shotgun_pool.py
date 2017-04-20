@@ -14,6 +14,7 @@ from knimin import db
 from knimin.handlers.base import BaseHandler
 from knimin.handlers.access_decorators import set_access
 from knimin.lib.parse import parse_qpcr_object
+from knimin.lib.format import format_pooling_echo_pick_list
 from knimin.lib.shotgun import (compute_qpcr_concentration,
                                 compute_shotgun_pooling_values_qpcr)
 
@@ -71,10 +72,3 @@ class PMShotgunPool(BaseHandler):
         self.write(content)
         self.flush()
         self.finish()
-
-
-def format_pooling_echo_pick_list(arg):
-    # FIXME: This needs to be implemented, and appropriately tested
-    if arg is None:
-        pass
-    return ''

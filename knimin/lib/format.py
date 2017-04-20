@@ -71,6 +71,33 @@ def format_normalization_echo_pick_list(vol_sample, vol_water):
     return "\n".join(contents)
 
 
+def format_pooling_echo_pick_list(vol_sample):
+    """Format the contents of an echo pooling pick list
+
+    Parameters
+    ----------
+    vol_sample : 2d numpy array of floats
+        The per well sample volume
+    """
+    contents = ['Source Plate Name,Source Plate Type,Source Well,'
+                'Concentration,Transfer Volume,Destination Plate Name,'
+                'Destination Well']
+    # Write the sample transfer volumes
+    rows, cols = vol_sample.shape
+    for i in range(rows):
+        for j in range(cols):
+            well_name = "%s%d" % (chr(ord('A') + i), j+1)
+            # Machine will round, so just give it enough info to do the
+            # correct rounding. The desination well is A1 because we're pooling
+            # samples
+            val = "%.2f" % vol_sample[i][j]
+            contents.append(
+                ",".join(['1', '384LDV_AQ_B2_HT', well_name, "",
+                          val, 'NormalizedDNA', 'A1']))
+
+    return "\n".join(contents)
+
+
 def write_sample_sheet(output_fp, instrument_type, labadmin_id,
                        run_name, assay, fwd_cycles, rev_cycles,
                        pi_name, pi_email,
