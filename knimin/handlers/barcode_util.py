@@ -301,7 +301,8 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
                 send_mail, sample_date, sample_time, other_text)
             div_id, message, ag_details, md = self.get_ag_details(barcode)
             if div_id == 'verified':
-                gen_update_msg = update_ag_metadata(barcode, md)
+                msg = update_ag_metadata(barcode, md)
+                gen_update_msg = '. '.join([gen_update_msg, msg])
 
         self.render("barcode_util.html", div_and_msg=None,
                     barcode_projects=[],
