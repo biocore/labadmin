@@ -1403,6 +1403,19 @@ class TestDataAccess(TestCase):
                'notes': None}
         self.assertEqual(obs_info, exp)
 
+        obs = db.extract_sample_plates(
+            [plate_id], 'test', exp_robot['name'], exp_kit['name'],
+            exp_tool['name'], names=['New plate name'])
+        self._clean_up_funcs.insert(0, partial(db.delete_dna_plate, obs[0]))
+        obs_info = db.read_dna_plate(obs[0])
+        self.assertEqual(obs_info['name'], 'New plate name')
+
+        # test names error
+        with self.assertRaises(ValueError):
+            db.extract_sample_plates([plate_id], 'test', exp_robot['name'],
+                                     exp_kit['name'], exp_tool['name'],
+                                     names=['New plate name', 'My other name'])
+
     def test_normalize_shotgun_plate_bad_id(self):
         with self.assertRaisesRegexp(ValueError, "shotgun plate"):
             db.normalize_shotgun_plate(99999999, 'test', 'a valid echo name',
@@ -1772,8 +1785,41 @@ class TestDataAccess(TestCase):
         for obs_id, exp in zip(obs_ids, exp):
             obs = db.read_targeted_plate(obs_id)
             self.assertTrue(before <= obs.pop('created_on') <= after)
-            for k in obs:
-                self.assertEqual(obs[k], exp[k])
+            self.assertEqual(obs, exp)
+
+        # testing prepare_targeted_libraries with a name
+        plate_links = [
+            {'dna_plate_id': dna_plate_ids[0], 'primer_plate_id': 1,
+             'name': 'Targeted plate 1'},
+            {'dna_plate_id': dna_plate_ids[1], 'primer_plate_id': 2,
+             'name': 'Targeted plate 2'}]
+        before = datetime.datetime.now()
+        obs_ids = db.prepare_targeted_libraries(
+            plate_links, 'test', 'ROBE', '208484Z', '108364Z', '14459',
+            'RNBD9959')
+        after = datetime.datetime.now()
+
+        for o_id in obs_ids:
+            self._clean_up_funcs.insert(
+                0, partial(db.delete_targeted_plate, o_id))
+
+        self.assertEqual(len(obs_ids), 2)
+        exp = [
+            {'id': obs_ids[0], 'name': 'Targeted plate 1', 'email': 'test',
+             'dna_plate_id': dna_plate_ids[0], 'primer_plate_id': 1,
+             'master_mix_lot': '14459', 'robot': 'ROBE',
+             'tm300_8_tool': '208484Z', 'tm50_8_tool': '108364Z',
+             'raw_concentration': None, 'mod_concentration': None,
+             'water_lot': 'RNBD9959'},
+            {'id': obs_ids[1], 'name': 'Targeted plate 2', 'email': 'test',
+             'dna_plate_id': dna_plate_ids[1], 'primer_plate_id': 2,
+             'master_mix_lot': '14459', 'robot': 'ROBE',
+             'tm300_8_tool': '208484Z', 'tm50_8_tool': '108364Z',
+             'raw_concentration': None, 'mod_concentration': None,
+             'water_lot': 'RNBD9959'}]
+        for obs_id, exp in zip(obs_ids, exp):
+            obs = db.read_targeted_plate(obs_id)
+            self.assertTrue(before <= obs.pop('created_on') <= after)
             self.assertEqual(obs, exp)
 
         # testing quantify_targeted_plate on only one of the plates
@@ -1869,9 +1915,10 @@ class TestDataAccess(TestCase):
         exp = {'id': pool_id, 'name': 'LabAdmin test pool',
                'volume': 5, 'notes': None,
                'targeted_pools': [
-                {'name': 'Test plate', 'volume': 240, 'percentage': 50,
-                 'targeted_plate_id': targeted_plate_ids[0]},
-                {'name': 'Test plate 2', 'volume': 240, 'percentage': 50,
+                {'name': 'Test plate [0-9]*-[0-9]*', 'volume': 240,
+                 'percentage': 50, 'targeted_plate_id': targeted_plate_ids[0]},
+                {'name': 'Test plate 2 [0-9]*-[0-9]*', 'volume': 240,
+                 'percentage': 50,
                  'targeted_plate_id': targeted_plate_ids[1]}]}
 
         self.assertAlmostEqual(obs.pop('volume'), exp.pop('volume'))
@@ -1879,6 +1926,7 @@ class TestDataAccess(TestCase):
             # Remove the id from the targeted pools since it will different
             # in every run
             o.pop('id')
+            self.assertRegexpMatches(o.pop('name'), e.pop('name'))
             self.assertAlmostEqual(o.pop('volume'), e.pop('volume'))
             self.assertAlmostEqual(o.pop('percentage'), e.pop('percentage'))
             self.assertEqual(o, e)
@@ -2208,11 +2256,14 @@ class TestDataAccess(TestCase):
 
         pool_ids = self._create_test_data_pool()
         exp = [{'id': pool_ids[0], 'name': 'LabAdmin test pool',
-                'targeted_pools': ['Test plate']},
+                'targeted_pools': ['Test plate [0-9]*-[0-9]*']},
                {'id': pool_ids[1], 'name': 'LabAdmin test pool 2',
-                'targeted_pools': ['Test plate 2']}]
+                'targeted_pools': ['Test plate 2 [0-9]*-[0-9]*']}]
 
-        self.assertEqual(db.get_pool_list(), exp)
+        for x, y in zip(db.get_pool_list(), exp):
+            for i, j in zip(x.pop('targeted_pools'), y.pop('targeted_pools')):
+                self.assertRegexpMatches(i, j)
+            self.assertEqual(x, y)
 
     def test_create_sequencing_run(self):
         pool_ids = self._create_test_data_pool()
@@ -2231,6 +2282,31 @@ class TestDataAccess(TestCase):
         obs = db.read_sequencing_run(run_id)
         self.assertTrue(before <= obs.pop('created_on') <= after)
         exp = {'id': run_id, 'name': 'LabAdmin test pool', 'notes': None,
+               'sequencer': 'Knight Lab In house MiSeq',
+               'pool_id': pool_ids[0],
+               'platform': 'Illumina', 'instrument_model': 'MiSeq',
+               'reagent_type': 'MiSeq v3 150 cycle',
+               'reagent_lot': 'MS1234',
+               'assay': 'Kapa Hyper Plus',
+               'fwd_cycles': 151, 'rev_cycles': 151,
+               'email': 'test'}
+        self.assertEqual(obs, exp)
+
+        # Create the run with name
+        before = datetime.datetime.now()
+        run_id = db.create_sequencing_run(
+            pool_ids[0], 'test', 'Knight Lab In house MiSeq',
+            'MiSeq v3 150 cycle', 'MS1234',
+            'Illumina', 'MiSeq', 'Kapa Hyper Plus', 151, 151,
+            "Mi nombre es XXX")
+
+        after = datetime.datetime.now()
+        self._clean_up_funcs.insert(
+            0, partial(db.delete_sequencing_run, run_id))
+
+        obs = db.read_sequencing_run(run_id)
+        self.assertTrue(before <= obs.pop('created_on') <= after)
+        exp = {'id': run_id, 'name': 'Mi nombre es XXX', 'notes': None,
                'sequencer': 'Knight Lab In house MiSeq',
                'pool_id': pool_ids[0],
                'platform': 'Illumina', 'instrument_model': 'MiSeq',
