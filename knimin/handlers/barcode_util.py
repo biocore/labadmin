@@ -2,8 +2,11 @@
 from tornado.web import authenticated
 from knimin.handlers.base import BaseHandler
 from datetime import datetime
+from tornado.escape import json_decode
 
-from knimin import db
+import pandas as pd
+
+from knimin import db, qiita_client
 from knimin.lib.constants import survey_type
 from knimin.lib.mail import send_email
 from knimin.handlers.access_decorators import set_access
@@ -12,7 +15,7 @@ from knimin.handlers.access_decorators import set_access
 class BarcodeUtilHelper(object):
     def get_ag_details(self, barcode):
         ag_details = db.getAGBarcodeDetails(barcode)
-        _, failures = db.pulldown([barcode], [])
+        md, failures = db.pulldown([barcode], [])
 
         if len(ag_details) == 0 and failures:
             div_id = "no_metadata"
@@ -64,7 +67,7 @@ class BarcodeUtilHelper(object):
             message = ("In American Gut project group but no "
                        "American Gut info for barcode")
             ag_details['email_type'] = "-1"
-        return div_id, message, ag_details
+        return div_id, message, ag_details, md
 
     def update_ag_barcode(self, barcode, login_user, login_email, email_type,
                           sent_date, send_mail, sample_date, sample_time,
@@ -225,7 +228,7 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
         # get project info for div
         ag_details = []
         if parent_project == 'American Gut':
-            div_id, message, ag_details = self.get_ag_details(barcode)
+            div_id, message, ag_details, md = self.get_ag_details(barcode)
         else:
             div_id = "verified"
             message = "Barcode Info is correct"
@@ -296,6 +299,11 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
             email_msg, ag_update_msg = self.update_ag_barcode(
                 barcode, login_user, login_email, email_type, sent_date,
                 send_mail, sample_date, sample_time, other_text)
+            div_id, message, ag_details, md = self.get_ag_details(barcode)
+            if div_id == 'verified':
+                msg = update_ag_metadata(barcode, md)
+                gen_update_msg = '. '.join([gen_update_msg, msg])
+
         self.render("barcode_util.html", div_and_msg=None,
                     barcode_projects=[],
                     parent_project=None,
@@ -305,3 +313,50 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
                     msgs=(gen_update_msg, email_msg, ag_update_msg,
                           project_msg),
                     currentuser=self.current_user)
+
+
+def update_ag_metadata(barcode, md):
+    """Push the sample's metadata to Qiita
+
+    This is specific for American Gut samples. We need to make sure the sample
+    is represented in Qiita so that it can be plated by the PlateMapper
+    interface.
+    """
+    sc, response = qiita_client.get('/api/v1/study/10317/samples')
+    if sc != 200:
+        return "Unable to get sample IDs from Qiita"
+
+    existing = set(json_decode(response.body))
+    if barcode in existing:
+        return "Metadata for %s already exists in Qiita" % barcode
+
+    # the db.pulldown call returns formatted metadata, so we actually need to
+    # reparse it unfortunately.
+    md = pd.read_csv(md, sep='\t', dtype=str, na_values=[],
+                     keep_default_na=False)
+    md.rename({'#SampleID': 'sample_name'}, inplace=True)
+    md.set_index('sample_name', inplace=True)
+    sc, response = qiita_client.patch('/api/v1/study/10317',
+                                      data=md.todict(),
+                                      as_json=True)
+
+    if sc == 201:
+        return "Metadata for AG sample %s added into Qiita"
+    elif sc == 200:
+        # this should not happen as we first check whether the sample is
+        # already represented; this status code means that the sample is
+        # already present in the qiita study. there is a race condition
+        # though as we cannot put a lock on the remote resouce. So it is
+        # technically possible that a sample metadata for this sample will
+        # get loaded via a different mechanism in between the time we check
+        # qiita, and the time we push sample metadata.
+
+        # and obviously, this message is _not_ the best way to handle this
+        # situation but it isn't clear what is best at this time. it also is
+        # not clear whether there is an actual problem here given the limited
+        # scope of how this scenario can arise.
+        return ("UNEXPECTED: the metadata for this sample was updated, please "
+                "notify the development team that this message was received.")
+    else:
+        raise ValueError("%d was received; response details: %s" %
+                         (sc, response.body))

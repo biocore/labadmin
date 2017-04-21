@@ -183,8 +183,6 @@ class TestBarcodeUtil(TestHandlerBase):
         self.mock_login()
         response = self.post('/barcode_util/', data=self.data)
         self.assertEqual(response.code, 200)
-        self.assertIn('Barcode %s general details updated' % self.ag_good,
-                      response.body)
         self.assertIn('Barcode %s AG info was successfully updated' %
                       self.ag_good, response.body)
         obs = db.getAGBarcodeDetails(self.ag_good)
@@ -199,8 +197,8 @@ class TestBarcodeUtil(TestHandlerBase):
 
         response = self.post('/barcode_util/', data=self.data)
         self.assertEqual(response.code, 200)
-        self.assertIn('Barcode %s general details updated' % self.ag_good,
-                      response.body)
+        self.assertIn('Barcode %s AG info was successfully updated' %
+                      self.ag_good, response.body)
         self.assertIn('Project successfully changed', response.body)
         barcode_projects, parent_project = db.getBarcodeProjType(self.ag_good)
         self.assertEqual(barcode_projects, self.data['project'])
@@ -300,17 +298,22 @@ FAQ section for when you can expect results.<br/>
 
         # check output for a non existing barcode
         barcode = 'NotInDB'
-        div_id, message, ag_details = h.get_ag_details(barcode)
+        div_id, message, ag_details, md = h.get_ag_details(barcode)
         self.assertEqual(div_id, 'no_metadata')
         self.assertEqual(message, "Cannot retrieve metadata: %s" %
                          'Not an AG barcode')
         self.assertEqual(ag_details, {})
+        self.assertEqual(md, {})
 
         # check normal behaviour
         barcode = '000001018'
-        div_id, message, ag_details = h.get_ag_details(barcode)
+        div_id, message, ag_details, md = h.get_ag_details(barcode)
         self.assertEqual(div_id, 'verified')
         self.assertEqual(message, "All good")
+        header, sample = md[1].splitlines()
+        self.assertTrue(header.startswith('sample_name'))
+        self.assertTrue(sample.startswith(barcode))
+
         # TODO: Stefan Janssen: there seems to be differences weather this
         # test runs on my local machine or on Travis. Therefore, I delete
         # diverging entries
@@ -348,27 +351,30 @@ FAQ section for when you can expect results.<br/>
 
         # check that None values are set to ''
         barcode = '000016744'
-        div_id, message, ag_details = h.get_ag_details(barcode)
+        div_id, message, ag_details, md = h.get_ag_details(barcode)
         self.assertEqual(ag_details['environment_sampled'], '')  # and not None
         self.assertEqual(ag_details['other_checked'], '')
+        header, sample = md[1].splitlines()
+        self.assertTrue(header.startswith('sample_name'))
+        self.assertTrue(sample.startswith(barcode))
 
         # check that other is set to 'checked' instead of DB values, which is Y
         barcode = "000003411"
-        div_id, message, ag_details = h.get_ag_details(barcode)
+        div_id, message, ag_details, _ = h.get_ag_details(barcode)
         self.assertNotEqual(ag_details['other_checked'], 'Y')
         self.assertEqual(ag_details['other_checked'], 'checked')
 
         # check that overloaded is set to 'checked' instead of DB values,
         # which is 'Y'
         barcode = '000001066'
-        div_id, message, ag_details = h.get_ag_details(barcode)
+        div_id, message, ag_details, _ = h.get_ag_details(barcode)
         self.assertNotEqual(ag_details['overloaded_checked'], 'Y')
         self.assertEqual(ag_details['overloaded_checked'], 'checked')
 
         # check that moldy is set to 'checked' instead of DB values,
         # which is 'Y'
         barcode = "000007677"
-        div_id, message, ag_details = h.get_ag_details(barcode)
+        div_id, message, ag_details, _ = h.get_ag_details(barcode)
         self.assertNotEqual(ag_details['moldy_checked'], 'Y')
         self.assertEqual(ag_details['moldy_checked'], 'checked')
 
@@ -633,8 +639,8 @@ class BarcodeUtilHandler(TestHandlerBase):
         # check normal behaviour
         response = self.post('/barcode_util/', data)
         self.assertEqual(response.code, 200)
-        self.assertIn('Barcode %s general details updated' % data['barcode'],
-                      response.body)
+        self.assertIn('Barcode %s AG info was successfully updated' %
+                      data['barcode'], response.body)
         self.assertIn('Project successfully changed', response.body)
         dbInfo = db.get_barcode_details(data['barcode'])
         self.assertEqual(date(2015, 6, 25), dbInfo['sample_postmark_date'])
@@ -678,6 +684,8 @@ class BarcodeUtilHandler(TestHandlerBase):
         self.assertTrue('<p> Barcode %s general details updated </p>'
                         % data['barcode'], response.body)
         self.assertIn('Project successfully changed', response.body)
+        self.assertNotIn('%s added into Qiita' % data['barcode'],
+                         response.body)
 
         # check updating a AGP barcode
         del data['project']
