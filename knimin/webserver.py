@@ -32,7 +32,10 @@ from knimin.handlers.ag_consent_check import AGConsentCheckHandler
 from knimin.handlers.projects_summary import ProjectsSummaryHandler
 from knimin.handlers.access_control import AGEditAccessHandler
 from knimin.handlers.ag_results_ready import AGResultsReadyHandler
-from knimin.handlers.pm_plate_list import PMPlateListHandler
+from knimin.handlers.pm_plate_list import (
+    PMPlateListHandler, PMSamplePlateListHandler, PMDNAPlateListHandler,
+    PMTargetedPlateListHandler, PMShotgunPlateListHandler,
+    PMShotgunNormalizedPlateListHandler)
 from knimin.handlers.pm_plate_map import (
     PMCreatePlateHandler, PMPlateNameCheckerHandler, PMPlateMapHandler,
     PMSamplePlateHandler, PMExtractPlateHandler)
@@ -106,6 +109,12 @@ class WebApplication(Application):
             (r"/pm_sequence/", PMSequenceHandler),
             (r"/pm_sequencing_complete/", PMSequencingCompleteHandler),
             (r"/pm_create_study/", PMCreateStudyHandler),
+            (r"/pm_plate_list/sample/", PMSamplePlateListHandler),
+            (r"/pm_plate_list/dna/", PMDNAPlateListHandler),
+            (r"/pm_plate_list/targeted/", PMTargetedPlateListHandler),
+            (r"/pm_plate_list/shotgun/", PMShotgunPlateListHandler),
+            (r"/pm_plate_list/normalized/",
+                PMShotgunNormalizedPlateListHandler),
             (r"/pm_plate_list/", PMPlateListHandler),
             (r"/pm_jira_user_check/", PMJiraUserCheckerHandler),
             (r"/pm_create_plate/", PMCreatePlateHandler),

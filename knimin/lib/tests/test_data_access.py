@@ -1533,6 +1533,16 @@ class TestDataAccess(TestCase):
         self.assertEqual(ctx.exception.message,
                          "100000000000000 shotgun_index_id doesn't exist")
 
+    def test_get_normalized_shotgun_plate_list(self):
+        cid = self._create_test_shotgun_plate()
+        nid = db.normalize_shotgun_plate(cid, 'test', 'Echo 550',
+                                         np.arange(384).reshape(16, 24),
+                                         np.arange(384).reshape(16, 24) * 10)
+        obs = db.get_normalized_shotgun_plate_list()
+        exp = [{'id': nid, 'name': 'full plate',
+                'date': datetime.date.today()}]
+        self.assertEqual(obs, exp)
+
     def test_normalize_shotgun_plate(self):
         before = datetime.datetime.now()
         self._create_test_echo()
@@ -1577,7 +1587,7 @@ class TestDataAccess(TestCase):
 
         # tests for prepare_shotgun_libraries
         # the mosquito values are set 1: Mosquito1
-        mosquito = 'Mosquito1'
+        mosquito = 'Mosquito left'
         mosquito_id = 1
         shotgun_library_prep_kit = 'new library_prep_kit'
         # as we need to insert a new index aliquot for testing, let's also
@@ -2017,6 +2027,13 @@ class TestDataAccess(TestCase):
 
         return cid, dna_plates
 
+    def test_get_shotgun_plate_list(self):
+        cid, dna_plates = self._generate_condense_dna_plates()
+        obs = db.get_shotgun_plate_list()
+        exp = [{'id': cid, 'name': 'full plate', 'date': datetime.date.today(),
+                'dna_plates': ['Test b', 'Test r', 'Test y', 'Test g']}]
+        self.assertEqual(obs, exp)
+
     def test_condense_dna_plates(self):
         cid, dna_plates = self._generate_condense_dna_plates()
         obs = db.read_shotgun_plate(cid)
@@ -2116,7 +2133,7 @@ class TestDataAccess(TestCase):
         sgp_id, dna_plates = self._generate_condense_dna_plates()
         email = 'test'
         volume = .002
-        plate_reader = 'PR1234'
+        plate_reader = 'Synergy HT'
         plate_concentration = np.random.rand(16, 24)
         db.quantify_shotgun_plate(sgp_id, email, volume, plate_reader,
                                   plate_concentration)
@@ -2159,7 +2176,7 @@ class TestDataAccess(TestCase):
         sgp_id, dna_plates = self._generate_condense_dna_plates()
         email = 'test'
         volume = .002
-        plate_reader = 'PR1234'
+        plate_reader = 'Synergy HT'
         with self.assertRaises(ValueError) as ctx:
             db.quantify_shotgun_plate(sgp_id, email, volume, plate_reader)
         self.assertEqual(
@@ -2216,7 +2233,7 @@ class TestDataAccess(TestCase):
         sgp_id, dna_plates = self._generate_condense_dna_plates(True)
         email = 'test'
         volume = .002
-        plate_reader = 'PR1234'
+        plate_reader = 'Synergy HT'
         plate_concentration = np.random.rand(16, 24)
         db.quantify_shotgun_plate(sgp_id, email, volume, plate_reader,
                                   plate_concentration)

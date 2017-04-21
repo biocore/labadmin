@@ -96,7 +96,9 @@
     });
 
     // Remove the plate that is already selected
-    $("#plate-select option[value={{plate_id}}]").remove();
+    {% for plate_id in plate_ids %}
+      $("#plate-select option[value={{plate_id}}]").remove();
+    {% end %}
 
     // Attach handler to the change even of the select
     $("#plate-select").change(function(e) {
@@ -154,7 +156,9 @@
   <!-- List of plates being extracted -->
   <label>Plates being extracted: <button class="btn btn-success btn-add" data-toggle='modal' data-target="#add-plate-modal"><span class="glyphicon glyphicon-plus"></span></button></label>
   <ul class="list-group" id="lu-plate-list">
-    <li class="list-group-item" id="li-plate-{{plate_id}}" pm-id="{{plate_id}}">(ID: {{plate_id}}) {{plate_name}}</li>
+    {% for p_id, p_name in zip(plate_ids, plate_names) %}
+      <li class="list-group-item" id="li-plate-{{plate_id}}" pm-id="{{plate_id}}">(ID: {{p_id}}) {{p_name}}</li>
+    {% end %}
   </ul>
 
   <!-- Extraction robot select -->

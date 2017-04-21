@@ -131,16 +131,17 @@ class PMSamplePlateHandler(BaseHandler):
 class PMExtractPlateHandler(BaseHandler):
     @authenticated
     def get(self):
-        plate_id = self.get_argument('plate_id')
-        plate_name = db.read_sample_plate(plate_id)['name']
+        plate_ids = self.get_arguments('plate_id')
+        plate_names = [db.read_sample_plate(p_id)['name']
+                       for p_id in plate_ids]
         plates = [[p['id'], p['name']] for p in db.get_sample_plate_list()]
         robots = db.get_property_options('extraction_robot')
         tools = db.get_property_options('extraction_tool')
         kits = db.get_property_options('extraction_kit_lot')
 
         self.render("pm_extract_plate.html", currentuser=self.get_current_user,
-                    plate_id=plate_id, plate_name=plate_name, plates=plates,
-                    robots=robots, tools=tools, kits=kits)
+                    plate_ids=plate_ids, plate_names=plate_names,
+                    plates=plates, robots=robots, tools=tools, kits=kits)
 
     @authenticated
     def post(self):

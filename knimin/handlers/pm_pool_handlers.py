@@ -68,6 +68,8 @@ def _get_quantified_targeted_plates(plates_arg):
     plates = []
     for plate in db.get_quantified_targeted_plate_list():
         plate['date'] = plate['date'].isoformat()
+        plate['primer_plate'] = db.read_targeted_plate(
+            plate['id'])['primer_plate_id']
         all_plates.append(plate)
         if plate['id'] in plates_arg:
             plates.append(plate)

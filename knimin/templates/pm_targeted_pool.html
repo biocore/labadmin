@@ -12,7 +12,7 @@
   function addPlateOptions(elem) {
     var plates = {% raw dumps(all_plates) %};
     $.each(plates, function (idx, plate) {
-      var display = "(ID: " + plate.id + ") " + plate.name + " - " + plate.date;
+      var display = "(ID: " + plate.id + ") " + plate.name + " - " + plate.date + " - Primer plate " + plate.primer_plate;
       $('<option>').attr('value', plate.id).data('pm-samples', plate.num_samples).text(display).appendTo(elem);
     });
   };
@@ -235,7 +235,7 @@
     <div class="entry row">
       <div class="col-xs-5 form-group">
         <select class="form-control plate-select">
-          <option value='{{plate['id']}}' selected>(ID: {{plate['id']}}) {{plate['name']}} - {{plate['date']}}</option>
+          <option value='{{plate['id']}}' selected>(ID: {{plate['id']}}) {{plate['name']}} - {{plate['date']}} - Primer plate {{plate['primer_plate']}}</option>
         </select>
       </div>
     <div class="col-xs-1 form-group">

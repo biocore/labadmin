@@ -1,144 +1,188 @@
 <!-- The Plate Mapper module -->
 <!-- Plate list -->
 
-{% extends logged_in_index.html %}
+{% extends auth_sitebase.html %}
 {% block head %}
-{% from json import dumps %}
-<script type="text/javascript" src="/static/js/labmin.js"></script>
-<script type="text/javascript" src="/static/vendor/js/jquery.validate.min.js"></script>
-<script type="text/javascript" src="/static/vendor/js/jquery.dataTables.min.js"></script>
-<link rel="stylesheet" type="text/css" href="/static/vendor/css/jquery.dataTables.min.css">
-<link rel="stylesheet" href="/static/vendor/font-awesome/css/font-awesome.min.css">
-<style>
-  p {
-    font-weight: bold;
-  }
-  a {
-    color: black;
-  }
-  button {
-    padding: 5px 10px 5px 10px;
-    text-decoration: none;
-    font-size: 80%;
-  }
-  select {
-    border: 1px solid black;
-    padding: 5px 10px 5px 10px;
-    height: 25px;
-    margin-bottom: 1px;
-  }
-  button.inline {
-    height: 25px;
-    width: 25px;
-    padding: 2px 4px 2px 4px;
-    border: 0;
-    background-color: transparent;
-    text-decoration: none;
-    font-size: 80%;
-  }
-  button.inline:hover {
-    background-color: dimgrey;
-    color: white;
-  }
-  table {
-    border-top: 1px solid black;
-  }
-  table.dataTable thead th {
-    text-align: left;
-    padding: 5px 10px 5px 10px;
-  }
-  tbody.list tr td {
-    vertical-align: middle;
-    padding: 5px 10px 5px 10px;
-  }
-  tbody.list tr:hover {
-    background-color: lightgray;
-  }
-  tbody.list a:hover {
-    color: darkblue;
-    text-decoration: underline;
-  }
-  .dataTables_wrapper .dataTables_info {
-    font-size: 90%;
-  }
-  .dataTables_wrapper .dataTables_filter {
-    font-size: 90%;
-  }
-  .dataTables_wrapper .dataTables_length {
-    font-size: 90%;
-  }
-  .dataTables_wrapper .dataTables_paginate {
-    font-size: 90%;
-  }
-  .dataTables_wrapper .dataTables_paginate .paginate_button {
-    padding: 4px 8px 4px 8px;
-    text-decoration: none;
-  }
-</style>
 <script type="text/javascript">
-  $(document).ready(function(){
-    $('#plate-list').DataTable({
-      scrollY: 450,
-      scrollCollapse: true,
-      pageLength: 50
+
+  function getSelectedPlates(limit) {
+    var selected = [];
+    $.each($('.selected'), function(idx, p) {
+      selected.push($(p).data('pm-plate-id'));
     });
-    $('#plate-list tbody').on('click', 'tr', function(){
+
+    if (selected.length == 0) {
+      $('#pm-warn-msg').text("Please choose at least one plate");
+      $('#pm-warning').show();
+    } else if (limit > 0 && selected.length > limit) {
+      $('#pm-warn-msg').text("Please choose no more than " + limit + " plates");
+      $('#pm-warning').show();
+      selected = [];
+    }
+
+    return selected;
+  };
+
+  function openPlateMap() {
+    var plate = getSelectedPlates(1);
+    if (plate.length > 0) {
+      // We know for sure that there is only 1 plate -> idx 0
+      window.location.href = "/pm_sample_plate?plate_id=" + plate[0];
+    }
+  };
+
+  function extractPlates() {
+    var plates = getSelectedPlates();
+    if (plates.length > 0) {
+      var url = "/pm_extract_plate?plate_id=" + plates[0];
+      for (var i = 1; i < plates.length; i++) {
+        url += "&plate_id=" + plates[i]
+      }
+      window.location.href = url;
+    }
+  };
+
+  // This is not strictly needed now, but I stubbed it out
+  // function discardPlates(plateType) {
+  //   console.log('TODO - discard plates');
+  // };
+  // function normalizePlates() {
+  //   console.log('TODO - normalize');
+  // };
+
+  function targetedPrep() {
+    var plates = getSelectedPlates();
+    if (plates.length > 0) {
+      var url = "/pm_library_prep/target_gene/?plate_id=" + plates[0];
+      for (var i = 1; i < plates.length; i++) {
+        url += "&plate_id=" + plates[i]
+      }
+      window.location.href = url;
+    }
+  };
+
+  function targetedPool() {
+    var plates = getSelectedPlates();
+    if (plates.length > 0) {
+      var url = "/pm_targeted_pool/?plate=" + plates[0];
+      for (var i = 1; i < plates.length; i++) {
+        url += "&plate=" + plates[i]
+      }
+      window.location.href = url;
+    }
+  };
+
+  function create_table(data) {
+    $('#table-div').empty();
+    var $table = $('<table>').addClass('table').appendTo($('#table-div'));
+    // Create the table header
+    var $thead = $('<thead>').appendTo($table);
+    var $tr = $('<tr>').appendTo($thead);
+    for (var header of data.headers) {
+      $('<th>').css('text-transform', 'capitalize').text(header.replace('_', ' ')).appendTo($tr);
+    }
+
+    var $tbody = $('<tbody>').appendTo($table);
+    for (var plate of data.plates) {
+      $tr = $('<tr>').appendTo($tbody).data('pm-plate-id', plate['id']);
+      for (var header of data.headers) {
+        $('<td>').html(plate[header]).appendTo($tr);
+      }
+    }
+
+    $table.DataTable({
+      pageLength: 10
+    });
+
+    $tbody.on('click', 'tr', function(){
         $(this).toggleClass('selected');
     });
+  };
+
+
+  $(document).ready(function(){
+    $('#plate-type-sel').change(function () {
+      var val = $('#plate-type-sel').val();
+      $.getJSON('/pm_plate_list/' + val + '/', create_table);
+      $('.pm-list-btns').hide();
+      $('#' + val + '-btns').show();
+    });
+
+    $('.pm-list-btns').hide();
+    $('#pm-warning').hide();
   });
 </script>
 {% end %}
 
 {% block content %}
-<h3 id="page-title">{{target[0].upper() + target[1:]}} Plate List</h3>
-<p>
-  <a class="btn btn-default" href="/pm_create_plate/"><span class="fa fa-plus"></span> Create new</a>
-</p>
+<h3 id="page-title">Plate List</h3>
 
-<table id="plate-list">
-  <thead>
-    <tr>
-      <th width="50px">ID</th>
-      <th width="225px">Name</th>
-      <th width="75px">Type</th>
-      <th width="50px">Filled</th>
-      <th width="50px">Studies</th>
-      <th width="75px">Person</th>
-      <th width="75px">Date</th>
-      <th width="100px">Actions</th>
-    </tr>
-  </thead>
-  <tbody class="list">
-    {% for plate in plates %}
-    <tr>
-      <td>{{plate['id']}}</td>
-      <td><a href="/pm_plate_map?plate_id={{plate['id']}}">{{plate['name']}}</a></td>
-      <td title="{{plate['type'][1]}}">{{plate['type'][0]}}</td>
-      <td>{{plate['fill'][0]}}
-        <span style="font-size:80%">
-          {% set x = plate['fill'][1] %}
-          {% if x == 1.0 %}
-          <i class="fa fa-battery-full"></i>
-          {% elif x >= 0.667 %}
-          <i class="fa fa-battery-three-quarters"></i>
-          {% elif x > 0.333 %}
-          <i class="fa fa-battery-half"></i>
-          {% elif x > 0.0 %}
-          <i class="fa fa-battery-quarter"></i>
-          {% else %}
-          <i class="fa fa-battery-empty"></i>
-          {% end %}
-        </span></td>
-      <td title="{{','.join(plate['studies'])}}">{{ '\n'.join(plate['studies']) }}</td>
-      <td>{{plate['person'] or "-"}}</td>
-      <td>{{plate['date'] or "-"}}</td>
-      <td style="padding:2px;">
-        <button class="inline" title="View/edit plate properties" onclick="location.href='/pm_plate_map/?target=sample&id={{plate['id']}}';"><i class="fa fa-edit"></i></button>
-        <button class="inline" title="View/edit plate layout"><i class="fa fa-table"></i></button>
-        <button class="inline" title="Delete plate"><i class="fa fa-remove"></i></button>
-      </td>
-    </tr>
-    {% end %}
-  </tbody>
-</table>
+<div class="container">
+  <!-- Choose list to show -->
+  <div class="row">
+    <div class="col-xs-6 form-group">
+      <label>Choose plate type</label>
+      <select id="plate-type-sel" class="form-control">
+        <option value="" disabled selected>Choose list</option>
+        <option value="sample">Sample plate</option>
+        <option value="dna">DNA plate</option>
+        <option value="targeted">Target Gene plate</option>
+        <!-- <option value="shotgun">Shotgun plate</option>
+        <option value="normalized">Shotgun normalized plate</option> -->
+      </select>
+    </div>
+  </div>
+  <div class="row pm-list-btns" id='pm-warning'>
+    <div class="col-xs-12 form-group">
+      <p class='warning' id='pm-warn-msg'></p>
+    </div>
+  </div>
+  <!-- Buttons for different lists -->
+  <!-- Sample plate list buttons -->
+  <div class="row pm-list-btns" id='sample-btns'>
+    <div class="col-xs-1 form-group">
+      <a href="/pm_create_plate/" class="btn btn-info form-control"><span class="glyphicon glyphicon-plus"></span> New</a>
+    </div>
+    <div class="col-xs-1 form-group">
+      <a class="btn btn-info form-control" onclick="openPlateMap();"><span class="glyphicon glyphicon-eye-open"></span> View</a>
+    </div>
+    <div class="col-xs-2 form-group">
+      <a class="btn btn-success form-control" onclick="extractPlates();"><span class="glyphicon glyphicon-share"></span> Extract</a>
+    </div>
+    <!-- <div class="col-xs-2 form-group">
+      <a class="btn btn-danger form-control" onclick="discardPlates('sample');"><span class="glyphicon glyphicon-remove"></span> Discard</a>
+    </div> -->
+  </div>
+  <!-- DNA plate list buttons -->
+  <div class="row pm-list-btns" id='dna-btns'>
+    <div class="col-xs-2 form-group">
+      <a class="btn btn-success form-control" onclick="targetedPrep();"><span class="glyphicon glyphicon-modal-window"></span> Targeted Prep</a>
+    </div>
+  </div>
+  <!-- targeted plate list buttons -->
+  <div class="row pm-list-btns" id='targeted-btns'>
+    <div class="col-xs-1 form-group">
+      <a class="btn btn-success form-control" onclick="targetedPool();">Pool</a>
+    </div>
+    <!-- <div class="col-xs-1 form-group">
+      <a class="btn btn-danger form-control" onclick="discardPlates('targeted');">Discard</a>
+    </div> -->
+  </div>
+  <!-- shotgun plate list buttons -->
+  <div class="row pm-list-btns" id='shotgun-btns'>
+    <div class="col-xs-1 form-group">
+      <button class="btn btn-success form-control" onclick="normalizePlates();">Normalize</button>
+    </div>
+  </div>
+  <!-- normalized shotgun plate list buttons -->
+  <div class="row pm-list-btns" id='normalized-btns'>
+    <div class="col-xs-1 form-group">
+      <button class="btn btn-info form-control">Pool</button>
+    </div>
+  </div>
+  <!-- Actual table list -->
+  <div class="row">
+    <div class="col-xs-12" id='table-div'></div>
+  </div>
+</div>
 {% end %}

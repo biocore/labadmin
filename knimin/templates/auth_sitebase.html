@@ -10,6 +10,8 @@
 <script src="/static/vendor/js/select2.min.js"></script>
 <script src="/static/vendor/js/chosen.jquery.min.js"></script>
 <script src="/static/vendor/js/util.js"></script>
+<script type="text/javascript" src="/static/vendor/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" src="/static/vendor/js/dataTables.bootstrap.min.js"></script>
 <script type="text/javascript" src="/static/js/labmin.js"></script>
 <script type="text/javascript" src="/static/js/platemapper.js"></script>
 <script type="text/javascript" src="/static/js/DNAConcVis.js"></script>
@@ -18,6 +20,8 @@
 <link rel="stylesheet" type="text/css" href="/static/vendor/css/bootstrap.min.css">
 <link rel="stylesheet" type="text/css" href="/static/vendor/css/select2.min.css">
 <link rel="stylesheet" type="text/css" href="/static/vendor/css/select2-bootstrap.min.css">
+<link rel="stylesheet" type="text/css" href="/static/vendor/css/jquery.dataTables.min.css">
+<link rel="stylesheet" type="text/css" href="/static/vendor/css/dataTables.bootstrap.min.css">
 <link rel="stylesheet" href="/static/css/qiime.css" type="text/css">
 <style>
     body, html {
@@ -69,17 +73,6 @@
             {% if admin or db.has_access(current_user, ['Admin']) %}
             <li><a href="/pm_plate_list/">View Plate List</a></li>
             <li><a href="/pm_create_plate/">Create new plate</a></li>
-            <li><h4>Prepare libraries</h4>
-                <ul class="mainmenu">
-                    <li><a href="/pm_library_prep/target_gene/">Target gene</a></li>
-                    <li><a href="/pm_library_prep/metagenomics/">Metagenomics</a></li>
-                </ul>
-            </li>
-            <li><h4>Shotgun pipeline</h4>
-                <ul class="mainmenu">
-                    <li><a href="/pm_condense/">Condense DNA plates</a></li>
-                </ul>
-            </li>
             {% end %}
         </ul>
 

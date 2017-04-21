@@ -3690,6 +3690,25 @@ class KniminAccess(object):
             TRN.execute()
         return shotgun_normalized_plate_id
 
+    def get_normalized_shotgun_plate_list(self):
+        """Gets the list of all normalized shotgun plates
+
+        Returns
+        -------
+        list of dict
+            {id : int, name : str, date : datetime}
+            Plate id, plate name and date
+        """
+        with TRN:
+            sql = """SELECT shotgun_normalized_plate_id as id,
+                            s.name as name,
+                            n.created_on::date as date
+                     FROM pm.shotgun_normalized_plate n
+                        JOIN pm.shotgun_plate s USING (shotgun_plate_id)
+                     ORDER BY date DESC"""
+            TRN.add(sql)
+            return [dict(row) for row in TRN.execute_fetchindex()]
+
     def read_normalized_shotgun_plate(self, shotgun_normalized_plate_id):
         """Obtain the normalized shotgun plate details
 
@@ -4718,6 +4737,28 @@ class KniminAccess(object):
             TRN.execute()
 
             return shotgun_pid
+
+    def get_shotgun_plate_list(self):
+        """Gets the list of all targeted plates
+
+        Returns
+        -------
+        list of dict
+            {id : int, name : str, date : datetime}
+            Plate id, plate name and date
+        """
+        with TRN:
+            sql = """SELECT shotgun_plate_id as id,
+                            s.name as name,
+                            s.created_on::date as date,
+                            ARRAY_AGG(d.name) as dna_plates
+                     FROM pm.shotgun_plate s
+                        JOIN pm.condensed_plates c USING (shotgun_plate_id)
+                        JOIN pm.dna_plate d USING (dna_plate_id)
+                     GROUP BY id, s.name, s.created_on
+                     ORDER BY date DESC"""
+            TRN.add(sql)
+            return [dict(row) for row in TRN.execute_fetchindex()]
 
     def read_shotgun_plate(self, plate_id):
         """Returns the information of the shotgun plate
