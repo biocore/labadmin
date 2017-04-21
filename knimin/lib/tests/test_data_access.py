@@ -1874,9 +1874,9 @@ class TestDataAccess(TestCase):
         targeted_plate_ids = self._create_test_data_targeted_plate()
 
         exp = [{'id': targeted_plate_ids[0], 'name': 'Test plate',
-                'date': datetime.date.today(), 'num_samples': 3},
+                'date': datetime.date.today(), 'num_samples': 96},
                {'id': targeted_plate_ids[1], 'name': 'Test plate 2',
-                'date': datetime.date.today(), 'num_samples': 4}]
+                'date': datetime.date.today(), 'num_samples': 96}]
         self.assertItemsEqual(db.get_targeted_plate_list(), exp)
 
     def test_get_quantified_targeted_plate_list(self):
