@@ -28,12 +28,27 @@
     // workflow. That is accomplished by adding a timeout function to perform
     // the redirect
     if (success){
-      setTimeout(function () {
-        window.location.href = "/pm_shotgun_pool/?plate={{plate['id']}}";
-      }, 1000);
+      $('#pm-echo-btn').prop('disabled', true);
+      var formData = new FormData($('#pm-form')[0]);
+
+      $.ajax({
+        url: '/pm_normalize/',
+        data: formData,
+        processData: false,
+        contentType: false,
+        type: 'POST',
+        success: function(data){
+          var win = window.open('/pm_normalize_echo/?plate_id=' + data.norm_plate_id, '_blank');
+          setTimeout(function () {
+            window.location.href = "/pm_library_prep/metagenomics/?plate=" + data.norm_plate_id;
+          }, 1000);
+        }
+      });
     }
 
-    e.returnValue = success;
+    // Little trick here: by hardcoding this to false, we "deactivate"
+    // the form submission
+    e.returnValue = false;
   };
 
   $(document).ready(function() {
@@ -117,7 +132,7 @@
   <!-- Submit button -->
   <div class="row">
     <div class="col-xs-12 form-group">
-      <button type="submit" class="btn btn-primary">Normalize</button>
+      <button type="submit" class="btn btn-primary" id='pm-echo-btn'>Normalize</button>
     </div>
   </div>
 </form>

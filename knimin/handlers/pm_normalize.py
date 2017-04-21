@@ -48,7 +48,6 @@ class PMNormalizeHandler(BaseHandler):
 
         if upload_type == 'Single file':
             qubit_assay = self.request.files['single-plate-fp'][0]['body']
-            db.quantify_shotgun_plate()
             dna_conc = parse_plate_reader_output(qubit_assay)
             cond_dna_conc = None
         else:
@@ -66,12 +65,28 @@ class PMNormalizeHandler(BaseHandler):
         vol_sample, vol_water = compute_shotgun_normalization_values(
             plate['shotgun_plate_layout'], input_vol, input_dna)
 
-        db.normalize_shotgun_plate(plate_id, self.get_current_user(), echo,
-                                   vol_sample, vol_water)
+        norm_plate_id = db.normalize_shotgun_plate(
+            plate_id, self.get_current_user(), echo, vol_sample, vol_water)
 
-        data = format_normalization_echo_pick_list(vol_sample, vol_water)
+        self.write({'norm_plate_id': norm_plate_id})
+        self.finish()
+
+
+@set_access(['Admin'])
+class PMNormalizeEchoFileHandler(BaseHandler):
+    @authenticated
+    def get(self):
+        plate_id = self.get_argument('plate_id')
+        plate = db.read_normalized_shotgun_plate(plate_id)
+        data = format_normalization_echo_pick_list(
+            plate['plate_normalization_sample'],
+            plate['plate_normalization_water'])
+
+        sh_plate = db.read_shotgun_plate(plate['shotgun_plate_id'])
+
         file_name = "echo_norm_PickList_%s_%s_%s.csv" % (
-            plate['id'], plate['name'], date.today().strftime('%Y_%m_%d'))
+            plate['shotgun_normalized_plate_id'], sh_plate['name'],
+            date.today().strftime('%Y_%m_%d'))
 
         self.set_header('Content-Type', 'application/octet-stream')
         self.set_header('Content-Disposition',

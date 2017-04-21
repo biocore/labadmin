@@ -6,6 +6,8 @@
 # The full license is in the file LICENSE, distributed with this software.
 # -----------------------------------------------------------------------------
 
+from datetime import date
+
 from tornado.web import authenticated
 from tornado.escape import json_decode
 
@@ -13,6 +15,8 @@ from knimin.handlers.base import BaseHandler
 from knimin.handlers.access_decorators import set_access
 from knimin import db
 from knimin.lib.qiita_jira_util import prepare_targeted_libraries
+from knimin.lib.shotgun import prepare_shotgun_libraries
+from knimin.lib.format import format_index_echo_pick_list
 
 
 @set_access(['Admin'])
@@ -54,4 +58,54 @@ class PMTargetGeneLibraryPrepHandler(BaseHandler):
 class PMMetagenomicsLibraryPrepHandler(BaseHandler):
     @authenticated
     def get(self):
-        self.render("pm_metagenomics_library_prep.html")
+        plate_id = self.get_argument('plate')
+
+        plate = db.read_normalized_shotgun_plate(plate_id)
+        plate['name'] = db.read_shotgun_plate(
+            plate['shotgun_plate_id'])['name']
+
+        self.render("pm_metagenomics_library_prep.html",
+                    plate=plate,
+                    idx_protocols=db.get_shotgun_index_technology_list(),
+                    mosquitos=db.get_property_options('mosquito'),
+                    library_kits=db.get_property_options(
+                        'shotgun_library_prep_kit'),
+                    aliquots=db.get_property_options(
+                        'shotgun_index_aliquot'))
+
+    @authenticated
+    def post(self):
+        plate_id = self.get_argument('plate-id')
+        mosquito = self.get_argument('mosquito')
+        kit = self.get_argument('kit')
+        aliquot = self.get_argument('aliquot')
+        idx_tech = self.get_argument('idx-tech')
+
+        prepare_shotgun_libraries(plate_id, self.get_current_user(), mosquito,
+                                  kit, aliquot, idx_tech)
+
+        self.set_status(200)
+        self.finish()
+
+
+@set_access(['Admin'])
+class PMMetagenomicsLibraryPrepEchoHandler(BaseHandler):
+    @authenticated
+    def get(self):
+        plate_id = self.get_argument('plate_id')
+        volume = float(self.get_argument('volume'))
+
+        plate = db.read_normalized_shotgun_plate(plate_id)
+        plate['name'] = db.read_shotgun_plate(
+            plate['shotgun_plate_id'])['name']
+
+        contents = format_index_echo_pick_list(plate['shotgun_index'], volume)
+        file_name = "echo_index_PickList_%s_%s_%s.csv" % (
+            plate['shotgun_normalized_plate_id'], plate['name'],
+            date.today().strftime('%Y_%m_%d'))
+
+        self.set_header('Content-Type', 'application/octet-stream')
+        self.set_header('Content-Disposition',
+                        'attachment; filename=' + file_name)
+        self.write(contents)
+        self.finish()

@@ -40,7 +40,7 @@ from knimin.handlers.pm_create_study import (PMCreateStudyHandler,
                                              PMJiraUserCheckerHandler)
 from knimin.handlers.pm_library_prep import (
     PMTargetGeneLibraryPrepHandler,
-    PMMetagenomicsLibraryPrepHandler)
+    PMMetagenomicsLibraryPrepHandler, PMMetagenomicsLibraryPrepEchoHandler)
 from knimin.handlers.pm_pool_handlers import (
     PMTargetedConcentrationHandler, PMTargetedConcentrationCheckHandler,
     PMTargetedPoolHandler, PMTargetedPoolEPMotionHandler)
@@ -48,7 +48,8 @@ from knimin.handlers.pm_sequence import (
     PMSequenceHandler, PMSequencingCompleteHandler)
 from knimin.handlers.pm_condense import PMCondensePlatesHandler
 from knimin.handlers.pm_shotgun_pool import PMShotgunPool
-from knimin.handlers.pm_normalize import PMNormalizeHandler
+from knimin.handlers.pm_normalize import (
+    PMNormalizeHandler, PMNormalizeEchoFileHandler)
 
 define("port", default=config.http_port, type=int)
 
@@ -93,6 +94,8 @@ class WebApplication(Application):
             (r"/consent_check", AGConsentCheckHandler),
             # PlateMapper Handlers
             (r"/pm_library_prep/target_gene/", PMTargetGeneLibraryPrepHandler),
+            (r"/pm_library_prep/metagenomics/echo/",
+             PMMetagenomicsLibraryPrepEchoHandler),
             (r"/pm_library_prep/metagenomics/",
              PMMetagenomicsLibraryPrepHandler),
             (r"/pm_targeted_concentration/", PMTargetedConcentrationHandler),
@@ -113,6 +116,7 @@ class WebApplication(Application):
             (r"/pm_condense/", PMCondensePlatesHandler),
             (r"/pm_shotgun_pool/", PMShotgunPool),
             (r"/pm_normalize/", PMNormalizeHandler),
+            (r"/pm_normalize_echo/", PMNormalizeEchoFileHandler),
             (r".*", NoPageHandler)
         ]
         settings = {

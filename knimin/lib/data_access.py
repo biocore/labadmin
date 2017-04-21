@@ -3967,6 +3967,18 @@ class KniminAccess(object):
 
             return dict(r[0])
 
+    def get_shotgun_index_technology_list(self):
+        """Returns the list of available shotgun index technology
+
+        Returns
+        -------
+        list of str
+        """
+        with TRN:
+            sql = """SELECT name FROM pm.shotgun_index_tech"""
+            TRN.add(sql)
+            return TRN.execute_fetchflatten()
+
     def generate_i5_i7_indexes(self, idx_tech, num_samples):
         """Pick barcodes for shotgun
 

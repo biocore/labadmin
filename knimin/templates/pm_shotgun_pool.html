@@ -32,7 +32,7 @@
         <label>qPCR Machine</label>
         <select name='qpcr-machine'>
           {% for machine in machines %}
-            <option value='{{machine}}'>{{machine}}</option>
+            <option value='{{machine['id']}}'>{{machine['name']}}</option>
           {% end %}
         </select>
       </div>

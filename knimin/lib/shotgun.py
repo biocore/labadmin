@@ -9,6 +9,8 @@ from __future__ import division
 
 import numpy as np
 
+from knimin import db
+
 
 def compute_qpcr_concentration(cp_vals, m=-3.231, b=12.059, dil_factor=25000):
     """Computes molar concentration of libraries from qPCR Cp values.
@@ -202,3 +204,35 @@ def compute_shotgun_normalization_values(plate_layout, input_vol, input_dna):
     vol_water = vol_water * 1000
 
     return vol_sample, vol_water
+
+
+def prepare_shotgun_libraries(plate_id, email, mosquito, kit, aliquot,
+                              idx_tech):
+    """
+    Parameters
+    ----------
+    plate_id : int
+        The shotgun plate ID
+    idx_tech : str
+        The index technology we want to use
+    """
+    minimum_sample_vol = 0.0001
+
+    plate = db.read_normalized_shotgun_plate(plate_id)
+
+    # Get the number of samples to get the indices
+    samples_vol = plate['plate_normalization_sample']
+    num_samples = (samples_vol > minimum_sample_vol).sum()
+
+    indexes = db.generate_i5_i7_indexes(idx_tech, num_samples)
+    rows, cols = samples_vol.shape
+    barcode_layout = np.zeros((rows, cols), dtype=np.int)
+    idx = 0
+    for i in range(rows):
+        for j in range(cols):
+            if samples_vol[i, j] > minimum_sample_vol:
+                barcode_layout[i, j] = indexes[idx]
+                idx += 1
+
+    db.prepare_shotgun_libraries(plate_id, email, mosquito, kit, aliquot,
+                                 barcode_layout)

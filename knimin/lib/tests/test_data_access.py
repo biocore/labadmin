@@ -1475,6 +1475,10 @@ class TestDataAccess(TestCase):
 
             self.assertEqual(obs[k], exp_rnsp[k])
 
+    def test_get_shotgun_index_technology_list(self):
+        obs = db.get_shotgun_index_technology_list()
+        self.assertItemsEqual(obs, ['BiooNEXTflex-HT', 'Nextera', 'iTru'])
+
     def test_generate_i5_i7_indexes(self):
         # these tests will depend on what's in the db, which are added
         # just below -- Add shotgun_index valid values
