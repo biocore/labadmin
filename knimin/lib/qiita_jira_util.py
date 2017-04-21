@@ -70,16 +70,35 @@ def _update_qiita_samples(study_id, blanks, replicates):
         raise ValueError(
             "Can't retrieve study (%s) metadata categories from Qiita: %s %s"
             % (study_id, sc, msg))
+
+    if not categories['categories']:
+        raise ValueError("Study (%s) does not have any metadata categories" %
+                         study_id)
+
     categories = categories['categories']
 
-    # Get the current metadata
-    sc, md = qiita_client.get('/api/v1/study/%s/samples/categories=%s'
-                              % (study_id, ','.join(categories)))
-    if sc != 200:
-        msg = md['message'] if md else 'No error specified'
-        raise ValueError(
-            "Can't retrieve study (%s) metadata from Qiita: %s %s"
-            % (study_id, sc, msg))
+    md = {'header': [], 'samples': defaultdict(list)}
+
+    for cat in categories:
+        sc, cat_md = qiita_client.get('/api/v1/study/%s/samples/categories=%s'
+                                      % (study_id, cat))
+        if sc != 200:
+            msg = md['message'] if md else 'No error specified'
+            raise ValueError(
+                "Can't retrieve study (%s) category (%s) from Qiita: %s %s"
+                % (study_id, cat, sc, msg))
+
+        # zero indexing because the return here is of the form:
+        # {'header': [categories],
+        #  'samples': {sample-id: [category-values]}}
+        # since we're only requesting a single category at a time,
+        # we only need to pul out the zeroth index
+        md['header'].append(cat_md['header'][0])
+        for samp, cat_val in cat_md['samples'].items():
+            md['samples'][samp].append(cat_val[0])
+
+    # remove the defaultdict type
+    md['samples'] = dict(md['samples'])
 
     # This is the blanks metadata, mark all categories as not applicable
     blanks_md = {c: 'Not applicable' for c in categories}

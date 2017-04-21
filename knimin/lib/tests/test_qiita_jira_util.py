@@ -84,7 +84,7 @@ class TestQiitaJiraUtil(TestCase):
         with self.assertRaises(ValueError) as ctx:
             _update_qiita_samples(study_id, [], [])
         self.assertIn(
-            "Can't retrieve study (%s) metadata from Qiita" % study_id,
+            "Study (%s) does not have any metadata categories" % study_id,
             ctx.exception.message)
 
     def test_create_kl_jira_project(self):
