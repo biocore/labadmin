@@ -445,10 +445,10 @@ class KniminAccess(object):
         sql = """SELECT DISTINCT barcode, *
                  FROM ag.ag_kit_barcodes
                  JOIN ag.ag_kit USING (ag_kit_id)
-                 JOIN ag.source_barcodes_surveys USING (barcode)
+                 LEFT JOIN ag.source_barcodes_surveys USING (barcode)
                  LEFT JOIN ag.ag_login_surveys USING (survey_id)
-                 JOIN ag.ag_login
-                 ON (ag.ag_login_surveys.ag_login_id = ag.ag_login.ag_login_id)
+                 LEFT JOIN ag.ag_login
+                 ON (ag.ag_kit.ag_login_id = ag.ag_login.ag_login_id)
                  WHERE barcode in %s"""
         res = self._con.execute_fetchall(sql, [tuple(b[:9] for b in barcodes)])
         return {row[0]: dict(row) for row in res}
@@ -1035,7 +1035,6 @@ class KniminAccess(object):
 
                 md[barcode]['COLLECTION_DATE'] = \
                     specific_info['sample_date'].strftime('%m/%d/%Y')
-
                 if specific_info['sample_time']:
                     md[barcode]['COLLECTION_TIME'] = \
                         specific_info['sample_time'].strftime('%H:%M')
@@ -1299,6 +1298,7 @@ class KniminAccess(object):
         # Sample not consented
         sql = """SELECT barcode
                  FROM ag.ag_kit_barcodes
+                 JOIN ag.source_barcodes_surveys USING (barcode)
                  WHERE survey_id IS NULL AND barcode in %s"""
         remaining = update_reason_and_remaining(
             sql, 'Sample logged without consent', fail_reason, remaining)
@@ -1956,11 +1956,14 @@ class KniminAccess(object):
                 .decode('utf-8').replace(' ', '')
         clean_zipcode = str(zipcode.encode('utf-8')).lower().decode('utf-8')\
             .replace(' ', '').split('-')[0]
+        help_pc_identity = False
+        if clean_postcode is not None:
+            help_pc_identity = clean_postcode.startswith(clean_zipcode)
         if not info.lat:
             cannot_geocode = True
         # Use startswith because UK zipcodes can be 2, 3, or 6 characters
         elif (info.country != country or
-              not clean_postcode.startswith(clean_zipcode)):
+              help_pc_identity):
             # countries and zipcodes dont match, so blank out info
             info = Location(zipcode, None, None, None,
                             None, None, None, country)
@@ -2146,7 +2149,9 @@ class KniminAccess(object):
 
     def get_barcode_survey(self, barcode):
         """Return survey ID attached to barcode"""
-        sql = """SELECT DISTINCT ags.survey_id FROM ag.ag_kit_barcodes
+        sql = """SELECT DISTINCT ags.survey_id
+                 FROM ag.ag_kit_barcodes
+                 JOIN ag.source_barcodes_surveys USING (barcode)
                  JOIN ag.survey_answers USING (survey_id)
                  JOIN ag.group_questions gq USING (survey_question_id)
                  JOIN ag.surveys ags USING (survey_group)
@@ -2240,8 +2245,8 @@ class KniminAccess(object):
                  FROM ag.ag_kit_barcodes akb
                  JOIN ag.ag_kit USING(ag_kit_id)
                  JOIN ag.ag_login USING (ag_login_id)
-                 JOIN ag.source_barcodes_surveys USING (barcode)
-                 join ag.ag_login_surveys USING (survey_id)
+                 LEFT JOIN ag.source_barcodes_surveys USING (barcode)
+                 LEFT JOIN ag.ag_login_surveys USING (survey_id)
                  JOIN barcode USING (barcode)
                  WHERE barcode = %s"""
 
