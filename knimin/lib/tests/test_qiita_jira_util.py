@@ -1,9 +1,13 @@
 from unittest import TestCase, main
 
 from knimin.lib.qiita_jira_util import create_project
+from knimin import jira_handler
 
 
 class TestQiitaJiraUtil(TestCase):
+    def tearDown(self):
+        jira_handler.delete_project('TM10001')
+
     def test_create_project(self):
         pj_name = 'My New Project'
 
@@ -17,7 +21,7 @@ class TestQiitaJiraUtil(TestCase):
         pj, message = create_project(pj_name)
         self.assertIsNone(pj)
         exp_msg = ("A project with that name already exists., Project "
-                   "'My New Project' uses this project key.")
+                   "'%s' uses this project key." % pj_name)
         self.assertEqual(message, exp_msg)
 
 
