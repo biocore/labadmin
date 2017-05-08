@@ -443,11 +443,12 @@ class KniminAccess(object):
             {barcode: {column: value}, ...}
         """
         sql = """SELECT DISTINCT barcode, *
-                 FROM ag_kit_barcodes
-                 JOIN ag_kit USING (ag_kit_id)
-                 FULL OUTER JOIN ag_login_surveys USING
-                    (survey_id, ag_login_id)
-                 JOIN ag_login USING (ag_login_id)
+                 FROM ag.ag_kit_barcodes
+                 JOIN ag.ag_kit USING (ag_kit_id)
+                 JOIN ag.source_barcodes_surveys USING (barcode)
+                 LEFT JOIN ag.ag_login_surveys USING (survey_id)
+                 JOIN ag.ag_login
+                 ON (ag.ag_login_surveys.ag_login_id = ag.ag_login.ag_login_id)
                  WHERE barcode in %s"""
         res = self._con.execute_fetchall(sql, [tuple(b[:9] for b in barcodes)])
         return {row[0]: dict(row) for row in res}
@@ -479,6 +480,7 @@ class KniminAccess(object):
         single_sql = \
             """SELECT S.survey_id, barcode, question_shortname, response
                FROM ag.ag_kit_barcodes
+               JOIN ag.source_barcodes_surveys USING (barcode)
                JOIN ag.survey_answers SA USING (survey_id)
                JOIN ag.survey_question USING (survey_question_id)
                JOIN ag.survey_question_response_type USING (survey_question_id)
@@ -493,6 +495,7 @@ class KniminAccess(object):
             """SELECT S.survey_id, barcode, question_shortname,
                       array_agg(response) as responses
                FROM ag.ag_kit_barcodes
+               JOIN ag.source_barcodes_surveys USING (barcode)
                JOIN ag.survey_answers USING (survey_id)
                JOIN ag.survey_question USING (survey_question_id)
                JOIN ag.survey_question_response_type USING (survey_question_id)
@@ -515,6 +518,7 @@ class KniminAccess(object):
         others_sql = \
             """SELECT S.survey_id, barcode, question_shortname, response
                FROM ag.ag_kit_barcodes
+               JOIN ag.source_barcodes_surveys USING (barcode)
                JOIN ag.survey_answers_other SA USING (survey_id)
                JOIN ag.survey_question USING (survey_question_id)
                JOIN ag.survey_question_response_type USING (survey_question_id)
@@ -720,7 +724,9 @@ class KniminAccess(object):
         # Add for scrubbed testing database
         country_lookup['REMOVED'] = 'REMOVED'
 
-        survey_sql = "SELECT barcode, survey_id FROM ag.ag_kit_barcodes"
+        survey_sql = """SELECT barcode, survey_id
+                        FROM ag.ag_kit_barcodes
+                        JOIN ag.source_barcodes_surveys USING (barcode)"""
         survey_lookup = dict(self._con.execute_fetchall(survey_sql))
 
         dupes_sql = """SELECT duplicate_survey_id, participant_name
@@ -732,7 +738,8 @@ class KniminAccess(object):
         # Get external survey answers and normalize column names
         external_sql = """SELECT survey_id, external_survey, answers
                           FROM ag.external_survey_answers
-                          JOIN ag.ag_kit_barcodes USING (survey_id)
+                          JOIN ag.source_barcodes_surveys USING (survey_id)
+                          JOIN ag.ag_kit_barcodes USING (barcode)
                           JOIN ag.external_survey_sources
                             USING (external_survey_id)
                           WHERE external_survey = %s AND barcode IN %s"""
@@ -1056,6 +1063,7 @@ class KniminAccess(object):
         """
         sql = """SELECT barcode, participant_name
                  FROM ag.ag_kit_barcodes
+                 JOIN ag.source_barcodes_surveys USING (barcode)
                  JOIN ag.ag_login_surveys USING (survey_id)
                  WHERE participant_name IS NOT NULL"""
         return self._con.execute_fetchall(sql)
@@ -1204,6 +1212,7 @@ class KniminAccess(object):
         """
         sql = """SELECT barcode
                  FROM ag.ag_kit_barcodes
+                 LEFT JOIN ag.source_barcodes_surveys USING (barcode)
                  WHERE barcode in %s AND survey_id IS NOT NULL"""
         consented = [x[0] for x in
                      self._con.execute_fetchall(sql, [tuple(barcodes)])]
@@ -1371,6 +1380,7 @@ class KniminAccess(object):
                  JOIN barcodes.barcode USING (barcode)
                  JOIN ag.ag_kit USING (ag_kit_id)
                  JOIN ag.ag_login USING (ag_login_id)
+                 LEFT JOIN ag.source_barcodes_surveys USING (barcode)
                  WHERE survey_id IS NULL AND scan_date IS NOT NULL
                  ORDER BY barcode"""
         return self._con.execute_fetchall(sql)
@@ -2170,10 +2180,9 @@ class KniminAccess(object):
     def search_barcodes(self, term):
         sql = """SELECT DISTINCT
                     cast(ag_login_id as varchar(100)) as ag_login_id
-                 FROM ag_kit ak
-                 INNER JOIN ag_kit_barcodes akb USING (ag_kit_id)
-                 FULL OUTER JOIN ag_login_surveys USING
-                    (survey_id, ag_login_id)
+                 FROM ag.ag_kit_barcodes
+                 JOIN ag.ag_kit USING (ag_kit_id)
+                 LEFT JOIN ag.ag_login_surveys USING (ag_login_id)
                  WHERE barcode like %s or lower(participant_name) like
                  %s or lower(notes) like %s"""
         liketerm = '%%' + term.decode('utf-8').lower() + '%%'
@@ -2228,11 +2237,11 @@ class KniminAccess(object):
                     participant_name, notes, refunded, withdrawn, moldy, other,
                     other_text, date_of_last_email ,overloaded, name, status,
                     deposited
-                 FROM ag_kit_barcodes akb
-                 JOIN ag_kit USING(ag_kit_id)
-                 JOIN ag_login USING (ag_login_id)
-                 FULL OUTER JOIN ag_login_surveys USING
-                    (survey_id, ag_login_id)
+                 FROM ag.ag_kit_barcodes akb
+                 JOIN ag.ag_kit USING(ag_kit_id)
+                 JOIN ag.ag_login USING (ag_login_id)
+                 JOIN ag.source_barcodes_surveys USING (barcode)
+                 join ag.ag_login_surveys USING (survey_id)
                  JOIN barcode USING (barcode)
                  WHERE barcode = %s"""
 
@@ -2248,9 +2257,10 @@ class KniminAccess(object):
                          ag_kit_id, barcode, sample_date, sample_time,
                          site_sampled, environment_sampled, participant_name,
                          notes, results_ready, withdrawn, refunded
-                 FROM    ag_kit_barcodes
-                 FULL OUTER JOIN ag_login_surveys USING (survey_id)
-                 WHERE   ag_kit_id = %s"""
+                 FROM  ag.ag_kit_barcodes
+                 JOIN ag.source_barcodes_surveys USING (barcode)
+                 LEFT JOIN ag.ag_login_surveys USING (survey_id)
+                 WHERE  ag_kit_id = %s"""
 
         results = [dict(row) for row in
                    self._con.execute_fetchall(sql, [ag_kit_id])]
