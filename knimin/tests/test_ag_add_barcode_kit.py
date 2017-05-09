@@ -4,6 +4,21 @@ from knimin import db
 
 
 class AgAddBarcodeKitHandler(TestHandlerBase):
+    def delete_kit(self, ag_kit_id):
+        sql = """SELECT barcode
+                 FROM ag.ag_kit_barcodes
+                 JOIN ag.ag_kit USING (ag_kit_id)
+                 WHERE supplied_kit_id = %s"""
+        barcodes = db._con.execute_fetchall(sql, [ag_kit_id])
+
+        if barcodes != []:
+            barcodes = [x[0] for x in barcodes]
+            sql = """DELETE FROM barcodes.project_barcode
+                     WHERE barcode IN %s"""
+            db._con.execute(sql, [tuple(barcodes)])
+            sql = """DELETE FROM ag.ag_kit_barcodes WHERE barcode IN %s"""
+            db._con.execute(sql, [tuple(barcodes)])
+
     def test_get_not_authed(self):
         response = self.get('/ag_add_barcode_kit/')
         self.assertEqual(response.code, 200)
@@ -34,9 +49,10 @@ class AgAddBarcodeKitHandler(TestHandlerBase):
 
         response = self.post('/ag_add_barcode_kit/', {'kit_id': kit_id,
                                                       'num_barcodes': 1})
-        self.assertEqual(response.code, 200)
         obs_n_barcodes = len(db.get_barcode_info_by_kit_id(kit_uuid))
+        self.delete_kit(kit_id)
         self.assertEqual(n_barcodes + 1, obs_n_barcodes)
+        self.assertEqual(response.code, 200)
 
 
 if __name__ == '__main__':
