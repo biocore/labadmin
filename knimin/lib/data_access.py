@@ -1866,17 +1866,6 @@ class KniminAccess(object):
     def updateAGBarcode(self, barcode, ag_kit_id, site_sampled,
                         environment_sampled, sample_date, sample_time,
                         participant_name, notes, refunded, withdrawn):
-        # Get survey ID for participant if needed
-        if participant_name:
-            ag_login_id = self.search_kits(ag_kit_id)[0]
-            sql = """SELECT survey_id
-                     FROM ag_login_surveys
-                     WHERE participant_name = %s AND ag_login_id = %s"""
-            survey_id = self._con.execute_fetchone(
-                sql, [participant_name, ag_login_id])[0]
-        else:
-            survey_id = None
-            participant_name = None
 
         # convert empty strings to None for DB consistency
         site_sampled = site_sampled or None
@@ -1893,12 +1882,11 @@ class KniminAccess(object):
                      sample_time = %s,
                      notes = %s,
                      refunded = %s,
-                     withdrawn = %s,
-                     survey_id = %s
+                     withdrawn = %s
                  WHERE barcode = %s"""
         self._con.execute(sql, [ag_kit_id, site_sampled, environment_sampled,
                                 sample_date, sample_time,
-                                notes, refunded, withdrawn, survey_id,
+                                notes, refunded, withdrawn,
                                 barcode])
 
     def AGGetBarcodeMetadata(self, barcode):
