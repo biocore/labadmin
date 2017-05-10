@@ -14,7 +14,7 @@ class AgAddBarcodeKitHandler(TestHandlerBase):
             barcodes = [x[0] for x in barcodes]
         return barcodes
 
-    def revert_test_post(self, supplied_kit_id, old_barcodes):
+    def revert_add_barcode_kit(self, supplied_kit_id, old_barcodes):
         sql = """SELECT barcode
                  FROM ag.ag_kit
                  JOIN ag.ag_kit_barcodes USING (ag_kit_id)
@@ -59,9 +59,10 @@ class AgAddBarcodeKitHandler(TestHandlerBase):
                              {'kit_id': supplied_kit_id,
                               'num_barcodes': num_barcodes})
         new_barcodes = self.get_assigned_barcodes(supplied_kit_id)
-        self.revert_test_post(supplied_kit_id, old_barcodes)
+        self.revert_add_barcode_kit(supplied_kit_id, old_barcodes)
         self.assertEqual(len(new_barcodes)-num_barcodes, len(old_barcodes))
         self.assertEqual(response.code, 200)
-        #
+
+
 if __name__ == '__main__':
     main()
