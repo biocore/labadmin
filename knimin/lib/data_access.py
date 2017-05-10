@@ -969,7 +969,7 @@ class KniminAccess(object):
                         'SURVEY_ID'], unknown_external))
             except Exception as e:
                 # Add barcode to error and remove from metadata info
-                errors[barcode] = '%s' % repr(e)
+                errors[barcode] = str(e.message.encode('utf-8'))
                 del md[1][barcode]
 
         return md, errors
