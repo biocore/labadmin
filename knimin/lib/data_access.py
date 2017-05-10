@@ -7,6 +7,7 @@ from copy import copy
 from re import sub
 from hashlib import sha512
 from datetime import datetime, time, timedelta
+from requests.exceptions import SSLError
 import json
 import re
 
@@ -969,7 +970,10 @@ class KniminAccess(object):
                         'SURVEY_ID'], unknown_external))
             except Exception as e:
                 # Add barcode to error and remove from metadata info
-                errors[barcode] = str(e.message.encode('utf-8'))
+                if isinstance(e, SSLError):
+                    errors[barcode] = repr(e)
+                else:
+                    errors[barcode] = str(e.message.encode('utf-8'))
                 del md[1][barcode]
 
         return md, errors
