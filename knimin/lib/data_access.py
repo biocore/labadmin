@@ -2254,8 +2254,8 @@ class KniminAccess(object):
                          ag_kit_id, barcode, sample_date, sample_time,
                          site_sampled, environment_sampled, participant_name,
                          notes, results_ready, withdrawn, refunded
-                 FROM  ag.ag_kit_barcodes
-                 JOIN ag.source_barcodes_surveys USING (barcode)
+                 FROM ag.ag_kit_barcodes
+                 LEFT JOIN ag.source_barcodes_surveys USING (barcode)
                  LEFT JOIN ag.ag_login_surveys USING (survey_id)
                  WHERE  ag_kit_id = %s"""
 
