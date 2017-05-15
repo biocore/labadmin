@@ -69,6 +69,42 @@ class testAGSearchHandler(TestHandlerBase):
                             self.assertIn(str(exp),
                                           response.body)
 
+    def test_search_barcodes(self):
+        # Elaine Wolfe found the following bug, May 13th 2017:
+        # Barcodes in a kit do not show up unless they are logged when
+        # searched.
+        # (This can be annoying if we are trying to look up barcode numbers
+        # based on names/kit IDs.)
+        self.mock_login_admin()
+
+        # a barcode that is member of a kit AND is assigned to at least one
+        # survey
+        # SELECT barcode FROM ag.source_barcodes_surveys LIMIT 1;
+        barcode_assigned = '000026028'
+        response = self.post('/ag_search/', {'search_term': barcode_assigned})
+        self.assertEqual(response.code, 200)
+        self.assertIn('/ag_edit_barcode/?barcode=%s' % barcode_assigned,
+                      response.body)
+
+        # a barcode that is member of a kit, but not assigned to any survey
+        # SELECT barcode FROM ag.ag_kit_barcodes WHERE barcode NOT IN
+        #        (SELECT barcode FROM ag.source_barcodes_surveys) LIMIT 1;
+        barcode_nosurvey = '000020299'
+        response = self.post('/ag_search/', {'search_term': barcode_nosurvey})
+        self.assertEqual(response.code, 200)
+        self.assertIn('/ag_edit_barcode/?barcode=%s' % barcode_nosurvey,
+                      response.body)
+
+        # a barcode that is NOT member of any kit and therefore not assigned
+        # to any survey
+        # SELECT barcode FROM barcodes.barcode WHERE barcode NOT IN
+        #        (SELECT barcode FROM ag.ag_kit_barcodes) LIMIT 1;
+        barcode_nokit = '000016453'
+        response = self.post('/ag_search/',
+                             {'search_term': barcode_nokit})
+        self.assertEqual(response.code, 200)
+        self.assertNotIn('/ag_edit_barcode/?barcode=%s' % barcode_nokit,
+                         response.body)
 
 if __name__ == '__main__':
     main()
