@@ -131,7 +131,12 @@ class TestAGEditBarcodeHandler(TestHandlerBase):
         # check that no actual change has happened
 
         dbinfo = db.getAGBarcodeDetails(barcode)
-        for field in set(payload.keys()) - set(self.none_fields):
+        for field in payload.keys():
+            if field in self.none_fields:
+                if details[field] in [None, 'N', 'None', '']:
+                    details[field] = None
+                if dbinfo[field] in [None, 'N', 'None', '']:
+                    dbinfo[field] = None
             self.assertEqual(details[field], dbinfo[field])
 
         # obtain all participant_names
@@ -141,7 +146,7 @@ class TestAGEditBarcodeHandler(TestHandlerBase):
                  LEFT JOIN ag.ag_login_surveys USING (ag_login_id)
                  WHERE barcode = %s"""
         sourcenames = db._con.execute_fetchall(sql, [barcode])
-        self.assertTrue(sourcenames is not None)
+        self.assertIsNotNone(sourcenames)
 
         sourcenames = [x[0] for x in sourcenames]
         # changing source for the barcode
@@ -158,7 +163,7 @@ class TestAGEditBarcodeHandler(TestHandlerBase):
         response = self.post('/ag_edit_barcode/', payload)
 
         self.assertEqual(response.code, 200)
-        self.assertEqual(new_sourcename, obs_details['participant_name'])
+        self.assertEqual(obs_details['participant_name'], new_sourcename)
         self.assertTrue(obs_details['participant_name'] != old_sourcename)
 
     def test_edit_none_participant(self):
@@ -188,9 +193,9 @@ class TestAGEditBarcodeHandler(TestHandlerBase):
         response = self.post('/ag_edit_barcode/', payload)
 
         self.assertEqual(response.code, 200)
-        self.assertEqual(None, obs_details['participant_name'])
-        self.assertEqual(obs_surveys, None)
-        self.assertTrue(db.get_barcode_survey(barcode) is not None)
+        self.assertIsNone(obs_details['participant_name'])
+        self.assertIsNone(obs_surveys)
+        self.assertIsNotNoe(db.get_barcode_survey(barcode))
 
 
 if __name__ == "__main__":

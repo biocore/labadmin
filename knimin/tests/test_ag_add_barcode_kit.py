@@ -10,7 +10,7 @@ class AgAddBarcodeKitHandler(TestHandlerBase):
                  JOIN ag.ag_kit_barcodes USING (ag_kit_id)
                  WHERE supplied_kit_id = %s"""
         barcodes = db._con.execute_fetchall(sql, [supplied_kit_id])
-        if barcodes != []:
+        if barcodes:
             barcodes = [x[0] for x in barcodes]
         return barcodes
 
@@ -21,7 +21,7 @@ class AgAddBarcodeKitHandler(TestHandlerBase):
                  WHERE supplied_kit_id = %s AND barcode NOT IN %s"""
         barcodes = db._con.execute_fetchall(sql, [supplied_kit_id,
                                                   tuple(old_barcodes)])
-        if barcodes != []:
+        if barcodes:
             barcodes = [x[0] for x in barcodes]
             sql = """DELETE FROM barcodes.project_barcode
                      WHERE barcode IN %s"""
