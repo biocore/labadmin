@@ -8,6 +8,10 @@ from knimin import db
 
 
 class TestAGEditBarcodeHandler(TestHandlerBase):
+    # these fields switch None representation and thus are hard to check
+    # for equality
+    none_fields = ['environment_sampled', 'withdrawn', 'refunded']
+
     def test_get_not_authed(self):
         response = self.get('/ag_edit_barcode/')
         self.assertEqual(response.code, 200)
@@ -90,10 +94,6 @@ class TestAGEditBarcodeHandler(TestHandlerBase):
         self.assertIn("Error Updating Barcode Info", response.body)
 
     def test_source_reassignment(self):
-        # these fields switch None representation and thus are hard to check
-        # for equality
-        none_fields = ['environment_sampled', 'withdrawn', 'refunded']
-
         # Elaine Wolfe found this bug, May 13th:
         # Manually changing the survey a sample is assigned to is not saved
         # even after getting the "barcode has successfully been updated"
@@ -131,7 +131,7 @@ class TestAGEditBarcodeHandler(TestHandlerBase):
         # check that no actual change has happened
 
         dbinfo = db.getAGBarcodeDetails(barcode)
-        for field in set(payload.keys()) - set(none_fields):
+        for field in set(payload.keys()) - set(self.none_fields):
             self.assertEqual(details[field], dbinfo[field])
 
         # obtain all participant_names
@@ -160,6 +160,37 @@ class TestAGEditBarcodeHandler(TestHandlerBase):
         self.assertEqual(response.code, 200)
         self.assertEqual(new_sourcename, obs_details['participant_name'])
         self.assertTrue(obs_details['participant_name'] != old_sourcename)
+
+    def test_edit_none_participant(self):
+        self.mock_login_admin()
+
+        barcode = '000023125'  # current survey_id = "a4f1061f5bac9ae3"
+        details = db.getAGBarcodeDetails(barcode)
+        payload = {'barcode': barcode,
+                   'ag_kit_id': details['ag_kit_id'],
+                   'site_sampled': details['site_sampled'],
+                   'sample_date': details['sample_date'],
+                   'sample_time': details['sample_time'],
+                   'participant_name': details['participant_name'],
+                   'notes': details['notes'],
+                   'environment_sampled': details['environment_sampled'],
+                   'refunded': details['refunded'] or 'N',
+                   'withdrawn': details['withdrawn'] or 'N'}
+
+        old_sourcename = payload['participant_name']
+        payload['participant_name'] = None
+        response = self.post('/ag_edit_barcode/', payload)
+        obs_details = db.getAGBarcodeDetails(barcode)
+        obs_surveys = db.get_barcode_survey(barcode)
+
+        # revert to old participant_name to leave a clean DB
+        payload['participant_name'] = old_sourcename
+        response = self.post('/ag_edit_barcode/', payload)
+
+        self.assertEqual(response.code, 200)
+        self.assertEqual(None, obs_details['participant_name'])
+        self.assertEqual(obs_surveys, None)
+        self.assertTrue(db.get_barcode_survey(barcode) is not None)
 
 
 if __name__ == "__main__":
