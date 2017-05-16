@@ -1894,6 +1894,11 @@ class KniminAccess(object):
                                 barcode])
 
         # update assignment of barcode to source
+        # delete existing assignments for the given barcode
+        sql_remove = """DELETE FROM ag.source_barcodes_surveys
+                        WHERE barcode = %s"""
+        self._con.execute(sql_remove, [barcode])
+
         if participant_name is not None:
             # determine surveys for source (= ag_login_id + participant_name)
             # with this barcode
@@ -1906,13 +1911,6 @@ class KniminAccess(object):
                                                           participant_name])
             if survey_ids is not None:
                 survey_ids = [x[0] for x in survey_ids]
-
-                # delete existing assignments for the given barcode
-                sql_remove = """DELETE FROM ag.source_barcodes_surveys
-                                WHERE barcode = %s"""
-                for survey_id in survey_ids:
-                    self._con.execute(sql_remove, [barcode])
-
                 # create a new association between source and barcode,
                 # i.e. assign barcode to source
                 sql_insert = """INSERT INTO ag.source_barcodes_surveys
