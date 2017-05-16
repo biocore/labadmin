@@ -195,7 +195,7 @@ class TestAGEditBarcodeHandler(TestHandlerBase):
         self.assertEqual(response.code, 200)
         self.assertIsNone(obs_details['participant_name'])
         self.assertIsNone(obs_surveys)
-        self.assertIsNotNoe(db.get_barcode_survey(barcode))
+        self.assertIsNotNone(db.get_barcode_survey(barcode))
 
 
 if __name__ == "__main__":
