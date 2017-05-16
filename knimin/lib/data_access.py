@@ -1893,6 +1893,33 @@ class KniminAccess(object):
                                 notes, refunded, withdrawn,
                                 barcode])
 
+        # update assignment of barcode to source
+        if participant_name is not None:
+            # determine surveys for source (= ag_login_id + participant_name)
+            # with this barcode
+            sql = """SELECT survey_id
+                     FROM ag.ag_kit_barcodes
+                     LEFT JOIN ag.ag_kit USING (ag_kit_id)
+                     LEFT JOIN ag.ag_login_surveys USING (ag_login_id)
+                     WHERE barcode = %s AND participant_name = %s"""
+            survey_ids = self._con.execute_fetchall(sql, [barcode,
+                                                          participant_name])
+            if survey_ids is not None:
+                survey_ids = [x[0] for x in survey_ids]
+
+                # delete existing assignments for the given barcode
+                sql_remove = """DELETE FROM ag.source_barcodes_surveys
+                                WHERE barcode = %s"""
+                for survey_id in survey_ids:
+                    self._con.execute(sql_remove, [barcode])
+
+                # create a new association between source and barcode,
+                # i.e. assign barcode to source
+                sql_insert = """INSERT INTO ag.source_barcodes_surveys
+                                (survey_id, barcode) VALUES (%s, %s)"""
+                for survey_id in survey_ids:
+                    self._con.execute(sql_insert, [survey_id, barcode])
+
     def AGGetBarcodeMetadata(self, barcode):
         results = self._con.execute_proc_return_cursor(
             'ag_get_barcode_metadata', [barcode])
