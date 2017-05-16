@@ -106,5 +106,6 @@ class testAGSearchHandler(TestHandlerBase):
         self.assertNotIn('/ag_edit_barcode/?barcode=%s' % barcode_nokit,
                          response.body)
 
+
 if __name__ == '__main__':
     main()
