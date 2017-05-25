@@ -343,6 +343,23 @@ class TestDataAccess(TestCase):
                  (-5, 'Personal_Microbiome', False)]
         self.assertItemsEqual(db.list_ag_surveys([-2, -4]), truth)
 
+    def test_scrubb_pet_freetext(self):
+        # we had the problem that survey question 150 = 'pets_other_freetext'
+        # was exported for pulldown, but it has the potential to carry personal
+        # information.
+
+        # this is a barcode where an answer to this question is stored in DB
+        barcodes = ['000037487']
+
+        # get free text value from DB
+        all_survey_info = db.get_surveys(barcodes)
+        freetextvalue = all_survey_info[1]['000037487']['pets_other_freetext']
+
+        # make sure free text value does NOT show up in pulldown
+        obs_pulldown = db.pulldown(barcodes)[0]
+        for row in obs_pulldown.keys():
+            self.assertNotIn(freetextvalue, obs_pulldown[row])
+
 
 if __name__ == "__main__":
     main()
