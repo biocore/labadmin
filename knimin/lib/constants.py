@@ -233,6 +233,16 @@ md_lookup = {
         'ENV_PACKAGE': 'human-skin',
         'DESCRIPTION': 'American Gut Project Right Hand sample',
         'BODY_SITE': 'UBERON:skin of hand'},
+    'Axilla': {
+        'BODY_PRODUCT': 'UBERON:sebum',
+        'SAMPLE_TYPE': 'Axilla',
+        'SCIENTIFIC_NAME': 'human skin metagenome',
+        'TAXON_ID': '539655',
+        'BODY_HABITAT': 'UBERON:skin',
+        'ENV_MATERIAL': 'sebum',
+        'ENV_PACKAGE': 'human-skin',
+        'DESCRIPTION': 'American Gut Project Right Axilla sample',
+        'BODY_SITE': 'UBERON:skin of axilla'},
     'Torso': {
         'BODY_PRODUCT': 'UBERON:sebum',
         'SAMPLE_TYPE': 'Torso',
