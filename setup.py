@@ -13,6 +13,7 @@ __version__ = "0.1.0-dev"
 
 long_description = """Knight lab admin"""
 
+
 setup(name='Knight lab UI',
       version=__version__,
       long_description=long_description,
@@ -28,6 +29,6 @@ setup(name='Knight lab UI',
       extras_require={'test': ["nose >= 0.10.1", "pep8", "flake8", "mock",
                                "requests-mock"]},
       install_requires=['psycopg2', 'tornado==4.4.2', 'WTForms==2.0.1',
-                        'future', 'bcrypt', 'pillow', 'python-dateutil',
-                        'requests', 'mock', 'pandas', 'six', 'jira']
+                        'future', 'bcrypt', 'pillow<5.0.0', 'python-dateutil',
+                        'requests', 'mock', 'pandas', 'six', 'geopy']
       )

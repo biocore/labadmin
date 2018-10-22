@@ -114,7 +114,7 @@ class AGPulldownDLHandler(BaseHandler):
                                               index_label='sample_name'))
 
         # write out zip file
-        self.add_header('Content-type',  'application/octet-stream')
+        self.add_header('Content-type', 'application/octet-stream')
         self.add_header('Content-Transfer-Encoding', 'binary')
         self.add_header('Accept-Ranges', 'bytes')
         self.add_header('Content-Encoding', 'none')

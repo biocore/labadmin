@@ -157,15 +157,15 @@ def code128_format(data):
     # Data
     while pos < length:
         if charset is CODE128C:
-            if text[pos:pos+2].isdigit() and length - pos > 1:
+            if text[pos:pos + 2].isdigit() and length - pos > 1:
                 # Encode Code C two characters at a time
-                codes.append(int(text[pos:pos+2]))
+                codes.append(int(text[pos:pos + 2]))
                 pos += 2
             else:
                 # Switch to Code B
                 codes.append(charset['CodeB'])
                 charset = CODE128B
-        elif text[pos:pos+4].isdigit() and length - pos >= 4:
+        elif text[pos:pos + 4].isdigit() and length - pos >= 4:
             # Switch to Code C
             codes.append(charset['CodeC'])
             charset = CODE128C
@@ -205,7 +205,7 @@ def code128_image(text, height=100, width=None, thickness=3, quiet_zone=True,
             tmp = "Calculated width %d smaller than provided width %d"
             raise ValueError(tmp % (barcode_width, width))
         else:
-            x = (width - barcode_width)/2
+            x = (width - barcode_width) / 2
 
     # Monochrome Image
     img = Image.new('1', (width, height), 1)
@@ -224,6 +224,6 @@ def code128_image(text, height=100, width=None, thickness=3, quiet_zone=True,
         else:
             font = ImageFont.truetype(font, 20)
         text_width = font.getsize(text)[0]
-        draw.text((x/2-(text_width/2), height-25), text, font=font)
+        draw.text((x / 2 - (text_width / 2), height - 25), text, font=font)
 
     return img

@@ -60,7 +60,7 @@ class AgAddBarcodeKitHandler(TestHandlerBase):
                               'num_barcodes': num_barcodes})
         new_barcodes = self.get_assigned_barcodes(supplied_kit_id)
         self.revert_add_barcode_kit(supplied_kit_id, old_barcodes)
-        self.assertEqual(len(new_barcodes)-num_barcodes, len(old_barcodes))
+        self.assertEqual(len(new_barcodes) - num_barcodes, len(old_barcodes))
         self.assertEqual(response.code, 200)
 
 

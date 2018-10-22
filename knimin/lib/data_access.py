@@ -25,7 +25,7 @@ from tornado.escape import xhtml_escape
 from constants import (md_lookup, month_int_lookup, month_str_lookup,
                        regions_by_state, blanks_values, season_lookup,
                        ebi_remove, env_lookup)
-from geocoder import geocode, Location, GoogleAPILimitExceeded
+from geocoder import geocode, Location
 from string_converter import converter
 
 
@@ -797,14 +797,14 @@ class KniminAccess(object):
                 if responses['HEIGHT_UNITS'] == 'inches' and \
                         isinstance(md[1][barcode]['HEIGHT_CM'], float):
                     md[1][barcode]['HEIGHT_CM'] = \
-                        2.54*md[1][barcode]['HEIGHT_CM']
+                        2.54 * md[1][barcode]['HEIGHT_CM']
                 md[1][barcode]['HEIGHT_UNITS'] = 'centimeters'
 
                 # Correct weight units
                 if responses['WEIGHT_UNITS'] == 'pounds' and \
                         isinstance(md[1][barcode]['WEIGHT_KG'], float):
                     md[1][barcode]['WEIGHT_KG'] = \
-                        md[1][barcode]['WEIGHT_KG']/2.20462
+                        md[1][barcode]['WEIGHT_KG'] / 2.20462
                 md[1][barcode]['WEIGHT_UNITS'] = 'kilograms'
 
                 if all([isinstance(md[1][barcode]['WEIGHT_KG'], float),
@@ -812,7 +812,7 @@ class KniminAccess(object):
                         isinstance(md[1][barcode]['HEIGHT_CM'], float),
                         md[1][barcode]['HEIGHT_CM'] != 0.0]):
                     md[1][barcode]['BMI'] = md[1][barcode]['WEIGHT_KG'] / \
-                        (md[1][barcode]['HEIGHT_CM']/100)**2
+                        (md[1][barcode]['HEIGHT_CM'] / 100)**2
                 else:
                     md[1][barcode]['BMI'] = 'Unspecified'
 
@@ -1632,7 +1632,8 @@ class KniminAccess(object):
         newest = self._con.execute_fetchone(sql)[0]
 
         # create new barcodes by padding integers with zeros
-        barcodes = ['%09d' % b for b in range(newest+1, newest+1+num_barcodes)]
+        barcodes = ['%09d' % b for b in range(newest + 1,
+                                              newest + 1 + num_barcodes)]
 
         barcode_insert = """INSERT INTO barcode (barcode, obsolete)
                             VALUES (%s, 'N')"""
@@ -2041,9 +2042,6 @@ class KniminAccess(object):
                 # empty string to indicate geocode was successful
                 sql_args.append([info.lat, info.long, info.elev,
                                  '', ag_login_id])
-            except GoogleAPILimitExceeded:
-                # limit exceeded so no use trying to keep geocoding
-                break
             except:
                 # Catch ANY other error and set to could not geocode
                 sql_args.append([None, None, None, 'y', ag_login_id])
@@ -2122,13 +2120,12 @@ class KniminAccess(object):
                 WHERE survey_question_id=107 AND response='Male'"""),
             ('Total female participants',
              """SELECT count(*) FROM ag.survey_answers
-                WHERE survey_question_id=107 AND response='Female'""")
-            ]
+                WHERE survey_question_id=107 AND response='Female'""")]
         stats = []
         for label, sql in stats_list:
             res = self._con.execute_fetchone(sql)[0]
             if type(res) == timedelta:
-                res = str(res.days/365) + " years"
+                res = str(res.days / 365) + " years"
             stats.append((label, res))
         return stats
 

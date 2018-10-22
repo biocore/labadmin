@@ -20,7 +20,7 @@ class AGNewKitDLHandler(BaseHandler):
         kit_zip.append('kit_printouts.txt', get_printout_data(kitinfo)).append(
             'kit_table.txt', '\n'.join(table))
         # write out zip file
-        self.add_header('Content-type',  'application/octet-stream')
+        self.add_header('Content-type', 'application/octet-stream')
         self.add_header('Content-Transfer-Encoding', 'binary')
         self.add_header('Accept-Ranges', 'bytes')
         self.add_header('Content-Encoding', 'none')

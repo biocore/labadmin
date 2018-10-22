@@ -19,7 +19,7 @@ class AGEditAccessHandler(BaseHandler):
         users = db.get_users()
 
         self.render('edit_user.html', all_levels=all_levels,
-                    user_levels=user_levels, users=users, user=user,  msg='')
+                    user_levels=user_levels, users=users, user=user, msg='')
 
     @authenticated
     def post(self):

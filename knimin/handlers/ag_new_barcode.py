@@ -14,7 +14,7 @@ class AGBarcodePrintoutHandler(BaseHandler):
     def post(self):
         barcodes = self.get_argument('barcodes').split(",")
         pdf = build_barcodes_pdf(barcodes)
-        self.add_header('Content-type',  'application/pdf')
+        self.add_header('Content-type', 'application/pdf')
         self.add_header('Content-Transfer-Encoding', 'binary')
         self.add_header('Accept-Ranges', 'bytes')
         self.add_header('Content-Encoding', 'none')
@@ -32,7 +32,7 @@ class AGBarcodeAssignedHandler(BaseHandler):
         projects = self.get_arguments('projects')
         text = "".join(["%s\t%s\n" % (b, ",".join(projects))
                         for b in barcodes])
-        self.add_header('Content-type',  'plain/text')
+        self.add_header('Content-type', 'plain/text')
         self.add_header('Content-Transfer-Encoding', 'binary')
         self.add_header('Accept-Ranges', 'bytes')
         self.add_header('Content-Encoding', 'none')
@@ -51,7 +51,7 @@ class AGNewBarcodeHandler(BaseHandler):
         remaining = len(db.get_unassigned_barcodes())
         self.render("ag_new_barcode.html", currentuser=self.current_user,
                     projects=project_names, barcodes=[], remaining=remaining,
-                    msg="", newbc=[],  assignedbc=[], assign_projects="")
+                    msg="", newbc=[], assignedbc=[], assign_projects="")
 
     @authenticated
     def post(self):

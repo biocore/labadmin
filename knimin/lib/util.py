@@ -109,7 +109,7 @@ The American Gut Project
             text.append("Sample Barcodes:\t%s" % ', '.join(barcodes[:5]))
             for i in range(len(barcodes))[5::5]:
                 padding_lines -= 1
-                text.append("\t\t\t%s" % ', '.join(barcodes[i:i+5]))
+                text.append("\t\t\t%s" % ', '.join(barcodes[i:i + 5]))
         else:
             text.append("Sample Barcodes:\t%s" % ', '.join(barcodes))
 
@@ -188,14 +188,14 @@ def make_valid_kit_ids(num_ids, obs_kit_ids, kit_id_length=5, tag=None):
 def make_passwd(passwd_length=8):
     """Generate a new password
     """
-    x = ''.join([choice(KIT_PASSWD) for i in range(passwd_length-1)])
+    x = ''.join([choice(KIT_PASSWD) for i in range(passwd_length - 1)])
     return choice(KIT_PASSWD_NOZEROS) + x
 
 
 def make_verification_code(vercode_length=5):
     """Generate a verification code
     """
-    x = ''.join([choice(KIT_VERCODE) for i in range(vercode_length-1)])
+    x = ''.join([choice(KIT_VERCODE) for i in range(vercode_length - 1)])
     return choice(KIT_VERCODE_NOZEROS) + x
 
 

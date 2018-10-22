@@ -1,92 +1,49 @@
 from collections import namedtuple
-from json import loads
 import requests
-from time import sleep
+from geopy.geocoders import Nominatim
 
 
-class GoogleAPILimitExceeded(Exception):
-    pass
-
-
-class GoogleAPIRequestDenied(Exception):
-    pass
-
-
-class GoogleAPIInvalidRequest(Exception):
-    pass
-
-
+geolocator = Nominatim(user_agent='biocore/labadmin')
 Location = namedtuple('Location', ['input', 'lat', 'long', 'elev', 'city',
                       'state', 'postcode', 'country'])
 
 
-def _call_wrapper(url):  # noqa
-    """Encapsulate all checks for API calls"""
-    # allow 4 retries do we sleep longer than a second if all loops happen
-    stat_err_count = 0
-    for retry in range(4):
-        req = requests.get(url)
-        if req.status_code != 200:
-            stat_err_count += 1
-            if stat_err_count == 3:
-                # 3 errors seen so not a fluke, raise error
-                raise IOError('Error %d on request: %s\n%s' %
-                              (req.status_code, url, req.content))
-            continue
+def elevation(lat, lng):
+    """Attempt to determine the elevation using open-elevation
 
-        geo = loads(req.content)
-        if geo['status'] == "OK":
-            break
-        elif geo['status'] == "OVER_QUERY_LIMIT":
-            # sleep in case we're over the 5 requests/sec limit
-            sleep(0.3)
-        elif geo['status'] == "ZERO_RESULTS":
-            return {}
-        elif geo['status'] == "REQUEST_DENIED":
-            raise GoogleAPIRequestDenied()
-        elif geo['status'] == "INVALID_REQUEST":
-            raise GoogleAPIInvalidRequest(url)
+    geopy unfortunately does not provide this service
+    """
+    elev_url = "https://api.open-elevation.com/api/v1/lookup?locations=%f,%f"
+    req = requests.get(elev_url % (lat, lng),
+                       headers={'User-Agent': 'biocore/labadmin'})
 
-    if geo['status'] == "OVER_QUERY_LIMIT":
-        raise GoogleAPILimitExceeded("Exceeded max calls per day")
-    if geo['status'] == "UNKNOWN_ERROR":
-        raise IOError("Unknown server error in Google API: %s" %
-                      req.content)
-    return geo['results']
+    if req.ok:
+        payload = req.json()
+        results = payload['results']
+        result = results[0]
+        return result['elevation']
+    else:
+        return None
 
 
 def geocode(address):
-    geo_url = 'https://maps.googleapis.com' + \
-        '/maps/api/geocode/json?address=%s'
-    elev_url = 'https://maps.googleapis.com' + \
-        '/maps/api/elevation/json?locations=%s'
+    location = geolocator.geocode(address, addressdetails=True,
+                                  timeout=30, language='en')
 
-    geo = _call_wrapper(geo_url % address)
-    if not geo:
+    if location is None:
         return Location(address, None, None, None, None, None, None, None)
-    # Get the actual lat and long readings
-    geo = geo[0]
-    lat = float(geo['geometry']['location']['lat'])
-    lng = float(geo['geometry']['location']['lng'])
 
-    # loop over the pulled out data
-    country = None
-    city = None
-    state = None
-    postcode = None
-    for geo_dict in geo['address_components']:
-        if not geo_dict['types']:
-            continue
-        geotype = geo_dict['types'][0]
-        if geotype == 'locality' or geotype == "postal_town":
-            city = geo_dict['long_name']
-        elif geotype == 'administrative_area_level_1':
-            state = geo_dict['short_name']
-        elif geotype == "country":
-            country = geo_dict['long_name']
-        elif geotype == "postal_code" or geotype == "postal_code_prefix":
-            postcode = geo_dict['long_name']
-    geo2 = _call_wrapper(elev_url % "%f,%f" % (lat, lng))
-    elev = float(geo2[0]['elevation'])
+    if 'address' not in location.raw:
+        return Location(address, None, None, None, None, None, None, None)
+
+    addressdetails = location.raw['address']
+    country = addressdetails.get('country')
+    city = addressdetails.get('city')
+    state = addressdetails.get('state')
+    postcode = addressdetails.get('postcode')
+
+    lat = location.latitude
+    lng = location.longitude
+    elev = elevation(lat, lng)
 
     return Location(address, lat, lng, elev, city, state, postcode, country)

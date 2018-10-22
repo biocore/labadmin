@@ -62,7 +62,6 @@ class KniminConfig(object):
         self._get_postgres(config)
         self._get_tornado(config)
         self._get_email(config)
-        self._get_jira(config)
 
     def _get_main(self, config):
         """Get the configuration of the main section"""
@@ -89,12 +88,6 @@ class KniminConfig(object):
         self.smtp_port = config.getint('email', 'PORT')
         self.smtp_user = config.get('email', 'USERNAME')
         self.smtp_password = config.get('email', 'PASSWORD')
-
-    def _get_jira(self, config):
-        self.jira_host = config.get('jira', 'HOST')
-        self.jira_user = config.get('jira', 'USERNAME')
-        self.jira_password = config.get('jira', 'PASSWORD')
-        self.jira_passkey = config.get('jira', 'PASSKEY')
 
 
 config = KniminConfig()
