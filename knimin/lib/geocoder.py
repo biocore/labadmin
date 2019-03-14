@@ -14,8 +14,13 @@ def elevation(lat, lng):
     geopy unfortunately does not provide this service
     """
     elev_url = "https://api.open-elevation.com/api/v1/lookup?locations=%f,%f"
-    req = requests.get(elev_url % (lat, lng),
-                       headers={'User-Agent': 'biocore/labadmin'})
+
+    try:
+        req = requests.get(elev_url % (lat, lng),
+                           headers={'User-Agent': 'biocore/labadmin'})
+    except requests.ConnectionError:
+        # https://github.com/kennethreitz/requests/issues/2364
+        return None
 
     if req.ok:
         payload = req.json()
@@ -44,6 +49,7 @@ def geocode(address):
 
     lat = location.latitude
     lng = location.longitude
-    elev = elevation(lat, lng)
+    # elev = elevation(lat, lng)
+    elev = None
 
     return Location(address, lat, lng, elev, city, state, postcode, country)

@@ -48,7 +48,7 @@ class AGEditBarcodeHandler(BaseHandler):
                         sites_sampled=None, details=None,
                         environments_sampled=None,
                         participants=[], currentuser=self.current_user)
-        except:
+        except:  # noqa
             self.render("ag_edit_barcode.html", response='Bad', barcode=None,
                         sites_sampled=None, details=None,
                         environments_sampled=None,

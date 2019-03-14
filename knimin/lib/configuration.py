@@ -62,6 +62,7 @@ class KniminConfig(object):
         self._get_postgres(config)
         self._get_tornado(config)
         self._get_email(config)
+        self._get_vioscreen(config)
 
     def _get_main(self, config):
         """Get the configuration of the main section"""
@@ -88,6 +89,16 @@ class KniminConfig(object):
         self.smtp_port = config.getint('email', 'PORT')
         self.smtp_user = config.get('email', 'USERNAME')
         self.smtp_password = config.get('email', 'PASSWORD')
+
+    def _get_vioscreen(self, config):
+        self.vioscreen_user = os.environ.get('VIOSCREEN_USERNAME',
+                                             config.get('vioscreen', 'user'))
+        self.vioscreen_password = os.environ.get('VIOSCREEN_PASSWORD',
+                                                 config.get('vioscreen',
+                                                            'password'))
+        self.vioscreen_regcode = os.environ.get('VIOSCREEN_REGISTRATION',
+                                                config.get('vioscreen',
+                                                           'registration'))
 
 
 config = KniminConfig()

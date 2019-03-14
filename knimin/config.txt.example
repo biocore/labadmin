@@ -29,3 +29,8 @@ HOST = http://127.0.0.1:2990/jira
 USERNAME = admin
 PASSWORD = admin
 PASSKEY =
+
+[vioscreen]
+USER = test
+PASSWORD = test
+REGISTRATION = test

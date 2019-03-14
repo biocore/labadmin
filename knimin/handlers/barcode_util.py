@@ -80,7 +80,7 @@ class BarcodeUtilHelper(object):
                              login_email)
                 try:
                     send_email(body_message, subject, login_email, html=True)
-                except:
+                except:  # noqa
                     email_msg = ("Email sending to (%s) failed (barcode: %s)!"
                                  "<br/>" % (login_email, barcode))
         sample_issue = self.get_argument('sample_issue', [])
@@ -96,7 +96,7 @@ class BarcodeUtilHelper(object):
         try:
             db.updateAKB(barcode, moldy, overloaded, other, other_text,
                          sent_date)
-        except:
+        except:  # noqa
             ag_update_msg = ("Barcode %s AG update failed!!!" % barcode)
 
         return email_msg, ag_update_msg
@@ -217,11 +217,11 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
             barcode_details['obsolete'] = 'N'
         div_id = message = ""
         if (barcode_details['obsolete'] == "Y"):
-                # the barcode is obsolete
-                div_id = "obsolete"
-                # TODO: Stefan: why is that set here, as far as I see, this
-                # message will in all cases be overwritten!
-                message = "Barcode is Obsolete"
+            # the barcode is obsolete
+            div_id = "obsolete"
+            # TODO: Stefan: why is that set here, as far as I see, this
+            # message will in all cases be overwritten!
+            message = "Barcode is Obsolete"
         # get project info for div
         ag_details = []
         if parent_project == 'American Gut':
@@ -273,7 +273,7 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
                                    sequencing_status,
                                    obsolete_status)
             gen_update_msg = "Barcode %s general details updated" % barcode
-        except:
+        except:  # noqa
             gen_update_msg = "Barcode %s general details failed" % barcode
 
         email_msg = ag_update_msg = project_msg = None
@@ -288,7 +288,7 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
                 rem_projects = exisiting_proj.difference(projects)
                 db.setBarcodeProjects(barcode, add_projects, rem_projects)
                 project_msg = "Project successfully changed"
-            except:
+            except:  # noqa
                 project_msg = "Error changing project"
 
             new_proj, parent_project = db.getBarcodeProjType(barcode)

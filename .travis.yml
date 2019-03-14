@@ -1,44 +1,40 @@
-# we need trusty so apt/oracle-java8-set-default works
 dist: trusty
 language: python
 python:
-  - "2.7"
+- '2.7'
 sudo: false
 services:
-  - redis-server
+- redis-server
 addons:
-  postgresql: "9.3"
+  postgresql: '9.5'
   apt:
-      packages:
-          - ghostscript
-env:
-    global:
-        - secure: "u6ItGz+hkL+G+aWtY336LKOzHaaRcDtFtAoAZa20EGqzR1QrlKQTcnjDLov2eBL1zAf93cdCPzNTrtIKpOj1cGeedVUGJvgn66tjGVMwMUXmcWaxAcMX/Z7iQXr7lVhDG3ZymVHJQkGwmpI2obbkWpQgXSKoHwITK206L3Zp4mXxJtSL1mLm9UA8EzdZLGV2dKjLIT21qwMOy5GeMKuR7+v2LG7e9mzfCu5bpH3U6h4S7/NJh/E61OWVfaeUu/q9ZKT27JTEGts34egsNx5O8oSpCk69/Kwd621iwJcQL/rXlE5iLAH+kctvLszVJXn83wlqZzXkX6It23ljeUiFx8KA5q01Hg5EFL9WVQcy3vm60JEnS4UfkP7IHL0zNq3pnVxLy8+2wqwcOsrfk3Zd5k/4Qu9x88ADgJR3+VYLRmyPD6KYVZhSsoDTBzfJ9M6lmQREYpvpX2Q4UvZ6PZc0dyRnlwqhozFx1825gx1bxxHBFkl4ETOg7gIPDXPuuSFWa8D92LgJmO2iOXjDPKuvysF0tQ0rlzbYgzPo8jWXQ11zfkkFG1frxLCXx8sAbs8ZtA/tfFNTEUJ6G7CuWyciuMxwuIFC8y6vj9Za0UXC8zukgJBmP845Ugtbl/dLC7WOcF3leWCo6o2sUSbEs/m2xnvAOUF6UIGzNety9NJa+uY="
+    packages:
+    - ghostscript
 before_install:
-  - redis-server --version
-  - wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
-  - chmod +x miniconda.sh
-  - ./miniconda.sh -b
-  - export PATH=/home/travis/miniconda3/bin:$PATH
-  # Update conda itself
-  - conda update --yes conda
+- redis-server --version
+- sudo mount -o remount,size=25% /var/ramfs
+- wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+- chmod +x miniconda.sh
+- "./miniconda.sh -b"
+- export PATH=/home/travis/miniconda3/bin:$PATH
+- conda update --yes conda
 install:
-  - travis_retry conda create --yes -n labadmin python=2.7 pip
-  - source activate labadmin
-  - pip install -U pip
-  - pip install -U click natsort coverage coveralls
-  - travis_retry pip install -U .[test]
+- travis_retry conda create --yes -n labadmin python=2.7 pip
+- source activate labadmin
+- pip install -U pip
+- pip install -U click natsort coverage coveralls
+- travis_retry pip install -U .[test]
 script:
-  - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
-  - cd /home/travis/build/biocore/american-gut-web
-  - export AG_CONFIG=`pwd`/ag_config.txt.example
-  - export PYTHONPATH=/home/travis/build/biocore/american-gut-web:$PYTHONPATH
-  - ./scripts/ag make test
-  - export PYTHONPATH=
-  - $PYTHONPATH
-  - cd $TRAVIS_BUILD_DIR
-  - cp $TRAVIS_BUILD_DIR/knimin/config.txt.example $TRAVIS_BUILD_DIR/knimin/config.txt
-  - nosetests --verbose --with-doctest --with-coverage --cover-package=knimin
-  - flake8 --ignore E722 knimin setup.py scripts
+- git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
+- cd /home/travis/build/biocore/american-gut-web
+- export AG_CONFIG=`pwd`/ag_config.txt.example
+- export PYTHONPATH=/home/travis/build/biocore/american-gut-web:$PYTHONPATH
+- "./scripts/ag make test"
+- 
+- cd $TRAVIS_BUILD_DIR
+- cp $TRAVIS_BUILD_DIR/knimin/config.txt.example $TRAVIS_BUILD_DIR/knimin/config.txt
+- nosetests --verbose --with-doctest --with-coverage --cover-package=knimin
+- flake8 --ignore E722 knimin setup.py scripts
 after_success:
-  - coveralls
+- coveralls
+- echo "foo"

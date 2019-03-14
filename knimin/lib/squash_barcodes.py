@@ -106,7 +106,7 @@ def build_barcodes_pdf(barcodes):
                             for i in range(len(blanks))])
 
     # magically squash all the pages
-    cmd = cmd_split('gs -r150 -q -sPAPERSIZE=a4 -dNOPAUSE -dBATCH' +
+    cmd = cmd_split('gs -r150 -q -sPAPERSIZE=a4 -dNOPAUSE -dBATCH' +  # noqa
                     ' -sDEVICE=pdfwrite -sOutputFile=- %s' % match_pages)
     p = Popen(cmd, stdout=PIPE)
     output, _ = p.communicate()

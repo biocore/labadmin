@@ -35,6 +35,6 @@ class AGEditParticipantHandler(BaseHandler):
             self.render("ag_edit_participant.html", response='Good',
                         login=None,
                         currentuser=self.current_user)
-        except:
+        except:  # noqa
             self.render("ag_edit_participant.html", response='Bad',
                         login=None, currentuser=self.current_user)

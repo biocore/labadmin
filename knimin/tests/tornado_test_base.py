@@ -36,8 +36,8 @@ class TestHandlerBase(AsyncHTTPTestCase, LogTrapTestCase):
 
     def get(self, url, data=None, headers=None):
         if isinstance(data, dict):
-                data = urlencode(data)
-                url = url + '?' + data
+            data = urlencode(data)
+            url = url + '?' + data
         return self.fetch(url, method='GET', headers=headers)
 
     def post(self, url, data, headers=None):

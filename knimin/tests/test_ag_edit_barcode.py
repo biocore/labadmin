@@ -150,9 +150,8 @@ class TestAGEditBarcodeHandler(TestHandlerBase):
 
         sourcenames = [x[0] for x in sourcenames]
         # changing source for the barcode
-        old_sourcename = payload['participant_name']
-        new_sourcename = list(set(sourcenames) -
-                              set(old_sourcename))[0]
+        old_sourcename = payload['participant_name'].decode('utf-8')
+        new_sourcename = list(set(sourcenames) - set(old_sourcename))[0]
         payload['participant_name'] = new_sourcename
 
         response = self.post('/ag_edit_barcode/', payload)

@@ -71,6 +71,10 @@ SSL = False
 USERNAME =
 PASSWORD =
 
+[vioscreen]
+USER = test
+PASSWORD = test
+REGISTRATION = test
 """
 
 
