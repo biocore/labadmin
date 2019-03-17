@@ -12,7 +12,7 @@ from knimin.handlers.base import MainHandler, NoPageHandler
 from knimin.handlers.auth_handlers import AuthLoginHandler, AuthLogoutHandler
 from knimin.handlers.ag_search import AGSearchHandler
 from knimin.handlers.logged_in_index import LoggedInIndexHandler
-from knimin.handlers.barcode_util import BarcodeUtilHandler
+from knimin.handlers.barcode_util import BarcodeUtilHandler, PushQiitaHandler
 from knimin.handlers.ag_stats import AGStatsHandler
 from knimin.handlers.ag_edit_participant import AGEditParticipantHandler
 from knimin.handlers.ag_new_kit import AGNewKitHandler, AGNewKitDLHandler
@@ -53,6 +53,7 @@ class WebApplication(Application):
             (r"/logged_in_index/", LoggedInIndexHandler),
             (r"/ag_search/", AGSearchHandler),
             (r"/barcode_util/", BarcodeUtilHandler),
+            (r"/notify-qiita/", PushQiitaHandler),
             (r"/ag_add_barcode_kit/", AGAddBarcodeKitHandler),
             (r"/ag_stats/", AGStatsHandler),
             (r"/ag_edit_participant/", AGEditParticipantHandler),

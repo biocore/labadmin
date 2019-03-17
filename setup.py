@@ -30,5 +30,6 @@ setup(name='Knight lab UI',
                                "requests-mock"]},
       install_requires=['psycopg2', 'tornado==4.4.2', 'WTForms==2.0.1',
                         'future', 'bcrypt', 'pillow<5.0.0', 'python-dateutil',
-                        'requests', 'mock', 'pandas', 'six', 'geopy']
+                        'requests', 'mock', 'pandas', 'six', 'geopy',
+                        'futures']
       )

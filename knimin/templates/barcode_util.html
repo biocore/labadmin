@@ -15,6 +15,51 @@
       }
     });
   });
+
+function update_qiita_buffer(data, status) {
+    // update the buffer sending status and the buffer level
+    document.getElementById("qiita_buffer_status").innerHTML = "Send status: " + data['status'];
+    document.getElementById("qiita_buffer_level").innerHTML = "Samples queued: " + data['barcodes'].length;
+    console.log(status);
+}
+
+function immediate_update_qiita_buffer() {
+    // immediate update of buffer and status
+    $.get("/notify-qiita/", function(data, status) {
+        data = JSON.parse(data);
+        update_qiita_buffer(data, status);
+	} );
+}
+
+function submit_qiita_buffer() {
+    // issue a request to the knimin server to push data to qiita
+    $.post("/notify-qiita/", function(data, status) {
+        console.log("POST /notify-qiita/");
+        console.log(data);
+        console.log(status);
+	} );
+    immediate_update_qiita_buffer();
+}
+
+(function poll() {
+    // poll for buffer and submission status on a 5 second interval
+    setTimeout(function() {
+        $.ajax({
+            url: "/notify-qiita/",
+            type: "GET",
+            success: function(data, status) {
+                console.log("polling");
+                update_qiita_buffer(data, status);
+            },
+            dataType: "json",
+            complete: poll,
+            timeout: 5000
+        })
+    }, 5000);
+})();
+
+immediate_update_qiita_buffer();
+
 </script>
 {% end %}
 
@@ -42,7 +87,16 @@
         document.check_barcode.barcode.focus()
     </script>
 </form>
-<div>
+</div>
+
+<div id="qiita_buffer_window">
+	<h3 id="qiita_buffer_level">Samples queued: refreshing...</h3>
+    <h3 id="qiita_buffer_status">Send status: refreshing...</h3>
+	<h3 class="qiita_buffer_warning_text">
+		Note: queued samples will be inaccessible to LabControl <br>
+	</h3>
+	<button onClick="submit_qiita_buffer()">Send to Qiita</button>
+</div>
 
 {% if barcode is not None%}
 <div id="{{div_and_msg[0]}}" class="verification_color">

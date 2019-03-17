@@ -22,7 +22,8 @@ install:
 - travis_retry conda create --yes -n labadmin python=2.7 pip
 - source activate labadmin
 - pip install -U pip
-- pip install -U click natsort coverage coveralls
+- pip install -U click natsort coverage coveralls futures
+- pip install git+https://github.com/qiita-spots/qiita_client
 - travis_retry pip install -U .[test]
 script:
 - git clone https://github.com/biocore/american-gut-web.git ~/build/biocore/american-gut-web
@@ -37,4 +38,3 @@ script:
 - flake8 --ignore E722 knimin setup.py scripts
 after_success:
 - coveralls
-- echo "foo"

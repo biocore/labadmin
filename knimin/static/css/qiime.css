@@ -45,6 +45,21 @@ html, body {
 	width: 200px;
 }
 
+#qiita_buffer_window {
+    position: fixed;
+    top: 8px;
+    right: 8px;
+	margin: 8px;
+	background: #fff;
+	opacity: 0.8;
+	padding: 8px;
+	border: 2px black solid;
+	border-radius: 5px;
+	font: 15px normal Arial, Helvetica, sans-serif;
+    word-wrap: break-word;
+	width: 300px;
+}
+
 .login {
 	float:left;
 	margin: 8px;
@@ -291,6 +306,11 @@ div.verification_text_wrapper {
 }
 
 h2.verification_text{
+	width: 100%;
+}
+
+h3.qiita_buffer_warning_text{
+    font-style: italic;
 	width: 100%;
 }
 

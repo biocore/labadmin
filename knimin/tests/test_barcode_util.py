@@ -5,11 +5,79 @@ from string import ascii_letters
 from datetime import date, time
 import os
 
-from tornado.escape import url_escape, xhtml_escape
+from tornado.escape import url_escape, xhtml_escape, json_decode
 
 from knimin import db
 from knimin.tests.tornado_test_base import TestHandlerBase
-from knimin.handlers.barcode_util import BarcodeUtilHelper
+from knimin.handlers.barcode_util import BarcodeUtilHelper, get_qiita_client
+
+
+class TestQiitaPush(TestHandlerBase):
+    def setUp(self):
+        db._con.execute('DELETE from barcodes.project_qiita_buffer')
+        db.set_send_qiita_buffer_status('Idle')
+        super(TestQiitaPush, self).setUp()
+
+    def test_get_qiita_client(self):
+        obs = get_qiita_client()
+        self.assertTrue(hasattr(obs, 'get'))
+        self.assertTrue(hasattr(obs, 'http_patch'))
+
+    def test_get_has_barcodes(self):
+        self.mock_login()
+        db.alter_access_levels('test', [3])
+        db.push_barcode_to_qiita_buffer('000004216')
+        db.push_barcode_to_qiita_buffer('000004215')
+
+        obs = json_decode(self.get(r"/notify-qiita/").body)
+        exp = {'status': 'Idle', 'barcodes': ['000004216', '000004215']}
+        self.assertEqual(sorted(obs.keys()), sorted(exp.keys()))
+        self.assertEqual(obs['status'], exp['status'])
+        self.assertEqual(sorted(obs['barcodes']), sorted(exp['barcodes']))
+
+    def test_get_no_barcodes(self):
+        self.mock_login()
+        db.alter_access_levels('test', [3])
+
+        obs = json_decode(self.get(r"/notify-qiita/").body)
+        exp = {'status': 'Idle', 'barcodes': []}
+        self.assertEqual(sorted(obs.keys()), sorted(exp.keys()))
+        self.assertEqual(obs['status'], exp['status'])
+        self.assertEqual(sorted(obs['barcodes']), sorted(exp['barcodes']))
+
+    def test_post_has_barcodes(self):
+        self.mock_login()
+        db.alter_access_levels('test', [3])
+        db.push_barcode_to_qiita_buffer('000004216')
+        db.push_barcode_to_qiita_buffer('000004215')
+
+        exp = db._con.execute_fetchall("""SELECT barcode
+                                          FROM barcodes.project_qiita_buffer
+                                          WHERE pushed_to_qiita='N'""")
+        exp = [i[0] for i in exp]
+        self.assertIn('000004216', exp)
+        self.assertIn('000004215', exp)
+        self.post(r"/notify-qiita/", data={'foo': 'bar'})
+
+        obs = db._con.execute_fetchall("""SELECT barcode
+                                          FROM barcodes.project_qiita_buffer
+                                          WHERE pushed_to_qiita='Y'""")
+        obs = [i[0] for i in obs]
+        self.assertIn('000004216', obs)
+        self.assertIn('000004215', obs)
+
+    def test_post_no_barcodes(self):
+        self.mock_login()
+        db.alter_access_levels('test', [3])
+
+        exp = db._con.execute_fetchall("""SELECT barcode
+                                          FROM barcodes.project_qiita_buffer
+                                          WHERE 'N'""")
+        self.post(r"/notify-qiita/", data=None)
+        obs = db._con.execute_fetchall("""SELECT barcode
+                                          FROM barcodes.project_qiita_buffer
+                                          WHERE 'N'""")
+        self.assertEqual(obs, exp)
 
 
 class TestBarcodeUtil(TestHandlerBase):

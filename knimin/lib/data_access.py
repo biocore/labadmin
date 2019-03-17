@@ -1402,6 +1402,60 @@ class KniminAccess(object):
         else:
             return {}
 
+    def push_barcode_to_qiita_buffer(self, barcode):
+        """Adds barcode to the qiita buffer
+
+        Parameters
+        ----------
+        barcode : str
+            The identifier to stage
+        """
+        sql = """SELECT barcode
+                 FROM project_qiita_buffer"""
+        present = {i[0] for i in self._con.execute_fetchall(sql)}
+
+        if barcode in present:
+            return "Barcode in queue or already sent to Qiita"
+
+        else:
+            sql = """INSERT INTO project_qiita_buffer (barcode)
+                     VALUES (%s)"""
+            self._con.execute(sql, [barcode])
+            return "Barcode inserted"
+
+    def get_send_qiita_buffer_status(self):
+        """Obtain the present status of the Qiita submission buffer"""
+        sql = """SELECT state FROM project_qiita_buffer_status"""
+        return self._con.execute_fetchone(sql)[0]
+
+    def set_send_qiita_buffer_status(self, state):
+        """Obtain the present status of the Qiita submission buffer"""
+        sql = """UPDATE project_qiita_buffer_status
+                 SET state = %s
+                 WHERE id = 0"""
+        self._con.execute(sql, [state])
+
+    def get_unsent_barcodes_from_qiita_buffer(self):
+        """Extract the barcodes that have not been sent to Qiita"""
+        sql = """SELECT barcode
+                 FROM project_qiita_buffer
+                 WHERE pushed_to_qiita='N'"""
+        return [i[0] for i in self._con.execute_fetchall(sql)]
+
+    def mark_barcodes_sent_to_qiita(self, barcodes):
+        """Mark the provided barcodes as sent
+
+        Parameters
+        ----------
+        barcodes : list of str
+            The identifiers to mark a successfully sent to qiita
+        """
+        if barcodes:
+            sql = """UPDATE project_qiita_buffer
+                     SET pushed_to_qiita = 'Y'
+                     WHERE barcode IN %s"""
+            self._con.execute(sql, [tuple(barcodes)])
+
     def add_barcodes_to_kit(self, ag_kit_id, num_barcodes=1):
         """Attaches barcodes to an existing american gut kit
 

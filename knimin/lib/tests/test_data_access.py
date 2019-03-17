@@ -24,6 +24,51 @@ class TestDataAccess(TestCase):
         db._clear_table('external_survey_answers', 'ag')
         db._revert_ready(['000023299'])
 
+    def test_push_barcode_to_qiita_buffer(self):
+        db._con.execute('DELETE from barcodes.project_qiita_buffer')
+        db.set_send_qiita_buffer_status('Idle')
+        db.push_barcode_to_qiita_buffer('000004216')
+        db.push_barcode_to_qiita_buffer('000004215')
+        exp = ['000004216', '000004215']
+        obs = db.get_unsent_barcodes_from_qiita_buffer()
+        self.assertEqual(obs, exp)
+
+    def test_get_send_qiita_buffer_status(self):
+        db._con.execute('DELETE from barcodes.project_qiita_buffer')
+        db.set_send_qiita_buffer_status('Idle')
+        exp = 'Idle'
+        obs = db.get_send_qiita_buffer_status()
+        self.assertEqual(obs, exp)
+        db.set_send_qiita_buffer_status('foo')
+        exp = 'foo'
+        obs = db.get_send_qiita_buffer_status()
+        self.assertEqual(obs, exp)
+
+    def test_get_unsent_barcodes_from_qiita_buffer(self):
+        db._con.execute('DELETE from barcodes.project_qiita_buffer')
+        db.set_send_qiita_buffer_status('Idle')
+        db.push_barcode_to_qiita_buffer('000004216')
+        db.push_barcode_to_qiita_buffer('000004215')
+        db._con.execute("""UPDATE barcodes.project_qiita_buffer
+                           SET pushed_to_qiita = 'Y'
+                           WHERE barcode = '000004215'""")
+        obs = db.get_unsent_barcodes_from_qiita_buffer()
+        exp = ['000004216']
+        self.assertEqual(obs, exp)
+
+    def test_set_send_qiita_buffer_status(self):
+        pass  # exercised in test_get_send_qiita_buffer_status
+
+    def test_mark_barcodes_sent_to_qiita(self):
+        db._con.execute('DELETE from barcodes.project_qiita_buffer')
+        db.set_send_qiita_buffer_status('Idle')
+        db.push_barcode_to_qiita_buffer('000004216')
+        db.push_barcode_to_qiita_buffer('000004215')
+        db.mark_barcodes_sent_to_qiita(['000004216'])
+        obs = db.get_unsent_barcodes_from_qiita_buffer()
+        exp = ['000004215']
+        self.assertEqual(obs, exp)
+
     def test_pulldown_third_party(self):
         # Add survey answers
         with open(self.ext_survey_fp, 'rU') as f:

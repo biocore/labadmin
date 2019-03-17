@@ -63,6 +63,7 @@ class KniminConfig(object):
         self._get_tornado(config)
         self._get_email(config)
         self._get_vioscreen(config)
+        self._get_qiita(config)
 
     def _get_main(self, config):
         """Get the configuration of the main section"""
@@ -99,6 +100,14 @@ class KniminConfig(object):
         self.vioscreen_regcode = os.environ.get('VIOSCREEN_REGISTRATION',
                                                 config.get('vioscreen',
                                                            'registration'))
+
+    def _get_qiita(self, config):
+        self.qiita_host = config.get('qiita', 'QIITA_HOST')
+        self.qiita_port = config.get('qiita', 'QIITA_PORT')
+        self.qiita_client_id = config.get('qiita', 'QIITA_CLIENT_ID')
+        self.qiita_client_secret = config.get('qiita', 'QIITA_CLIENT_SECRET')
+        self.qiita_certificate = config.get('qiita', 'QIITA_CERT')
+        self.qiita_study_id = config.get('qiita', 'QIITA_STUDY_ID')
 
 
 config = KniminConfig()

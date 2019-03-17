@@ -75,6 +75,15 @@ PASSWORD =
 USER = test
 PASSWORD = test
 REGISTRATION = test
+
+[qiita]
+QIITA_HOST = test
+QIITA_PORT = 21174
+QIITA_CLIENT_ID = test
+QIITA_CLIENT_SECRET = test
+QIITA_CERT = test
+QIITA_STUDY_ID = 1
+
 """
 
 

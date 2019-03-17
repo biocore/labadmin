@@ -1,12 +1,42 @@
 #!/usr/bin/env python
 from tornado.web import authenticated
+from tornado.escape import json_encode
+from tornado import gen, concurrent
 from knimin.handlers.base import BaseHandler
 from datetime import datetime
+import requests
+import functools
+from qiita_client import QiitaClient
 
 from knimin import db
 from knimin.lib.constants import survey_type
 from knimin.lib.mail import send_email
 from knimin.handlers.access_decorators import set_access
+from knimin.lib.configuration import config
+
+
+def get_qiita_client():
+    if config.debug:
+        class _mock:
+            def get(self, *args, **kwargs):
+                return {'categories': ['a', 'b', 'c']}
+
+            def http_patch(self, *args, **kwargs):
+                return 'okay'
+
+        qclient = _mock()
+    else:
+        # interface for making HTTP requests against Qiita
+        qclient = QiitaClient(':'.join([config.qiita_host, config.qiita_port]),
+                              config.qiita_client_id,
+                              config.qiita_client_secret,
+                              config.qiita_certificate)
+
+        # we are monkeypatching to use qclient's internal machinery
+        # and to fix the broken HTTP patch
+        qclient.http_patch = functools.partial(qclient._request_retry,
+                                               requests.patch)
+    return qclient
 
 
 class BarcodeUtilHelper(object):
@@ -172,8 +202,66 @@ FAQ section for when you can expect results.<br/>
         return subject, body_message
 
 
+def align_with_qiita_categories(samples, categories):
+    # obviously should instead align to the actual sample metadata...
+    aligned = {}
+    for s in samples:
+        aligned[s] = {c: 'LabControl test' for c in categories}
+    return aligned
+
+
+@set_access(['Scan Barcodes'])
+class PushQiitaHandler(BaseHandler):
+    executor = concurrent.futures.ThreadPoolExecutor(5)
+    study_id = config.qiita_study_id
+    qclient = get_qiita_client()
+
+    @concurrent.run_on_executor
+    def _push_to_qiita(self, study_id, samples):
+        # TODO: add a mutex or block to ensure a single call process at a time
+        cats = self.qclient.get('/api/v1/study/%s/samples/info' % study_id)
+        cats = cats['categories']
+
+        samples = align_with_qiita_categories(samples, cats)
+        data = json_encode(samples)
+
+        return self.qclient.http_patch('/api/v1/study/%s/samples' % study_id,
+                                       data=data)
+
+    @authenticated
+    def get(self):
+        barcodes = db.get_unsent_barcodes_from_qiita_buffer()
+        status = db.get_send_qiita_buffer_status()
+        dat = {'status': status, "barcodes": barcodes}
+        self.write(json_encode(dat))
+        self.finish()
+
+    @authenticated
+    @gen.coroutine
+    def post(self):
+        barcodes = db.get_unsent_barcodes_from_qiita_buffer()
+        if not barcodes:
+            return
+
+        # certainly not a perfect mutex, however tornado is single threaded
+        status = db.get_send_qiita_buffer_status()
+        if status in ['Failed!', 'Pushing...']:
+            return
+
+        db.set_send_qiita_buffer_status("Pushing...")
+
+        try:
+            yield self._push_to_qiita(self.study_id, barcodes)
+        except:  # noqa
+            db.set_send_qiita_buffer_status("Failed!")
+        else:
+            db.mark_barcodes_sent_to_qiita(barcodes)
+            db.set_send_qiita_buffer_status("Idle")
+
+
 @set_access(['Scan Barcodes'])
 class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
+
     @authenticated
     def get(self):
         barcode = self.get_argument('barcode', None)
@@ -293,9 +381,12 @@ class BarcodeUtilHandler(BaseHandler, BarcodeUtilHelper):
 
             new_proj, parent_project = db.getBarcodeProjType(barcode)
         if parent_project == 'American Gut':
+            db.push_barcode_to_qiita_buffer(barcode)
+
             email_msg, ag_update_msg = self.update_ag_barcode(
                 barcode, login_user, login_email, email_type, sent_date,
                 send_mail, sample_date, sample_time, other_text)
+
         self.render("barcode_util.html", div_and_msg=None,
                     barcode_projects=[],
                     parent_project=None,
