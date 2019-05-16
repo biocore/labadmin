@@ -973,7 +973,7 @@ class KniminAccess(object):
                 if isinstance(e, SSLError):
                     errors[barcode] = repr(e)
                 else:
-                    errors[barcode] = str(e.message.encode('utf-8'))
+                    errors[barcode] = str(e.message).encode('utf-8')
                 del md[1][barcode]
 
         return md, errors
