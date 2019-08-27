@@ -4,12 +4,15 @@ from random import choice
 from string import ascii_letters
 from datetime import date, time
 import os
+import StringIO
 
+import pandas as pd
 from tornado.escape import url_escape, xhtml_escape, json_decode
 
 from knimin import db
 from knimin.tests.tornado_test_base import TestHandlerBase
-from knimin.handlers.barcode_util import BarcodeUtilHelper, get_qiita_client
+from knimin.handlers.barcode_util import BarcodeUtilHelper, get_qiita_client, \
+    align_with_qiita_categories, AG_DEBUG_OBSERVED_CATEGORIES
 
 
 class TestQiitaPush(TestHandlerBase):
@@ -59,12 +62,64 @@ class TestQiitaPush(TestHandlerBase):
         self.assertIn('000004215', exp)
         self.post(r"/notify-qiita/", data={'foo': 'bar'})
 
+        # cannot find another way to force the async call to
+        # actually behave as synchronous here.
+        try:
+            self.wait()
+        except AssertionError:
+            pass
+
         obs = db._con.execute_fetchall("""SELECT barcode
                                           FROM barcodes.project_qiita_buffer
                                           WHERE pushed_to_qiita='Y'""")
         obs = [i[0] for i in obs]
         self.assertIn('000004216', obs)
         self.assertIn('000004215', obs)
+
+    def test_align_with_qiita_categories(self):
+        samples = ['000004216', '000017291', '000004215']
+
+        # apparently the call to pulldown is not idempotent
+        # the first call is != to the second, but the second
+        # is equal to the third.
+        db.pulldown(samples)
+        data = db.pulldown(samples)
+
+        data_as_pd = pd.read_csv(StringIO.StringIO(data[0][1]), sep='\t',
+                                 dtype=str)
+        data_as_pd.set_index('sample_name', inplace=True)
+        data_as_pd.columns = [c.lower() for c in data_as_pd.columns]
+
+        # as of 15august2019, 000017291 does not successfully pulldown. this
+        # sample has an inconsistency in the metadata that triggers a failure
+        # condition. This test SHOULD fail when metadata pulldown is
+        # successfully revisited.
+        self.assertFalse('000017291' in data_as_pd.index)
+        nc = len(data_as_pd.columns)
+        data_as_pd = data_as_pd.append(pd.Series(['pulldown-issue'] * nc,
+                                                 index=data_as_pd.columns,
+                                                 name='000017291'))
+
+        # per a request from Gail
+        data_as_pd.loc['000017291', 'env_package'] = 'Air'
+
+        for c in set(AG_DEBUG_OBSERVED_CATEGORIES) - set(data_as_pd.columns):
+            data_as_pd[c] = 'Missing: Not provided'
+
+        exp = {'000004216': data_as_pd.loc['000004216'].to_dict(),
+               '000017291': data_as_pd.loc['000017291'].to_dict(),
+               '000004215': data_as_pd.loc['000004215'].to_dict()}
+
+        obs = align_with_qiita_categories(samples,
+                                          AG_DEBUG_OBSERVED_CATEGORIES)
+
+        # for an undetermined reason, simply testing equality on the obs
+        # and exp dicts is very time consuming.
+        self.assertEqual(sorted(obs.keys()), sorted(exp.keys()))
+        for k in obs.keys():
+            o_items = sorted(obs[k].items())
+            e_items = sorted(exp[k].items())
+            self.assertEqual(o_items, e_items)
 
     def test_post_no_barcodes(self):
         self.mock_login()

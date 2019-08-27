@@ -71,6 +71,7 @@ class KniminConfig(object):
         self.help_email = config.get('main', 'help_email')
         self.base_data_dir = config.get('main', 'base_data_dir')
         self.base_log_dir = config.get('main', 'BASE_LOG_DIR')
+        self.attempt_geocode = config.getboolean('main', 'ATTEMPT_GEOCODE')
 
     def _get_postgres(self, config):
         """Get the configuration of the postgres section"""

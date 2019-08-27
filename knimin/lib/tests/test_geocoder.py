@@ -1,6 +1,7 @@
 from unittest import TestCase, main
 from knimin.lib.geocoder import Location, geocode
 import random
+from knimin.lib.configuration import config
 import string
 
 
@@ -9,8 +10,12 @@ class TestGeocode(TestCase):
         obs = geocode('9500 Gilman Dr, La Jolla, CA')
         exp = Location('9500 Gilman Dr, La Jolla, CA', 32.8794239,
                        -117.2369135, 105, 'San Diego', 'California',
-                       '92161', 'USA')
+                       '92093', 'USA')
         self.assertEqual(obs.input, exp.input)
+        if not config.attempt_geocode:
+            # if we're not attempting to geocode then skip this
+            return
+
         self.assertAlmostEqual(obs.lat, exp.lat, delta=0.1)
         self.assertAlmostEqual(obs.long, exp.long, delta=0.1)
         # self.assertIsInstance(obs.elev, int)

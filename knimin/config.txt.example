@@ -5,6 +5,7 @@ help_email =
 base_data_dir = ./knimin/tests/data
 # Path to the logging directory
 BASE_LOG_DIR = /tmp
+ATTEMPT_GEOCODE = False
 
 [postgres]
 USER = postgres
@@ -42,3 +43,4 @@ QIITA_CLIENT_ID = test
 QIITA_CLIENT_SECRET = test
 QIITA_CERT = test
 QIITA_STUDY_ID = 1
+

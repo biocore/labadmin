@@ -24,7 +24,7 @@ class ConfigurationTests(TestCase):
 
         # test that expection is raised if not all sections are specified
         config = tempfile.NamedTemporaryFile()
-        config.write(test_config[:100])
+        config.write(test_config[:122])
         config.seek(0)
         config_fp = config.name
         with self.assertRaises(ValueError):
@@ -53,6 +53,7 @@ debug = True
 help_email = help@email.com
 base_data_dir = /some/dir/path
 BASE_LOG_DIR = /tmp
+ATTEMPT_GEOCODE = False
 
 [postgres]
 user = test

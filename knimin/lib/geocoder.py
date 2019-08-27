@@ -1,6 +1,7 @@
 from collections import namedtuple
 import requests
 from geopy.geocoders import Nominatim
+from knimin.lib.configuration import config
 
 
 geolocator = Nominatim(user_agent='biocore/labadmin')
@@ -32,6 +33,9 @@ def elevation(lat, lng):
 
 
 def geocode(address):
+    if not config.attempt_geocode:
+        return Location(address, None, None, None, None, None, None, None)
+
     location = geolocator.geocode(address, addressdetails=True,
                                   timeout=30, language='en')
 

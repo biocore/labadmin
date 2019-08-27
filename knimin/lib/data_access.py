@@ -1107,7 +1107,6 @@ class KniminAccess(object):
         if len(all_survey_info) > 0:
             all_results, errors = self.format_survey_data(all_survey_info,
                                                           external, full)
-
         # Do the pulldown for the environmental samples
         sql = """SELECT barcode, environment_sampled
                  FROM ag.ag_kit_barcodes
